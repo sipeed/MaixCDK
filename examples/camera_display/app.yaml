@@ -1,0 +1,12 @@
+id: camera_display
+name: Camera Display
+name[zh]: 拍照和显示
+version: 1.0.0
+#icon: assets/hello.png
+author: Sipeed Ltd
+desc: Camera and display demo
+desc[zh]: 摄像头和显示器例程
+files:
+  app.yaml: app.yaml
+  # assets: assets
+

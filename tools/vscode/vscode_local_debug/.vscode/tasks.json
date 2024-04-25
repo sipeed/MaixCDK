@@ -1,0 +1,23 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "rebuild",
+            "command": "maixcdk",
+            "args": [
+                "rebuild"
+            ],
+            "options": {
+                "cwd": "${workspaceRoot}/projects/demo1"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ],
+    "version": "2.0.0"
+}

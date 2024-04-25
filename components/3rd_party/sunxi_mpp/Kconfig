@@ -1,0 +1,20 @@
+# SUNXI_MPP version major minor patch
+menu "SUNXI_MPP version"
+config SUNXI_MPP_VERSION_MAJOR
+    int "SUNXI_MPP package major version"
+    default 1
+    help
+      SUNXI_MPP package major version, 0 means auto select according to board
+
+config SUNXI_MPP_VERSION_MINOR
+    int "SUNXI_MPP package minor version"
+    default 0
+    help
+      SUNXI_MPP package minor version
+
+config SUNXI_MPP_VERSION_PATCH
+    int "SUNXI_MPP package patch version"
+    default 1
+    help
+      SUNXI_MPP package patch version
+endmenu

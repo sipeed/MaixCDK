@@ -1,0 +1,20 @@
+# harfbuzz version major minor patch
+menu "harfbuzz version"
+config HARFBUZZ_VERSION_MAJOR
+    int "harfbuzz package major version"
+    default 8
+    help
+      harfbuzz package major version, 0 means auto select according to board
+
+config HARFBUZZ_VERSION_MINOR
+    int "harfbuzz package minor version"
+    default 2
+    help
+      harfbuzz package minor version
+
+config HARFBUZZ_VERSION_PATCH
+    int "harfbuzz package patch version"
+    default 1
+    help
+      harfbuzz package patch version
+endmenu

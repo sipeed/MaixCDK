@@ -1,0 +1,20 @@
+# BROTLI version major minor patch
+menu "BROTLI version"
+config BROTLI_VERSION_MAJOR
+    int "BROTLI package major version"
+    default 1
+    help
+      BROTLI package major version, 0 means auto select according to board
+
+config BROTLI_VERSION_MINOR
+    int "BROTLI package minor version"
+    default 1
+    help
+      BROTLI package minor version
+
+config BROTLI_VERSION_PATCH
+    int "BROTLI package patch version"
+    default 0
+    help
+      BROTLI package patch version
+endmenu

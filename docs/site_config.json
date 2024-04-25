@@ -1,0 +1,85 @@
+{
+    "site_name": "MaixCDK",
+    "site_slogon": "",
+    "site_root_url": "/MaixCDK/",
+    "site_domain": "wiki.sipeed.com",
+    "site_protocol": "https",
+    "config_template_dir": "config",
+    "route": {
+        "docs": {
+            "/doc/": "doc",
+            "/api/": "api"
+        },
+        "pages": {
+            "/": "pages/index"
+        },
+        "assets": {
+            "/static/": "static"
+        }
+    },
+    "executable": {
+        "python": "python3",
+        "pip": "pip3"
+    },
+    "translate": {
+        "docs": {
+            "/doc/": [
+                {
+                    "url": "/doc/zh/",
+                    "src": "doc_zh"
+                }
+            ]
+        },
+        "pages": {
+            "/": [
+                {
+                    "url": "/zh/",
+                    "src": "pages/index_zh"
+                }
+            ]
+        }
+    },
+    "plugins": {
+        "teedoc-plugin-markdown-parser":{
+            "from": "pypi",
+            "config": {
+            }
+        },
+        "teedoc-plugin-theme-default":{
+            "from": "pypi",
+            "config": {
+                "dark": true,
+                "show_print_page": false,
+                "env":{
+                    "main_color": "#4caf7d"
+                }
+            }
+        },
+        "teedoc-plugin-search":{
+            "from": "pypi",
+            "config": {
+                "search_hint": "Search"
+            }
+        },
+        "teedoc-plugin-assets": {
+            "from": "pypi",
+            "config": {
+                "header_items": [
+                    "/static/css/custom.css"
+                ],
+                "footer_items": [
+                    "/static/js/custom.js"
+                ],
+                "env":{
+                    "main_color": "#4caf7d",
+                    "second_color": "#0a7d43"
+                }
+            }
+        }
+    },
+    "rebuild_changes_delay": 1,
+    "robots":{
+        "User-agent": "*"
+    },
+    "layout_root_dir": "layout"
+}

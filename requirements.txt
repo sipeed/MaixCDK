@@ -1,0 +1,4 @@
+PyYAML
+progress
+requests
+maixtool

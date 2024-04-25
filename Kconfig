@@ -1,0 +1,36 @@
+
+mainmenu "MaixCDK configuration, platform: ${PLATFORM}"
+
+menu "SDK Components Configuration"
+	osource "${SDK_PATH}/components/*/Kconfig"
+endmenu
+
+menu "3rd party Components Configuration"
+	osource "${SDK_PATH}/components/3rd_party/*/Kconfig"
+endmenu
+
+menu "Extra Components Configuration"
+	osource "${MAIXCDK_EXTRA_COMPONENTS_PATH}/*/Kconfig"
+	# components released with python package format, installed by pip install maixcdk-xxxx
+	# site-package directory is `python -c "import site;print(site.getusersitepackages())"`
+	osource "${PY_PKG_COMPONENTS_PATH}/*/Kconfig"
+	osource "${PY_USR_PKG_COMPONENTS_PATH}/*/Kconfig"
+endmenu
+
+menu "Project Components Configuration"
+	osource "${PROJECT_PATH}/../components/*/Kconfig"
+	osource "${PROJECT_PATH}/*/Kconfig"
+	osource "${PROJECT_PATH}/components/*/Kconfig"
+endmenu
+
+config LIBS_LINK_STATIC
+	bool "Link libraries statically"
+	default n
+	help
+	  Link libraries statically, link all code to one executable file.
+
+config COMPONENTS_COMPILE_FROM_SOURCE
+	bool "All components compile from source instead of using prebuilt libraries or local libraries"
+	default n
+	help
+	  All components compile from source instead of using prebuilt libraries or local libraries.

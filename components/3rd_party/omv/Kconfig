@@ -1,0 +1,20 @@
+# omv version major minor patch
+menu "omv version"
+config OMV_VERSION_MAJOR
+    int "omv package major version"
+    default 1
+    help
+      omv package major version, 0 means auto select according to board
+
+config OMV_VERSION_MINOR
+    int "omv package minor version"
+    default 0
+    help
+      omv package minor version
+
+config OMV_VERSION_PATCH
+    int "omv package patch version"
+    default 10
+    help
+      omv package patch version
+endmenu

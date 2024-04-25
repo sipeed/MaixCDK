@@ -1,0 +1,20 @@
+# freetype version major minor patch
+menu "freetype version"
+config FREETYPE_VERSION_MAJOR
+    int "freetype package major version"
+    default 2
+    help
+      freetype package major version, 0 means auto select according to board
+
+config FREETYPE_VERSION_MINOR
+    int "freetype package minor version"
+    default 13
+    help
+      freetype package minor version
+
+config FREETYPE_VERSION_PATCH
+    int "freetype package patch version"
+    default 2
+    help
+      freetype package patch version
+endmenu

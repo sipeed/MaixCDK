@@ -1,0 +1,23 @@
+items:
+  - label: Brief
+    file: README.md
+  - label: Quick start
+    file: dev/quick_start.md
+  - label: Dev Convention
+    file: convention/README.md
+    items:
+      - label: APP dev
+        file: convention/app.md
+      - label: I18N(translate)
+        file: convention/i18n.md
+      - label: Communicate protocol
+        file: convention/protocol.md
+      - label: NN AI model
+        file: convention/nn.md
+  - label: FAQ
+    file: faq.md
+  - label: Applications
+    collapsed: false
+    items:
+      - label: YOLOv2
+        file: application/ai/yolov2.md

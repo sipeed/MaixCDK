@@ -1,0 +1,64 @@
+toolchain:
+  - name: MUSL toolchain optimize by t-head
+    id: musl_t-head
+    default: true
+    url: https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/03/07/16/host-tools.tar.gz
+    urls:
+    sites:
+    - https://github.com/sophgo/cvi_mmf_sdk
+    sha256sum: ff9a58e8e192b20ea42e1d729c42d2219523209706cb3f0cf134582f6c70f805
+    filename: host-tools.tar.gz
+    path: toolchains/maixcam
+    bin_path: toolchains/maixcam/host-tools/gcc/riscv64-linux-musl-x86_64/bin
+    prefix: riscv64-unknown-linux-musl-
+    c_flags: -mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d
+    cxx_flags: -mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d
+
+  # - name: GLIBC toolchain optimize by t-head
+  #   id: glibc_t-head
+  #   url: https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/03/07/16/host-tools.tar.gz
+  #   urls:
+  #   sites:
+  #   - https://github.com/sophgo/cvi_mmf_sdk
+  #   sha256sum: ff9a58e8e192b20ea42e1d729c42d2219523209706cb3f0cf134582f6c70f805
+  #   filename: host-tools.tar.gz
+  #   path: toolchains/maixcam
+  #   bin_path: toolchains/maixcam/host-tools/gcc/riscv64-linux-x86_64/bin
+  #   prefix: riscv64-unknown-linux-gnu-
+  #   c_flags: -mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d
+  #   cxx_flags: -mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d
+
+  # - name: GLIBC toolchain mainline, install by `apt install g++-riscv64-linux-gnu`
+  #   id: mainline_system
+  #   url:
+  #   urls:
+  #   sites:
+  #   sha256sum:
+  #   filename:
+  #   path:
+  #   bin_path: /usr/bin
+  #   prefix: riscv64-linux-gnu-
+
+  # - name: GLIBC toolchain mainline, install from https://github.com/riscv-collab/riscv-gnu-toolchain
+  #   id: mainline
+  #   url:
+  #   urls:
+  #   sites:
+  #   sha256sum:
+  #   filename:
+  #   path:
+  #   bin_path: /opt/riscv/bin/
+  #   prefix: riscv64-unknown-linux-gnu-
+
+  # - name: GLIBC toolchain mainline2
+  #   id: mainline2
+  #   url:
+  #   urls:
+  #   sites:
+  #   sha256sum:
+  #   filename:
+  #   path:
+  #   bin_path: /home/neucrack/soft/toolchains/toolchain-HOST-x86_64-linux-gnu-riscv64-licheervnano-linux-gnu/bin
+  #   prefix: riscv64-licheervnano-linux-gnu-
+  #   c_flags: -march=rv64gcv_zfh
+  #   cxx_flags: -march=rv64gcv_zfh

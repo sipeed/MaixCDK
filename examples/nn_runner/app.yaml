@@ -1,0 +1,11 @@
+id: nn_runner
+name: NN AI model runner
+name[zh]: NN AI 模型运行器
+version: 1.0.0
+#icon: assets/hello.png
+author: Sipeed Ltd
+desc: Run NN AI model
+desc[zh]: 跑 NN AI 模型
+files:
+  # assets: assets
+

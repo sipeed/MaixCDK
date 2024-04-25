@@ -1,0 +1,46 @@
+config MAIXCAM_LIB_COMPILE_FROM_SOURCE
+	bool "compile maixcam_lib from souce code"
+	default n
+	help
+	  push source code in src dir and select this option will compile maixcam_lib from source instead of use libs
+
+if MAIXCAM_LIB_COMPILE_FROM_SOURCE
+config MAIXCAM_LIB_ENC
+  bool "enc maixcam_lib"
+  default y
+  help
+    enc maixcam lib, for internal debug usage
+endif
+
+# sophgo middleware version major minor patch
+menu "sophgo middleware version"
+config SOPHGO_MIDDLEWARE_CHIP
+    string "sophgo chip"
+    default "cv181x"
+    help
+      sophgo chip. cv180x or cv181x
+
+config SOPHGO_MIDDLEWARE_C_LIBRARY
+    string "sophgo c standard library"
+    default "musl"
+    help
+      sophgo c standard library. glibc or musl
+
+config SOPHGO_MIDDLEWARE_VERSION_MAJOR
+    int "sophgo middleware package major version"
+    default 0
+    help
+      sophgo middleware package major version, 0 means auto select according to board
+
+config SOPHGO_MIDDLEWARE_VERSION_MINOR
+    int "sophgo middleware package minor version"
+    default 0
+    help
+      sophgo middleware package minor version
+
+config SOPHGO_MIDDLEWARE_VERSION_PATCH
+    int "sophgo middleware package patch version"
+    default 3
+    help
+      sophgo middleware package patch version
+endmenu

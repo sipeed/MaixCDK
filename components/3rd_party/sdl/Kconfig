@@ -1,0 +1,20 @@
+# SDL version major minor patch
+menu "SDL version"
+  config SDL_VERSION_MAJOR
+      int "SDL package major version"
+      default 2
+      help
+        SDL package major version, 0 means auto select according to board
+
+  config SDL_VERSION_MINOR
+      int "SDL package minor version"
+      default 28
+      help
+        SDL package minor version
+
+  config SDL_VERSION_PATCH
+      int "SDL package patch version"
+      default 4
+      help
+        SDL package patch version
+endmenu

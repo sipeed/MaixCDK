@@ -1,0 +1,12 @@
+
+config OPENCV_COMPILE_FROM_SOURCE
+	bool "OpenCV compile from source instead of local libraries"
+	default n
+	help
+	  Opencv compile from source instead of using prebuilt libraries or local libraries, use sudo apt install libopencv-dev to install opencv libraries first.
+
+config OPENCV_DIR
+	string "OpenCVConfig.cmake file's directory"
+	default ""
+	help
+	  manually set opencv directory, for example /usr/lib/x86_64-linux-gnu/cmake/opencv4, if not set, will auto find it.

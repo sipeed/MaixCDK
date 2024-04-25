@@ -1,0 +1,6 @@
+
+config WEBSOCKET_USE_BOOST_ASIO
+	bool "Use boost asio for websocket or use standalone asio library"
+	default n
+	help
+	  If you want to use boost library for websocket, please select y.

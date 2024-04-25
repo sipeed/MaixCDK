@@ -1,0 +1,81 @@
+trigger:
+- master
+
+jobs:
+- job: Tests_Linux
+  displayName: Tests on Linux
+  pool:
+    vmImage: 'Ubuntu-latest'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      cd tests
+      make -j2
+    displayName: 'make'
+  - script: |
+      cd tests
+      ./tests
+    displayName: 'run'
+
+- job: Tests_Windows
+  displayName: Tests on Windows
+  pool:
+    vmImage: 'vs2017-win2016'
+  steps:
+  - checkout: self
+    submodules: true
+  - task: MSBuild@1
+    inputs:
+      solution: tests/tests.vcxproj
+      configuration: Release
+  - script: |
+        cd tests/Win32/Release
+        tests.exe
+    displayName: 'run'
+
+- job: Tests_macOS
+  displayName: Tests on macOS
+  pool:
+    vmImage: 'macOS-10.15'
+  steps:
+  - checkout: self
+    submodules: true
+  - script: |
+      cd tests
+      make -j2
+    displayName: 'make'
+  - script: |
+      cd tests
+      ./tests
+    displayName: 'run'
+
+- job: Example_Linux
+  displayName: Example on Linux
+  pool:
+    vmImage: 'Ubuntu-latest'
+  steps:
+  - script: |
+      cd example
+      make -j2
+    displayName: 'make'
+
+- job: Example_Windows
+  displayName: Example on Windows
+  pool:
+    vmImage: 'vs2017-win2016'
+  steps:
+  - task: MSBuild@1
+    inputs:
+      solution: example/example.vcxproj
+      configuration: Release
+
+- job: Example_macOS
+  displayName: Example on macOS
+  pool:
+    vmImage: 'macOS-10.15'
+  steps:
+  - script: |
+      cd example
+      make -j2
+    displayName: 'make'

@@ -1,0 +1,20 @@
+# Python version major minor patch
+menu "Python version"
+  config PYTHON_VERSION_MAJOR
+      int "python package major version"
+      default 0
+      help
+        Python package major version, 0 means auto select according to board
+
+  config PYTHON_VERSION_MINOR
+      int "python package minor version"
+      default 0
+      help
+        Python package minor version
+
+  config PYTHON_VERSION_PATCH
+      int "python package patch version"
+      default 0
+      help
+        Python package patch version
+endmenu

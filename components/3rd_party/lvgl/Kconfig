@@ -1,0 +1,28 @@
+
+
+menu "gui_lvgl component configuration"
+    menu "LVGL version"
+        config LVGL_VERSION_MAJOR
+            int "LVGL version major"
+            default 9
+        config LVGL_VERSION_MINOR
+            int "LVGL version minor"
+            default 1
+        config LVGL_VERSION_PATCH
+            int "LVGL version patch"
+            default 0
+    endmenu
+
+    config LVGL_USE_MOUSE
+        bool "Use mouse(touchpad) input"
+        default y
+        help
+            Enable mouse input support.
+
+    config LVGL_SHOW_PERFORMANCE
+        bool "Show performance monitor"
+        default n
+        help
+            Show performance monitor on the screen.
+    osource "${SDK_PATH}/dl/extracted/lvgl_srcs/lvgl/Kconfig"
+endmenu

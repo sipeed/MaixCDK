@@ -1,0 +1,7 @@
+config PYTHON_PKG_EXAMPLE
+    bool "python pkg example"
+    default n
+    help
+      python pkg example
+
+

@@ -1,0 +1,20 @@
+# media_server version major minor patch
+menu "media_server version"
+config MEDIA_SERVER_VERSION_MAJOR
+    int "media_server package major version"
+    default 1
+    help
+      media_server package major version, 0 means auto select according to board
+
+config MEDIA_SERVER_VERSION_MINOR
+    int "media_server package minor version"
+    default 0
+    help
+      media_server package minor version
+
+config MEDIA_SERVER_VERSION_PATCH
+    int "media_server package patch version"
+    default 1
+    help
+      media_server package patch version
+endmenu

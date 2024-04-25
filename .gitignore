@@ -1,0 +1,74 @@
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# python
+*.pyc
+__pycache__
+.venv
+*.egg-info
+
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+dl/extracted/*
+dl/pkgs/*
+dl/pkgs_info.json
+build
+dist
+.vscode
+.config
+.config.old
+.config.mk
+!tools/vscode/vscode_*_debug/.vscode
+out/
+
+docs/api/
+projects/MaixPy/docs/api/
