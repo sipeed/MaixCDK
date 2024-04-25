@@ -29,10 +29,15 @@ namespace maix::video
     }
 
     err::Err Encode::open(int width, int height, video::VideoType type) {
-        return err::ERR_NOT_IMPL;
+        err::Err err = err::ERR_NONE;
+
+        return err;
     }
 
     void Encode::close() {
+        if (!this->_is_opened) {
+            return;
+        }
     }
 
     video::VideoStream Encode::encode(image::Image &img) {
@@ -59,28 +64,51 @@ namespace maix::video
         return NULL;
     }
 
-    Video::Video(int width, int height, video::VideoType type)
+    Video::Video(std::string path, bool record, int interval, int width, int height, bool audio, int sample_rate, int channel, bool open)
     {
-
+        throw err::Exception(err::ERR_NOT_IMPL);
     }
 
     Video::~Video() {
-
+        if (this->_is_opened) {
+            this->close();
+        }
     }
 
-    err::Err Video::open(int width, int height, video::VideoType type)
+    err::Err Video::open(std::string path, bool record, int interval, int width, int height, bool audio, int sample_rate, int channel)
     {
-        return err::ERR_NOT_IMPL;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return err::ERR_NONE;
     }
 
     void Video::close()
     {
+       throw err::Exception(err::ERR_NOT_IMPL);
+    }
 
+    err::Err Video::bind_camera(camera::Camera *camera) {
+        err::Err err = err::ERR_NONE;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return err;
+    }
+
+
+    err::Err Video::record_start(uint64_t record_time) {
+       throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    err::Err Video::record_finish() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    image::Image *Video::capture() {
+        return NULL;
     }
 
     video::VideoStream Video::encode(image::Image &img)
     {
-        throw err::Exception(err::ERR_NOT_IMPL);
+        video::VideoStream stream;
+        return stream;
     }
 
     image::Image *Video::decode(video::VideoStream &stream)
