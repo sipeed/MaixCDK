@@ -40,7 +40,7 @@ config SOPHGO_MIDDLEWARE_VERSION_MINOR
 
 config SOPHGO_MIDDLEWARE_VERSION_PATCH
     int "sophgo middleware package patch version"
-    default 3
+    default 4
     help
       sophgo middleware package patch version
 endmenu
