@@ -64,6 +64,10 @@ namespace maix::camera
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
+
+            if (0 != mmf_vi_init()) {
+                err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
+            }
         }
 
         CameraCviMmf(const std::string device, int ch, int width, int height, image::Format format, int buff_num)
@@ -78,11 +82,15 @@ namespace maix::camera
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
+
+            if (0 != mmf_vi_init()) {
+                err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
+            }
         }
 
         ~CameraCviMmf()
         {
-            mmf_del_vi_channel_all();
+            mmf_del_vi_channel(this->ch);
             mmf_deinit();
         }
 
@@ -185,10 +193,9 @@ namespace maix::camera
 
         camera::CameraCviMmf *add_channel(int width, int height, image::Format format, int buff_num)
         {
-            log::error("not support add channel");
-            return NULL;
             int new_channel = mmf_get_vi_unused_channel();
             if (new_channel < 0) {
+                log::error("Support not more channel!\r\n");
                 return NULL;
             }
             return new camera::CameraCviMmf(this->device, new_channel, width, height, format, buff_num);
@@ -205,6 +212,10 @@ namespace maix::camera
 
         int get_ch_nums() {
             return 1;
+        }
+
+        int get_channel() {
+            return this->ch;
         }
 
         err::Err set_hmirror(bool en) {

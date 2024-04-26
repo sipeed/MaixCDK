@@ -1031,6 +1031,10 @@ namespace maix::camera
             return err::Err::ERR_NONE;
         }
 
+
+        int get_channel() {
+            return 0;
+        }
     private:
         std::string device;
         image::Format format;

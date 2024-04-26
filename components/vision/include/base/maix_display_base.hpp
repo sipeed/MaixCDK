@@ -81,10 +81,14 @@ namespace maix::display
 
         /**
          * @brief show image on display device, and will also send to MaixVision work station if connected.
-         * @param img image to show, image.Image object, img size must <= display size, check by caller
+         * @param img image to show, image.Image object,
+         *            if the size of image smaller than display size, will show in the center of display;
+         *            if the size of image bigger than display size, will auto resize to display size and keep ratio, fill blank with black color.
+         * @param fit image in screen fit mode, by default(value is image.FIT_CONTAIN), @see image.Fit for more details
+         *            e.g. image.FIT_CONTAIN means resize image to fit display size and keep ratio, fill blank with black color.
          * @return error code
         */
-        virtual err::Err show(image::Image &img) = 0;
+        virtual err::Err show(image::Image &img, image::Fit fit = image::FIT_CONTAIN) = 0;
 
         /**
          * Set display backlight

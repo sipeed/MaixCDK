@@ -14,6 +14,8 @@ bool mmf_is_init(void);
 
 // manage vi channels(vi->vpssgroup->vpss->frame)
 int mmf_get_vi_unused_channel(void);
+int mmf_vi_init(void);
+int mmf_vi_deinit(void);
 int mmf_add_vi_channel(int ch, int width, int height, int format);
 int mmf_del_vi_channel(int ch);
 int mmf_del_vi_channel_all(void);
@@ -30,6 +32,7 @@ void mmf_vi_frame_free(int ch);
 // manage vo channels
 int mmf_get_vo_unused_channel(int layer);
 int mmf_add_vo_channel(int layer, int ch, int width, int height, int format);
+int mmf_add_vo_channel_with_fit(int layer, int ch, int width, int height, int format, int fit);
 int mmf_del_vo_channel(int layer, int ch);
 int mmf_del_vo_channel_all(int layer);
 bool mmf_vo_channel_is_open(int layer, int ch);
@@ -37,13 +40,17 @@ void mmf_set_vo_video_hmirror(int ch, bool en);
 void mmf_set_vo_video_flip(int ch, bool en);
 
 // flush vo
+int mmf_vo_frame_push_with_fit(int layer, int ch, void *data, int len, int width, int height, int format, int fit);
 int mmf_vo_frame_push(int layer, int ch, void *data, int len, int width, int height, int format);
 
 // rgn
-bool mmf_rgn_is_init(void);
-int mmf_region_init(int w, int h, int format);
-int mmf_region_deinit(void);
+int mmf_get_region_unused_channel(void);
+int mmf_add_region_channel(int ch, int type, int mod_id, int dev_id, int chn_id, int x, int y, int width, int height, int format);
+int mmf_del_region_channel(int ch);
+int mmf_del_region_channel_all(void);
 int mmf_region_frame_push(int ch, void *data, int len);
+int mmf_region_get_canvas(int ch, void **data, int *width, int *height, int *format);
+int mmf_region_update_canvas(int ch);
 
 // enc jpg
 bool mmf_enc_jpg_is_init(void);

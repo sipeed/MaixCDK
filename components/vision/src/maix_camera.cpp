@@ -172,7 +172,19 @@ namespace maix::camera
 
     int Camera::get_ch_nums()
     {
-        return 1;
+        return 2;
+    }
+
+    int Camera::get_channel()
+    {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        return _impl->get_channel();
     }
 
     bool Camera::_check_format(image::Format format) {

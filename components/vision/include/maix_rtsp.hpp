@@ -12,6 +12,7 @@
 #include "maix_camera.hpp"
 #include "maix_display.hpp"
 #include "maix_video.hpp"
+#include "maix_image.hpp"
 #include "maix_basic.hpp"
 
 namespace maix::rtsp
@@ -24,6 +25,53 @@ namespace maix::rtsp
     {
         RTSP_STREAM_NONE = 0,  // format invalid
         RTSP_STREAM_H265,
+    };
+
+    /**
+     * Region class
+     * @maixpy maix.rtsp.Region
+     */
+    class Region
+    {
+    public:
+        /**
+         * @brief Construct a new Region object
+         * @param x region coordinate x
+         * @param y region coordinate y
+         * @param width region width
+         * @param height region height
+         * @param format region format
+         * @param camera bind region to camera
+         * @maixpy maix.rtsp.Region.__init__
+         * @maixcdk maix.rtsp.Region.Region
+         */
+        Region(int x, int y, int width, int height, image::Format format, camera::Camera *camera);
+        ~Region();
+
+        /**
+         * @brief Return an image object from region
+         * @return image object
+         * @maixpy maix.rtsp.Region.get_canvas
+        */
+        image::Image *get_canvas();
+
+        /**
+         * @brief Update canvas
+         * @return error code
+         * * @maixpy maix.rtsp.Region.update_canvas
+        */
+        err::Err update_canvas();
+    private:
+        int _id;
+        int _x;
+        int _y;
+        int _width;
+        int _height;
+        bool _flip;
+        bool _mirror;
+        image::Format _format;
+        image::Image *_image;
+        camera::Camera *_camera;
     };
 
     /**
@@ -102,6 +150,35 @@ namespace maix::rtsp
         {
             return this->_is_start;
         }
+
+        /**
+         * @brief return a region object, you can draw image on the region.
+         * @param x region coordinate x
+         * @param y region coordinate y
+         * @param width region width
+         * @param height region height
+         * @param format region format, support Format::FMT_BGRA8888 only
+         * @return the reigon object
+         * @maixpy maix.rtsp.Rtsp.add_region
+        */
+        rtsp::Region *add_region(int x, int y, int width, int height, image::Format format = image::Format::FMT_BGRA8888);
+
+        /**
+         * @brief update and show region
+         * @return error code
+         * @maixpy maix.rtsp.Rtsp.update_region
+        */
+        err::Err update_region(rtsp::Region &region);
+
+        /**
+         * @brief return region list
+         * @attention DO NOT ADD THIS FUNC TO MAIXPY
+         * @return return a list of region
+        */
+        std::vector<rtsp::Region *> get_regions() {
+            return this->_region_list;
+        }
+
     private:
         std::string _ip;
         int _port;
@@ -111,6 +188,8 @@ namespace maix::rtsp
         bool _bind_camera;
         camera::Camera *_camera;
         thread::Thread *_thread;
+        std::vector<rtsp::Region *> _region_list;
+        std::vector<bool> _region_update_flag;
     };
 } // namespace maix::rtsp
 

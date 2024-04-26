@@ -54,7 +54,7 @@ namespace maix::display
 
         ~DisplayCviMmf()
         {
-            mmf_del_vo_channel_all(this->_layer);
+            mmf_del_vo_channel(this->_layer, this->_ch);
             mmf_deinit();
         }
 
@@ -94,8 +94,8 @@ namespace maix::display
                 return err::ERR_RUNTIME;
             }
 
-            if (0 != mmf_add_vo_channel(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format))) {
-                log::error("mmf_add_vo_channel failed\n");
+            if (0 != mmf_add_vo_channel_with_fit(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), 2)) {
+                log::error("mmf_add_vo_channel_with_fit failed\n");
                 return err::ERR_RUNTIME;
             }
 
@@ -147,20 +147,29 @@ namespace maix::display
             return this->_opened;
         }
 
-        err::Err show(image::Image &img)
+        err::Err show(image::Image &img, image::Fit fit)
         {
             int format = img.format();
+
+            int mmf_fit = 0;
+            switch (fit) {
+                case image::Fit::FIT_FILL: mmf_fit = 0; break;
+                case image::Fit::FIT_CONTAIN: mmf_fit = 1; break;
+                case image::Fit::FIT_COVER: mmf_fit = 2; break;
+                default: mmf_fit = 0; break;
+            }
+
             if (this->_layer == 0) {
                 switch (format)
                 {
                 case image::FMT_RGB888:
-                    if (0 != mmf_vo_frame_push(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()))) {
+                    if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
                         log::error("mmf_vo_frame_push failed\n");
                         return err::ERR_RUNTIME;
                     }
                     break;
                 case image::FMT_YVU420SP:
-                    if (0 != mmf_vo_frame_push(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()))) {
+                    if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
                         log::error("mmf_vo_frame_push failed\n");
                         return err::ERR_RUNTIME;
                     }
@@ -177,7 +186,7 @@ namespace maix::display
                             dst[(i * width + j) * 3 + 2] = src[(i * width + j) * 4 + 0];
                         }
                     }
-                    if (0 != mmf_vo_frame_push(this->_layer, this->_ch, rgb->data(), rgb->data_size(), rgb->width(), rgb->height(), mmf_invert_format_to_mmf(rgb->format()))) {
+                    if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, rgb->data(), rgb->data_size(), rgb->width(), rgb->height(), mmf_invert_format_to_mmf(rgb->format()), mmf_fit)) {
                         log::error("mmf_vo_frame_push failed\n");
                         return err::ERR_RUNTIME;
                     }
@@ -196,7 +205,7 @@ namespace maix::display
                             dst[(i * width + j) * 3 + 2] = src[(i * width + j) * 4 + 2];
                         }
                     }
-                    if (0 != mmf_vo_frame_push(this->_layer, this->_ch, rgb->data(), rgb->data_size(), rgb->width(), rgb->height(), mmf_invert_format_to_mmf(rgb->format()))) {
+                    if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, rgb->data(), rgb->data_size(), rgb->width(), rgb->height(), mmf_invert_format_to_mmf(rgb->format()), mmf_fit)) {
                         log::error("mmf_vo_frame_push failed\n");
                         return err::ERR_RUNTIME;
                     }
@@ -212,7 +221,7 @@ namespace maix::display
                     log::error("display layer 1 not support format: %d\n", format);
                     return err::ERR_ARGS;
                 }
-                if (0 != mmf_vo_frame_push(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()))) {
+                if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
                     log::error("mmf_vo_frame_push failed\n");
                     return err::ERR_RUNTIME;
                 }

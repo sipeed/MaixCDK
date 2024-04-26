@@ -156,10 +156,11 @@ namespace maix::display
             return opened;
         }
 
-        err::Err show(image::Image &img)
+        err::Err show(image::Image &img, image::Fit fit)
         {
             SDL_Rect rect;
             image::Image *img_ptr = &img;
+            (void)fit;
             // center of screen
             rect.x = (_width - img_ptr->width()) / 2;
             rect.y = (_height - img_ptr->height()) / 2;

@@ -83,9 +83,14 @@ namespace maix::camera
         virtual bool is_opened() = 0;
 
         /**
-         * Get display supported channels(layers)
+         * Get camera supported channels(layers)
          */
         virtual int get_ch_nums() = 0;
+
+        /**
+         * Get channel number of camera.
+         */
+        virtual int get_channel() = 0;
 
         /**
          * Set camera mirror

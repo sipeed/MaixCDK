@@ -308,6 +308,13 @@ namespace maix::camera
         err::Err show_colorbar(bool enable);
 
         /**
+         * Get channel of camera
+         * @return channel number
+         * @maixpy maix.camera.Camera.get_channel
+         */
+        int get_channel();
+
+        /**
          * Set camera resolution
          * @param width new width
          * @param height new height
@@ -351,6 +358,7 @@ namespace maix::camera
         err::Err set_saturation(int value);
     private:
         std::string _device;
+        int _ch;
         int _width;
         int _height;
         int _fps;

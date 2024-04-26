@@ -170,10 +170,10 @@ namespace maix::display
                 return err::ERR_RUNTIME;
             }
 
-            _impl->show(*show_img);
+            _impl->show(*show_img, fit);
             delete show_img;
         } else {
-            _impl->show(img);
+            _impl->show(img, fit);
         }
         return e;
 #else
