@@ -102,24 +102,38 @@ class Downloader:
         # 302 redirect
         if res.status_code == 302:
             self.url = res.headers['Location']
+            print(f"redirect to {self.url}")
             res = requests.head(self.url, headers=headers)
         if res.status_code != 200:
             raise  Exception("download file error, code: {}, content: {}".format(res.status_code, res.content.decode()))
+        try:
+            self.total = int(res.headers['Content-Length'])
+        except Exception:
+            self.total = 0
         headers["Range"] = "bytes=0-1"
-        print("-- get content-length failed, try directly download, it may be slow")
         res = requests.get(self.url, headers=headers)
         try:
             if not 'Content-Length' in res.headers:
                 print("-- [WARNING] get content-length failed, will just download")
                 if res.status_code == 200:
-                    self.data_content = res.content
-                    print("-- download file size: {}".format(bytes2human(len(self.data_content))))
+                    print("-- get content-length failed, try directly download, it may be slow")
+                    res = requests.get(self.url, headers=self.headers)
+                    if res.status_code == 200:
+                        self.data_content = res.content
+                        print("-- download file size: {}".format(bytes2human(len(self.data_content))))
+                    else:
+                        raise Exception("Download file error: " + res.status_code)
             else:
-                self.total = int(res.headers['Content-Length'])
                 if res.status_code != 206:
                     if len(res.content) != self.total:
                         raise Exception("download file error, download length:{}, but content length is {}".format(len(res.content), self.total))
-                    self.data_content = res.content
+                    print("-- get content-length failed, try directly download, it may be slow")
+                    res = requests.get(self.url, headers=self.headers)
+                    if res.status_code == 200:
+                        self.data_content = res.content
+                        print("-- download file size: {}".format(bytes2human(len(self.data_content))))
+                    else:
+                        raise Exception("Download file error: " + res.status_code)
                     print("-- download complete, file size: {}".format(bytes2human(self.total)))
         except Exception as e:
             print("-- download failed, return headers: {}".format(res.headers))
