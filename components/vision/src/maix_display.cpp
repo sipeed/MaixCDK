@@ -88,6 +88,18 @@ namespace maix::display
             }
             this->close();  // Get new param, close and reopen
         }
+        std::string bl_v_str = app::get_sys_config_kv("backlight", "value");
+        float bl_v = 50;
+        try
+        {
+            if(!bl_v_str.empty())
+                bl_v = atof(bl_v_str.c_str());
+        }
+        catch(...)
+        {
+            bl_v = 50;
+        }
+        this->set_backlight(bl_v);
 
         if(!img_trans && maixvision_mode())
         {
@@ -229,6 +241,11 @@ namespace maix::display
         if (value > 100)
             value = 100;
         _impl->set_backlight(value);
+    }
+
+    float Display::get_backlight()
+    {
+        return _impl->get_backlight();
     }
 
     err::Err Display::set_hmirror(bool en) {

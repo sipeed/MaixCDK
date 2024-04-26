@@ -81,7 +81,7 @@ namespace maix::network::wifi
         return bytes;
     }
 
-    std::vector<std::string> get_wifi_iface_list()
+    std::vector<std::string> list_devices()
     {
         std::vector<std::string> wifi_ifaces;
         struct ifaddrs *ifaddr, *ifa;
@@ -316,6 +316,8 @@ bssid / frequency / signal level / flags / ssid
 
     std::string Wifi::get_ip()
     {
+        if (!is_connected())
+            return "";
         int fd;
         struct ifreq ifr;
 
@@ -325,7 +327,7 @@ bssid / frequency / signal level / flags / ssid
         ifr.ifr_addr.sa_family = AF_INET;
 
         // Copy the interface name in the ifreq structure
-        strncpy(ifr.ifr_name, _iface.c_str() , IFNAMSIZ - 1);
+        strncpy(ifr.ifr_name, _iface.c_str(), IFNAMSIZ - 1);
 
         ioctl(fd, SIOCGIFADDR, &ifr);
 
@@ -381,49 +383,58 @@ bssid / frequency / signal level / flags / ssid
     }
     err::Err Wifi::connect(const std::string &ssid, const std::string &password, bool wait, int timeout)
     {
+        uint64_t t = time::time();
 #if PLATFORM_MAIXCAM
-    // write ssid to /boot/wifi.ssid and password to /boot/wifi.pass
-    // then opoen /etc/init.d/S30wifi restart
+        // write ssid to /boot/wifi.ssid and password to /boot/wifi.pass
+        // then opoen /etc/init.d/S30wifi restart
 
-    // write ssid to /boot/wifi.ssid
-    FILE *fp = fopen("/boot/wifi.ssid", "w");
-    if (fp == NULL)
-    {
-        log::error("open /boot/wifi.ssid failed");
-        return err::Err::ERR_IO;
-    }
-    fwrite(ssid.c_str(), 1, ssid.size(), fp);
-    fclose(fp);
+        // write ssid to /boot/wifi.ssid
+        FILE *fp = fopen("/boot/wifi.ssid", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.ssid failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(ssid.c_str(), 1, ssid.size(), fp);
+        fclose(fp);
 
-    // write password to /boot/wifi.pass
-    fp = fopen("/boot/wifi.pass", "w");
-    if (fp == NULL)
-    {
-        log::error("open /boot/wifi.pass failed");
-        return err::Err::ERR_IO;
-    }
-    fwrite(password.c_str(), 1, password.size(), fp);
-    fclose(fp);
+        // write password to /boot/wifi.pass
+        fp = fopen("/boot/wifi.pass", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.pass failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(password.c_str(), 1, password.size(), fp);
+        fclose(fp);
 
-    sync();
+        sync();
 
-    // restart wifi
-    if (access("/etc/init.d/S30wifi", F_OK) == -1)
-    {
-        log::error("/etc/init.d/S30wifi not found");
-        return err::Err::ERR_NOT_FOUND;
-    }
-    int ret = system("/etc/init.d/S30wifi restart");
-    if (ret != 0)
-    {
-        log::error("restart wifi failed: %d", ret);
-        return err::Err::ERR_RUNTIME;
-    }
-    return err::Err::ERR_NONE;
-
+        // restart wifi
+        if (access("/etc/init.d/S30wifi", F_OK) == -1)
+        {
+            log::error("/etc/init.d/S30wifi not found");
+            return err::Err::ERR_NOT_FOUND;
+        }
+        int ret = system("/etc/init.d/S30wifi restart");
+        if (ret != 0)
+        {
+            log::error("restart wifi failed: %d", ret);
+            return err::Err::ERR_RUNTIME;
+        }
 #else
         throw err::Exception(err::ERR_NOT_IMPL, "connect wifi not implemented in this platform");
 #endif
+        while (wait && !is_connected() && time::time() - t < timeout)
+        {
+            time::sleep_ms(50);
+        }
+        if(wait && !is_connected())
+        {
+            log::error("Connect failed, wait get ip timeout");
+            return err::Err::ERR_TIMEOUT;
+        }
+        return err::Err::ERR_NONE;
     }
     err::Err Wifi::disconnect()
     {
@@ -451,7 +462,6 @@ bssid / frequency / signal level / flags / ssid
         // check if have ip address
         std::string ip = get_gateway();
         return ip != "";
-
     }
     // std::string get_rssi();
 

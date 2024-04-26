@@ -33,7 +33,7 @@ endif()
 
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic opencv opencv_freetype websocket)
+list(APPEND ADD_REQUIREMENTS basic opencv opencv_freetype websocket peripheral)
 list(APPEND ADD_REQUIREMENTS omv)
 if(PLATFORM_LINUX)
     list(APPEND ADD_REQUIREMENTS sdl)

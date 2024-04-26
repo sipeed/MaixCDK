@@ -97,6 +97,12 @@ namespace maix::display
         virtual void set_backlight(float value) = 0;
 
         /**
+         * Get display backlight
+         * @return value backlight value, float type, range is [0, 100]
+        */
+        virtual float get_backlight() = 0;
+
+        /**
          * Get display supported channels(layers)
          */
         virtual int get_ch_nums() = 0;

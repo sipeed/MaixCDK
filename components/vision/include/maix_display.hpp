@@ -163,6 +163,13 @@ namespace maix::display
         void set_backlight(float value);
 
         /**
+         * Get display backlight
+         * @return value backlight value, float type, range is [0, 100]
+         * @maixpy maix.display.Display.get_backlight
+        */
+        float get_backlight();
+
+        /**
          * Get display supported channels(layers)
          */
         int get_ch_nums();

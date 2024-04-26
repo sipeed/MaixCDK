@@ -13,6 +13,9 @@
 #include "maix_image.hpp"
 #include "maix_time.hpp"
 #include "sophgo_middleware.hpp"
+#include "maix_pwm.hpp"
+
+using namespace maix::peripheral;
 
 namespace maix::display
 {
@@ -34,6 +37,8 @@ namespace maix::display
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
+            int pwm_id = 10;
+            _bl_pwm = new pwm::PWM(pwm_id, 100000, 20);
         }
 
         DisplayCviMmf(int layer, int width, int height, image::Format format)
@@ -50,12 +55,18 @@ namespace maix::display
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
+            int pwm_id = 10;
+            _bl_pwm = new pwm::PWM(pwm_id, 100000, 20);
         }
 
         ~DisplayCviMmf()
         {
             mmf_del_vo_channel(this->_layer, this->_ch);
             mmf_deinit();
+            if(_bl_pwm)
+            {
+                delete _bl_pwm;
+            }
         }
 
         int width()
@@ -235,7 +246,16 @@ namespace maix::display
 
         void set_backlight(float value)
         {
-            //TODO:
+            float max_duty = 50;
+            _bl_pwm->duty(value * max_duty / 100.0);
+            _bl_pwm->disable();
+            _bl_pwm->enable();
+        }
+
+        float get_backlight()
+        {
+            float max_duty = 50;
+            return _bl_pwm->duty() / max_duty * 100;
         }
 
         int get_ch_nums()
@@ -288,5 +308,6 @@ namespace maix::display
         int _layer;
         int _ch;
         bool _opened;
+        pwm::PWM *_bl_pwm;
     };
 }

@@ -9,7 +9,7 @@ using namespace maix::network;
 
 int _main(int argc, char* argv[])
 {
-    std::vector<std::string> wifi_ifaces = wifi::get_wifi_iface_list();
+    std::vector<std::string> wifi_ifaces = wifi::list_devices();
     for(auto &iface : wifi_ifaces)
     {
         log::info("wifi iface: %s", iface.c_str());
