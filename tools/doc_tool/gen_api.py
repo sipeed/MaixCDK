@@ -713,6 +713,8 @@ if __name__ == "__main__":
     # generate API documenation according to api_tree
     print("-- Generating MaixCDK API documentation")
     doc_out_dir = args.doc
+    if not os.path.exists(doc_out_dir):
+        os.makedirs(doc_out_dir)
     api_json_path = os.path.join(doc_out_dir, "api.json")
     side_bar_path = os.path.join(doc_out_dir, "sidebar.yaml")
     readme_path = os.path.join(doc_out_dir, "README.md")
