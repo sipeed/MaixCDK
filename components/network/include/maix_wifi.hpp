@@ -61,7 +61,7 @@ namespace maix::network::wifi
          * WiFi AP info ssid_str
          * @maixpy maix.network.wifi.AP_Info.ssid_str
         */
-        std::string ssid_str() const
+        std::string ssid_str()
         {
             return std::string(ssid.begin(), ssid.end());
         }
@@ -130,7 +130,7 @@ namespace maix::network::wifi
          * @return wifi.AP_Info list.
          * @maixpy maix.network.wifi.Wifi.get_scan_result
         */
-        std::vector<wifi::AP_Info> get_scan_result();
+        std::vector<network::wifi::AP_Info> get_scan_result();
 
         /**
          * Stop WiFi scan AP info.
