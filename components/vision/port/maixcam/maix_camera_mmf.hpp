@@ -32,7 +32,7 @@ static void signal_handle(int signal)
     }
 
     maix::log::error("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
-    mmf_deinit();
+    mmf_try_deinit(true);
     exit(1);
 }
 

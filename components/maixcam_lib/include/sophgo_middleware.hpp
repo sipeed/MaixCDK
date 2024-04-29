@@ -10,6 +10,7 @@ typedef struct {
 // init sys
 int mmf_init(void);
 int mmf_deinit(void);
+int mmf_try_deinit(bool force);
 bool mmf_is_init(void);
 
 // manage vi channels(vi->vpssgroup->vpss->frame)
