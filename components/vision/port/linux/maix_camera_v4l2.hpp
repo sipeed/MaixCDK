@@ -986,54 +986,44 @@ namespace maix::camera
         {
             return 1;
         }
-        /**
-         * Set display mirror
-         * @param en enable/disable mirror
-         */
-        virtual err::Err set_hmirror(bool en)
-        {
-            return err::Err::ERR_NONE;
-        }
-
-        /**
-         * Set display flip
-         * @param en enable/disable flip
-         */
-        virtual err::Err set_vflip(bool en)
-        {
-            return err::Err::ERR_NONE;
-        }
-
-        /**
-         * Set camera constrast
-         * @param int constrast value
-         */
-        virtual err::Err set_luma(int value)
-        {
-            return err::Err::ERR_NONE;
-        }
-
-        /**
-         * Set camera constrast
-         * @param int constrast value
-         */
-        virtual err::Err set_constrast(int value)
-        {
-            return err::Err::ERR_NONE;
-        }
-
-        /**
-         * Set camera saturation
-         * @param int saturation value
-         */
-        virtual err::Err set_saturation(int value)
-        {
-            return err::Err::ERR_NONE;
-        }
-
 
         int get_channel() {
             return 0;
+        }
+
+        int hmirror(int en)
+        {
+            return -1;
+        }
+
+        int vflip(int en)
+        {
+            return -1;
+        }
+
+        int luma(int value)
+        {
+            return -1;
+        }
+
+        int constrast(int value)
+        {
+            return -1;
+        }
+
+        int saturation(int value)
+        {
+            return -1;
+        }
+
+        int exposure(int value)
+        {
+            return -1;
+        }
+
+        int gain(int value)
+        {
+            return -1;
         }
     private:
         std::string device;

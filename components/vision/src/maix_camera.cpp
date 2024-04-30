@@ -342,7 +342,7 @@ namespace maix::camera
         return err::ERR_NONE;
     }
 
-    err::Err Camera::set_hmirror(bool en) {
+    uint64_t Camera::exposure(uint64_t value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -350,10 +350,10 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        return _impl->set_hmirror(en);
+        return _impl->exposure((uint32_t)value);
     }
 
-    err::Err Camera::set_vflip(bool en) {
+    uint32_t Camera::gain(uint32_t value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -361,10 +361,10 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        return _impl->set_vflip(en);
+        return _impl->gain((uint32_t)value);
     }
 
-    err::Err Camera::set_luma(int value) {
+    int Camera::hmirror(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -372,10 +372,10 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        return _impl->set_luma(value);
+        return _impl->hmirror(value);
     }
 
-    err::Err Camera::set_constrast(int value) {
+    int Camera::vflip(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -383,10 +383,10 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        return _impl->set_constrast(value);
+        return _impl->vflip(value);
     }
 
-    err::Err Camera::set_saturation(int value) {
+    uint32_t Camera::luma(uint32_t value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -394,7 +394,29 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        return _impl->set_saturation(value);
+        return _impl->luma(value);
+    }
+
+    uint32_t Camera::constrast(uint32_t value) {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        return _impl->constrast(value);
+    }
+
+    uint32_t Camera::saturation(uint32_t value) {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        return _impl->saturation(value);
     }
 }
 

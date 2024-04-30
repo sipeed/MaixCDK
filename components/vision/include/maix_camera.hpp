@@ -209,60 +209,18 @@ namespace maix::camera
         }
 
         /**
-         * Get camera horizontal mirror
+         * Set/Get camera horizontal mirror
          * @return camera horizontal mirror
          * @maixpy maix.camera.Camera.hmirror
          */
-        int hmirror(int value = -1)
-        {
-            if (value != -1)
-            {
-                _hmirror = value;
-            }
-            return _hmirror;
-        }
+        int hmirror(int value = -1);
 
         /**
-         * Get camera vertical flip
+         * Set/Get camera vertical flip
          * @return camera vertical flip
          * @maixpy maix.camera.Camera.vflip
         */
-        int vflip(int value = -1)
-        {
-            if (value != -1)
-            {
-                _vflip = value;
-            }
-            return _vflip;
-        }
-
-        /**
-         * Get camera exposure
-         * @return camera exposure
-         * @maixpy maix.camera.Camera.exposure
-        */
-        float exposure(int value = -1)
-        {
-            if (value != -1)
-            {
-                _exposure = value;
-            }
-            return _exposure;
-        }
-
-        /**
-         * Get camera gain
-         * @return camera gain
-         * @maixpy maix.camera.Camera.gain
-        */
-        float gain(int value = -1)
-        {
-            if (value != -1)
-            {
-                _gain = value;
-            }
-            return _gain;
-        }
+        int vflip(int value = -1);
 
         /**
          * Get camera device path
@@ -318,44 +276,65 @@ namespace maix::camera
          * Set camera resolution
          * @param width new width
          * @param height new height
+         * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.set_resolution
         */
        err::Err set_resolution(int width, int height);
 
         /**
-         * Set camera mirror
-         * @param en enable/disable mirror
-         * @maixpy maix.camera.Camera.set_hmirror
+         * Set/Get camera exposure
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value exposure time. unit: us
+         * If value == -1, return exposure time.
+         * If value != 0, set and return exposure time.
+         * @return camera exposure time
+         * @maixpy maix.camera.Camera.exposure
         */
-        err::Err set_hmirror(bool en);
+        uint64_t exposure(uint64_t value = -1);
 
         /**
-         * Set camera flip
-         * @param en enable/disable flip
-         * @maixpy maix.camera.Camera.set_vflip
+         * Set/Get camera gain
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value camera gain.
+         * If value == -1, returns camera gain.
+         * If value != 0, set and return camera gain.
+         * @return camera gain
+         * @maixpy maix.camera.Camera.gain
         */
-        err::Err set_vflip(bool en);
+        uint32_t gain(uint32_t value = -1);
 
         /**
-         * Set camera constrast
-         * @param int constrast value
-         * @maixpy maix.camera.Camera.set_luma
+         * Set/Get camera luma
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value luma value, range is [0, 100]
+         * If value == -1, returns luma value.
+         * If value != 0, set and return luma value.
+         * @return returns luma value
+         * @maixpy maix.camera.Camera.luma
         */
-        err::Err set_luma(int value);
+        uint32_t luma(uint32_t value = -1);
 
         /**
-         * Set camera constrast
-         * @param int constrast value
-         * @maixpy maix.camera.Camera.set_constrast
+         * Set/Get camera constrast
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value constrast value, range is [0, 100]
+         * If value == -1, returns constrast value.
+         * If value != 0, set and return constrast value.
+         * @return returns constrast value
+         * @maixpy maix.camera.Camera.constrast
         */
-        err::Err set_constrast(int value);
+        uint32_t constrast(uint32_t value = -1);
 
         /**
-         * Set camera saturation
-         * @param int saturation value
-         * @maixpy maix.camera.Camera.set_saturation
+         * Set/Get camera saturation
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value saturation value, range is [0, 100]
+         * If value == -1, returns saturation value.
+         * If value != 0, set and return saturation value.
+         * @return returns saturation value
+         * @maixpy maix.camera.Camera.saturation
         */
-        err::Err set_saturation(int value);
+        uint32_t saturation(uint32_t value = -1);
     private:
         std::string _device;
         int _ch;

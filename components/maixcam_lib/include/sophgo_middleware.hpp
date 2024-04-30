@@ -25,6 +25,8 @@ bool mmf_vi_chn_is_open(int ch);
 int mmf_vi_aligned_width(int ch);
 void mmf_set_vi_hmirror(int ch, bool en);
 void mmf_set_vi_vflip(int ch, bool en);
+void mmf_get_vi_hmirror(int ch, bool *en);
+void mmf_get_vi_vflip(int ch, bool *en);
 
 // get vi frame
 int mmf_vi_frame_pop(int ch, void **data, int *len, int *width, int *height, int *format);
@@ -39,6 +41,8 @@ int mmf_del_vo_channel_all(int layer);
 bool mmf_vo_channel_is_open(int layer, int ch);
 void mmf_set_vo_video_hmirror(int ch, bool en);
 void mmf_set_vo_video_flip(int ch, bool en);
+void mmf_get_vo_video_hmirror(int ch, bool *en);
+void mmf_get_vo_video_flip(int ch, bool *en);
 
 // flush vo
 int mmf_vo_frame_push_with_fit(int layer, int ch, void *data, int len, int width, int height, int format, int fit);
@@ -84,11 +88,20 @@ int mmf_get_exptime(int ch, uint32_t *exptime);
 int mmf_set_exptime(int ch, uint32_t exptime);
 int mmf_get_iso_num(int ch, uint32_t *iso_num);
 int mmf_set_iso_num(int ch, uint32_t iso_num);
+int mmf_get_again(int ch, uint32_t *gain);
+int mmf_set_again(int ch, uint32_t gain);   // gain = [0x400, 0x7FFFFFFF]
+int mmf_get_dgain(int ch, uint32_t *gain);
+int mmf_set_dgain(int ch, uint32_t gain);   // gain = [0x400, 0x7FFFFFFF]
+int mmf_get_ispdgain(int ch, uint32_t *gain);
+int mmf_set_ispdgain(int ch, uint32_t gain); // gain = [0x400, 0x7FFFFFFF]
 int mmf_get_exptime_and_iso(int ch, uint32_t *exptime, uint32_t *iso_num);
 int mmf_set_exptime_and_iso(int ch, uint32_t exptime, uint32_t iso_num);
 void mmf_set_constrast(int ch, uint32_t val);
 void mmf_set_saturation(int ch, uint32_t val);
 void mmf_set_luma(int ch, uint32_t val);
+int mmf_get_constrast(int ch, uint32_t *value);
+int mmf_get_saturation(int ch, uint32_t *value);
+int mmf_get_luma(int ch, uint32_t *value);
 
 // sensor info
 int mmf_get_sensor_id(void);
