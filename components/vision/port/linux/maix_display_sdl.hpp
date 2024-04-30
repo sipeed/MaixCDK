@@ -221,6 +221,11 @@ namespace maix::display
             return;
         }
 
+        float get_backlight()
+        {
+            return 0.0;
+        }
+
         int get_ch_nums()
         {
             return 1;

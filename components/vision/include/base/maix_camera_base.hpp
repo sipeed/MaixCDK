@@ -93,34 +93,46 @@ namespace maix::camera
         virtual int get_channel() = 0;
 
         /**
-         * Set camera mirror
+         * Set/Get camera mirror
          * @param en enable/disable mirror
         */
-        virtual err::Err set_hmirror(bool en) = 0;
+        virtual int hmirror(int en) = 0;
 
         /**
-         * Set camera flip
+         * Set/Get camera flip
          * @param en enable/disable flip
         */
-        virtual err::Err set_vflip(bool en) = 0;
+        virtual int vflip(int en) = 0;
 
         /**
-         * Set camera constrast
+         * Set/Get camera luma
+         * @param int luma value
+        */
+        virtual int luma(int value) = 0;
+
+        /**
+         * Set/Get camera constrast
          * @param int constrast value
         */
-        virtual err::Err set_luma(int value) = 0;
+        virtual int constrast(int value) = 0;
 
         /**
-         * Set camera constrast
-         * @param int constrast value
-        */
-        virtual err::Err set_constrast(int value) = 0;
-
-        /**
-         * Set camera saturation
+         * Set/Get camera saturation
          * @param int saturation value
         */
-        virtual err::Err set_saturation(int value) = 0;
+        virtual int saturation(int value) = 0;
+
+        /**
+         * Set/Get camera exposure
+         * @param int constrast value
+        */
+        virtual int exposure(int value) = 0;
+
+        /**
+         * Set/Get camera gain
+         * @param int saturation value
+        */
+        virtual int gain(int gain) = 0;
     };
 
 }

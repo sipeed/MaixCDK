@@ -218,49 +218,109 @@ namespace maix::camera
             return this->ch;
         }
 
-        err::Err set_hmirror(bool en) {
-            bool need_open = false;
-            if (this->is_opened()) {
-                this->close();
-                need_open = true;
+        int hmirror(int en)
+        {
+            bool out;
+            if (en == -1) {
+                mmf_get_vi_hmirror(this->ch, &out);
+            } else {
+                bool need_open = false;
+                if (this->is_opened()) {
+                    this->close();
+                    need_open = true;
+                }
+
+                mmf_set_vi_hmirror(this->ch, en);
+
+                if (need_open) {
+                    err::check_raise(this->open(this->width, this->height, this->format, this->buffer_num), "Open failed");
+                }
+                out = en;
             }
 
-             mmf_set_vi_hmirror(this->ch, en);
+            return out;
+        }
 
-            if (need_open) {
-                err::check_raise(this->open(this->width, this->height, this->format, this->buffer_num), "Open failed");
+        int vflip(int en)
+        {
+            bool out;
+            if (en == -1) {
+                mmf_get_vi_vflip(this->ch, &out);
+            } else {
+                bool need_open = false;
+                if (this->is_opened()) {
+                    this->close();
+                    need_open = true;
+                }
+
+                mmf_set_vi_vflip(this->ch, en);
+
+                if (need_open) {
+                    err::check_raise(this->open(this->width, this->height, this->format, this->buffer_num), "Open failed");
+                }
+                out = en;
             }
-            return err::ERR_NONE;
+            return out;
         }
 
-        err::Err set_vflip(bool en) {
-            bool need_open = false;
-            if (this->is_opened()) {
-                this->close();
-                need_open = true;
+        int luma(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                mmf_get_luma(this->ch, &out);
+            } else {
+                mmf_set_luma(this->ch, value);
+                out = value;
             }
+            return out;
+        }
 
-             mmf_set_vi_vflip(this->ch, en);
-
-            if (need_open) {
-                err::check_raise(this->open(this->width, this->height, this->format, this->buffer_num), "Open failed");
+        int constrast(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                mmf_get_constrast(this->ch, &out);
+            } else {
+                mmf_set_constrast(this->ch, value);
+                out = value;
             }
-            return err::ERR_NONE;
+            return out;
         }
 
-        err::Err set_luma(int value) {
-            mmf_set_luma(this->ch, value);
-            return err::ERR_NONE;
+        int saturation(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                mmf_get_saturation(this->ch, &out);
+            } else {
+                mmf_set_saturation(this->ch, value);
+                out = value;
+            }
+            return out;
         }
 
-        err::Err set_constrast(int value) {
-            mmf_set_constrast(this->ch, value);
-            return err::ERR_NONE;
+        int exposure(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                mmf_get_exptime(this->ch, &out);
+            } else {
+                mmf_set_exptime(this->ch, value);
+                out = value;
+            }
+            return out;
         }
 
-        err::Err set_saturation(int value) {
-            mmf_set_saturation(this->ch, value);
-            return err::ERR_NONE;
+        int gain(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                mmf_get_again(this->ch, &out);
+            } else {
+                mmf_set_again(this->ch, value);
+                out = value;
+            }
+            return out;
         }
     private:
         std::string device;
