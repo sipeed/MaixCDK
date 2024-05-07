@@ -12,8 +12,6 @@ int _main(int argc, char* argv[])
 {
     err::Err e;
 
-    signal(SIGINT, signal_handle);
-
     camera::Camera cam = camera::Camera();
     display::Display screen = display::Display();
 
@@ -54,7 +52,7 @@ int _main(int argc, char* argv[])
         y = img->height() - block_h * img->height() / 100;
         img->draw_rect(0, y, img->width(), block_h * img->height() / 100, image::Color::from_rgb(255, 0, 0), -1);
         image::Size size = image::string_size("Application", 1.5);
-        img->draw_string((img->width() - size.width) / 2, y + (block_h * img->height() / 100 - size.height) / 2, "Application", image::Color::from_rgb(255, 255, 255), 1.5);
+        img->draw_string((img->width() - size.width()) / 2, y + (block_h * img->height() / 100 - size.height()) / 2, "Application", image::Color::from_rgb(255, 255, 255), 1.5);
 
         // check if screen is closed by user(mostly for PC), and show image on screen
         if(!screen.is_opened())

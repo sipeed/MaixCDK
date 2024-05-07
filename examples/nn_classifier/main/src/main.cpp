@@ -33,7 +33,7 @@ int _main(int argc, char* argv[])
         log::info("load image %s success: %s", img_path, img->to_str().c_str());
         if(img->width() != classifier.input_size().width() || img->height() != classifier.input_size().height())
         {
-            log::warn("image size not match model input size, will auto resize from %dx%d to %dx%d", img->width(), img->height(), classifier.input_size().width, classifier.input_size().height);
+            log::warn("image size not match model input size, will auto resize from %dx%d to %dx%d", img->width(), img->height(), classifier.input_size().width(), classifier.input_size().height());
         }
         std::vector<std::pair<int, float>> * result = classifier.classify(*img);
         for(int i = 0; i < 5; ++i)
