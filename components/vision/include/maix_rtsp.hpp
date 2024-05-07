@@ -123,7 +123,7 @@ namespace maix::rtsp
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.rtsp.Rtsp.write
         */
-        err::Err write(video::VideoStream &stream);
+        err::Err write(video::Frame &stream);
 
         /**
          * @brief Get url of rtsp
