@@ -167,12 +167,21 @@ namespace maix::nn
                 {
                     split0(labels, labels_str, ",");
                 }
-                else
+                else if(labels_str.find(".") != std::string::npos)
                 {
                     label_path = fs::dirname(model) + "/" + _extra_info["labels"];
                     err::Err e = _load_labels_from_file(labels, label_path);
                     if (e != err::ERR_NONE)
+                    {
+                        log::error("Load labels file %s failed", label_path.c_str());
                         return e;
+                    }
+
+                }
+                else
+                {
+                    labels.clear();
+                    labels.push_back(labels_str);
                 }
                 log::print("\tlabels num: %ld\n", labels.size());
             }
