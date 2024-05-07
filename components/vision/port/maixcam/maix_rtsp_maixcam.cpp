@@ -257,7 +257,7 @@ namespace maix::rtsp
         return err;
     }
 
-    err::Err Rtsp::write(video::VideoStream &stream) {
+    err::Err Rtsp::write(video::Frame &stream) {
         err::Err err = err::ERR_NONE;
 
         if (stream.type != video::VideoType::VIDEO_ENC_H265_CBR) {

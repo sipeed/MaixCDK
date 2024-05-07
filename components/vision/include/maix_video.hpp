@@ -32,10 +32,10 @@ namespace maix::video
     };
 
     /**
-     * VideoStream class
-     * @maixpy maix.video.VideoStream
+     * Frame class
+     * @maixpy maix.video.Frame
      */
-    class VideoStream
+    class Frame
     {
     public:
         VideoType type;
@@ -43,108 +43,118 @@ namespace maix::video
     };
 
     /**
-     * Encode class
-     * @maixpy maix.video.Encode
-     */
-    class Encode
+     * Packet class
+     * @maixpy maix.video.Packet
+    */
+    class Packet
     {
+        uint64_t _pts;                        // unit: time_base
+        uint64_t _dts;                        // unit: time_base
+        uint64_t _duration;                   // equals next_pts - this_pts in presentation order. unit: time_base.
+        uint8_t *_data;
+        size_t _data_size;
     public:
         /**
-         * @brief Construct a new encode object
-         * @param width encode image width, default is -1, means auto, mostly means max width of encode support
-         * @param height encode image height, default is -1, means auto, mostly means max height of encode support
-         * @param type video type, default is VideoType::VIDEO_ENC_H265_CBR
+         * @brief Packet number (pair of numerator and denominator).
+         * @param data src data pointer, use pointers directly without copying.
+         * Note: this object will try to free this memory
+         * @param len data len
+         * @param pts presentation time stamp. unit: time_base
+         * @param dts decoding time stamp. unit: time_base
+         * @param duration packet display time. unit: time_base
+         * @maixpy maix.video.Packet.__init__
+         * @maixcdk maix.video.Packet.Packet
          */
-        Encode(int width = -1, int height = -1, video::VideoType type = video::VideoType::VIDEO_ENC_H265_CBR);
-        ~Encode();
-
-        /**
-         * @brief Open encode
-         * @param width encode image width, default is -1, means auto, mostly means max width of encode support
-         * @param height encode image height, default is -1, means auto, mostly means max height of encode support
-         * @param type video type, default is VideoType::VIDEO_ENC_H265_CBR
-         * @return error code, err::ERR_NONE means success, others means failed
-        */
-        err::Err open(int width = -1, int height = -1, video::VideoType type = video::VideoType::VIDEO_ENC_H265_CBR);
-
-        /**
-         * @brief Close encode
-         * @return none
-        */
-        void close();
-
-        /**
-         * @brief Encode image
-         * @param img image. @see image::Image
-         * @return the result of encode. @see video::VideoStream
-        */
-        video::VideoStream encode(image::Image &img);
-
-        /**
-         * @brief check video device is opened or not
-         * @return opened or not, bool type
-        */
-        bool is_opened() {
-            return _is_opened;
+        Packet(uint8_t *data, int len, uint64_t pts = -1, uint64_t dts = -1, int64_t duration = 0) {
+            _data = data;
+            _data_size = _data ? len : 0;
+            _pts = pts;
+            _dts = dts;
+            _duration = duration;
         }
-    private:
-        bool _is_opened;
 
-        int _pre_width;
-        int _pre_height;
-        video::VideoType _pre_video_type;
-
-        int _width;
-        int _height;
-        video::VideoType _video_type;
-    };
-
-    /**
-     * Decode class
-     * @maixpy maix.video.Decode
-     */
-    class Decode
-    {
-    public:
         /**
-         * @brief Construct a new decode object
-         * @param width decode image width, default is -1, means auto, mostly means max width of decode support
-         * @param height decode image height, default is -1, means auto, mostly means max height of decode support
-         * @param type decode image type, default is VideoType::VIDEO_DEC_H265_CBR
+         * @brief Packet number (pair of numerator and denominator).
+         * @maixcdk maix.video.Packet.Packet
          */
-        Decode(int width = -1, int height = -1, video::VideoType type = video::VideoType::VIDEO_DEC_H265_CBR);
-        ~Decode();
-
-        /**
-         * @brief Construct a new decode object
-         * @param width decode image width, default is -1, means auto, mostly means max width of decode support
-         * @param height decode image height, default is -1, means auto, mostly means max height of decode support
-         * @param type decode image type, default is VideoType::VIDEO_DEC_H265_CBR
-         */
-        err::Err open(int width = -1, int height = -1, video::VideoType type = video::VideoType::VIDEO_ENC_H265_CBR);
-
-        /**
-         * @brief Close decode
-         * @return none
-        */
-        void close();
-
-        /**
-         * @brief Decode image
-         * @param stream the video stream. @see video::VideoStream
-         * @return the result of encode. @see image::Image
-        */
-        image::Image *decode(video::VideoStream &stream);
-
-        /**
-         * @brief check decode is opened or not
-         * @return opened or not, bool type
-        */
-        bool is_opened() {
-            return _is_opened;
+        Packet() {
+            _data = NULL;
+            _data_size = 0;
         }
-    private:
-        bool _is_opened;
+
+        ~Packet() {
+            if (_data) {
+                free(_data);
+                _data = NULL;
+            }
+        }
+
+        /**
+         * @brief Get raw data of packet
+         * @return raw data
+         * @maixpy maix.video.Packet.get
+         */
+        std::vector<uint8_t> get() {
+            std::vector<uint8_t> vec(_data, _data + _data_size);
+            return vec;
+        }
+
+        /**
+         * @brief Get raw data of packet
+         * @return raw data
+         * @maixpy maix.video.Packet.data
+         */
+        uint8_t *data() {
+            return _data;
+        }
+
+        /**
+         * @brief Get raw data size of packet
+         * @return size of raw data
+         * @maixpy maix.video.Packet.data_size
+         */
+        size_t data_size() {
+            return _data_size;
+        }
+
+        /**
+         * @brief Check packet is valid
+         * @return true, packet is valid; false, packet is invalid
+         * @maixpy maix.video.Packet.is_valid
+         */
+        bool is_valid() {
+            return (_data && _data_size != 0) ? true : false;
+        }
+
+        /**
+         * @brief Set pts
+         * @param pts presentation time stamp. unit: time_base
+         * @return true, packet is valid; false, packet is invalid
+         * @maixpy maix.video.Packet.set_pts
+         */
+        void set_pts(uint64_t pts) {
+            _pts = pts;
+        }
+
+        /**
+         * @brief Set dts
+         * @param dts decoding time stamp.  unit: time_base
+         * @return true, packet is valid; false, packet is invalid
+         * @maixpy maix.video.Packet.set_dts
+         */
+        void set_dts(uint64_t dts) {
+            _dts = dts;
+        }
+
+        /**
+         * @brief Set duration
+         * @param duration packet display time. unit: time_base
+         * @return true, packet is valid; false, packet is invalid
+         * @maixpy maix.video.Packet.set_duration
+         */
+        void set_duration(uint64_t duration) {
+            _duration = duration;
+        }
     };
 
     /**
@@ -156,35 +166,30 @@ namespace maix::video
     public:
         /**
          * @brief Construct a new Video object
-         * @param path video path. if record is true, xxx.h265 means video format is H265, xxx.mp4 means video format is MP4
-         * @param record If record is true, means record vide. if record is false means play video, default is false.
-         * @param interval record interval. unit: us
-         * @param width video width, default is -1, means auto, mostly means max width of video support
-         * @param height video height, default is -1, means auto, mostly means max height of video support
-         * @param audio If audio is true, means record with audio. default is false.
-         * @param sample_rate audio sample rate, default is 44100.
-         * @param channel audio channel, default is 1.
+         * @param path video path. the path determines the location where you load or save the file, if path is none, the video module will not save or load file.
+         * xxx.h265 means video format is H265, xxx.mp4 means video format is MP4
+         * @param width picture width. this value may be set automatically. default is 2560.
+         * @param height picture height. this value may be set automatically. default is 1440.
+         * @param format picture pixel format. this value may be set automatically. default is FMT_YVU420SP.
+         * @param time_base frame time base. time_base default is 30, means 1/30 ms
+         * @param framerate frame rate. framerate default is 30, means 30 frames per second
+         * for video. 1/time_base is not the average frame rate if the frame rate is not constant.
          * @param open If true, vido will automatically call open() after creation. default is true.
          * @maixpy maix.video.Video.__init__
          * @maixcdk maix.video.Video.Video
          */
-        Video(std::string path = std::string(), bool record = false, int interval = 33333, int width = -1, int height = -1, bool audio = false, int sample_rate = 44100, int channel = 1, bool open = true);
+        Video(std::string path = std::string(), int width = 2560, int height = 1440, image::Format format = image::Format::FMT_YVU420SP, int time_base = 30, int framerate = 30, bool open = true);
         ~Video();
 
         /**
          * Open video and run
-         * @param path video path. if record is true, xxx.h265 means video format is H265, xxx.mp4 means video format is MP4
-         * @param record If record is true, means record vide. if record is false means play video, default is false.
-         * @param interval record interval. unit: us
-         * @param width video width, default is -1, means auto, mostly means max width of video support
-         * @param height video height, default is -1, means auto, mostly means max height of video support
-         * @param audio If audio is true, means record with audio. default is false.
-         * @param sample_rate audio sample rate, default is 44100.
-         * @param channel audio channel, default is 1.
+         * @param path video path. the path determines the location where you load or save the file, if path is none, the video module will not save or load file.
+         * xxx.h265 means video format is H265, xxx.mp4 means video format is MP4
+         * @param fps video fps
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.video.Video.open
          */
-        err::Err open(std::string path = std::string(), bool record = false, int interval = 33333, int width = -1, int height = -1, bool audio = false, int sample_rate = 44100, int channel = 1);
+        err::Err open(std::string path = std::string(), double fps = 30.0);
 
         /**
          * Close video
@@ -201,43 +206,28 @@ namespace maix::video
         err::Err bind_camera(camera::Camera *camera);
 
         /**
-         * @brief start record video
-         * @param record_time record video time, unit: ms.
-         * If record_time = -1, mean record will not auto stop until record_finish() is called.
-         * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.video.Video.record_start
-        */
-        err::Err record_start(uint64_t record_time = -1);
-
-        /**
-         * @brief stop record video
-         * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.video.Video.record_finish
-        */
-        err::Err record_finish();
-
-        /**
-         * @brief stop record video
-         * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.video.Video.capture
-        */
-        image::Image *capture();
-
-        /**
-         * Encode image
-         * @param img the image will be encode
+         * Encode image.
+         * @param img the image will be encode.
+         * if the img is NULL, this function will try to get image from camera, you must use bind_camera to bind camera.
          * @return encode result
          * @maixpy maix.video.Video.encode
         */
-        video::VideoStream encode(image::Image &img);
+        video::Packet encode(image::Image *img = NULL);
 
         /**
-         * Decode image
-         * @param img the image will be decode
+         * Decode frame
+         * @param frame the frame will be decode
          * @return decode result
          * @maixpy maix.video.Video.decode
         */
-        image::Image *decode(video::VideoStream &stream);
+        image::Image *decode(video::Frame *frame = NULL);
+
+        /**
+         * Encode or decode finish
+         * @return error code
+         * @maixpy maix.video.Video.finish
+        */
+        err::Err finish();
 
         /**
          * Check if video is recording
@@ -283,15 +273,9 @@ namespace maix::video
         {
             return _height;
         }
-
-        /**
-         * Camera thread
-         * @attention DO NOT USE THIS FUNCTION DO ANYTHING!
-         * @return none
-        */
-        void camera_thread();
     private:
         std::string _pre_path;
+        double _pre_fps;
         bool _pre_record;
         int _pre_interval;
         int _pre_width;
@@ -302,6 +286,7 @@ namespace maix::video
 
         std::string _path;
         std::string _tmp_path;
+        double _fps;
         bool _record;
         int _interval;
         int _width;
@@ -319,6 +304,12 @@ namespace maix::video
         uint64_t _record_ms;
         uint64_t _record_start_ms;
         int _fd;
+
+        bool _need_auto_config;
+        int _time_base;
+        int _framerate;
+        fs::File file;
+        uint64_t _last_pts;
     };
 }
 
