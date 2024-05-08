@@ -255,6 +255,7 @@ namespace maix::peripheral::uart
         uart::PARITY     _parity;
         uart::STOP  _stopbits;
         uart::FLOW_CTRL  _flow_ctrl;
+        int         _one_byte_time_us;
     };
 
 }; // namespace maix.peripheral.uart
