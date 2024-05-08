@@ -1,18 +1,11 @@
 
 #include "stdio.h"
 #include "main.h"
-#include "maix_util.hpp"
+#include "maix_basic.hpp"
 #include "maix_image.hpp"
-#include "maix_time.hpp"
 #include "maix_display.hpp"
-#include "maix_rtsp.hpp"
+#include "maix_video.hpp"
 #include "maix_camera.hpp"
-#include "maix_nn_yolov5.hpp"
-#include "csignal"
-#include <iostream>
-#include <termios.h>
-#include <unistd.h>
-#include <fcntl.h>
 
 using namespace maix;
 
@@ -46,7 +39,7 @@ int _main(int argc, char* argv[])
         uint64_t record_s = 5;
         std::string path = "output.mp4";
         if (argc > 2) record_s = atoi(argv[2]);
-        if (argc > 3) strcpy((char *)path.c_str(), argv[3]);
+        if (argc > 3) path = argv[3];
         log::info("Ready to record %ld s, and save to %s\r\n", record_s, path.c_str());
 
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
@@ -75,7 +68,7 @@ int _main(int argc, char* argv[])
         uint64_t record_s = 5;
         std::string path = "output.mp4";
         if (argc > 2) record_s = atoi(argv[2]);
-        if (argc > 3) strcpy((char *)path.c_str(), argv[3]);
+        if (argc > 3) path = argv[3];
         log::info("Ready to record %ld s, and save to %s\r\n", record_s, path.c_str());
 
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
@@ -103,7 +96,7 @@ int _main(int argc, char* argv[])
         uint64_t record_s = 5;
         std::string path = "output.h265";
         if (argc > 2) record_s = atoi(argv[2]);
-        if (argc > 3) strcpy((char *)path.c_str(), argv[3]);
+        if (argc > 3) path = argv[3];
         log::info("Ready to record %ld s, and save to %s\r\n", record_s, path.c_str());
 
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
@@ -132,7 +125,7 @@ int _main(int argc, char* argv[])
         uint64_t record_s = 5;
         std::string path = "output.h265";
         if (argc > 2) record_s = atoi(argv[2]);
-        if (argc > 3) strcpy((char *)path.c_str(), argv[3]);
+        if (argc > 3) path = argv[3];
         log::info("Ready to record %ld s, and save to %s\r\n", record_s, path.c_str());
 
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
@@ -158,58 +151,6 @@ int _main(int argc, char* argv[])
     default:
         helper();
         return 0;
-    }
-
-    return 0;
-
-    // Video: encode image and save to mp4
-    {
-        camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
-        video::Video v = video::Video("output.mp4");
-
-        while(!app::need_exit()) {
-            image::Image *img = cam.read();
-            video::Packet packet1 = v.encode(img);
-            video::Packet packet2 = v.encode(img);
-            video::Packet packet3 = v.encode(img);
-            v.finish(); // save to output.mp4
-        }
-    }
-
-    // Video: encode and save to mp4(bind camera)
-    {
-        camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
-        video::Video v = video::Video("output.mp4");
-        v.bind_camera(&cam);
-
-        while(!app::need_exit()) {
-            video::Packet packet1 = v.encode();   // img from camera
-            video::Packet packet2 = v.encode();   // img from camera
-            video::Packet packet3 = v.encode();   // img from camera
-            v.finish(); // save to output.mp4
-        }
-    }
-
-    // Video: decode file and show on display
-    {
-        display::Display disp = display::Display();
-        video::Video v = video::Video("user.mp4");
-        while(!app::need_exit()) {
-            image::Image *img = v.decode();
-            disp.show(*img);
-        }
-    }
-
-    // Video: decode frame and show on display
-    {
-        display::Display disp = display::Display();
-        video::Video v = video::Video();
-
-        video::Frame frame = video::Frame();
-        while(!app::need_exit()) {
-            image::Image *img = v.decode(&frame);
-            disp.show(*img);
-        }
     }
 
     return 0;

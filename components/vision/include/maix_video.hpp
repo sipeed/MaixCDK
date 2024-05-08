@@ -174,7 +174,7 @@ namespace maix::video
          * @param time_base frame time base. time_base default is 30, means 1/30 ms
          * @param framerate frame rate. framerate default is 30, means 30 frames per second
          * for video. 1/time_base is not the average frame rate if the frame rate is not constant.
-         * @param open If true, vido will automatically call open() after creation. default is true.
+         * @param open If true, video will automatically call open() after creation. default is true.
          * @maixpy maix.video.Video.__init__
          * @maixcdk maix.video.Video.Video
          */
