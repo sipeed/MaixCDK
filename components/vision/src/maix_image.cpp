@@ -384,20 +384,20 @@ namespace maix::image
     }
 
     image::Image *Image::to_format(const image::Format &format, void *buff, size_t buff_size)
-    {printf("============[%s][%d]\r\n", __func__, __LINE__);
+    {
         if (_format == format)
         {
             log::error("convert format failed, already the format %d\n", format);
             throw err::Exception(err::ERR_ARGS, "convert format failed, already the format");
         }
-printf("============[%s][%d]\r\n", __func__, __LINE__);
+
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
         cv::ColorConversionCodes cvt_code;
         if(format == image::FMT_JPEG) // compress
-        {printf("============[%s][%d]\r\n", __func__, __LINE__);
+        {
             switch (_format) {
             case image::FMT_YVU420SP:
-                {printf("============[%s][%d]\r\n", __func__, __LINE__);
+                {
 #ifdef PLATFORM_MAIXCAM
                 image::Image *img = nullptr;
                 if (!mmf_enc_jpg_push(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP))) {
@@ -413,28 +413,28 @@ printf("============[%s][%d]\r\n", __func__, __LINE__);
                 break;
                 }
             default:
-                {printf("============[%s][%d]\r\n", __func__, __LINE__);
+                {
 #ifdef PLATFORM_MAIXCAM
                 image::Image *p_img = nullptr;
                 image::Image *img = nullptr;
                 bool src_alloc = false;
                 if(_format != Format::FMT_RGB888)
-                {printf("============[%s][%d]\r\n", __func__, __LINE__);
+                {
                     p_img = to_format(image::FMT_RGB888);
                     src_alloc = true;
-                } else {printf("============[%s][%d]\r\n", __func__, __LINE__);
+                } else {
                     p_img = this;
                 }
-printf("============[%s][%d]\r\n", __func__, __LINE__);
+
                 if (!mmf_enc_jpg_push(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888))) {
                     uint8_t *data;
-                    int data_size;printf("============[%s][%d]\r\n", __func__, __LINE__);
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {printf("============[%s][%d]\r\n", __func__, __LINE__);
+                    int data_size;
+                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
                         img = new image::Image(_width, _height, format, data, data_size, true);
-                        mmf_enc_jpg_free(0);printf("============[%s][%d]\r\n", __func__, __LINE__);
+                        mmf_enc_jpg_free(0);
                     }
                 }
-printf("============[%s][%d]\r\n", __func__, __LINE__);
+
                 if (src_alloc)
                 {
                     delete p_img;
@@ -682,7 +682,7 @@ printf("============[%s][%d]\r\n", __func__, __LINE__);
 
 
     image::Image *Image::to_format(const image::Format &format)
-    {printf("============[%s][%d]\r\n", __func__, __LINE__);
+    {
         return to_format(format, nullptr, 0);
     }
 
