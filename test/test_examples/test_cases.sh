@@ -66,6 +66,8 @@ test_start video_record_mp4
 test_start websocket_client
 test_start websocket_server
 test_start wifi_demo
+test_start video_demo
+test_start audio_demo
 
 
 

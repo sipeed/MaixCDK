@@ -62,6 +62,7 @@ bool mmf_enc_jpg_is_init(void);
 int mmf_enc_jpg_init(int ch, int w, int h, int format, int quality);
 int mmf_enc_jpg_deinit(int ch);
 int mmf_enc_jpg_push(int ch, uint8_t *data, int w, int h, int format);
+int mmf_enc_jpg_push_with_quality(int ch, uint8_t *data, int w, int h, int format, int quality);
 int mmf_enc_jpg_pop(int ch, uint8_t **data, int *size);
 int mmf_enc_jpg_free(int ch);
 
