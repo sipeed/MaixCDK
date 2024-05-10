@@ -1,0 +1,12 @@
+prefix=/home/sipeed/Downloads/alsa-lib-1.2.11/riscv_install
+exec_prefix=/home/sipeed/Downloads/alsa-lib-1.2.11/riscv_install
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: alsa
+Description: Advanced Linux Sound Architecture (ALSA) - Library
+Version: 1.2.11
+Requires: 
+Libs: -L${libdir} -lasound
+Libs.private: -lm -lpthread -lrt
+Cflags: -I${includedir}

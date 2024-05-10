@@ -301,6 +301,15 @@ namespace maix::image
          */
         image::Image *to_format(const image::Format &format, void *buff, size_t buff_size);
 
+        /**
+         * Convert image to jpeg
+         * @param quality the quality of jpg, default is 95. range is (50, 100].
+         * @return new image object. Need be delete by caller in C++.
+         * @throw err.Exception, if two images' format not support, **or already the format**, will raise exception
+         * @maixcdk maix.image.Image.to_jpeg
+        */
+        image::Image *to_jpeg(int quality = 95);
+
         //************************** draw **************************//
 
         /**
