@@ -98,12 +98,15 @@ class Downloader:
         self.callback = callback
         self.data_content = None
         headers = self.headers.copy()
-        res = requests.head(self.url, headers=headers)
-        # 302 redirect
-        if res.status_code == 302:
-            self.url = res.headers['Location']
-            print(f"redirect to {self.url}")
+        while 1:
             res = requests.head(self.url, headers=headers)
+            # 302 redirect
+            if res.status_code == 302 or res.status_code == 301:
+                self.url = res.headers['Location']
+                print(f"redirect to {self.url}")
+                res = requests.head(self.url, headers=headers)
+            else:
+                break
         if res.status_code != 200:
             raise  Exception("download file error, code: {}, content: {}".format(res.status_code, res.content.decode()))
         try:
