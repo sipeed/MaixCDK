@@ -57,6 +57,14 @@ namespace maix::image
          */
         Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy);
 
+        Image() {
+            _width = 0;
+            _height = 0;
+            _format = image::Format::FMT_INVALID;
+            _data = nullptr;
+            _data_size = 0;
+            _is_malloc = false;
+        }
         ~Image();
 
         void operator=(image::Image &img);

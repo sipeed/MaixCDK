@@ -21,7 +21,9 @@
 #define MMF_VENC_CHN            (1)
 namespace maix::video
 {
-    Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool open)
+    maix::image::Image NoneImage = maix::image::Image();
+
+    Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {
         this->_pre_path = path;
         this->_video_type = VIDEO_NONE;
@@ -35,6 +37,8 @@ namespace maix::video
         this->_pre_width = width;
         this->_pre_height = height;
         this->_last_pts = 0;
+        this->_capture_image = nullptr;
+        this->_need_capture = capture;
         this->_is_opened = false;
 
         if (open) {
@@ -80,6 +84,10 @@ namespace maix::video
             mmf_enc_h265_deinit(MMF_VENC_CHN);
         }
 
+        if (_capture_image && _capture_image->data()) {
+            delete _capture_image;
+            _capture_image = nullptr;
+        }
         this->_is_opened = false;
     }
 
@@ -125,7 +133,7 @@ namespace maix::video
         return video_type;
     }
 
-    video::Packet Video::encode(image::Image *img) {
+    video::Packet *Video::encode(image::Image *img) {
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
 
@@ -139,7 +147,7 @@ namespace maix::video
             _need_auto_config = false;
         }
 
-        if (img) {  // encode from image
+        if (img && img->data() != NULL) {  // encode from image
             if (img->data_size() > 2560 * 1440 * 3 / 2) {
                 log::error("image is too large!\r\n");
                 goto _exit;
@@ -286,7 +294,7 @@ namespace maix::video
             }
         } else { // encode from camera
             if (!this->_bind_camera) {
-                log::warn("You need use bind_camera() to bind camera!\r\n");
+                log::warn("You need use bind_camera() function to bind the camera!\r\n");
                 goto _exit;
             }
 
@@ -345,6 +353,50 @@ _retry_enc_h265:
                 if (data_size > 2560 * 1440 * 3 / 2) {
                     log::error("image is too large!\r\n");
                     goto _exit;
+                }
+
+                if (_need_capture) {
+                    if (_capture_image && _capture_image->data()) {
+                        delete _capture_image;
+                        _capture_image = NULL;
+                    }
+
+                    image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
+                    bool need_align = (width % mmf_vi_aligned_width(vi_ch) == 0) ? false : true;   // Width need align only
+                    switch (capture_format) {
+                        case image::Format::FMT_BGR888: // fall through
+                        case image::Format::FMT_RGB888:
+                        {
+                            _capture_image = new image::Image(width, height, capture_format);
+                            uint8_t * image_data = (uint8_t *)_capture_image->data();
+                            if (need_align) {
+                                for (int h = 0; h < height; h++) {
+                                    memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
+                                }
+                            } else {
+                                memcpy(image_data, data, width * height * 3);
+                            }
+                        }
+                            break;
+                        case image::Format::FMT_YVU420SP:
+                        {
+                            _capture_image = new image::Image(width, height, capture_format);
+                            uint8_t * image_data = (uint8_t *)_capture_image->data();
+                            if (need_align) {
+                                for (int h = 0; h < height * 3 / 2; h ++) {
+                                    memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
+                                }
+                            } else {
+                                memcpy(image_data, data, width * height * 3 / 2);
+                            }
+                            break;
+                        }
+                        default:
+                        {
+                            _capture_image = NULL;
+                            break;
+                        }
+                    }
                 }
 
                 if (mmf_enc_h265_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
@@ -474,7 +526,7 @@ _retry_enc_mp4:
             }
         }
 _exit:
-        video::Packet packet(stream_buffer, stream_size);
+        video::Packet *packet = new video::Packet(stream_buffer, stream_size);
         return packet;
     }
 
