@@ -446,14 +446,21 @@ namespace maix::peripheral::uart
 		int buff_len = len > 0 ? len : 512;
 		Bytes *data = new Bytes(NULL, buff_len);
 		int received = 0;
+		uint64_t t = time::time_ms();
+		int t2;
 		while(1)
 		{
-			read_len = read(data->data + received, buff_len - received, len > 0 ? len - received : len, timeout);
+			t2 = (int)(time::time_ms() - t);
+			if(timeout > 0 && t2 >= timeout)
+				break;
+			read_len = read(data->data + received, buff_len - received, len > 0 ? len - received : len, timeout > 0 ? t2 : timeout);
 			if (read_len < 0)
 				read_len = 0;
 			received += read_len;
 			data->data_len = received;
-			if(received == buff_len)
+			if(timeout > 0 && (int)(time::time_ms() - t) >= timeout)
+				break;
+			else if(received == buff_len)
 			{
 				buff_len = data->data_len * 2;
 				Bytes *data2 = new Bytes(data->data, buff_len, true, true);
