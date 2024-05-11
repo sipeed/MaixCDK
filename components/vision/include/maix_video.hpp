@@ -166,6 +166,8 @@ namespace maix::video
     class Video
     {
     public:
+        static maix::image::Image *NoneImage;
+
         /**
          * @brief Construct a new Video object
          * @param path video path. the path determines the location where you load or save the file, if path is none, the video module will not save or load file.
@@ -215,7 +217,7 @@ namespace maix::video
          * @return encode result
          * @maixpy maix.video.Video.encode
         */
-        video::Packet *encode(image::Image *img = &maix::video::NoneImage);
+        video::Packet *encode(image::Image *img = maix::video::Video::NoneImage);
 
         /**
          * Decode frame

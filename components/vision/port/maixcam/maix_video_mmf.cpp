@@ -21,7 +21,7 @@
 #define MMF_VENC_CHN            (1)
 namespace maix::video
 {
-    maix::image::Image NoneImage = maix::image::Image();
+    maix::image::Image *Video::NoneImage = new maix::image::Image();
 
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {

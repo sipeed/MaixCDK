@@ -40,6 +40,8 @@ namespace maix::audio
         return err::ERR_NOT_IMPL;
     }
 
+    maix::Bytes *Player::NoneBytes = new maix::Bytes();
+
     Player::Player(std::string path, int sample_rate, audio::Format format, int channel) {
         (void)path;
         (void)sample_rate;

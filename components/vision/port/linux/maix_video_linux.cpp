@@ -14,7 +14,9 @@
 
 namespace maix::video
 {
-    Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool open)
+    maix::image::Image *Video::NoneImage = new maix::image::Image();
+
+    Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {
         throw err::Exception(err::ERR_NOT_IMPL);
     }

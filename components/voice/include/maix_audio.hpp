@@ -133,6 +133,8 @@ namespace maix::audio
         size_t _buffer_size;
         FILE *_file;
     public:
+        static maix::Bytes *NoneBytes;
+
         /**
          * @brief Construct a new Player object
          * @param path player path. the path determines the location where you save the file, if path is none, the audio module will not save file.
@@ -160,7 +162,7 @@ namespace maix::audio
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.audio.Player.play
         */
-        err::Err play(maix::Bytes *data = nullptr);
+        err::Err play(maix::Bytes *data = maix::audio::Player::NoneBytes);
 
         /**
          * Get sample rate
