@@ -400,7 +400,7 @@ namespace maix::image
                 {
 #ifdef PLATFORM_MAIXCAM
                 image::Image *img = nullptr;
-                if (!mmf_enc_jpg_push(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP))) {
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), 95)) {
                     uint8_t *data;
                     int data_size;
                     if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
@@ -426,7 +426,7 @@ namespace maix::image
                     p_img = this;
                 }
 
-                if (!mmf_enc_jpg_push(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888))) {
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), 80)) {
                     uint8_t *data;
                     int data_size;
                     if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
