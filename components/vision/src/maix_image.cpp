@@ -754,18 +754,7 @@ namespace maix::image
             params.push_back(95);
             cv::imencode(".jpg", input, jpeg_buff, params);
             image::Image *img;
-            if(buff)
-            {
-                if(buff_size < jpeg_buff.size())
-                {
-                    log::error("convert format failed, buffer size not enough\n");
-                    throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
-                }
-                memcpy(buff, jpeg_buff.data(), jpeg_buff.size());
-                img = new image::Image(src.cols, src.rows, format, (uint8_t*)buff, jpeg_buff.size(), false);
-            }
-            else
-                img = new image::Image(src.cols, src.rows, format, (uint8_t*)jpeg_buff.data(), jpeg_buff.size(), true);
+            img = new image::Image(src.cols, src.rows, format, (uint8_t*)jpeg_buff.data(), jpeg_buff.size(), true);
             if(src_alloc)
             {
                 delete p_img;
@@ -776,6 +765,8 @@ namespace maix::image
             break;
             }
         }
+
+        return nullptr;
     }
 
     image::Image *Image::draw_image(int x, int y, image::Image &img)

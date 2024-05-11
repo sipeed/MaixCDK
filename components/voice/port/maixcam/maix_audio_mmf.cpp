@@ -405,6 +405,8 @@ namespace maix::audio
         return err::ERR_NONE;
     }
 
+    maix::Bytes *Player::NoneBytes = new maix::Bytes();
+
     Player::Player(std::string path, int sample_rate, audio::Format format, int channel) {
         _path = path;
         _sample_rate = sample_rate;
@@ -459,7 +461,7 @@ namespace maix::audio
         unsigned int channel = _channel;
         int len = 0;
 
-        if (!data) {
+        if (!data || !data->data) {
             if (_file == NULL && _path.size() > 0) {
                 _file = fopen(_path.c_str(), "rb+");
                 err::check_null_raise(_file, "Open file failed!");
