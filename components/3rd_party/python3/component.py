@@ -6,6 +6,8 @@ def add_file_downloads(confs : dict) -> list:
     '''
     if (not confs.get("PLATFORM_MAIXCAM", None)) or confs.get("CONFIG_COMPONENTS_COMPILE_FROM_SOURCE", None):
         version = f"{confs['CONFIG_PYTHON_VERSION_MAJOR']}.{confs['CONFIG_PYTHON_VERSION_MINOR']}.{confs['CONFIG_PYTHON_VERSION_PATCH']}"
+        if version == "0.0.0":
+            return []
         url = f"https://www.python.org/ftp/python/{version}/Python-{version}.tar.xz"
         if version == "3.11.6":
             sha256sum = "92e14b22e708612c6e280931cc247b4266da9a6bac8459edf25bfb4cebcbac66"
@@ -60,8 +62,7 @@ def add_file_downloads(confs : dict) -> list:
     filename = f"python3_lib_maixcam_musl_3.11.6.tar.xz"
     path = f"python3"
     check_file = f'python3_lib_maixcam_musl_3.11.6'
-    rename = {
-    },
+    rename = {}
 
     return [
         {
