@@ -66,21 +66,6 @@
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
 
 
 set(version_str "${CONFIG_BROTLI_VERSION_MAJOR}.${CONFIG_BROTLI_VERSION_MINOR}.${CONFIG_BROTLI_VERSION_PATCH}")
@@ -100,25 +85,15 @@ set_property(SOURCE ${include_dir} PROPERTY GENERATED 1)
 set_property(SOURCE ${h_path} PROPERTY GENERATED 1)
 set_property(SOURCE ${lib_file} PROPERTY GENERATED 1)
 
-set(brotli_url "https://master.dl.sourceforge.net/project/brotli.mirror/v${version_str}/v${version_str}.tar.gz?viasf=1")
-set(brotli_filename "brotli-${version_str}.tar.gz")
 set(brotli_unzip_path "${DL_EXTRACTED_PATH}/brotli_srcs")
 set(brotli_src_path "${brotli_unzip_path}/google-brotli-${version_str}")
 if(version_str EQUAL "1.1.0")
-    set(brotli_file_sha256sum "10973f4b4199eafa1d5735ef661ddb2ec2f97319ee9fd1824d4aabe08cff5265")
     set(brotli_src_path "${brotli_unzip_path}/google-brotli-ed738e8")
 else()
     message(FATAL_ERROR "No brotli version ${version_str} support, please edit to add brotli support for this version")
 endif()
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${brotli_url}',
-    'urls': [],
-    'sha256sum': '${brotli_file_sha256sum}',
-    'filename': '${brotli_filename}',
-    'path': 'brotli_srcs',
-    'check_files': ['google-brotli-${version_str}']
-    }"
-)
+
+
 if(PLATFORM_M2DOCK)
     set(brotli_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_m2dock.cmake)
 elseif(PLATFORM_MAIXCAM)

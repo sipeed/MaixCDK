@@ -66,22 +66,6 @@
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
 if(PLATFORM_LINUX)
     set(compile_for_host 1)
 else()
@@ -110,16 +94,6 @@ if(NOT compile_for_host)
         set_property(SOURCE ${target_h_path} PROPERTY GENERATED 1)
         set_property(SOURCE ${target_lib_file} PROPERTY GENERATED 1)
 
-        list(APPEND ADD_FILE_DOWNLOADS
-            "{
-                'url': 'https://www.openssl.org/source/openssl-3.0.12.tar.gz',
-                'urls': [],
-                'sites': ['https://www.openssl.org/source/'],
-                'sha256sum': 'f93c9e8edde5e9166119de31755fc87b4aa34863662f67ddfcba14d0b6b69b61',
-                'filename': 'openssl-3.0.12.tar.gz',
-                'path': 'openssl'
-            }"
-        )
         set(openssl_src_path "${DL_EXTRACTED_PATH}/openssl/openssl-3.0.12")
         set(openssl_install_path "${target_install_dir}")
         set(openssl_compile_cmd COMMAND set -x && cd ${openssl_src_path} && echo "-- compile openssl now" && make distclean || true && chmod +x ./Configure && ./Configure linux-generic32 shared  -DL_ENDIAN --openssldir=${openssl_install_path} --prefix=${openssl_install_path} && export PATH=${CONFIG_TOOLCHAIN_PATH}:$ENV{PATH} &&  make CC="${host_prefix}"-gcc RANLIB="${host_prefix}"-ranlib LD="${host_prefix}"-ld MAKEDEPPROG="${host_prefix}"-gcc PROCESSOR=${arch} -j`nproc` && make install_sw)

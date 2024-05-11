@@ -54,22 +54,5 @@ list(APPEND ADD_PRIVATE_INCLUDE "")
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
-
 register_component()
 

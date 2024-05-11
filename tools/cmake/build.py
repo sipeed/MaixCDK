@@ -1,18 +1,158 @@
-
 import subprocess
+
 import os
 from multiprocessing import cpu_count
 import shutil
 import sys
 import re
+import traceback
+
+try:
+    curr_dir = os.path.abspath(os.path.dirname(__file__))
+except Exception:
+    print("-- [ERROR] Please upgrate maixtool by pip install -U maixtool")
+    sys.exit(1)
+
+if curr_dir not in sys.path:
+    sys.path.insert(0, curr_dir)
+
+from file_downloader import download_extract_files
 
 thread_num = cpu_count()
+
+def parse_kconfigs(config_path, toolchain_config_path):
+    configs = {}
+    with open(config_path, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.strip()
+        if line.startswith("#") or line == "":
+            continue
+        k,v = line.split("=", 1)
+        if v == "y":
+            v = True
+        configs[k] = v
+    with open(toolchain_config_path, "r") as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.strip()
+        if line.startswith("#") or line == "":
+            continue
+        if line.startswith("set("):
+            k, v = line.split("(", 1)[1].rsplit(")", 1)[0].split(" ", 1)
+            configs[k] = v
+    return configs
+
+def get_components_dirs(find_dirs):
+    components = {}
+    for dir in find_dirs:
+        if (not dir) or not os.path.exists(dir):
+            continue
+        for name in os.listdir(dir):
+            path = os.path.join(dir, name, "CMakeLists.txt")
+            if os.path.exists(path):
+                components[name] = os.path.dirname(path)
+    return components
+
+def get_components_files(components, valid_components, kconfigs):
+    files = {}
+    for name in valid_components:
+        py_path = os.path.join(components[name], "component.py")
+        if not os.path.exists(py_path):
+            continue
+        g = {}
+        with open(py_path, "r", encoding="utf-8") as f:
+            exec(f.read(), g)
+        if "add_file_downloads" in g:
+            try:
+                files[name] = g["add_file_downloads"](kconfigs)
+            except Exception as e:
+                print("\n\n---- ERROR -----")
+                traceback.print_exc()
+                print("----------------")
+                print(f"[ERROR] execute compoent [{name}]'s component.py failed")
+                sys.exit(1)
+    return files
+
+def find_valid_components(components):
+    '''
+        get project depends(not accurately, just exclude some obvious not depend components)
+        return valid components name
+    '''
+    # get components quire
+    depends = {}
+    for name, dir in components.items():
+        cmakelist = os.path.join(dir, "CMakeLists.txt")
+        with open(cmakelist, "r", encoding="utf-8") as f:
+            content = f.read()
+            match = re.findall(r'list\(APPEND ADD_REQUIREMENTS(.*?)\)', content, re.DOTALL|re.MULTILINE)
+            match = list(set(" ".join(match).split()))
+            depends[name] = []
+            for r in match:
+                if r in components:
+                    depends[name].append(r)
+    # find main depends
+    def get_depend_recursive(name):
+        d = depends[name]
+        for r in depends[name]:
+            d.extend(get_depend_recursive(r))
+        d = list(set(d))
+        return d
+    valid = ["main"]
+    valid.extend(get_depend_recursive("main"))
+    return valid
+
+def get_components_find_dirs(configs):
+    final = []
+    find_dirs = [ # same as compile.cmake find_components in project macro
+        configs.get("MAIXCDK_EXTRA_COMPONENTS_PATH", ""),
+        configs.get("PY_PKG_COMPONENTS_PATH", ""),
+        configs.get("PY_USR_PKG_COMPONENTS_PATH", ""),
+        os.path.join(configs["SDK_PATH"], "components"),
+        os.path.join(configs["SDK_PATH"], "components", "3rd_party"),
+        configs["PROJECT_PATH"],
+        os.path.join(configs["PROJECT_PATH"], "components"),
+        os.path.join(configs["PROJECT_PATH"], "..", "components"),
+    ]
+    for dir in find_dirs:
+        if (not dir) or not os.path.exists(dir):
+            continue
+        final.append(dir)
+    return final
+
+def get_all_components_dl_info(find_dirs, kconfigs):
+    components = get_components_dirs(find_dirs)
+    valid_components = find_valid_components(components)
+    files_info = get_components_files(components, valid_components, kconfigs)
+    return files_info
 
 def rebuild(build_path, configs, verbose):
     os.makedirs(build_path, exist_ok=True)
     os.chdir(build_path)
-    if not os.path.exists(os.path.join(build_path, "config", "global_config.mk")):
+    config_path = os.path.join(build_path, "config", "global_config.mk")
+    toolchain_config_path = os.path.join(build_path, "config", "toolchain_config.cmake")
+    if not os.path.exists(config_path):
         menuconfig(configs["SDK_PATH"], build_path, configs, False)
+
+    # find and download all files, save to sdk_path/dl/pkgs_info.json
+    all_configs = configs.copy()
+    kconfigs = parse_kconfigs(config_path, toolchain_config_path)
+    all_configs.update(kconfigs)
+    find_dirs = get_components_find_dirs(configs)
+    files_info = get_all_components_dl_info(find_dirs, all_configs)
+    for name, files in files_info.items():
+        if len(files) > 0:
+            print(f"\n-- Download files for component {name}")
+            try:
+                download_extract_files(files)
+            except Exception as e:
+                print("\n\n---- ERROR -----")
+                traceback.print_exc()
+                print("----------------")
+                print(f"[ERROR] download for compoent [{name}] failed, please check its component.py")
+                sys.exit(1)
+
+    # cmake
     cmd = ["cmake", "-G", configs["CMAKE_GENERATOR"]]
     for k, v in configs.items():
         cmd.append("-D{}={}".format(k, v))
@@ -31,6 +171,8 @@ def rebuild(build_path, configs, verbose):
         code += "#define PROJECT_ID \"{}\"\n".format(configs["PROJECT_ID"])
         code += "#endif\n"
         f.write(code)
+
+    # build
     build(build_path, configs, verbose)
 
 def build(build_path, configs, verbose):
@@ -118,4 +260,15 @@ def menuconfig(sdk_path, build_path, configs, gui = True):
                 else:
                     os.remove(name)
             print("-- clean build dir complete")
+
+if __name__ == "__main__":
+    cmd = sys.argv[1]
+    if cmd == "get_valid_components":
+        find_dirs = sys.argv[2:]
+        for dir in find_dirs:
+            if " " in dir:
+                raise Exception("Path can not contain space or special charactors")
+        components = get_components_dirs(find_dirs)
+        valid_components = find_valid_components(components)
+        print(";".join(valid_components), end="")
 

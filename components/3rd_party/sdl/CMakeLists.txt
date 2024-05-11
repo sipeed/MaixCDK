@@ -66,22 +66,6 @@
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
 # write build python version to CMAKE_BINARY_DIR/config/python_version.txt
 # file(WRITE ${CMAKE_BINARY_DIR}/config/sdl_version.txt "${CONFIG_SDL_VERSION_MAJOR}.${CONFIG_SDL_VERSION_MINOR}.${CONFIG_SDL_VERSION_PATCH}")
 
@@ -132,23 +116,8 @@ if(NOT ADD_INCLUDE)
     endif()
     set_property(SOURCE ${sdl_lib_file} PROPERTY GENERATED 1)
 
-    set(sdl_url "https://github.com/libsdl-org/SDL/releases/download/release-${sdl_version_str}/SDL2-${sdl_version_str}.tar.gz")
-    set(sdl_filename "SDL2-${sdl_version_str}.tar.gz")
     set(sdl_unzip_path "${DL_EXTRACTED_PATH}/sdl_srcs")
     set(sdl_src_path "${sdl_unzip_path}/SDL2-${sdl_version_str}")
-    if(sdl_version_str EQUAL "2.28.4")
-        set(sdl_file_sha256sum "888b8c39f36ae2035d023d1b14ab0191eb1d26403c3cf4d4d5ede30e66a4942c")
-    endif()
-    list(APPEND ADD_FILE_DOWNLOADS "{
-        'url': '${sdl_url}',
-        'urls': [],
-        'sites': [],
-        'sha256sum': '${sdl_file_sha256sum}',
-        'filename': '${sdl_filename}',
-        'path': 'sdl_srcs',
-        'check_files': ['SDL2-${sdl_version_str}']
-        }"
-    )
 
     if(PLATFORM_LINUX)
         set(sdl_compile_cmd COMMAND set -x && cd ${sdl_src_path} && make distclean || true && chmod +x ./configure && ./configure --prefix=${sdl_target_install_dir} ${static_shared_flag} --with-pic && echo "-- compile now" && make -j`nproc` && make install)

@@ -36,7 +36,8 @@ function test_start()
 {
     test_script $1
     if [ $? -ne 0 ]; then
-    echo "Error: $1 failed to execute."
+        echo "Error: $1 failed to execute."
+        exit 1
     fi
 }
 
