@@ -156,16 +156,11 @@ namespace maix::audio
 
         /**
          * Play
-         * @param path audio path. the path determines the location where you load the file
-         * If you pass in a valid path, this api will block until play end.
-         * @param sample_rate audio sample rate
-         * @param format audio sample format
-         * @param channel audio sample channel
-         * @param data audio data
+         * @param data audio data, must be raw data
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.audio.Player.play
         */
-        err::Err play(maix::Bytes *data = NULL);
+        err::Err play(maix::Bytes *data = nullptr);
 
         /**
          * Get sample rate

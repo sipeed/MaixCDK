@@ -346,7 +346,7 @@ namespace maix::audio
             uint64_t start_ms = time::time_ms();
             if (_path.size() <= 0) {
                 log::error("If you pass in the record_ms parameter, you must also set the correct path in audio::Audio()\r\n");
-                return NULL;
+                return new Bytes();
             }
 
             while (time::time_ms() - start_ms <= (uint64_t)record_ms) {
@@ -361,7 +361,7 @@ namespace maix::audio
                 time::sleep_ms(10);
             }
 
-            return NULL;
+            return new Bytes();
         } else {
             int add_len = 4096;
             int valid_len = 0;
@@ -393,7 +393,7 @@ namespace maix::audio
             return new Bytes();
         }
 
-        return NULL;
+        return new Bytes();
     }
 
     err::Err Recorder::finish() {
