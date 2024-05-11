@@ -66,22 +66,6 @@
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
 set(compile_for_host 0)
 
 if(CONFIG_PYTHON_VERSION_MAJOR STREQUAL "0")
@@ -130,16 +114,6 @@ if(NOT compile_for_host)
         if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/python_target_install")
             set(python_lib_dir "${CMAKE_CURRENT_LIST_DIR}/python_target_install")
         elseif(CONFIG_TOOLCHAIN_PATH MATCHES "musl")
-            list(APPEND ADD_FILE_DOWNLOADS "{
-                    'url': 'https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/python3_lib_maixcam_musl_3.11.6.tar.xz',
-                    'urls': [],
-                    'sites': ['https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0'],
-                    'sha256sum': '92e14b22e708612c6e280931cc247b4266da9a6bac8459edf25bfb4cebcbac66',
-                    'filename': 'python3_lib_maixcam_musl_3.11.6.tar.xz',
-                    'path': 'python3',
-                    'check_files': ['python3_lib_maixcam_musl_3.11.6']
-                }"
-            )
             set(python_lib_dir "${DL_EXTRACTED_PATH}/python3/python3_lib_maixcam_musl_3.11.6")
         endif()
         if(python_lib_dir)
@@ -211,46 +185,8 @@ if(NOT compile_for_host)
         set_property(SOURCE ${python_h_path} PROPERTY GENERATED 1)
         set_property(SOURCE ${python_lib_file} PROPERTY GENERATED 1)
 
-        set(python_url "https://www.python.org/ftp/python/${python_version_str}/Python-${python_version_str}.tar.xz")
-        set(python_filename "Python-${python_version_str}.tar.xz")
         set(python_unzip_path "${DL_EXTRACTED_PATH}/python_srcs")
         set(python_src_path "${python_unzip_path}/Python-${python_version_str}")
-        if(python_version_str EQUAL "3.8.5")
-            set(file_sha256sum "e3003ed57db17e617acb382b0cade29a248c6026b1bd8aad1f976e9af66a83b0")
-        elseif(python_version_str EQUAL "3.10.12")
-            set(file_sha256sum "afb74bf19130e7a47d10312c8f5e784f24e0527981eab68e20546cfb865830b8")
-        elseif(python_version_str EQUAL "3.11.6")
-            set(file_sha256sum "0fab78fa7f133f4f38210c6260d90d7c0d5c7198446419ce057ec7ac2e6f5f38")
-        endif()
-        if(NOT file_sha256sum)
-            message(FATAL_ERROR "please edit here to add sha256sum for python version ${python_version_str} which download from ${python_url}")
-        endif()
-        list(APPEND ADD_FILE_DOWNLOADS "{
-                'url': '${python_url}',
-                'urls': [],
-                'sites': [],
-                'sha256sum': '${file_sha256sum}',
-                'filename': '${python_filename}',
-                'path': 'python_srcs',
-                'check_files': ['Python-${python_version_str}']
-            }"
-            "{
-                'url': 'https://zlib.net/zlib-1.3.tar.xz',
-                'urls': [],
-                'sites': ['https://zlib.net/'],
-                'sha256sum': '8a9ba2898e1d0d774eca6ba5b4627a11e5588ba85c8851336eb38de4683050a7',
-                'filename': 'zlib-1.3.tar.xz',
-                'path': 'zlib'
-            }"
-            "{
-                'url': 'https://www.openssl.org/source/openssl-3.0.12.tar.gz',
-                'urls': [],
-                'sites': ['https://www.openssl.org/source/'],
-                'sha256sum': 'f93c9e8edde5e9166119de31755fc87b4aa34863662f67ddfcba14d0b6b69b61',
-                'filename': 'openssl-3.0.12.tar.gz',
-                'path': 'openssl'
-            }"
-        )
         set(zlib_src_path "${DL_EXTRACTED_PATH}/zlib/zlib-1.3")
         set(zlib_install_path "${python_target_install_dir}")
         set(openssl_src_path "${DL_EXTRACTED_PATH}/openssl/openssl-3.0.12")

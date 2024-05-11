@@ -4,35 +4,9 @@ list(APPEND ADD_INCLUDE "include")
 
 # sophgo-middleware
 set(middleware_version_str "${CONFIG_SOPHGO_MIDDLEWARE_VERSION_MAJOR}.${CONFIG_SOPHGO_MIDDLEWARE_VERSION_MINOR}.${CONFIG_SOPHGO_MIDDLEWARE_VERSION_PATCH}")
-set(middleware_filename "sophgo-middleware-${middleware_version_str}.tar.xz")
 set(middleware_unzip_path "${DL_EXTRACTED_PATH}/sophgo-middleware")
 set(middleware_src_path "${middleware_unzip_path}/sophgo-middleware-${middleware_version_str}")
-if(${middleware_version_str} VERSION_EQUAL "0.0.1")
-    set(middleware_url "https://files.catbox.moe/bq5duu.xz")
-    set(middleware_file_sha256sum "524021c333d9c601bd1e3a962dce02711269cc7bc342679ff317aa038e9679bd")
-elseif(${middleware_version_str} VERSION_EQUAL "0.0.2")
-    set(middleware_url "https://files.catbox.moe/ojil79.xz")
-    set(middleware_file_sha256sum "d696e6099537ed3f7cf2eaa1dc2a0bf63dea729f15b433b70e163ae5e53523d2")
-elseif(${middleware_version_str} VERSION_EQUAL "0.0.3")
-    set(middleware_url "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/sophgo-middleware-0.0.3.tar.xz")
-    set(middleware_file_sha256sum "1b96ffc2ce5c4f684bfb8ca15214dfe67eb6531ebd6e5811692613387d45f890")
-elseif(${middleware_version_str} VERSION_EQUAL "0.0.4")
-    set(middleware_url "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/sophgo-middleware-0.0.4.tar.xz")
-    set(middleware_file_sha256sum "e239b4be072c3835962a8f73d24dcc88f9258ae9d90edae94419b39823dc4c14")
-else()
-    message(FATAL_ERROR "No sophgo middleware version ${version_str} support, please edit to add sophgo middleware support for this version")
-endif()
 
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${middleware_url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${middleware_file_sha256sum}',
-    'filename': '${middleware_filename}',
-    'path': 'sophgo-middleware',
-    'check_files': ['sophgo-middleware-${middleware_version_str}']
-    }"
-)
 
 if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
     set(source_dir "maixcdk_maixcam_lib")
@@ -276,22 +250,6 @@ endif()
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
-
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 # register_component()

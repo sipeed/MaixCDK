@@ -1,15 +1,7 @@
 if(PLATFORM_MAIXCAM)
 set(sunxi_mpp_version_str "${CONFIG_SUNXI_MPP_VERSION_MAJOR}.${CONFIG_SUNXI_MPP_VERSION_MINOR}.${CONFIG_SUNXI_MPP_VERSION_PATCH}")
-set(sunxi_mpp_url "https://files.catbox.moe/e35tyl.xz")
-set(sunxi_mpp_filename "sunxi_mpp-${sunxi_mpp_version_str}.tar.xz")
 set(sunxi_mpp_unzip_path "${DL_EXTRACTED_PATH}/sunxi_mpp")
 set(sunxi_mpp_src_path "${sunxi_mpp_unzip_path}/sunxi-mpp-${sunxi_mpp_version_str}")
-if(sunxi_mpp_version_str EQUAL "1.0.0")
-    # https://files.catbox.moe/iruptg.xz
-    set(sunxi_mpp_file_sha256sum "0a5f0b10be5af10ef32d40e7eb40da05ee544cfe7503be28e6febc937a1e696e")
-elseif(sunxi_mpp_version_str EQUAL "1.0.1")
-    set(sunxi_mpp_file_sha256sum "5c20195c9600092b3cd79e7d96485920208e3ccfa56d1399f330493616b510a8")
-endif()
 
 ############### Add include ###################
 set(sunxi_mpp_include_dir ${sunxi_mpp_src_path}/include/algo_aw/
@@ -235,16 +227,6 @@ set_property(SOURCE ${sunxi_mpp_dynamic_lib_file} PROPERTY GENERATED 1)
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1
 #                             -DAAAAA333=1)
 ###############################################
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${sunxi_mpp_url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${sunxi_mpp_file_sha256sum}',
-    'filename': '${sunxi_mpp_filename}',
-    'path': 'sunxi_mpp',
-    'check_files': ['sunxi-mpp-${sunxi_mpp_version_str}']
-    }"
-)
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 register_component()

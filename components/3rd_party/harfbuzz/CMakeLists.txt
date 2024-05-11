@@ -66,22 +66,6 @@
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
 list(APPEND ADD_REQUIREMENTS freetype yaml)
 
 set(harfbuzz_version_str "${CONFIG_HARFBUZZ_VERSION_MAJOR}.${CONFIG_HARFBUZZ_VERSION_MINOR}.${CONFIG_HARFBUZZ_VERSION_PATCH}")
@@ -91,16 +75,6 @@ set(harfbuzz_version_str "${CONFIG_HARFBUZZ_VERSION_MAJOR}.${CONFIG_HARFBUZZ_VER
 
 if(PLATFORM_MAIXCAM AND NOT CONFIG_COMPONENTS_COMPILE_FROM_SOURCE)
     if(CONFIG_TOOLCHAIN_PATH MATCHES "musl")
-        list(APPEND ADD_FILE_DOWNLOADS "{
-                'url': 'https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/harfbuzz_maixcam_musl_v8.2.1.tar.xz',
-                'urls': [],
-                'sites': ['https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0'],
-                'sha256sum': '0ee057914aeabd4d44c23f776e3dde79a3ec0a34cfe5e0a9c09737d0bf34e7fb',
-                'filename': 'harfbuzz_maixcam_musl_v8.2.1.tar.xz',
-                'path': 'harfbuzz',
-                'check_files': ['harfbuzz_maixcam_musl_v8.2.1']
-            }"
-        )
         set(harfbuzz_lib_dir "${DL_EXTRACTED_PATH}/harfbuzz/harfbuzz_maixcam_musl_v8.2.1")
         set(harfbuzz_include_dir "${harfbuzz_lib_dir}/include/harfbuzz" "${harfbuzz_lib_dir}/include")
         set(harfbuzz_lib_file "${harfbuzz_lib_dir}/lib/libharfbuzz.a")
@@ -124,22 +98,9 @@ if(NOT ADD_INCLUDE)
     set_property(SOURCE ${harfbuzz_h_path} PROPERTY GENERATED 1)
     set_property(SOURCE ${harfbuzz_lib_file} PROPERTY GENERATED 1)
 
-    set(harfbuzz_url "https://master.dl.sourceforge.net/project/harfbuzz.mirror/${harfbuzz_version_str}/harfbuzz-${harfbuzz_version_str}.tar.xz?viasf=1")
-    set(harfbuzz_filename "harfbuzz-${harfbuzz_version_str}.tar.xz")
     set(harfbuzz_unzip_path "${DL_EXTRACTED_PATH}/harfbuzz_srcs")
     set(harfbuzz_src_path "${harfbuzz_unzip_path}/harfbuzz-${harfbuzz_version_str}")
-    if(harfbuzz_version_str EQUAL "8.2.1")
-        set(harfbuzz_file_sha256sum "0fec78f98c9c8faf228957a201c8846f809452c20f8445eb092a1ba6f22dbea5")
-    endif()
-    list(APPEND ADD_FILE_DOWNLOADS "{
-        'url': '${harfbuzz_url}',
-        'urls': [],
-        'sha256sum': '${harfbuzz_file_sha256sum}',
-        'filename': '${harfbuzz_filename}',
-        'path': 'harfbuzz_srcs',
-        'check_files': ['harfbuzz-${harfbuzz_version_str}']
-        }"
-    )
+
     if(PLATFORM_M2DOCK)
         set(harfbuzz_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_m2dock.cmake)
     elseif(PLATFORM_MAIXCAM)

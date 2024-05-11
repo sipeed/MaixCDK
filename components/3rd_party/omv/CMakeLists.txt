@@ -1,41 +1,7 @@
 set(omv_version_str "${CONFIG_OMV_VERSION_MAJOR}.${CONFIG_OMV_VERSION_MINOR}.${CONFIG_OMV_VERSION_PATCH}")
-set(omv_filename "omv-${omv_version_str}.zip")
 set(omv_unzip_path "${DL_EXTRACTED_PATH}/omv")
 set(src_path "${omv_unzip_path}/omv-${omv_version_str}")
-if(${omv_version_str} VERSION_EQUAL "1.0.0")
-    set(omv_url "https://files.catbox.moe/2c84zd.zip")
-    set(omv_file_sha256sum "4ef0f61febe32886e5d85bb47f661e5d3455f5fe79b3edaacbe833a22566e985")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.1")
-    set(omv_url "https://files.catbox.moe/gcyi07.zip")
-    set(omv_file_sha256sum "37f5b8ae6072cdef38678effc07cc6dee223bbbbedd79616a506c303d6cd30f1")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.2")
-    set(omv_url "https://files.catbox.moe/20evr3.zip")
-    set(omv_file_sha256sum "1aee6d293e955a448aa5bdbd3d8f613c2126a4a49d129aeb1a0fbad22f66d773")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.3")
-    set(omv_url "https://files.catbox.moe/idfwis.zip")
-    set(omv_file_sha256sum "f6654992a52006fd2e01302fa778a6cee1e99e1f9f78a9eea9f759e4f6199d82")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.4")
-    set(omv_url "https://files.catbox.moe/3za319.zip")
-    set(omv_file_sha256sum "c36c3b8a0ac141be6d7843f129602ffb600a1f596391cd810c1044e20fbbf472")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.5")
-    set(omv_url "https://files.catbox.moe/d36bwl.zip")
-    set(omv_file_sha256sum "04075965c44f9957efb425880b6a221bda8b049230bff857340306d938d54ec7")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.6")
-    set(omv_url "https://files.catbox.moe/5iyqf2.zip")
-    set(omv_file_sha256sum "c025d8438ac814229b0c099d18cee77bdd2296ae24173f69a8e46b5ab71700e6")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.7")
-    set(omv_url "https://files.catbox.moe/ik2hdj.zip")
-    set(omv_file_sha256sum "450d3b97287055679d73c35e6f9d67a192c68b7ac3f8a0f7c6bf7fa3df48b743")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.8")
-    set(omv_url "https://files.catbox.moe/26rfr9.zip")
-    set(omv_file_sha256sum "a651cd2988ec7b25a80c41466aed55210162bc679c2b8711211525b970bdf417")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.9")
-    set(omv_url "https://files.catbox.moe/ypel5x.zip")
-    set(omv_file_sha256sum "770680d55f501a095e846bb8727d9fe0ad6a446be8fbc1671b61da0788977475")
-elseif(${omv_version_str} VERSION_EQUAL "1.0.10")
-    set(omv_url "https://files.catbox.moe/olys7p.zip")
-    set(omv_file_sha256sum "e3b6d04a5379be52b226434ef0dfce404faf91955dfab0386a189684b99940bd")
-endif()
+
 ############### Add include ###################
 set(omv_include_dir "."
                     "${src_path}/alloc"
@@ -150,16 +116,6 @@ set_property(SOURCE "${src_path}/alloc" PROPERTY GENERATED 1)
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1
 #                             -DAAAAA333=1)
 ###############################################
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${omv_url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${omv_file_sha256sum}',
-    'filename': '${omv_filename}',
-    'path': 'omv',
-    'check_files': ['omv-${omv_version_str}']
-    }"
-)
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 register_component()

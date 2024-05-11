@@ -70,7 +70,7 @@ maixcdk build
 
 * 打包发布
 
-在工程目录下，使用 `maixcdk -P maixcam release` 可以为 `maixcam` 打包一个程序包并且存放在`dist`目录，可以上传发布到[MaixHub 应用商店](https://maixhub.com/app)。
+在工程目录下，使用 `maixcdk -p maixcam release` 可以为 `maixcam` 打包一个程序包并且存放在`dist`目录，可以上传发布到[MaixHub 应用商店](https://maixhub.com/app)。
 
 安装包使用方法：
 * 方法一： 直接解压拷贝到设置执行`chmod +x main.sh && ./main.sh`即可运行。

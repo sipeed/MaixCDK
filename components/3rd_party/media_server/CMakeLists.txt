@@ -1,14 +1,7 @@
 set(media_server_version_str "${CONFIG_MEDIA_SERVER_VERSION_MAJOR}.${CONFIG_MEDIA_SERVER_VERSION_MINOR}.${CONFIG_MEDIA_SERVER_VERSION_PATCH}")
-set(media_server_filename "media_server-${media_server_version_str}.zip")
 set(media_server_unzip_path "${DL_EXTRACTED_PATH}/media_server")
 set(src_path "${media_server_unzip_path}/media_server-${media_server_version_str}")
-if(${media_server_version_str} VERSION_EQUAL "1.0.0")
-    set(media_server_url "https://files.catbox.moe/c7rklp.zip")
-    set(media_server_file_sha256sum "dfe405cedbf3969fbf1f252634e7b1c71e8bb3e2d0857db2fe7e70189474ecd1")
-elseif(${media_server_version_str} VERSION_EQUAL "1.0.1")
-    set(media_server_url "https://files.catbox.moe/acqhv1.zip")
-    set(media_server_file_sha256sum "ce06dc3d03b6036165956e60afd5eec5bfd37e7746e4b427f2099732478ecc22")
-endif()
+
 ############### Add include ###################
 set(media_server_private_include_dir
                     "${src_path}/librtsp/source/server"
@@ -29,9 +22,7 @@ set(media_server_include_dir "${src_path}"
                             ".")
 
 list(APPEND ADD_INCLUDE ${media_server_include_dir}
-${media_server_private_include_dir})
-set_property(SOURCE ${media_server_include_dir} PROPERTY GENERATED 1)
-set_property(SOURCE ${media_server_private_include_dir} PROPERTY GENERATED 1)
+                        ${media_server_private_include_dir})
 
 ###############################################
 
@@ -41,7 +32,6 @@ list(APPEND ADD_SRCS
 
 append_srcs_dir(ADD_SRCS "${src_path}"
                          "${src_path}/media")       # append source file in src dir to var ADD_SRCS
-set_property(SOURCE ${ADD_SRCS} PROPERTY GENERATED 1)
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -82,7 +72,7 @@ list(APPEND ADD_STATIC_LIB "${src_path}/libs/librtsp.a"
                             "${src_path}/libs/libsdk.a"
                             "${src_path}/libs/libavcodec.a"
                             "${src_path}/libs/libavbsf.a")
-set_property(SOURCE ${ADD_STATIC_LIB} PROPERTY GENERATED 1)
+
 ###############################################
 
 ############ Add dynamic libs ##################
@@ -100,16 +90,6 @@ set_property(SOURCE ${ADD_STATIC_LIB} PROPERTY GENERATED 1)
 list(APPEND ADD_DEFINITIONS -D__ERROR__=00*10000000+__LINE__*1000)
 
 ###############################################
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${media_server_url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${media_server_file_sha256sum}',
-    'filename': '${media_server_filename}',
-    'path': 'media_server',
-    'check_files': ['media_server-${media_server_version_str}']
-    }"
-)
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 register_component()

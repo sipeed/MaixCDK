@@ -1,23 +1,8 @@
 
 
 set(version_str "0.2")
-set(url "https://github.com/Samsung/rlottie/archive/refs/tags/v${version_str}.tar.gz")
-set(filename "rlottie-${version_str}.tar.gz")
 set(unzip_path "${DL_EXTRACTED_PATH}/rlottie")
 set(src_path "${unzip_path}/rlottie-${version_str}")
-set(file_sha256sum "030ccbc270f144b4f3519fb3b86e20dd79fb48d5d55e57f950f12bab9b65216a")
-
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${file_sha256sum}',
-    'filename': '${filename}',
-    'path': 'rlottie',
-    'check_files': ['rlottie-${version_str}']
-    }"
-)
-
 
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${src_path}/inc"

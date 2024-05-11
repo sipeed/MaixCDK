@@ -35,16 +35,6 @@ if(PLATFORM_MAIXCAM AND NOT CONFIG_OPENCV_COMPILE_FROM_SOURCE AND NOT CONFIG_COM
         if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/opencv4_lib_maixcam")
             set(opencv_lib_dir "${CMAKE_CURRENT_LIST_DIR}/opencv4_lib_maixcam")
         elseif(CONFIG_TOOLCHAIN_PATH MATCHES "musl")
-            list(APPEND ADD_FILE_DOWNLOADS "{
-                'url': 'https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/opencv4_lib_maixcam_musl_4.9.0.tar.xz',
-                'urls': [],
-                'sites': ['https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0'],
-                'sha256sum': 'c4553fe39212b271724d2bb9394e8944678f846f4e58a578da1db3013cbc3dcf',
-                'filename': 'opencv4_lib_maixcam_musl_4.9.0.tar.xz',
-                'path': 'opencv/opencv4',
-                'check_files': ['opencv4_lib_maixcam_musl_4.9.0']
-            }"
-            )
             set(opencv_lib_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv4_lib_maixcam_musl_4.9.0")
         endif()
         if(opencv_lib_dir)
@@ -89,65 +79,8 @@ endif()
 
 if(NOT ADD_INCLUDE)
 
-    list(APPEND ADD_FILE_DOWNLOADS "{
-            'url': 'https://github.com/opencv/opencv/archive/${version_str}.zip',
-            'urls': [],
-            'sites': ['https://opencv.org/releases/'],
-            'sha256sum': '9b5b64d50bf4a3ddeab430a9b13c5f9e023c9e67639ab50a74d0c298b5a61b74',
-            'filename': 'opencv-${version_str}.zip',
-            'path': 'opencv/opencv4',
-            'check_files': ['opencv-${version_str}']
-        }"
-    )
     set(opencv_src_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv-${version_str}")
     set(opencv_cache_dir "${DL_PKGS_PATH}/opencv/cache")
-
-    if(PLATFORM_LINUX)
-        # list(APPEND opencv_libs "${opencv_install_dir}/lib/opencv4/3rdparty/libippiw.a"
-        #                         "${opencv_install_dir}/lib/opencv4/3rdparty/libippicv.a"
-        # )
-        # if arch is intel x86 or x86_64, add download link for opencv_world lib
-        # get arch use python script
-        execute_process(COMMAND ${python} -c "import platform;print(platform.machine())" OUTPUT_VARIABLE arch)
-        if(arch MATCHES "x86_64")
-            list(APPEND ADD_FILE_DOWNLOADS "{
-                'url': 'https://raw.githubusercontent.com/opencv/opencv_3rdparty/1224f78da6684df04397ac0f40c961ed37f79ccb/ippicv/ippicv_2021.8_lnx_intel64_20230330_general.tgz',
-                'urls': [],
-                'sites': [],
-                'sha256sum': '7cfe0fb0e15ea8f3d2d971c19df2d14382469943d4efa85e48bf358930daa85d',
-                'filename': '43219bdc7e3805adcbe3a1e2f1f3ef3b-ippicv_2021.8_lnx_intel64_20230330_general.tgz',
-                'path': 'opencv/cache/ippicv',
-                'extract': false
-            }"
-            "{
-                'url': 'https://github.com/opencv/ade/archive/v0.1.2b.zip',
-                'urls': [],
-                'sites': ['https://github.com/opencv/ade'],
-                'sha256sum': 'a1d2a21e78a5a1b7bd41697a562669d5b5a8e2ab89e8a654c0a80a82aff28e19',
-                'filename': '4f93a0844dfc463c617d83b09011819a-v0.1.2b.zip',
-                'path': 'opencv/cache/ade',
-                'extract': false
-            }
-            "
-            )
-        endif()
-    elseif(PLATFORM_M2DOCK OR PLATFORM_MAIXCAM)
-        list(APPEND ADD_FILE_DOWNLOADS
-            "{
-                'url': 'https://github.com/opencv/ade/archive/v0.1.2a.zip',
-                'urls': [],
-                'sites': ['https://github.com/opencv/ade'],
-                'sha256sum': '4e32d16c56c2ecc0d8f4fc48cb9eb4af2be2048e7c71b430aa073b03bb8e1e48',
-                'filename': 'fa4b3e25167319cb0fa9432ef8281945-v0.1.2a.zip',
-                'path': 'opencv/cache/ade',
-                'extract': false
-            }
-            "
-        )
-    else()
-        message(FATAL_ERROR "No opencv config for this board, please edit to add opencv support for this board")
-    endif()
-
 
     # list(APPEND ADD_REQUIREMENTS pthread dl atomic)
     list(APPEND ADD_DEFINITIONS -fopenmp)

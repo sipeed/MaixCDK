@@ -1,13 +1,4 @@
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': 'https://phoenixnap.dl.sourceforge.net/project/asio/asio/1.28.0%20%28Stable%29/asio-1.28.0.tar.gz',
-    'urls':[],
-    'sites': ['https://sourceforge.net/projects/asio/files/asio/1.28.0%20%28Stable%29/'],
-    'sha256sum': 'e854a53cc6fe599bdf830e3c607f1d22fe74eee892f64c81d3ca997a80ddca97',
-    'filename': 'asio-1.28.0.tar.gz',
-    'path': 'asio',
-    'check_files': ['asio-1.28.0']
-}"
-)
+
 set(asio_root "${DL_EXTRACTED_PATH}/asio/asio-1.28.0")
 list(APPEND ADD_INCLUDE "${asio_root}/include")
 # append_srcs_dir(ADD_SRCS "${asio_root}/src")
@@ -64,21 +55,6 @@ list(APPEND ADD_DEFINITIONS -DASIO_STANDALONE=1)
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
-
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 register_component()

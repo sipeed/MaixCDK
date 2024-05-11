@@ -66,23 +66,6 @@ list(APPEND ADD_REQUIREMENTS brotli)
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
-
-
 set(freetype_version_str "${CONFIG_FREETYPE_VERSION_MAJOR}.${CONFIG_FREETYPE_VERSION_MINOR}.${CONFIG_FREETYPE_VERSION_PATCH}")
 
 # write build python version to CMAKE_BINARY_DIR/config/python_version.txt
@@ -104,22 +87,8 @@ set_property(SOURCE ${freetype_include_dir} PROPERTY GENERATED 1)
 set_property(SOURCE ${freetype_h_path} PROPERTY GENERATED 1)
 set_property(SOURCE ${freetype_lib_file} PROPERTY GENERATED 1)
 
-set(freetype_url "https://phoenixnap.dl.sourceforge.net/project/freetype/freetype2/${freetype_version_str}/freetype-${freetype_version_str}.tar.xz")
-set(freetype_filename "freetype-${freetype_version_str}.tar.xz")
 set(freetype_unzip_path "${DL_EXTRACTED_PATH}/freetype_srcs")
 set(freetype_src_path "${freetype_unzip_path}/freetype-${freetype_version_str}")
-if(freetype_version_str EQUAL "2.13.2")
-    set(freetype_file_sha256sum "12991c4e55c506dd7f9b765933e62fd2be2e06d421505d7950a132e4f1bb484d")
-endif()
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${freetype_url}',
-    'urls': [],
-    'sha256sum': '${freetype_file_sha256sum}',
-    'filename': '${freetype_filename}',
-    'path': 'freetype_srcs',
-    'check_files': ['freetype-${freetype_version_str}']
-    }"
-)
 if(PLATFORM_M2DOCK)
     set(freetype_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_m2dock.cmake)
 elseif(PLATFORM_MAIXCAM)

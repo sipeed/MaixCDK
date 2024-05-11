@@ -19,7 +19,7 @@ import zipfile
 import lzma
 import json
 
-sdk_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sdk_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 lock = Lock()
 
@@ -262,7 +262,7 @@ def download_extract_files(items):
         extract_dir = os.path.join(sdk_path, "dl", "extracted", item["path"])
         if not os.path.exists(pkg_path):
             print("\n-------------------------------------------------------------------")
-            print("-- Downloading {} from:\n   {},\n   save to: {}\n   you can also download it manually and save to this position{}{}".format(
+            print("-- Downloading {} from:\n   {}\n   save to: {}\n   you can also download it manually and save to this position{}{}".format(
                 item["filename"], item["url"], pkg_path, 
                 "\n   other urls: {}".format(item["urls"]) if item["urls"] else "",
                 "\n   sites: {}".format(item["sites"]) if item["sites"] else ""))
@@ -286,6 +286,7 @@ def download_extract_files(items):
             continue
         renamed_files = []
         if "rename" in item:
+            print(item)
             for _from, _to in item["rename"].items():
                 from_path = os.path.join(extract_dir, _from)
                 to_path = os.path.join(extract_dir, _to)

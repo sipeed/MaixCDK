@@ -1,14 +1,3 @@
-list(APPEND ADD_FILE_DOWNLOADS "{
-        'url': 'https://master.dl.sourceforge.net/project/websocket.mirror/0.8.2/WebSocket%2B%2B_0.8.2.tar.gz?viasf=1',
-        'urls': [],
-        'sites': ['https://github.com/zaphoyd/websocketpp/archive/refs/tags/0.8.2.tar.gz'],
-        'sha256sum': '8b1773ea2832751071ac19d2708314d68316dd3916434c7dc0dd58cef14d51cd',
-        'filename': 'WebSocketpp_0.8.2.tar.gz',
-        'path': 'websocketpp',
-        'rename': {'zaphoyd-websocketpp-0e42417': 'websocketpp-0.8.2'},
-        'check_files': ['websocketpp-0.8.2']
-    }"
-)
 
 set(websocketpp_root "${DL_EXTRACTED_PATH}/websocketpp/websocketpp-0.8.2")
 
@@ -71,21 +60,6 @@ list(APPEND ADD_INCLUDE "${websocketpp_root}"
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
-
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 register_component()

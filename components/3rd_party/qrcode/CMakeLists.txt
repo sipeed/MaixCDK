@@ -1,22 +1,8 @@
 
 set(version_str "2.1.0")
-set(url "https://github.com/zxing-cpp/zxing-cpp/archive/refs/tags/v${version_str}.tar.gz")
-set(filename "zxing-cpp-${version_str}.tar.gz")
 set(unzip_path "${DL_EXTRACTED_PATH}/zxing-cpp")
 set(src_path "${unzip_path}/zxing-cpp-${version_str}")
 set(file_sha256sum "6d54e403592ec7a143791c6526c1baafddf4c0897bb49b1af72b70a0f0c4a3fe")
-
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${file_sha256sum}',
-    'filename': '${filename}',
-    'path': 'zxing-cpp',
-    'check_files': ['zxing-cpp-${version_str}']
-    }"
-)
-
 
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${src_path}/core/src"

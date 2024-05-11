@@ -18,16 +18,6 @@ if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/cvi_tpu_lib)
     endif()
 elseif(PLATFORM_MAIXCAM AND NOT CONFIG_COMPONENTS_COMPILE_FROM_SOURCE)
     if(CONFIG_TOOLCHAIN_PATH MATCHES "musl" OR CONFIG_TOOLCHAIN_PATH MATCHES "glibc")
-        list(APPEND ADD_FILE_DOWNLOADS "{
-                'url': 'https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/cvi_tpu_lib_v4.1.0-23-gb920beb.tar.xz',
-                'urls': [],
-                'sites': ['https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0'],
-                'sha256sum': '8177ce35a05565a4fdc6cf1ac6bef0dc18809a31fff332321e17d01d2b85421a',
-                'filename': 'cvi_tpu_lib_v4.1.0-23-gb920beb.tar.xz',
-                'path': 'cvi_tpu',
-                'check_files': ['cvi_tpu_lib_v4.1.0-23-gb920beb']
-            }"
-        )
         set(cvi_tpu_lib_dir "${DL_EXTRACTED_PATH}/cvi_tpu/cvi_tpu_lib_v4.1.0-23-gb920beb")
         set(harfbuzz_include_dir "${cvi_tpu_lib_dir}/include")
         set_property(SOURCE ${harfbuzz_include_dir} PROPERTY GENERATED 1)
@@ -117,22 +107,6 @@ register_component()
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
-
-######### Add files need to download #########
-# list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
-# )
-#
-# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
-# you can directly use then, for example use it in add_custom_command
-##############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
 # register_component()

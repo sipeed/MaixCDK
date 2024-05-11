@@ -1,30 +1,7 @@
 
-set(version_str "${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MINOR}.${CONFIG_LVGL_VERSION_PATCH}")
-set(url "https://github.com/lvgl/lvgl/archive/refs/tags/v${version_str}.tar.gz")
-set(filename "lvgl-${version_str}.tar.gz")
+set(version_str "${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MAJOR}")
 set(unzip_dir_name "lvgl-${version_str}")
-if(version_str EQUAL "8.3.5")
-    set(file_sha256sum "2b28a12b70a01cfbe8145abbc56f57fc0e9d7e34cacce5acda19a175fadf5935")
-elseif(version_str EQUAL "8.3.10")
-    set(file_sha256sum "f27c4a963501871390c5aa415dfcbdfd46297a4a33f86c2d2c35b34d385ee39d")
-elseif(version_str EQUAL "9.0.0")
-    set(file_sha256sum "73ae6ef7b44b434b41f25755ce4f6f5d23c49c1c254c4b7774b5a9cf83a46b7f")
-elseif(version_str EQUAL "9.1.0")
-    set(file_sha256sum "6930f1605d305fcd43f31d5f470ecf4a013c4ce0980e78ee4c33b96a589bf433")
-else()
-    message(FATAL_ERROR "lvgl version ${version_str} not support, please edit CMakeLists.txt to add support")
-endif()
-list(APPEND ADD_FILE_DOWNLOADS "{
-    'url': '${url}',
-    'urls': [],
-    'sites': [],
-    'sha256sum': '${file_sha256sum}',
-    'filename': '${filename}',
-    'path': 'lvgl_srcs/${unzip_dir_name}',
-    'rename': {'${unzip_dir_name}': 'lvgl'},
-    'check_files': ['lvgl']
-    }"
-)
+
 set(unzip_path "${DL_EXTRACTED_PATH}/lvgl_srcs/${unzip_dir_name}")
 set(src_path "${unzip_path}/lvgl") # MaixCDK/dl/extracted/lvgl_srcs/lvgl-9.0.0/lvgl
 
