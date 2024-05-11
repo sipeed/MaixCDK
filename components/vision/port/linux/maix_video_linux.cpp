@@ -42,9 +42,8 @@ namespace maix::video
         return err;
     }
 
-    video::Packet Video::encode(image::Image *img) {
-        video::Packet packet(NULL, 0);
-        return packet;
+    video::Packet *Video::encode(image::Image *img) {
+        return nullptr;
     }
 
     image::Image *Video::decode(video::Frame *frame) {

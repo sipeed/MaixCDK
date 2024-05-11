@@ -328,6 +328,8 @@ namespace maix::image
         {
             // log::debug("free image data\n");
             free(_actual_data);
+            _actual_data = NULL;
+            _data = NULL;
         }
     }
 

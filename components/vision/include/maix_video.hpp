@@ -18,6 +18,8 @@
 */
 namespace maix::video
 {
+    extern maix::image::Image NoneImage;
+
     /**
      * Video type
      * @maixpy maix.video.VideoType
@@ -174,11 +176,12 @@ namespace maix::video
          * @param time_base frame time base. time_base default is 30, means 1/30 ms
          * @param framerate frame rate. framerate default is 30, means 30 frames per second
          * for video. 1/time_base is not the average frame rate if the frame rate is not constant.
+         * @param capture enable capture, if true, you can use capture() function to get an image object
          * @param open If true, video will automatically call open() after creation. default is true.
          * @maixpy maix.video.Video.__init__
          * @maixcdk maix.video.Video.Video
          */
-        Video(std::string path = std::string(), int width = 2560, int height = 1440, image::Format format = image::Format::FMT_YVU420SP, int time_base = 30, int framerate = 30, bool open = true);
+        Video(std::string path = std::string(), int width = 2560, int height = 1440, image::Format format = image::Format::FMT_YVU420SP, int time_base = 30, int framerate = 30, bool capture = false, bool open = true);
         ~Video();
 
         /**
@@ -208,11 +211,11 @@ namespace maix::video
         /**
          * Encode image.
          * @param img the image will be encode.
-         * if the img is NULL, this function will try to get image from camera, you must use bind_camera to bind camera.
+         * if the img is NULL, this function will try to get image from camera, you must use bind_camera() function to bind the camera.
          * @return encode result
          * @maixpy maix.video.Video.encode
         */
-        video::Packet encode(image::Image *img = NULL);
+        video::Packet *encode(image::Image *img = &maix::video::NoneImage);
 
         /**
          * Decode frame
@@ -220,7 +223,7 @@ namespace maix::video
          * @return decode result
          * @maixpy maix.video.Video.decode
         */
-        image::Image *decode(video::Frame *frame = NULL);
+        image::Image *decode(video::Frame *frame = nullptr);
 
         /**
          * Encode or decode finish
@@ -228,6 +231,19 @@ namespace maix::video
          * @maixpy maix.video.Video.finish
         */
         err::Err finish();
+
+        /**
+         * Capture image
+         * @attention Each time encode is called, the last captured image will be released.
+         * @return error code
+         * @maixpy maix.video.Video.capture
+        */
+        image::Image *capture() {
+            err::check_null_raise(_capture_image, "Can't capture image, please make sure the capture flag is set, and run this api after encode().");
+            image::Image *new_image = new image::Image(_capture_image->width(), _capture_image->height(), _capture_image->format(),
+                (uint8_t *)_capture_image->data(), _capture_image->data_size(), false);
+            return new_image;
+        }
 
         /**
          * Check if video is recording
@@ -304,6 +320,8 @@ namespace maix::video
         uint64_t _record_ms;
         uint64_t _record_start_ms;
         int _fd;
+        bool _need_capture;
+        image::Image *_capture_image;
 
         bool _need_auto_config;
         int _time_base;

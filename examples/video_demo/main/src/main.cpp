@@ -18,6 +18,7 @@ static void helper(void)
     "1 [record_time] [output_path]: record from camera and save to mp4\r\n"
     "2 [record_time] [output_path]: encode image and save to h265\r\n"
     "3 [record_time] [output_path]: record from camera and save to h265\r\n"
+    "4 [record_time] [output_path]: record from camera and save to h265, then display\r\n"
     "\r\n"
     "Example: ./video_demo 0 5 output.mp4     # means record 5s from camera, and save to output.mp4\r\n"
     "==================================\r\n");
@@ -50,7 +51,7 @@ int _main(int argc, char* argv[])
         int count = 0;
         while(!app::need_exit()) {
             image::Image *img = cam.read();
-            video::Packet packet = v.encode(img);
+            video::Packet *packet = v.encode(img);
             if (time::time_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
@@ -58,7 +59,8 @@ int _main(int argc, char* argv[])
             }
             delete img;
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet.data(), packet.data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            delete packet;
             last_loop = time::time_ms();
         }
         break;
@@ -79,14 +81,15 @@ int _main(int argc, char* argv[])
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
-            video::Packet packet = v.encode();
+            video::Packet *packet = v.encode();
             if (time::time_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet.data(), packet.data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            delete packet;
             last_loop = time::time_ms();
         }
         break;
@@ -107,7 +110,7 @@ int _main(int argc, char* argv[])
         int count = 0;
         while(!app::need_exit()) {
             image::Image *img = cam.read();
-            video::Packet packet = v.encode(img);
+            video::Packet *packet = v.encode(img);
             if (time::time_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
@@ -115,7 +118,8 @@ int _main(int argc, char* argv[])
             }
             delete img;
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet.data(), packet.data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            delete packet;
             last_loop = time::time_ms();
         }
         break;
@@ -136,14 +140,48 @@ int _main(int argc, char* argv[])
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
-            video::Packet packet = v.encode();
+            video::Packet *packet = v.encode();
             if (time::time_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet.data(), packet.data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            delete packet;
+            last_loop = time::time_ms();
+        }
+        break;
+    }
+    case 4:
+    {
+        uint64_t record_s = 5;
+        std::string path = "output.h265";
+        if (argc > 2) record_s = atoi(argv[2]);
+        if (argc > 3) path = argv[3];
+        log::info("Ready to record %ld s, and save to %s\r\n", record_s, path.c_str());
+
+        camera::Camera cam = camera::Camera(640, 480, image::Format::FMT_YVU420SP);
+        display::Display disp = display::Display();
+        video::Video v = video::Video(path, 640, 480, image::Format::FMT_YVU420SP, 30, 30, true);
+        v.bind_camera(&cam);
+
+        uint64_t start_ms = time::time_ms();
+        uint64_t last_loop = start_ms;
+        int count = 0;
+        while(!app::need_exit()) {
+            video::Packet *packet = v.encode();
+            if (time::time_ms() - start_ms > record_s * 1000) {
+                log::info("finish\r\n");
+                v.finish();
+                app::set_exit_flag(true);
+            }
+
+            image::Image *img = v.capture();
+            disp.show(*img);
+
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            delete packet;
             last_loop = time::time_ms();
         }
         break;
