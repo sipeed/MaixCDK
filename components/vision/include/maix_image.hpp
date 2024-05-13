@@ -531,7 +531,7 @@ namespace maix::image
         image::Image *midpoint_pool(int x_div, int y_div, double bias = 0.5, bool copy = false);
 
         /**
-         * @brief JPEG compresses the image in place.
+         * @brief JPEG compresses the image in place, the same as to_jpeg functioin, it's recommend to use to_jpeg instead.
          * @param quality The quality of the compressed image. default is 95.
          * @return Returns the compressed JPEG image
          * @maixpy maix.image.Image.compress
