@@ -1,5 +1,5 @@
 
-set(version_str "${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MAJOR}")
+set(version_str "${CONFIG_LVGL_VERSION_MAJOR}.${CONFIG_LVGL_VERSION_MINOR}.${CONFIG_LVGL_VERSION_PATCH}")
 set(unzip_dir_name "lvgl-${version_str}")
 
 set(unzip_path "${DL_EXTRACTED_PATH}/lvgl_srcs/${unzip_dir_name}")

@@ -154,23 +154,7 @@ namespace maix::image {
     }
 
     image::Image *Image::compress(int quality) {
-        if (quality < 0) {
-            log::warn("compress invalid quality: %d", quality);
-            return nullptr;
-        }
-
-        quality = quality > 100 ? 100 : quality;
-
-        cv::Mat img(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
-        std::vector<uchar> compressed;
-        std::vector<int> params;
-        params.push_back(cv::IMWRITE_JPEG_QUALITY);
-        params.push_back(quality);
-        cv::imencode(".jpg", img, compressed, params);
-
-        int dst_data_size = compressed.size();
-        image::Image *dst = new image::Image(_width, _height, Format::FMT_JPEG, compressed.data(), dst_data_size, true);
-        return dst;
+        return to_jpeg(quality);
     }
 
     err::Err image_zero(image::Image &src, image::Image &mask, bool invert) {

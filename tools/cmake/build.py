@@ -90,6 +90,8 @@ def find_valid_components(components):
             depends[name] = []
             for r in match:
                 if r in components:
+                    if name == r:
+                        continue
                     depends[name].append(r)
     # find main depends
     def get_depend_recursive(name):

@@ -15,7 +15,7 @@ def add_file_downloads(confs : dict) -> list:
     path = f"lvgl_srcs/lvgl-{version}"
     check_file = 'lvgl'
     rename = {
-        'lvgl-{version}': 'lvgl'
+        f'lvgl-{version}': 'lvgl'
     }
 
     return [
