@@ -52,35 +52,6 @@ namespace maix::peripheral::pwm
         return 0;
     }
 
-    static err::Err _pwm_export(int chip_id, int offset)
-    {
-        int fd;
-        char buf[100];
-        // check if ENABLE_PATH exists, return ERR_NONE
-        snprintf(buf, sizeof(buf), ENABLE_PATH, chip_id, offset);
-        if (access(buf, F_OK) == 0)
-        {
-            log::warn("pwm %d already exported, directly use it", chip_id + offset);
-            return err::ERR_NONE;
-        }
-        snprintf(buf, sizeof(buf), EXPORT_PATH, chip_id);
-        fd = ::open(buf, O_WRONLY);
-        if (fd < 0)
-        {
-            log::error("open %s failed\r\n", buf);
-            return err::ERR_IO;
-        }
-        snprintf(buf, sizeof(buf), "%d", offset);
-        if ((int)strlen(buf) != ::write(fd, buf, strlen(buf)))
-        {
-            log::error("write %s > %s failed\r\n", buf, EXPORT_PATH);
-            close(fd);
-            return err::ERR_IO;
-        }
-        close(fd);
-        return err::ERR_NONE;
-    }
-
     static err::Err _pwm_unexport(int chip_id, int offset)
     {
         int fd;
@@ -99,6 +70,37 @@ namespace maix::peripheral::pwm
             close(fd);
             return err::ERR_IO;
         }
+        fsync(fd);
+        close(fd);
+        return err::ERR_NONE;
+    }
+
+    static err::Err _pwm_export(int chip_id, int offset)
+    {
+        int fd;
+        char buf[100];
+        // check if ENABLE_PATH exists, return ERR_NONE
+        snprintf(buf, sizeof(buf), ENABLE_PATH, chip_id, offset);
+        if (access(buf, F_OK) == 0)
+        {
+            log::warn("pwm %d already exported, unexport first automatically", chip_id + offset);
+            _pwm_unexport(chip_id, offset);
+        }
+        snprintf(buf, sizeof(buf), EXPORT_PATH, chip_id);
+        fd = ::open(buf, O_WRONLY);
+        if (fd < 0)
+        {
+            log::error("open %s failed\r\n", buf);
+            return err::ERR_IO;
+        }
+        snprintf(buf, sizeof(buf), "%d", offset);
+        if ((int)strlen(buf) != ::write(fd, buf, strlen(buf)))
+        {
+            log::error("write %s > %s failed\r\n", buf, EXPORT_PATH);
+            close(fd);
+            return err::ERR_IO;
+        }
+        fsync(fd);
         close(fd);
         return err::ERR_NONE;
     }
@@ -121,6 +123,7 @@ namespace maix::peripheral::pwm
             close(fd);
             return err::ERR_IO;
         }
+        fsync(fd);
         close(fd);
         return err::ERR_NONE;
     }
@@ -143,6 +146,7 @@ namespace maix::peripheral::pwm
             close(fd);
             return err::ERR_IO;
         }
+        fsync(fd);
         close(fd);
         return err::ERR_NONE;
     }
@@ -165,6 +169,7 @@ namespace maix::peripheral::pwm
             close(fd);
             return err::ERR_IO;
         }
+        fsync(fd);
         close(fd);
         return err::ERR_NONE;
     }
@@ -175,7 +180,7 @@ namespace maix::peripheral::pwm
         _freq = freq;
         _enable = enable;
 
-            if (duty < 0 && duty_val < 0)
+        if (duty < 0 && duty_val < 0)
         {
             throw err::Exception(err::Err::ERR_ARGS, "one of duty and duty_val must be set");
         }
@@ -209,13 +214,14 @@ namespace maix::peripheral::pwm
             throw err::Exception(err::Err::ERR_IO, "export pwm failed");
         }
 
-        if (_pwm_set_duty_cycle(_chip_id, _id_offset, _duty_val) != err::ERR_NONE)
-        {
-            throw err::Exception(err::Err::ERR_IO, "set pwm duty_cycle failed");
-        }
         if (_pwm_set_period(_chip_id, _id_offset, _period_ns) != err::ERR_NONE)
         {
             throw err::Exception(err::Err::ERR_IO, "set pwm period failed");
+        }
+
+        if (_pwm_set_duty_cycle(_chip_id, _id_offset, _duty_val) != err::ERR_NONE)
+        {
+            throw err::Exception(err::Err::ERR_IO, "set pwm duty_cycle failed");
         }
 
         // set enable
@@ -227,6 +233,7 @@ namespace maix::peripheral::pwm
 
     PWM::~PWM()
     {
+        disable();
         _pwm_unexport(_chip_id, _id_offset);
     }
 
