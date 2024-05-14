@@ -92,5 +92,6 @@ namespace maix::peripheral::gpio
         gpio::Pull  _pull;
         int         _fd;
         int         _line;
+        bool        _special;
     };
 }; // namespace maix::peripheral::gpio
