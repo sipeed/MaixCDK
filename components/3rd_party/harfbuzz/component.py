@@ -7,7 +7,7 @@ def add_file_downloads(confs : dict) -> list:
     if (not confs.get("PLATFORM_MAIXCAM", None)) or confs.get("CONFIG_COMPONENTS_COMPILE_FROM_SOURCE", None):
         # harfbuzz src
         version = f"{confs['CONFIG_HARFBUZZ_VERSION_MAJOR']}.{confs['CONFIG_HARFBUZZ_VERSION_MINOR']}.{confs['CONFIG_HARFBUZZ_VERSION_PATCH']}"
-        url = f"https://master.dl.sourceforge.net/project/harfbuzz.mirror/{version}/harfbuzz-{version}.tar.xz?viasf=1"
+        url = f"https://github.com/harfbuzz/harfbuzz/releases/download/{version}/harfbuzz-{version}.tar.xz"
         if version == "8.2.1":
             sha256sum = "0fec78f98c9c8faf228957a201c8846f809452c20f8445eb092a1ba6f22dbea5"
         else:
