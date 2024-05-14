@@ -1,3 +1,10 @@
+/**
+ * @author neucrack@sipeed
+ * @copyright Sipeed Ltd 2024-
+ * @license Apache 2.0
+ * @update 2024.5.13: create this file.
+ */
+
 #pragma once
 
 #include "maix_basic.hpp"
