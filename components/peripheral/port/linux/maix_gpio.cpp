@@ -142,6 +142,25 @@ namespace maix::peripheral::gpio
 		close(trigger_fd);
 		return 0;
 	}
+#else
+	static int led_init(int default_value)
+	{
+		return -1;
+	}
+
+	static int led_set(int fd, int value)
+	{
+		return -1;
+	}
+	static int led_get(int fd)
+	{
+		return -1;
+	}
+
+	static int led_deinit(int fd)
+	{
+		return -1;
+	}
 #endif
 
 	GPIO::GPIO(std::string pin, gpio::Mode mode, gpio::Pull pull)
