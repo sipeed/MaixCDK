@@ -1025,6 +1025,16 @@ namespace maix::camera
         {
             return -1;
         }
+
+        int awb_mode(int value)
+        {
+            return -1;
+        }
+
+        int exp_mode(int value)
+        {
+            return -1;
+        }
     private:
         std::string device;
         image::Format format;

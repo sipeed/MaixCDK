@@ -322,6 +322,34 @@ namespace maix::camera
             }
             return out;
         }
+
+        int awb_mode(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                out = mmf_get_wb_mode(this->ch);
+            } else {
+                mmf_set_wb_mode(this->ch, value);
+                out = value;
+            }
+
+            err::check_bool_raise(out >= 0, "set white balance failed");
+            return out;
+        }
+
+        int exp_mode(int value)
+        {
+            uint32_t out;
+            if (value == -1) {
+                out = mmf_get_exp_mode(this->ch);
+            } else {
+                mmf_set_exp_mode(this->ch, value);
+                out = value;
+            }
+
+            err::check_bool_raise(out >= 0, "set exposure failed");
+            return out;
+        }
     private:
         std::string device;
         image::Format format;

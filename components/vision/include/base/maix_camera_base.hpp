@@ -133,6 +133,22 @@ namespace maix::camera
          * @param int saturation value
         */
         virtual int gain(int gain) = 0;
+
+        /**
+         * Set/Get awb mode
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value value = 0, means set awb to auto mode, value = 1, means set awb to manual mode, default is auto mode.
+         * @return returns awb mode
+        */
+        virtual int awb_mode(int value = -1) = 0;
+
+        /**
+         * Set/Get exp mode
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value value = 0, means set exposure to auto mode, value = 1, means set exposure to manual mode, default is auto mode.
+         * @return returns exposure mode
+        */
+        virtual int exp_mode(int value = -1) = 0;
     };
 
 }

@@ -418,5 +418,27 @@ namespace maix::camera
 
         return _impl->saturation(value);
     }
+
+    uint32_t Camera::awb_mode(uint32_t value) {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        return _impl->awb_mode(value);
+    }
+
+    uint32_t Camera::exp_mode(uint32_t value) {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        return _impl->exp_mode(value);
+    }
 }
 

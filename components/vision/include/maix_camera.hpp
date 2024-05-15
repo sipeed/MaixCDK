@@ -279,7 +279,7 @@ namespace maix::camera
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.set_resolution
         */
-       err::Err set_resolution(int width, int height);
+        err::Err set_resolution(int width, int height);
 
         /**
          * Set/Get camera exposure
@@ -335,6 +335,24 @@ namespace maix::camera
          * @maixpy maix.camera.Camera.saturation
         */
         uint32_t saturation(uint32_t value = -1);
+
+        /**
+         * Set/Get white balance mode
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value value = 0, means set white balance to auto mode, value = 1, means set white balance to manual mode, default is auto mode.
+         * @return returns awb mode
+         * @maixpy maix.camera.Camera.awb_mode
+        */
+        uint32_t awb_mode(uint32_t value = -1);
+
+        /**
+         * Set/Get exposure mode
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value value = 0, means set exposure to auto mode, value = 1, means set exposure to manual mode, default is auto mode.
+         * @return returns exposure mode
+         * @maixpy maix.camera.Camera.exp_mode
+        */
+        uint32_t exp_mode(uint32_t value = -1);
     private:
         std::string _device;
         int _ch;

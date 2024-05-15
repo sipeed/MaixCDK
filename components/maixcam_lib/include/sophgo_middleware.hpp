@@ -103,7 +103,8 @@ void mmf_set_luma(int ch, uint32_t val);
 int mmf_get_constrast(int ch, uint32_t *value);
 int mmf_get_saturation(int ch, uint32_t *value);
 int mmf_get_luma(int ch, uint32_t *value);
-
+int mmf_set_wb_mode(int ch, int mode);
+int mmf_get_wb_mode(int ch);
 // sensor info
 int mmf_get_sensor_id(void);
 
