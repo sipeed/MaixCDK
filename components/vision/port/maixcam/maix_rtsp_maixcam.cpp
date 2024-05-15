@@ -7,7 +7,7 @@
 
 #include "maix_rtsp.hpp"
 #include "maix_err.hpp"
-#include "rtsp-server.hpp"
+#include "rtsp_server.h"
 #include <dirent.h>
 #include "sophgo_middleware.hpp"
 

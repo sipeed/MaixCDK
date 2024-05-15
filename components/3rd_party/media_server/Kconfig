@@ -14,7 +14,7 @@ config MEDIA_SERVER_VERSION_MINOR
 
 config MEDIA_SERVER_VERSION_PATCH
     int "media_server package patch version"
-    default 1
+    default 2
     help
       media_server package patch version
 endmenu

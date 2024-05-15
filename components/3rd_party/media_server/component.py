@@ -11,6 +11,9 @@ def add_file_downloads(confs : dict) -> list:
     elif version == "1.0.1":
         url = "https://files.catbox.moe/acqhv1.zip"
         sha256sum = "ce06dc3d03b6036165956e60afd5eec5bfd37e7746e4b427f2099732478ecc22"
+    elif version == "1.0.2":
+        url = "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/media_server-1.0.2.zip"
+        sha256sum = "b9872dbe52fae4d4b60a0db827533877b20186e9457525345407fdad8e187704"
     else:
         raise Exception(f"version {version} not support")
     filename = f"media_server-{version}.zip"

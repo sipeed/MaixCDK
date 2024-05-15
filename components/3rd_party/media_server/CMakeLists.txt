@@ -3,35 +3,38 @@ set(media_server_unzip_path "${DL_EXTRACTED_PATH}/media_server")
 set(src_path "${media_server_unzip_path}/media_server-${media_server_version_str}")
 
 ############### Add include ###################
-set(media_server_private_include_dir
-                    "${src_path}/librtsp/source/server"
-                    "${src_path}/sdk/include"
-                    "${src_path}/sdk/libhttp/include"
-                    "${src_path}/librtp/include"
-                    "${src_path}/libmpeg/include"
-                    "${src_path}/libflv/include"
-                    "${src_path}/libmkv/include"
-                    "${src_path}/avcodec/avcodec/include"
-                    "${src_path}/avcodec/avbsf/include"
-                    "${src_path}/libmov/include"
-                    "${src_path}/include"
-                    "${src_path}/media")
-# list(APPEND ADD_PRIVATE_INCLUDE ${media_server_private_include_dir})
+set(media_server_private_include_dir    "${src_path}/include/avcodec/avbsf/include"
+                                        "${src_path}/include/avcodec/avcodec/include"
+                                        "${src_path}/include/avcodec/h264/include"
+                                        "${src_path}/include/avcodec/h265/include"
 
-set(media_server_include_dir "${src_path}"
-                            ".")
+                                        "${src_path}/include/sdk/include"
+                                        "${src_path}/include/sdk/libaio/include"
+                                        "${src_path}/include/sdk/libhttp/include"
+                                        "${src_path}/include/sdk/libice/include"
 
-list(APPEND ADD_INCLUDE ${media_server_include_dir}
-                        ${media_server_private_include_dir})
-
+                                        "${src_path}/include/media-server/libdash/include"
+                                        "${src_path}/include/media-server/libice/include"
+                                        "${src_path}/include/media-server/libflv/include"
+                                        "${src_path}/include/media-server/libhls/include"
+                                        "${src_path}/include/media-server/libmkv/include"
+                                        "${src_path}/include/media-server/libmov/include"
+                                        "${src_path}/include/media-server/libmpeg/include"
+                                        "${src_path}/include/media-server/librtmp/include"
+                                        "${src_path}/include/media-server/librtp/include"
+                                        "${src_path}/include/media-server/librtsp/include"
+                                        "${src_path}/include/media-server/libsip/include")
+set(media_server_include_dir            "inc" "${src_path}")
+list(APPEND ADD_INCLUDE ${media_server_include_dir} ${media_server_private_include_dir})
+set_property(SOURCE ${media_server_include_dir} PROPERTY GENERATED 1)
+set_property(SOURCE ${media_server_private_include_dir} PROPERTY GENERATED 1)
 ###############################################
 
 ############ Add source files #################
-list(APPEND ADD_SRCS
-)
+aux_source_directory("src" ADD_SRCS)
+# append_srcs_dir(ADD_SRCS ".")       # append source file in src dir to var ADD_SRCS
+# set_property(SOURCE ${ADD_SRCS} PROPERTY GENERATED 1)
 
-append_srcs_dir(ADD_SRCS "${src_path}"
-                         "${src_path}/media")       # append source file in src dir to var ADD_SRCS
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -63,16 +66,31 @@ append_srcs_dir(ADD_SRCS "${src_path}"
 ###############################################
 
 ############ Add static libs ##################
-list(APPEND ADD_STATIC_LIB "${src_path}/libs/librtsp.a"
-                            "${src_path}/libs/libhttp.a"
-                            "${src_path}/libs/libflv.a"
-                            "${src_path}/libs/libmov.a"
-                            "${src_path}/libs/librtp.a"
-                            "${src_path}/libs/libmpeg.a"
-                            "${src_path}/libs/libsdk.a"
-                            "${src_path}/libs/libavcodec.a"
-                            "${src_path}/libs/libavbsf.a")
+list(APPEND ADD_STATIC_LIB
 
+                                        "${src_path}/lib/libdash.a"
+                                        "${src_path}/lib/libhls.a"
+                                        "${src_path}/lib/libmkv.a"
+                                        "${src_path}/lib/libmov.a"
+                                        "${src_path}/lib/libmpeg.a"
+                                        "${src_path}/lib/librtmp.a"
+                                        "${src_path}/lib/libflv.a"
+                                        "${src_path}/lib/librtp.a"
+                                        "${src_path}/lib/librtsp.a"
+                                        "${src_path}/lib/libsip.a"
+
+                                        "${src_path}/lib/libavbsf.a"
+                                        "${src_path}/lib/libavcodec.a"
+                                        "${src_path}/lib/libh264.a"
+                                        "${src_path}/lib/libh265.a"
+
+                                        "${src_path}/lib/libhttp.a"
+                                        "${src_path}/lib/libice.a"
+                                        "${src_path}/lib/libsdk.a"
+
+
+)
+set_property(SOURCE ${ADD_STATIC_LIB} PROPERTY GENERATED 1)
 ###############################################
 
 ############ Add dynamic libs ##################
@@ -87,7 +105,7 @@ list(APPEND ADD_STATIC_LIB "${src_path}/libs/librtsp.a"
 
 #### Add compile option for this component
 #### and components denpend on this component
-list(APPEND ADD_DEFINITIONS -D__ERROR__=00*10000000+__LINE__*1000)
+list(APPEND ADD_DEFINITIONS -D__ERROR__=00*10000000+__LINE__*1000 -DOS_LINUX)
 
 ###############################################
 
