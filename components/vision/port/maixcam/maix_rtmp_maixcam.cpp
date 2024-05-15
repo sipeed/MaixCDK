@@ -22,7 +22,7 @@ static int rtmp_client_send(void* param, const void* header, size_t len, const v
 	return socket_send_v_all_by_time(*socket, vec, bytes > 0 ? 2 : 1, 0, 5000);
 }
 
-namespace maix {
+namespace maix::rtmp {
 	Rtmp::Rtmp(std::string host, int port, std::string app, std::string stream) {
 		_host = host;
 		_port = port;

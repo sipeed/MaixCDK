@@ -49,7 +49,7 @@ int _main(int argc, char* argv[])
         std::string file = argv[5];
         printf("push %s to rtmp://%s:%d/%s/%s!\r\n", &file[0], &host[0], port, &app[0], &stream[0]);
 
-        Rtmp rtmp = Rtmp(host, port, app, stream);
+        rtmp::Rtmp rtmp = rtmp::Rtmp(host, port, app, stream);
 
         log::info("start\r\n");
         rtmp.start(file);
