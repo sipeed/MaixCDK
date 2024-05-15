@@ -14,7 +14,8 @@
 #include <stdexcept>
 #include <pthread.h>
 
-namespace maix {
+namespace maix::rtmp
+{
     /**
      * Rtmp class
      * @maixpy maix.rtmp.Rtmp
@@ -116,7 +117,7 @@ namespace maix {
 
         /**
          * @brief Get the file path of the push stream
-         * @return error code, err::ERR_NONE means success, others means failed
+         * @return file path
          * @maixpy maix.rtmp.Rtmp.get_path
         */
         std::string get_path() {
@@ -125,7 +126,7 @@ namespace maix {
 
         /**
          * @brief Check whether push streaming has started
-         * @return error code, err::ERR_NONE means success, others means failed
+         * @return If rtmp thread is running, returns true
          * @maixpy maix.rtmp.Rtmp.get_path
         */
         bool is_started() {
