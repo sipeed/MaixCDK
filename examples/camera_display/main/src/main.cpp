@@ -90,6 +90,8 @@ static int cmd_init(void)
             "2 <value> : set luma\r\n"
             "3 <value> : set constrast\r\n"
             "4 <value> : set saturation\r\n"
+            "5 <value> : set white balance mode\r\n"
+            "6 <value> : set exposure mode\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -158,6 +160,26 @@ static int cmd_loop(camera::Camera *cam)
             log::info("set saturation: %ld\r\n", value);
             out = cam->saturation();
             log::info("get saturation: %d\r\n", out);
+        }
+        break;
+        case 5:
+        {
+            uint32_t out = 0;
+            out = cam->awb_mode(value);
+            err::check_bool_raise(out == value, "set error");
+            log::info("set white balance mode: %ld\r\n", value);
+            out = cam->awb_mode();
+            log::info("get white balance mode: %d\r\n", out);
+        }
+        break;
+        case 6:
+        {
+            uint32_t out = 0;
+            out = cam->exp_mode(value);
+            err::check_bool_raise(out == value, "set error");
+            log::info("set exposure mode: %ld\r\n", value);
+            out = cam->exp_mode();
+            log::info("get exposure mode: %d\r\n", out);
         }
         break;
         default:printf("Find not cmd!\r\n"); break;
