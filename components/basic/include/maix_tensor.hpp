@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <tuple>
 #include <map>
+#include <valarray>
 #include "maix_log.hpp"
 #include "maix_err.hpp"
 
@@ -246,6 +247,16 @@ namespace maix
             tensor::DType  dtype() { return _dtype; }
 
             void *data() { return _data; }
+
+            /**
+             * get tensor data and return a list
+             * @return list type data
+             * @maixpy maix.tensor.Tensor.to_float_list
+            */
+            std::valarray<float>* to_float_list()
+            {
+                return new std::valarray<float>((float*)_data, size_int());
+            }
 
             void operator=(Tensor &t)
             {

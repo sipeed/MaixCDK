@@ -438,15 +438,14 @@ namespace maix::image
 
         /**
          * Draw keypoints on image
-         * @param keypoints keypoints, [x, y, rotation_andle_in_degrees], TODO: rotation_andle_in_degrees support in the feature
+         * @param keypoints keypoints, [x1, y1, x2, y2...] or [x, y, rotation_andle_in_degrees, x2, y2, rotation_andle_in_degrees2](TODO: rotation_andle_in_degrees support in the feature)
          * @param color keypoints color @see image::Color
          * @param size size of keypoints
-         * @param thickness keypoints thickness(line width), by default(value is 1)
-         * @param fill if true, will fill keypoints, by default(value is false)
+         * @param thickness keypoints thickness(line width), by default(value is -1 means fill circle)
          * @return this image object self
          * @maixpy maix.image.Image.draw_keypoints
         */
-        image::Image *draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size = 10, int thickness = 1, bool fill = false);
+        image::Image *draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size = 10, int thickness = -1);
 
         //************************** image operations **************************//
 
