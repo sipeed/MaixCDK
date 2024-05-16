@@ -1,6 +1,6 @@
 #include "maix_rtmp.hpp"
 
-namespace maix {
+namespace maix::rtmp {
 	Rtmp::Rtmp(std::string host, int port, std::string app, std::string stream) {
 		_host = host;
 		_port = port;
