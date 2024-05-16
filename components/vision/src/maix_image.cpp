@@ -1019,23 +1019,23 @@ namespace maix::image
         return this;
     }
 
-    image::Image *Image::draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size, int thickness, bool fill)
+    image::Image *Image::draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size, int thickness)
     {
         int ch_format = 0;
         cv::Scalar cv_color;
         _get_cv_format_color(_format, color, &ch_format, cv_color);
         cv::Mat img(_height, _width, ch_format, _data);
 
-        if (keypoints.size() < 2) {
-            throw std::runtime_error("keypoints size must >= 2");
+        if (keypoints.size() < 2 || keypoints.size() % 2 != 0) {
+            throw std::runtime_error("keypoints size must >= 2 and multiple of 2");
             return nullptr;
         }
-        cv::Point center(keypoints[0], keypoints[1]);
-        int radius = size;
-        if (fill) {
-            thickness = -1;
+        for(size_t i=0; i<keypoints.size() / 2; ++i)
+        {
+            cv::Point center(keypoints[i * 2], keypoints[i * 2 + 1]);
+            int radius = size;
+            cv::circle(img, center, radius, cv_color, thickness);
         }
-        cv::circle(img, center, radius, cv_color, thickness);
         return this;
     }
 
