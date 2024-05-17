@@ -10,12 +10,19 @@
 
 #include <stdint.h>
 #include "maix_err.hpp"
+#include "maix_basic.hpp"
 #include "maix_log.hpp"
 #include "maix_image.hpp"
 #include "maix_time.hpp"
 #include "maix_camera_base.hpp"
 #include "sophgo_middleware.hpp"
 #include <signal.h>
+
+static void try_deinit_mmf(void *param)
+{
+    (void)param;
+    mmf_try_deinit(true);
+}
 
 static void signal_handle(int signal)
 {
@@ -32,7 +39,7 @@ static void signal_handle(int signal)
     }
 
     maix::log::error("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
-    mmf_try_deinit(true);
+    try_deinit_mmf(nullptr);
     exit(1);
 }
 
@@ -46,6 +53,8 @@ static __attribute__((constructor)) void maix_vision_register_signal(void)
     signal(SIGFPE, signal_handle);
     signal(SIGKILL, signal_handle);
     signal(SIGSEGV, signal_handle);
+
+    maix::util::register_exit_function(try_deinit_mmf);
 }
 
 namespace maix::camera
