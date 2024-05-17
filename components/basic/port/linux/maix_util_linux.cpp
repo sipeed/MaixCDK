@@ -9,5 +9,13 @@ namespace maix::util
     void enable_kernel_debug() {
 
     }
+
+    void register_exit_function(void (*process)(void *)) {
+        (void)process;
+    }
+
+    void do_exit_function(void *param) {
+        (void)param;
+    }
 }
 
