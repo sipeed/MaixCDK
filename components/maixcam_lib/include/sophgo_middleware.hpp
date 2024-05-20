@@ -1,11 +1,27 @@
 #ifndef __SOPHGO_MIDDLEWARE_HPP__
 #define __SOPHGO_MIDDLEWARE_HPP__
 
+#include "stdint.h"
+
 typedef struct {
     uint8_t *data[8];
     int data_size[8];
     int count;
-} mmf_h265_stream_t;
+} mmf_stream_t;
+
+typedef mmf_stream_t mmf_h265_stream_t;
+
+typedef struct {
+    uint8_t type;
+    int w;
+	int h;
+	int fmt;
+	uint8_t jpg_quality;	// jpeg
+	int gop;				// h264/h265
+	int intput_fps;			// h264/h265
+	int output_fps;			// h264/h265
+	int bitrate;			// h264/h265
+} mmf_venc_cfg_t;
 
 // init sys
 int mmf_init(void);
@@ -17,6 +33,7 @@ bool mmf_is_init(void);
 int mmf_get_vi_unused_channel(void);
 int mmf_vi_init(void);
 int mmf_vi_deinit(void);
+int mmf_add_vi_channel_with_enc(int ch, int width, int height, int format);
 int mmf_add_vi_channel(int ch, int width, int height, int format);
 int mmf_del_vi_channel(int ch);
 int mmf_del_vi_channel_all(void);
@@ -108,4 +125,14 @@ int mmf_get_wb_mode(int ch);
 // sensor info
 int mmf_get_sensor_id(void);
 
+// venc
+int mmf_venc_unused_channel(void);
+int mmf_venc_is_used(int ch);
+int mmf_add_venc_channel(int ch, mmf_venc_cfg_t *cfg);
+int mmf_del_venc_channel(int ch);
+int mmf_del_venc_channel_all();
+int mmf_venc_push(int ch, uint8_t *data, int w, int h, int format);
+int mmf_venc_pop(int ch, mmf_stream_t *stream);
+int mmf_venc_free(int ch);
+int mmf_venc_get_cfg(int ch, mmf_venc_cfg_t *cfg);
 #endif // __SOPHGO_MIDDLEWARE_HPP__
