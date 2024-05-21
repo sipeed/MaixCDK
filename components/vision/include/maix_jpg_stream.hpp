@@ -52,7 +52,7 @@ namespace maix::http
 
         /**
          * @brief Write data to http
-         * @param img Must be jpeg image
+         * @param img image object
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.http.JpegStreamer.write
         */

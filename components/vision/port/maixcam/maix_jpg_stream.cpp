@@ -580,17 +580,26 @@ namespace maix::http
 
         err::Err JpegStreamer::write(image::Image *img) {
 			int res = 0;
+			image::Image *jpg = NULL;
 
 			if (img->format() != image::Format::FMT_JPEG) {
-				log::error("Only support jpeg format!\r\n");
-				return err::ERR_RUNTIME;
+				jpg = img->to_jpeg();
+				if (jpg == NULL) {
+					log::error("invert to jpeg failed!\r\n");
+					return err::ERR_RUNTIME;
+				}
+			} else {
+				jpg = img;
 			}
 
-			if (0 != (res = http_jpeg_server_send(img->data(), img->data_size()))) {
+			if (0 != (res = http_jpeg_server_send(jpg->data(), jpg->data_size()))) {
 				log::error("http_jpeg_server_send failed! res:%d\r\n",  res);
 				return err::ERR_RUNTIME;
 			}
 
+			if (img->format() != image::Format::FMT_JPEG) {
+				delete jpg;
+			}
 			return err::ERR_NONE;
 		}
 
