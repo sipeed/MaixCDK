@@ -257,16 +257,21 @@ namespace maix::rtsp
         return err;
     }
 
-    err::Err Rtsp::write(video::Frame &stream) {
+    err::Err Rtsp::write(video::Frame &frame) {
         err::Err err = err::ERR_NONE;
 
-        if (stream.type != video::VideoType::VIDEO_ENC_H265_CBR) {
+        if (frame.type() != video::VideoType::VIDEO_ENC_H265_CBR) {
             log::warn("You passed in an unsupported type!\r\n");
             return err::ERR_RUNTIME;
         }
 
+        void *data;
+        int data_len = 0;
+        if (err::ERR_NONE != frame.get(&data, &data_len) || data_len == 0) {
+            return err::ERR_NONE;
+        }
 
-        rtsp_send_h265_data(stream.frame.get(), sizeof(stream.frame));
+        rtsp_send_h265_data((uint8_t *)data, data_len);
 
         return err;
     }

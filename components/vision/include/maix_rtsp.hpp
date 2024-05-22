@@ -117,13 +117,11 @@ namespace maix::rtsp
 
         /**
          * @brief Write data to rtsp
-         * @param type rtsp stream type
-         * @param data rtsp stream data
-         * @param fps rtsp stream data size
+         * @param frame video frame data
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.rtsp.Rtsp.write
         */
-        err::Err write(video::Frame &stream);
+        err::Err write(video::Frame &frame);
 
         /**
          * @brief Get url of rtsp
