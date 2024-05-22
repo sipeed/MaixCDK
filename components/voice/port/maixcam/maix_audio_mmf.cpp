@@ -404,9 +404,11 @@ namespace maix::audio
 
         return err::ERR_NONE;
     }
-
+#if CONFIG_BUILD_WITH_MAIXPY
     maix::Bytes *Player::NoneBytes = new maix::Bytes();
-
+#else
+    maix::Bytes *Player::NoneBytes = NULL;
+#endif
     Player::Player(std::string path, int sample_rate, audio::Format format, int channel) {
         _path = path;
         _sample_rate = sample_rate;

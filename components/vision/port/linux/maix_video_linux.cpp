@@ -14,10 +14,70 @@
 
 namespace maix::video
 {
+#if CONFIG_BUILD_WITH_MAIXPY
     maix::image::Image *Video::NoneImage = new maix::image::Image();
+    maix::image::Image *Encoder::NoneImage = new maix::image::Image();
+#else
+    maix::image::Image *Video::NoneImage = NULL;
+    maix::image::Image *Encoder::NoneImage = NULL;
+#endif
+
+    Encoder::Encoder(int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture) {
+        throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    Encoder::~Encoder() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    err::Err Encoder::bind_camera(camera::Camera *camera) {
+        (void)camera;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return err::ERR_NOT_IMPL;
+    }
+
+    video::Frame *Encoder::encode(image::Image *img) {
+        (void)img;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return nullptr;
+    }
+
+    Decoder::Decoder() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    Decoder::~Decoder() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+    }
+
+    err::Err Decoder::prepare(Bytes *data, bool copy) {
+        (void)data;
+        (void)copy;
+        return err::ERR_NONE;
+    }
+
+    err::Err Decoder::prepare(void *data, int data_size, bool copy) {
+        (void)data;
+        (void)data_size;
+        (void)copy;
+        return err::ERR_NONE;
+    }
+
+    image::Image *Decoder::decode(video::Frame *frame) {
+        (void)frame;
+        return NULL;
+    }
 
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {
+        (void)path;
+        (void)width;
+        (void)height;
+        (void)format;
+        (void)time_base;
+        (void)framerate;
+        (void)capture;
+        (void)open;
         throw err::Exception(err::ERR_NOT_IMPL);
     }
 
@@ -29,6 +89,8 @@ namespace maix::video
 
     err::Err Video::open(std::string path, double fps)
     {
+        (void)path;
+        (void)fps;
         throw err::Exception(err::ERR_NOT_IMPL);
         return err::ERR_NONE;
     }
@@ -39,16 +101,19 @@ namespace maix::video
     }
 
     err::Err Video::bind_camera(camera::Camera *camera) {
+        (void)camera;
         err::Err err = err::ERR_NONE;
         throw err::Exception(err::ERR_NOT_IMPL);
         return err;
     }
 
     video::Packet *Video::encode(image::Image *img) {
+        (void)img;
         return nullptr;
     }
 
     image::Image *Video::decode(video::Frame *frame) {
+        (void)frame;
         return NULL;
     }
 

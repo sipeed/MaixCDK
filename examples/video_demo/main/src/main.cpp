@@ -19,6 +19,10 @@ static void helper(void)
     "2 [record_time] [output_path]: encode image and save to h265\r\n"
     "3 [record_time] [output_path]: record from camera and save to h265\r\n"
     "4 [record_time] [output_path]: record from camera and save to h265, then display\r\n"
+    "5 : encode h265\r\n"
+    "6 : bind camera and encode h265\r\n"
+    "7 : encode h264\r\n"
+    "8 : bind camera and encode h264\r\n"
     "\r\n"
     "Example: ./video_demo 0 5 output.mp4     # means record 5s from camera, and save to output.mp4\r\n"
     "==================================\r\n");
@@ -184,6 +188,107 @@ int _main(int argc, char* argv[])
             delete packet;
             last_loop = time::time_ms();
         }
+        break;
+    }
+    case 5:
+    {
+        int width = 640;
+        int height = 480;
+        video::VideoType type = video::VIDEO_H265_CBR;
+        video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type);
+        camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
+
+        while(!app::need_exit()) {
+            image::Image *img = cam.read();
+            video::Frame *frame = e.encode(img);
+            printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
+                frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
+            delete frame;
+            delete img;
+        }
+        break;
+    }
+    case 6:
+    {
+        int width = 640;
+        int height = 480;
+        video::VideoType type = video::VIDEO_H265_CBR;
+        int framerate = 30;
+        int gop = 50;
+        int bitrate = 3000 * 1000;
+        int time_base = 1000;
+        bool capture = true;
+        video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type, framerate, gop, bitrate, time_base, capture);
+        camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
+        e.bind_camera(&cam);
+
+        char *file = (char *)"output.h265";
+        FILE *f = fopen(file, "wb");
+        err::check_null_raise(f, "open file failed!");
+
+        while(!app::need_exit()) {
+            video::Frame *frame = e.encode();
+            image::Image *img = e.capture();
+            printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
+                frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
+            printf("image size:%d\r\n", img->data_size());
+            fwrite(frame->data(), frame->size(), 1, f);
+            delete frame;
+            delete img;
+        }
+        fclose(f);
+        system("sync");
+        break;
+    }
+    case 7:
+    {
+        int width = 640;
+        int height = 480;
+        video::VideoType type = video::VIDEO_H264_CBR;
+        video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type);
+        camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
+
+        while(!app::need_exit()) {
+            image::Image *img = cam.read();
+            video::Frame *frame = e.encode(img);
+            printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
+                frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
+            delete frame;
+            delete img;
+        }
+        break;
+    }
+    case 8:
+    {
+        int width = 640;
+        int height = 480;
+        video::VideoType type = video::VIDEO_H264_CBR;
+        int framerate = 30;
+        int gop = 50;
+        int bitrate = 3000 * 1000;
+        int time_base = 1000;
+        bool capture = true;
+        video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type, framerate, gop, bitrate, time_base, capture);
+        camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
+        e.bind_camera(&cam);
+
+        char *file = (char *)"output.h264";
+        FILE *f = fopen(file, "wb");
+        err::check_null_raise(f, "open file failed!");
+
+        while(!app::need_exit()) {
+            video::Frame *frame = e.encode();
+            image::Image *img = e.capture();
+            printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
+                frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
+            printf("image size:%d\r\n", img->data_size());
+            fwrite(frame->data(), frame->size(), 1, f);
+            delete frame;
+            delete img;
+        }
+
+        fclose(f);
+        system("sync");
         break;
     }
     default:
