@@ -245,7 +245,7 @@ int _main(int argc, char* argv[])
         int width = 640;
         int height = 480;
         video::VideoType type = video::VIDEO_H264_CBR;
-        video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type);
+        video::Encoder e = video::Encoder(2560, 1440, image::Format::FMT_YVU420SP, type);
         camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
 
         while(!app::need_exit()) {
@@ -270,6 +270,7 @@ int _main(int argc, char* argv[])
         bool capture = true;
         video::Encoder e = video::Encoder(width, height, image::Format::FMT_YVU420SP, type, framerate, gop, bitrate, time_base, capture);
         camera::Camera cam = camera::Camera(width, height, image::Format::FMT_YVU420SP);
+        display::Display disp = display::Display();
         e.bind_camera(&cam);
 
         char *file = (char *)"output.h264";
@@ -279,6 +280,7 @@ int _main(int argc, char* argv[])
         while(!app::need_exit()) {
             video::Frame *frame = e.encode();
             image::Image *img = e.capture();
+            disp.show(*img);
             printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
                 frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
             printf("image size:%d\r\n", img->data_size());

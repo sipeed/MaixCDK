@@ -120,7 +120,7 @@ namespace maix::video
          * @return raw data
          * @maixpy maix.video.Frame.to_bytes
          */
-        Bytes *to_bytes(bool copy) {
+        Bytes *to_bytes(bool copy = false) {
             Bytes *b = NULL;
             if (copy) {
                 b = new Bytes(_data, _data_size, true, true);

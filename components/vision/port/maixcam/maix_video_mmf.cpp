@@ -48,6 +48,10 @@ namespace maix::video
         switch (_type) {
         case VIDEO_H265_CBR:
         {
+            if (0 != mmf_init()) {
+                err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+            }
+
             if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
                 err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
             }
@@ -64,8 +68,13 @@ namespace maix::video
                 .gop = _gop,
                 .intput_fps = _framerate,
                 .output_fps = _framerate,
-                .bitrate = _bitrate,
+                .bitrate = _bitrate / 1000,
             };
+
+            if (0 != mmf_init()) {
+                err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+            }
+
             if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
                 err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
             }
@@ -205,7 +214,6 @@ namespace maix::video
                 }
             } else { // encode from camera
                 if (!this->_bind_camera) {
-                    log::warn("You need use bind_camera() function to bind the camera!\r\n");
                     goto _exit;
                 }
 
@@ -315,23 +323,23 @@ namespace maix::video
                         err::check_raise(err::ERR_RUNTIME, "get venc config failed!\r\n");
                     }
 
-                    int img_w = img->width();
-                    int img_h = img->height();
-                    image::Format img_fmt = img->format();
+                    int img_w = width;
+                    int img_h = height;
+                    int mmf_fmt = format;
                     if (img_w != cfg.w
-                        || img->height() != cfg.h
-                        || img->format() != mmf_invert_format_to_maix(cfg.fmt)) {
+                        || img_h != cfg.h
+                        || mmf_fmt != cfg.fmt) {
                         log::warn("image size or format is incorrect, try to reinit venc!\r\n");
                         mmf_del_venc_channel(MMF_VENC_CHN);
                         cfg.w = img_w;
                         cfg.h = img_h;
-                        cfg.fmt = mmf_invert_format_to_mmf(img_fmt);
+                        cfg.fmt = mmf_invert_format_to_mmf(mmf_fmt);
                         if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
                             err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
                         }
                         _width = img_w;
                         _height = img_h;
-                        _format = img_fmt;
+                        _format = (image::Format)mmf_invert_format_to_maix(mmf_fmt);
                     }
 
                     if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
@@ -819,7 +827,6 @@ _exit:
             }
         } else { // encode from camera
             if (!this->_bind_camera) {
-                log::warn("You need use bind_camera() function to bind the camera!\r\n");
                 goto _exit;
             }
 
