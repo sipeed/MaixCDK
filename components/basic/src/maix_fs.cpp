@@ -338,6 +338,16 @@ namespace maix::fs
         return line;
     }
 
+    /**
+         * End of file or not
+         * @return 0 if not reach end of file, else eof.
+         * @maixpy maix.fs.File.eof
+        */
+       int File::eof()
+       {
+        return std::feof((FILE*)_fp);
+       }
+
     int File::write(const void *buf, int size)
     {
         // write data to file use std::fwrite

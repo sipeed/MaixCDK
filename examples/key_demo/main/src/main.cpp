@@ -25,8 +25,7 @@ int _main(int argc, char* argv[])
     display::Display screen = display::Display();
     log::info("screen size: %dx%d", screen.width(), screen.height());
 
-    // Init key will cancel the default ok button function(exit app)
-    // key::Key key = key::Key(on_key);
+    key::Key key = key::Key(on_key);
     // If you want to exit app when press ok button, you can just call add_default_listener(), more see it's definition.
     // key::add_default_listener();
     log::info("Init key ok");

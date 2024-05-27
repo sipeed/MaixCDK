@@ -67,7 +67,7 @@ namespace maix::image
         }
         ~Image();
 
-        void operator=(image::Image &img);
+        void operator=(const image::Image &img);
 
         //************************** get and set basic info **************************//
 
