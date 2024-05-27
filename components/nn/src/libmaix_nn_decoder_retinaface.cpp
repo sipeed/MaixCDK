@@ -225,30 +225,30 @@ nn::ObjectFloat* retinaface_get_priorboxes(libmaix_nn_decoder_retinaface_config_
     return boxes;
 }
 
-static void softmax(float *data, int stride, int n )
-{
-    int i;
-    // int diff;
-    // float e;
-    float sum = 0;
-    float largest_i = data[0];
+// static void softmax(float *data, int stride, int n )
+// {
+//     int i;
+//     // int diff;
+//     // float e;
+//     float sum = 0;
+//     float largest_i = data[0];
 
-    for (i = 0; i < n; ++i)
-    {
-        if (data[i + stride] > largest_i)
-            largest_i = data[i + stride];
-    }
-    for (i = 0; i < n; ++i)
-    {
-        float value = expf(data[i + stride] - largest_i);
-        sum += value;
-        data[i + stride] = value;
-    }
-    for (i = 0; i < n; ++i)
-	{
-        data[i + stride] /= sum;
-	}
-}
+//     for (i = 0; i < n; ++i)
+//     {
+//         if (data[i + stride] > largest_i)
+//             largest_i = data[i + stride];
+//     }
+//     for (i = 0; i < n; ++i)
+//     {
+//         float value = expf(data[i + stride] - largest_i);
+//         sum += value;
+//         data[i + stride] = value;
+//     }
+//     for (i = 0; i < n; ++i)
+// 	{
+//         data[i + stride] /= sum;
+// 	}
+// }
 
 int retinaface_decode(float* net_out_loc, float* net_out_conf, float* net_out_landmark, nn::ObjectFloat* prior_boxes, std::vector<nn::Object> *faces, int* boxes_num, bool chw, libmaix_nn_decoder_retinaface_config_t* config)
 {

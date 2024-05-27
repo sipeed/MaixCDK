@@ -333,7 +333,7 @@ namespace maix::image
         }
     }
 
-    void Image::operator=(image::Image &img)
+    void Image::operator=(const image::Image &img)
     {
         _format = img._format;
         _width = img._width;

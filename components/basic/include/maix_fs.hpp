@@ -253,6 +253,13 @@ namespace maix::fs
         std::string *readline();
 
         /**
+         * End of file or not
+         * @return 0 if not reach end of file, else eof.
+         * @maixpy maix.fs.File.eof
+        */
+       int eof();
+
+        /**
          * Write data to file
          * @param buf buffer to write
          * @param size buffer size

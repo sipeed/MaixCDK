@@ -3,7 +3,7 @@
 #include "maix_vision.hpp"
 #include "main.h"
 
-#define USE_RETINAFACE 0
+#define USE_RETINAFACE 1
 
 #if USE_RETINAFACE
 #include "maix_nn_retinaface.hpp"
