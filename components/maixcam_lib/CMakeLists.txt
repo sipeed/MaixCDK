@@ -17,7 +17,11 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
     append_srcs_dir(ADD_SRCS "${source_dir}/nn")
     list(APPEND ADD_REQUIREMENTS cvi_tpu)
 
+    # media_server
+    append_srcs_dir(ADD_SRCS "${source_dir}/media_server")
+    list(APPEND ADD_REQUIREMENTS media_server)
 
+    # middleware
     set(middleware_include_dir .
         ${middleware_src_path}/v2/component/panel/${CONFIG_SOPHGO_MIDDLEWARE_CHIP}
         ${middleware_src_path}/v2/include

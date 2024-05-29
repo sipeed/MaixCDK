@@ -69,6 +69,7 @@ namespace maix::camera
             this->width = width;
             this->height = height;
             this->buffer_num = buff_num;
+            this->ch = -1;
 
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");

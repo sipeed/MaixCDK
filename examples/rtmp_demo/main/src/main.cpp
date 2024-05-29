@@ -17,8 +17,9 @@ static int helper(void)
     printf( "========================\r\n"
             "Intput param:\r\n"
             "0 <host> <app> <stream> <file> : rtmp client, push file\r\n"
-            "   example: ./test_media_server 0 192.168.0.30 myapp stream ./test.flv"
-            "1 <host> <app> <stream> : rtmp client, push camera image\r\n"
+            "   example: ./rtmp_demo 0 192.168.0.30 myapp stream ./test.flv\r\n"
+            "1 <host> <port> <app> <stream> <bitrate>: rtmp client, push camera image\r\n"
+            "   example: ./rtmp_demo 1 192.168.0.30 1935 live stream 10000000\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -57,6 +58,42 @@ int _main(int argc, char* argv[])
         while (!app::need_exit()) {
             log::info("run..\r\n");
             time::sleep(1);
+        }
+        rtmp.stop();
+        log::info("stop\r\n");
+
+        break;
+    }
+    case 1:
+    {
+        if (argc < 6) {
+            helper();
+            break;
+        }
+        std::string host = argv[2];
+        int port = atoi(argv[3]);
+        std::string app = argv[4];
+        std::string stream = argv[5];
+        int bitrate = 1000 * 1000;
+        if (argc > 6) bitrate = atoi(argv[6]);
+        printf("push rtmp://%s:%d/%s/%s!\r\n", &host[0], port, &app[0], &stream[0]);
+
+        camera::Camera cam = camera::Camera(1280, 720, image::Format::FMT_YVU420SP);
+        display::Display disp = display::Display();
+        rtmp::Rtmp rtmp = rtmp::Rtmp(host, port, app, stream, bitrate);
+
+        rtmp.bind_camera(&cam);
+
+        log::info("start\r\n");
+        rtmp.start();
+        while (!app::need_exit()) {
+            // image::Image *img = rtmp.capture(); // not support now
+
+            // if (img) {
+                // disp.show(*img);
+                // delete img;
+            // }
+            sleep(1);
         }
         rtmp.stop();
         log::info("stop\r\n");
