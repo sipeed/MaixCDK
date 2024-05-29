@@ -20,7 +20,12 @@ namespace maix::image
         if (_format == image::FMT_GRAYSCALE) {
             convert_to_imlib_image(this, &src_img);
         } else {
-            gray_img = this->to_format(image::FMT_GRAYSCALE);
+            if (image::FMT_YVU420SP == _format) {
+                gray_img = new image::Image(_width, _height, image::FMT_GRAYSCALE);
+                memcpy(gray_img->data(), _data, _width * _height);
+            } else {
+                gray_img = this->to_format(image::FMT_GRAYSCALE);
+            }
             convert_to_imlib_image(gray_img, &src_img);
         }
 

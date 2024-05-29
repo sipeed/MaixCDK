@@ -130,6 +130,12 @@ namespace maix::sys
     std::vector<std::map<std::string, std::string>> disk_partitions(bool only_disk = true);
 
     /**
+     * register default signal handle
+     * @maixpy maix.sys.register_default_signal_handle
+    */
+    void register_default_signal_handle();
+
+    /**
      * Power off device
      * @maixpy maix.sys.poweroff
     */
