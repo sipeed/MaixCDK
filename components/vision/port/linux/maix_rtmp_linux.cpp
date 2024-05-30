@@ -1,11 +1,12 @@
 #include "maix_rtmp.hpp"
 
 namespace maix::rtmp {
-	Rtmp::Rtmp(std::string host, int port, std::string app, std::string stream) {
+	Rtmp::Rtmp(std::string host, int port, std::string app, std::string stream, int bitrate) {
 		_host = host;
 		_port = port;
 		_app = app;
 		_stream = stream;
+		_bitrate = bitrate;
 	}
 
 	Rtmp::~Rtmp() {
