@@ -7,6 +7,7 @@
 #include "main.h"
 #include "maix_thread.hpp"
 #include "maix_util.hpp"
+#include "maix_basic.hpp"
 #include <string>
 
 using namespace maix;
