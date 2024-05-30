@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include "main.h"
 #include "maix_util.hpp"
+#include "maix_basic.hpp"
 #include "maix_image.hpp"
 #include "maix_time.hpp"
 #include "maix_display.hpp"
@@ -78,7 +79,7 @@ using namespace maix;
 #define TEST_FIND_CIRCLES               0       // OK
 #define TEST_FIND_RECTS                 0       // OK
 #define TEST_FIND_QRCODES               0       // OK
-#define TEST_FIND_APRILTAGS             0       // OK
+#define TEST_FIND_APRILTAGS             1       // OK
 #define TEST_FIND_DATAMATRICES          0       // OK
 #define TEST_FIND_BARCODES              0       // OK
 #define TEST_FIND_DISPLACEMENT          0       // NOT OK
@@ -96,7 +97,9 @@ const char *test_640x480_png = "test.jpg";
 int _main(int argc, char* argv[])
 {
     uint64_t __attribute__((unused)) start_time;
-
+    int a = 0;
+    int b = 20;
+    printf("%d", b / a);
     // 1. Create camera and display object
 #if CAMERA_ENABLE
     camera::Camera cam = camera::Camera();

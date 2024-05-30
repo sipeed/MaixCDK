@@ -7,6 +7,7 @@
 #include "maix_display.hpp"
 #include "maix_video.hpp"
 #include "maix_camera.hpp"
+#include "maix_basic.hpp"
 #include "csignal"
 #include <iostream>
 #include <termios.h>
