@@ -45,7 +45,7 @@ pip install -U -r requirements.txt     # 安装依赖
 cd projects/hello_world
 maixcdk menuconfig
 ```
-然后在选项`Platform`中选择你的设备名，然后按`ESC`按键，再按`Y`保存退出。
+根据提示选择设备平台，会出来一个界面可以配置一些参数，初次使用用默认的参数即可（用默认的参数也可以不执行 menuconfig, 直接执行 build 命令），然后按`ESC`按键，再按`Y`保存退出。
 
 ```shell
 maixcdk build
