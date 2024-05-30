@@ -51,9 +51,9 @@ namespace maix::rtsp
     }
 
     Region::~Region() {
-        if (mmf_del_region_channel(this->_id) < 0) {
-            err::check_raise(err::ERR_RUNTIME, "mmf_del_region_unused_channel failed!");
-        }
+        // if (mmf_del_region_channel(this->_id) < 0) {
+        //     err::check_raise(err::ERR_RUNTIME, "mmf_del_region_unused_channel failed!");
+        // }
     }
 
     image::Image *Region::get_canvas() {
