@@ -272,8 +272,21 @@ def download_extract_files(items):
             }
             if "user-agent" in item:
                 headers["User-Agent"] = item["user-agent"]
-            d = Downloader(item["url"], pkg_path, max_thead_num = 8, force_write=True, headers=headers)
-            d.start()
+            err_times = 3
+            delay_time = 0
+            while 1:
+                try:
+                    d = Downloader(item["url"], pkg_path, max_thead_num = 8, force_write=True, headers=headers)
+                    d.start()
+                    break
+                except Exception as e:
+                    print("-- download failed:", e)
+                    err_times -= 1
+                    if err_times > 0:
+                        delay_time += 5
+                        print(f"-- retry {3 - err_times} after {delay_time}s")
+                        time.sleep(delay_time)
+                        continue
             # check sha256sum
             if "sha256sum" in item and item["sha256sum"]:
                 ok, sha256sum = check_sha256sum(pkg_path, item["sha256sum"])
