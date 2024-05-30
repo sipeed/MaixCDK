@@ -62,8 +62,8 @@ int _main(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    // Catch SIGINT signal(e.g. Ctrl + C), and set exit flag to true.
-    signal(SIGINT, [](int sig){ app::set_exit_flag(true); });
+    // Catch signal and process
+    sys::register_default_signal_handle();
 
     // Use CATCH_EXCEPTION_RUN_RETURN to catch exception,
     // if we don't catch exception, when program throw exception, the objects will not be destructed.
