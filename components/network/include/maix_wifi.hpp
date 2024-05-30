@@ -105,6 +105,15 @@ namespace maix::network::wifi
         std::string get_mac();
 
         /**
+         * Get current WiFi SSID
+         * @param from_cache if true, will not read config from file, direct use ssid in cache.
+         *          attention, first time call this method will auto matically read config from file, and if call connect method will set cache.
+         * @return SSID, string type.
+         * @maixpy maix.network.wifi.Wifi.get_ssid
+        */
+        std::string get_ssid(bool from_cache = true);
+
+        /**
          * Get current WiFi ip
          * @return ip, string type, if network not connected, will return empty string.
          * @maixpy maix.network.wifi.Wifi.get_gateway
@@ -178,6 +187,8 @@ namespace maix::network::wifi
     private:
         std::string _iface;
         bool _ap_mode;
+        std::string _ssid;
+        bool _ssid_cached;
     };
 
 } // namespace maix::wifi

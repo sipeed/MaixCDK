@@ -10,7 +10,7 @@ def add_file_downloads(confs : dict) -> list:
         sha256sum = "888b8c39f36ae2035d023d1b14ab0191eb1d26403c3cf4d4d5ede30e66a4942c"
     else:
         raise Exception(f"version {version} not support")
-    sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
+    sites = ["https://github.com/libsdl-org/SDL/releases"]
     filename = f"SDL2-{version}.tar.gz"
     path = "sdl_srcs"
     check_file = f'SDL2-{version}'

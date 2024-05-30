@@ -363,6 +363,35 @@ bssid / frequency / signal level / flags / ssid
                 (unsigned char)ifr.ifr_hwaddr.sa_data[5]);
         return mac;
     }
+
+    /**
+     * Get current WiFi SSID
+     * @return SSID, string type.
+     * @maixpy maix.network.wifi.Wifi.get_ssid
+    */
+    std::string Wifi::get_ssid(bool from_cache)
+    {
+        if((!from_cache) || !_ssid_cached)
+        {
+            fs::File *f = fs::open("/boot/wifi.ssid", "r");
+            if(f)
+            {
+                std::string *ssid = f->readline();
+                _ssid = *ssid;
+                _ssid_cached = true;
+                delete ssid;
+                delete f;
+            }
+            else
+            {
+                _ssid = "";
+                _ssid_cached = true;
+            }
+        }
+        return _ssid;
+    }
+
+
     std::string Wifi::get_gateway()
     {
         // get gateway ip
@@ -384,6 +413,8 @@ bssid / frequency / signal level / flags / ssid
     err::Err Wifi::connect(const std::string &ssid, const std::string &password, bool wait, int timeout)
     {
         uint64_t t = time::time();
+        _ssid = ssid;
+        _ssid_cached = true;
 #if PLATFORM_MAIXCAM
         // write ssid to /boot/wifi.ssid and password to /boot/wifi.pass
         // then opoen /etc/init.d/S30wifi restart
