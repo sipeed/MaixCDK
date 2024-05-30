@@ -940,8 +940,8 @@ namespace maix::image
                 while (idx < text.length())
                 {
                     text_tmp += text[idx];
-                    cv::Size size;
-                    _get_text_size(size, text_tmp, *final_font, final_font_id, scale, thickness);
+                    cv::Size size_tmp;
+                    _get_text_size(size_tmp, text_tmp, *final_font, final_font_id, scale, thickness);
                     if (size_tmp.width >= text_max_width)
                     {
                         if (size_tmp.width > text_max_width)
