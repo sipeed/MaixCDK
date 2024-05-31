@@ -25,6 +25,38 @@ namespace maix::image
 {
 
     /**
+     * map point position or rectangle position from one image size to another image size(resize)
+     * @param int w_in original image width
+     * @param int h_in original image height
+     * @param int w_out target image width
+     * @param int h_out target image height
+     * @param fit resize method, see maix.image.Fit
+     * @param x original point x, or rectagle left-top point's x
+     * @param y original point y, or rectagle left-top point's y
+     * @param w original rectagle width, can be -1 if not use this arg, default -1.
+     * @param h original rectagle height, can be -1 if not use this arg, default -1.
+     * @return list type, [x, y] if map point, [x, y, w, h] if resize rectangle.
+     * @maixpy maix.image.resize_map_pos
+    */
+    std::vector<int> resize_map_pos(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w = -1, int h = -1);
+
+    /**
+     * reverse resize_map_pos method, when we call image.resize method resiz image 'a' to image 'b', we want to known the original position on 'a' whith a knew point on 'b'
+     * @param int w_in original image width
+     * @param int h_in original image height
+     * @param int w_out image width after resized
+     * @param int h_out image height after resized
+     * @param fit resize method, see maix.image.Fit
+     * @param x point on resized image x, or rectagle left-top point's x
+     * @param y original point y, or rectagle left-top point's y
+     * @param w original rectagle width, can be -1 if not use this arg, default -1.
+     * @param h original rectagle height, can be -1 if not use this arg, default -1.
+     * @return list type, [x, y] if map point, [x, y, w, h] if resize rectangle.
+     * @maixpy maix.image.resize_map_pos_reverse
+    */
+    std::vector<int> resize_map_pos_reverse(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w = -1, int h = -1);
+
+    /**
      * Image class
      * @maixpy maix.image.Image
      */
@@ -1416,6 +1448,24 @@ namespace maix::image
          * @maixpy maix.image.Image.match_orb_descriptor
         */
         image::KPTMatch match_orb_descriptor(image::ORBKeyPoint &desc1, image::ORBKeyPoint &desc2, int threshold = 95, bool filter_outliers = false);
+
+        /**
+         * map point position or rectangle position from this image size to another image size(resize)
+         * @param int w_out target image width
+         * @param int h_out target image height
+         * @param fit resize method, see maix.image.Fit
+         * @param x original point x, or rectagle left-top point's x
+         * @param y original point y, or rectagle left-top point's y
+         * @param w original rectagle width, can be -1 if not use this arg, default -1.
+         * @param h original rectagle height, can be -1 if not use this arg, default -1.
+         * @return list type, [x, y] if map point, [x, y, w, h] if resize rectangle.
+         * @maixpy maix.image.resize_map_pos
+        */
+        std::vector<int> resize_map_pos(int w_out, int h_out, image::Fit fit, int x, int y, int w = -1, int h = -1)
+        {
+            return image::resize_map_pos(_width, _height, w_out, h_out, fit, x, y, w, h);
+        }
+
     private:
         void *_actual_data;
         void *_data;

@@ -1355,6 +1355,113 @@ namespace maix::image
         return Size(size.width, size.height);
     }
 
+    std::vector<int> resize_map_pos(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h) {
+        float scale_x = static_cast<float>(w_out) / w_in;
+        float scale_y = static_cast<float>(h_out) / h_in;
+        std::vector<int> result;
+
+        if (fit == image::Fit::FIT_FILL) {
+            x = static_cast<int>(x * scale_x);
+            y = static_cast<int>(y * scale_y);
+            if (w > 0) {
+                w = static_cast<int>(w * scale_x);
+            }
+            if (h > 0) {
+                h = static_cast<int>(h * scale_y);
+            }
+        } else if (fit == image::Fit::FIT_CONTAIN) {
+            float scale = std::min(scale_x, scale_y);
+            if (w_out > h_out) {
+                x = static_cast<int>((w_out - w_in * scale) / 2 + x * scale);
+                y = static_cast<int>(y * scale);
+            } else {
+                x = static_cast<int>(x * scale);
+                y = static_cast<int>((h_out - h_in * scale) / 2 + y * scale);
+            }
+            if (w > 0) {
+                w = static_cast<int>(w * scale);
+                h = static_cast<int>(h * scale);
+            }
+        } else if (fit == image::Fit::FIT_COVER) {
+            float scale = std::max(scale_x, scale_y);
+            if (w_out > h_out) {
+                x = static_cast<int>(x * scale);
+                y = static_cast<int>((h_out - h_in * scale) / 2 + y * scale);
+            } else {
+                x = static_cast<int>((w_out - w_in * scale) / 2 + x * scale);
+                y = static_cast<int>(y * scale);
+            }
+            if (w > 0) {
+                w = static_cast<int>(w * scale);
+                h = static_cast<int>(h * scale);
+            }
+        } else {
+            throw err::Exception(err::ERR_ARGS, "Unsupported fit mode");
+        }
+
+        // Populate the result vector
+        result.push_back(x);
+        result.push_back(y);
+        if (w > 0 && h > 0) {
+            result.push_back(w);
+            result.push_back(h);
+        }
+        return result;
+    }
+
+    std::vector<int> resize_map_pos_reverse(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h) {
+        float scale_x = static_cast<float>(w_out) / w_in;
+        float scale_y = static_cast<float>(h_out) / h_in;
+        std::vector<int> result;
+
+        if (fit == image::Fit::FIT_FILL) {
+            x = static_cast<int>(x / scale_x);
+            y = static_cast<int>(y / scale_y);
+            if (w > 0) {
+                w = static_cast<int>(w / scale_x);
+            }
+            if (h > 0) {
+                h = static_cast<int>(h / scale_y);
+            }
+        } else if (fit == image::Fit::FIT_CONTAIN) {
+            float scale = std::min(scale_x, scale_y);
+            if (w_out > h_out) {
+                x = static_cast<int>((x - (w_out - w_in * scale) / 2) / scale);
+                y = static_cast<int>(y / scale);
+            } else {
+                x = static_cast<int>(x / scale);
+                y = static_cast<int>((y - (h_out - h_in * scale) / 2) / scale);
+            }
+            if (w > 0) {
+                w = static_cast<int>(w / scale);
+                h = static_cast<int>(h / scale);
+            }
+        } else if (fit == image::Fit::FIT_COVER) {
+            float scale = std::max(scale_x, scale_y);
+            if (w_out > h_out) {
+                x = static_cast<int>(x / scale);
+                y = static_cast<int>((y - (h_out - h_in * scale) / 2) / scale);
+            } else {
+                x = static_cast<int>((x - (w_out - w_in * scale) / 2) / scale);
+                y = static_cast<int>(y * scale);
+            }
+            if (w > 0) {
+                w = static_cast<int>(w / scale);
+                h = static_cast<int>(h / scale);
+            }
+        } else {
+            throw err::Exception(err::ERR_ARGS, "Unsupported fit mode");
+        }
+
+        // Populate the result vector
+        result.push_back(x);
+        result.push_back(y);
+        if (w > 0 && h > 0) {
+            result.push_back(w);
+            result.push_back(h);
+        }
+        return result;
+    }
 
     void _get_cv_format_color(image::Format _format, const image::Color &color_in, int *ch_format, cv::Scalar &cv_color)
     {
