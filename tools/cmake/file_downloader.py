@@ -128,8 +128,7 @@ class Downloader:
                         raise Exception("Download file error: " + res.status_code)
             else:
                 if res.status_code != 206:
-                    if len(res.content) != self.total:
-                        raise Exception("download file error, download length:{}, but content length is {}".format(len(res.content), self.total))
+                    self.total = len(res.content)
                     print("-- get content-length failed, try directly download, it may be slow")
                     res = requests.get(self.url, headers=self.headers)
                     if res.status_code == 200:
@@ -139,7 +138,7 @@ class Downloader:
                         raise Exception("Download file error: " + res.status_code)
                     print("-- download complete, file size: {}".format(bytes2human(self.total)))
         except Exception as e:
-            print("-- download failed, return headers: {}".format(res.headers))
+            print("-- download failed, error: {}, return headers: {}".format(e, res.headers))
             raise e
         self.downloaded = 0
         if not self.data_content:
@@ -287,6 +286,7 @@ def download_extract_files(items):
                         print(f"-- retry {3 - err_times} after {delay_time}s")
                         time.sleep(delay_time)
                         continue
+                    break
             # check sha256sum
             if "sha256sum" in item and item["sha256sum"]:
                 ok, sha256sum = check_sha256sum(pkg_path, item["sha256sum"])
