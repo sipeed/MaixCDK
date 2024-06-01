@@ -5,7 +5,7 @@ def add_file_downloads(confs : dict) -> list:
         @return list type, items is dict type
     '''
     version = f"{confs['CONFIG_OMV_VERSION_MAJOR']}.{confs['CONFIG_OMV_VERSION_MINOR']}.{confs['CONFIG_OMV_VERSION_PATCH']}"
-    url = f"https://files.catbox.moe/olys7p.zip"
+    url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/omv-{version}.zip"
     if version == "1.0.10":
         sha256sum = "e3b6d04a5379be52b226434ef0dfce404faf91955dfab0386a189684b99940bd"
     else:
