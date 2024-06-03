@@ -63,10 +63,11 @@ namespace maix::peripheral::i2c
 
         /**
          * @brief scan all i2c salve address on the bus
+         * @param addr If -1, only scan this addr, or scan from 0x08~0x77, default -1.
          * @return the list of i2c slave address, int list type.
          * @maixpy maix.peripheral.i2c.I2C.scan
          */
-        std::vector<int> scan();
+        std::vector<int> scan(int addr = -1);
 
         /**
          * @brief write data to i2c slave
