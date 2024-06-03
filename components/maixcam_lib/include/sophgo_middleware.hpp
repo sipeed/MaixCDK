@@ -93,6 +93,7 @@ int mmf_enc_h265_init(int ch, int w, int h);
 int mmf_enc_h265_deinit(int ch);
 int mmf_enc_h265_push(int ch, uint8_t *data, int w, int h, int format);
 int mmf_enc_h265_pop(int ch, mmf_h265_stream_t *stream);
+int mmf_enc_h265_pop(int ch, mmf_stream_t *stream);
 int mmf_enc_h265_free(int ch);
 
 // invert format
