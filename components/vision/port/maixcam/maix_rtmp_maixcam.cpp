@@ -328,7 +328,7 @@ namespace maix::rtmp {
 			void *data;
 			int data_size, width, height, format;
 			do {
-				mmf_h265_stream_t stream = {0};
+				mmf_stream_t stream = {0};
 				if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
 					log::error("mmf_venc_pop failed\n");
 					mmf_venc_free(MMF_VENC_CHN);
