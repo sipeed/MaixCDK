@@ -16,7 +16,7 @@ using namespace maix;
 
 namespace maix::audio
 {
-    static int _alsa_capture_init(  snd_pcm_t **handle, snd_pcm_hw_params_t **hw_params,
+    static int _alsa_capture_init(  snd_pcm_t **handle, snd_pcm_hw_params_t **hw_params, int *period_size,
                                     snd_pcm_format_t format, unsigned int sample_rate, unsigned int channels)
     {
         int err = 0;
@@ -64,6 +64,14 @@ namespace maix::audio
             goto _exit;
         }
 
+        snd_pcm_uframes_t period_value;
+        if ((err = snd_pcm_hw_params_get_period_size(*hw_params, &period_value, 0)) < 0) {
+            printf("Can't get period size (%s)\n", snd_strerror(err));
+            goto _exit;
+        }
+
+        if (period_size) *period_size = (int)period_value;
+
         snd_pcm_hw_params_free(*hw_params);
         *hw_params = NULL;
 
@@ -87,14 +95,9 @@ namespace maix::audio
         return 0;
     }
 
-    static int _alsa_get_frame_size(void)
+    static void *_alsa_prepare_buffer(snd_pcm_format_t format, unsigned int channels, int period_size, snd_pcm_uframes_t  *buffer_size)
     {
-        return 512;
-    }
-
-    static void *_alsa_prepare_buffer(snd_pcm_format_t format, unsigned int channels, snd_pcm_uframes_t  *buffer_size)
-    {
-        int buffer_frames = _alsa_get_frame_size();
+        int buffer_frames = period_size;
         int frame_byte = snd_pcm_format_width(format) / 8;
         snd_pcm_uframes_t new_buffer_size = buffer_frames * frame_byte * channels;
         void *buffer = malloc(new_buffer_size);
@@ -107,10 +110,10 @@ namespace maix::audio
         return buffer;
     }
 
-    static int _alsa_capture_pop(snd_pcm_t *handle, snd_pcm_format_t format, unsigned int channels, void *buffer, snd_pcm_uframes_t buffer_size)
+    static int _alsa_capture_pop(snd_pcm_t *handle, snd_pcm_format_t format, unsigned int channels, int period_size, void *buffer, snd_pcm_uframes_t buffer_size)
     {
         int len = 0;
-        int frame_size = _alsa_get_frame_size();
+        int frame_size = period_size;
         int frame_byte = snd_pcm_format_width(format) / 8;
         if (buffer_size < frame_byte * channels * frame_size) {
             printf("Bad buffer size, input %ld, need %d\r\n", buffer_size, frame_byte * channels * frame_size);
@@ -124,7 +127,7 @@ namespace maix::audio
         return len * frame_byte * channels;
     }
 
-    static int _alsa_player_init(  snd_pcm_t **handle, snd_pcm_hw_params_t **hw_params,
+    static int _alsa_player_init(  snd_pcm_t **handle, snd_pcm_hw_params_t **hw_params, int *period_size,
                                     snd_pcm_format_t format, unsigned int sample_rate, unsigned int channels)
     {
         int err = 0;
@@ -171,6 +174,14 @@ namespace maix::audio
             printf("Can't set hardware parameters (%s)\n", snd_strerror(err));
             goto _exit;
         }
+
+        snd_pcm_uframes_t period_value;
+        if ((err = snd_pcm_hw_params_get_period_size(*hw_params, &period_value, 0)) < 0) {
+            printf("Can't get period size (%s)\n", snd_strerror(err));
+            goto _exit;
+        }
+
+        if (period_size) *period_size = (int)period_value;
 
         snd_pcm_hw_params_free(*hw_params);
         *hw_params = NULL;
@@ -224,8 +235,9 @@ namespace maix::audio
             char buffer[1024];
             snd_pcm_t *handle;
             snd_pcm_hw_params_t *hwparams;
-            _alsa_capture_init(&handle, &hwparams, SND_PCM_FORMAT_S16_LE, 48000, 1);
-            _alsa_capture_pop(handle, SND_PCM_FORMAT_S16_LE, 1, buffer, sizeof(buffer));
+            int period_size;
+            _alsa_capture_init(&handle, &hwparams, &period_size, SND_PCM_FORMAT_S16_LE, 48000, 1);
+            _alsa_capture_pop(handle, SND_PCM_FORMAT_S16_LE, 1, period_size, buffer, sizeof(buffer));
             _alsa_capture_deinit(handle);
             exit(EXIT_SUCCESS);
         } else {
@@ -274,10 +286,10 @@ namespace maix::audio
         snd_pcm_hw_params_t *hwparams;
         snd_pcm_format_t format_p = _alsa_format_from_maix(format);
         _fix_segmentation_fault_bug();
-        err::check_bool_raise(0 <= _alsa_capture_init(&handle, &hwparams, format_p, sample_rate, channel), "capture init failed");
+        err::check_bool_raise(0 <= _alsa_capture_init(&handle, &hwparams, &_period_size, format_p, sample_rate, channel), "capture init failed");
         _handle = handle;
         snd_pcm_uframes_t buffer_size = 0;
-        _buffer = _alsa_prepare_buffer(format_p, channel, &buffer_size);
+        _buffer = _alsa_prepare_buffer(format_p, channel, _period_size, &buffer_size);
         err::check_null_raise(_buffer, "record buffer init failed!");
         _buffer_size = (size_t)buffer_size;
 
@@ -352,7 +364,7 @@ namespace maix::audio
             while (time::time_ms() - start_ms <= (uint64_t)record_ms) {
                 len = 0;
                 while (len >= 0) {
-                    len = _alsa_capture_pop(handle, format, channel, buffer, buffer_size);
+                    len = _alsa_capture_pop(handle, format, channel, _period_size, buffer, buffer_size);
                     if (len > 0) {
                         if (_file)
                             fwrite(buffer, 1, len, _file);
@@ -369,7 +381,7 @@ namespace maix::audio
             std::vector<uint8_t> data(add_len);
 
             while (len >= 0) {
-                len = _alsa_capture_pop(handle, format, channel, buffer, buffer_size);
+                len = _alsa_capture_pop(handle, format, channel, _period_size, buffer, buffer_size);
                 if (len > 0) {
                     if (remain_len < len) {
                         data.resize(data.size() + add_len);
@@ -414,16 +426,16 @@ namespace maix::audio
         _sample_rate = sample_rate;
         _format = format;
         _channel = channel;
-
+        _period_size = 0;
         // alsa init
         snd_pcm_t *handle = NULL;
         snd_pcm_hw_params_t *hwparams;
         snd_pcm_format_t format_p = _alsa_format_from_maix(format);
         _fix_segmentation_fault_bug();
-        err::check_bool_raise(0 <= _alsa_player_init(&handle, &hwparams, format_p, sample_rate, channel), "capture init failed");
+        err::check_bool_raise(0 <= _alsa_player_init(&handle, &hwparams, &_period_size, format_p, sample_rate, channel), "capture init failed");
         _handle = handle;
         snd_pcm_uframes_t buffer_size = 0;
-        _buffer = _alsa_prepare_buffer(format_p, channel, &buffer_size);
+        _buffer = _alsa_prepare_buffer(format_p, channel, _period_size, &buffer_size);
         err::check_null_raise(_buffer, "player buffer init failed!");
         _buffer_size = (size_t)buffer_size;
 

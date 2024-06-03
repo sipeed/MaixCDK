@@ -49,6 +49,7 @@ namespace maix::audio
         void *_buffer;
         size_t _buffer_size;
         FILE *_file;
+        int _period_size;
     public:
         /**
          * @brief Construct a new Recorder object
@@ -132,6 +133,7 @@ namespace maix::audio
         void *_buffer;
         size_t _buffer_size;
         FILE *_file;
+        int _period_size;
     public:
         static maix::Bytes *NoneBytes;
 

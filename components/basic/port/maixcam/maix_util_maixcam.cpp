@@ -52,8 +52,10 @@ namespace maix::util
     }
 
     void do_exit_function(void *param) {
-        for (auto& func : *exit_function_list) {
-            func(param);
+        if (exit_function_list) {
+            for (auto& func : *exit_function_list) {
+                func(param);
+            }
         }
     }
 }
