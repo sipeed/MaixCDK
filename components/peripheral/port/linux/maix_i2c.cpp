@@ -76,9 +76,16 @@ namespace maix::peripheral::i2c
         }
     }
 
-    std::vector<int> I2C::scan()
+    std::vector<int> I2C::scan(int addr)
     {
         std::vector<int> data;
+        int addr_start = 0x08;
+        int addr_end = 0x77;
+        if(addr > 0)
+        {
+            addr_start = addr;
+            addr_end = addr;
+        }
 
         if (_mode != i2c::Mode::MASTER)
         {
@@ -89,7 +96,7 @@ namespace maix::peripheral::i2c
         switch (_addr_size)
         {
         case i2c::AddrSize::SEVEN_BIT:
-            for (int address = 0x08; address <= 0x77; ++address)
+            for (int address = addr_start; address <= addr_end; ++address)
             {
                 if (::ioctl(_fd, I2C_SLAVE, address) < 0)
                 {
