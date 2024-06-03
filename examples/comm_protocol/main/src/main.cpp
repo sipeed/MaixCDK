@@ -33,7 +33,7 @@ int _main(int argc, char* argv[])
                 std::string msg_content = "echo from app " + app::app_id() + "\n";
                 p.resp_ok(msg->cmd, (uint8_t *)msg_content.c_str(), msg_content.length());
             }
-            else if(msg->cmd == protocol::CMD_SET_UPLOAD)
+            else if(msg->cmd == protocol::CMD_SET_REPORT)
             {
                 p.resp_err(msg->cmd, err::ERR_NOT_IMPL, "this cmd not support auto upload");
             }
