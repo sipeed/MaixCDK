@@ -1041,12 +1041,12 @@ namespace maix::image
          * @brief Performs a lens correction operation on the image. TODO: support in the feature
          * @param strength The strength of the lens correction. default is 1.8.
          * @param zoom The zoom of the lens correction. default is 1.0.
-         * @param x_corr The x correction of the lens correction. default is 0.5.
-         * @param y_corr The y correction of the lens correction. default is 0.5.
+         * @param x_corr The x correction of the lens correction. default is 0.0.
+         * @param y_corr The y correction of the lens correction. default is 0.0.
          * @return Returns the image after the operation is completed.
          * @maixpy maix.image.Image.lens_corr
         */
-        image::Image *lens_corr(double strength = 1.8, double zoom = 1.0, double x_corr = 0.5, double y_corr = 0.5);
+        image::Image *lens_corr(double strength = 1.8, double zoom = 1.0, double x_corr = 0.0, double y_corr = 0.0);
 
         /**
          * @brief Performs a rotation correction operation on the image. TODO: support in the feature
