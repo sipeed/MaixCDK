@@ -9,7 +9,12 @@ typedef struct {
     int count;
 } mmf_stream_t;
 
-typedef mmf_stream_t mmf_h265_stream_t;
+// old struct, must keep same as mmf_stream_t
+typedef struct {
+    uint8_t *data[8];
+    int data_size[8];
+    int count;
+} mmf_h265_stream_t;
 
 typedef struct {
     uint8_t type;
