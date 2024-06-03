@@ -648,7 +648,14 @@ namespace maix::image
         }
         else
             img = new image::Image(src.cols, src.rows, format);
-        if (format == image::FMT_YVU420SP) {
+
+        if (_format == image::FMT_GRAYSCALE && format == image::FMT_YVU420SP) {
+            cv::Mat dst(src.rows * 3 / 2, src.cols, CV_8UC((int)image::fmt_size[format]), img->data());
+            int nv_len = src.cols * src.rows / 2;
+            int offset = src.cols * src.rows;
+            memcpy(dst.data, src.data, src.cols * src.rows);
+            memset(dst.data + offset, 128, nv_len);
+        } else if (format == image::FMT_YVU420SP) {
             cv::Mat dst(src.rows * 3 / 2, src.cols, CV_8UC((int)image::fmt_size[format]), img->data());
             cv::cvtColor(src, dst, cvt_code);
             int nv_len = src.cols * src.rows / 2;
