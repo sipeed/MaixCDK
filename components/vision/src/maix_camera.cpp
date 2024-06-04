@@ -190,7 +190,7 @@ namespace maix::camera
     bool Camera::_check_format(image::Format format) {
         if (format == image::FMT_RGB888 || format == image::FMT_BGR888
         || format == image::FMT_RGBA8888 || format == image::FMT_BGRA8888
-        || format == image::FMT_YVU420SP) {
+        || format == image::FMT_YVU420SP || format == image::FMT_GRAYSCALE) {
             return true;
         } else {
             return false;
@@ -237,6 +237,8 @@ namespace maix::camera
                 _format_impl = image::FMT_RGBA8888;
             else if(_impl->is_support_format(image::FMT_BGRA8888))
                 _format_impl = image::FMT_BGRA8888;
+            else if(_impl->is_support_format(image::FMT_GRAYSCALE))
+                _format_impl = image::FMT_GRAYSCALE;
             else
                 return err::ERR_ARGS;
         }
