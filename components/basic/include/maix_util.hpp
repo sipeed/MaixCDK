@@ -24,7 +24,7 @@ namespace maix::util
                 int ret = (int)func(__VA_ARGS__); \
                 if (!app::have_exit_msg()) \
                     app::set_exit_msg((err::Err)ret, "Unkown error"); \
-                maix::util::do_exit_function(NULL); \
+                maix::util::do_exit_function(); \
                 return ret; \
             } \
             catch(const std::exception& e) \
@@ -32,7 +32,7 @@ namespace maix::util
                 std::string msg = "Exception: " + std::string(e.what()); \
                 log::error("%s\n", msg.c_str()); \
                 app::set_exit_msg(err::ERR_RUNTIME, msg); \
-                maix::util::do_exit_function(NULL); \
+                maix::util::do_exit_function(); \
                 return err_ret_value; \
             } \
             catch(const err::Err &e) \
@@ -40,7 +40,7 @@ namespace maix::util
                 std::string msg = "Exception: " + err::to_str(e); \
                 log::error("%s\n", msg.c_str()); \
                 app::set_exit_msg(e, msg); \
-                maix::util::do_exit_function(NULL); \
+                maix::util::do_exit_function(); \
                 return err_ret_value; \
             } \
             catch(...) \
@@ -48,7 +48,7 @@ namespace maix::util
                 std::string msg = "Unknown exception"; \
                 log::error("%s\n", msg.c_str()); \
                 app::set_exit_msg(err::ERR_RUNTIME, msg); \
-                maix::util::do_exit_function(NULL); \
+                maix::util::do_exit_function(); \
                 return err_ret_value; \
             } \
             return err_ret_value; \
@@ -71,12 +71,18 @@ namespace maix::util
      * @brief register exit function
      * @maixcdk maix.util.register_exit_function
     */
-    void register_exit_function(void (*process)(void *));
+    void register_exit_function(void (*process)(void));
 
     /**
      * @brief exec all of exit function
-     * @maixcdk maix.util.do_exit_function
+     * @maixpy maix.util.do_exit_function
     */
-    void do_exit_function(void *param);
+    void do_exit_function();
+
+    /**
+     * @brief Registering default processes that need to be executed on exit
+     * @maixpy maix.util.register_atexit
+    */
+    void register_atexit();
 }
 
