@@ -106,6 +106,9 @@ namespace maix::camera
 
         err::Err open(int width, int height, image::Format format, int buff_num)
         {
+            if (format == image::FMT_GRAYSCALE) {
+                format = image::FMT_YVU420SP;
+            }
             int ch = mmf_get_vi_unused_channel();
             if (ch < 0) {
                 log::error("camera open: mmf get vi channel failed");
@@ -126,7 +129,8 @@ namespace maix::camera
 
         bool is_support_format(image::Format format)
         {
-            if(format == image::Format::FMT_RGB888 || format == image::Format::FMT_BGR888 || format == image::Format::FMT_YVU420SP)
+            if(format == image::Format::FMT_RGB888 || format == image::Format::FMT_BGR888
+            || format == image::Format::FMT_YVU420SP|| format == image::Format::FMT_GRAYSCALE)
                 return true;
             return false;
         }
@@ -161,14 +165,23 @@ namespace maix::camera
                         mmf_vi_frame_free(this->ch);
                         return NULL;
                     }
-                    img = new image::Image(width, height, (image::Format)mmf_invert_format_to_maix(format), (uint8_t*)buff, buff_size, false);
+                    img = new image::Image(width, height, this->format, (uint8_t*)buff, buff_size, false);
                 }
                 else
                 {
-                    img = new image::Image(this->width, this->height, (image::Format)mmf_invert_format_to_maix(format));
+                    img = new image::Image(this->width, this->height, this->format);
                 }
                 void *image_data = img->data();
                 switch (img->format()) {
+                    case image::Format::FMT_GRAYSCALE:
+                        if (this->align_need) {
+                            for (int h = 0; h < this->height; h ++) {
+                                memcpy((uint8_t *)image_data + h * this->width, (uint8_t *)buffer + h * width, this->width);
+                            }
+                        } else {
+                            memcpy(image_data, buffer, this->width * this->height);
+                        }
+                        break;
                     case image::Format::FMT_BGR888: // fall through
                     case image::Format::FMT_RGB888:
                         if (this->align_need) {
