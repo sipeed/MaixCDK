@@ -47,7 +47,7 @@ namespace maix::camera
     public:
         /**
          * @brief Construct a new Camera object.
-         * The RGB888 format supports a maximum resolution of 640x640 and the FMT_YVU420SP/GRAYSCALE format supports a maximum resolution of 2560x1440.
+         * Maximum resolution support 2560x1440.
          * @param width camera width, default is -1, means auto, mostly means max width of camera support
          * @param height camera height, default is -1, means auto, mostly means max height of camera support
          * @param format camera output format, default is image.Format.FMT_RGB888
