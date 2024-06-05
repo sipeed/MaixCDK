@@ -22,6 +22,27 @@ namespace maix::image
 
     static void _get_cv_format_color(image::Format _format, const image::Color &color_in, int *ch_format, cv::Scalar &cv_color);
 
+    static uint8_t _get_char_size(const uint8_t c)
+    {
+        if ((c & 0x80) == 0x00) {
+            // 0xxxxxxx: 1 byte character
+            return 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            // 110xxxxx: 2 byte character
+            return 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            // 1110xxxx: 3 byte character
+            return 3;
+        } else if ((c & 0xF8) == 0xF0) {
+            // 11110xxx: 4 byte character
+            return 4;
+        } else {
+            // Invalid UTF-8 start byte, default to 1
+            return 1;
+        }
+    }
+
+
     image::Image *load(const char *path, image::Format format)
     {
         cv::Mat mat;
@@ -944,16 +965,18 @@ namespace maix::image
                 size_t idx = 0;
                 std::string text_tmp;
                 cv::Size size_tmp;
+                uint8_t char_size = 1;
                 while (idx < text.length())
                 {
-                    text_tmp += text[idx];
+                    char_size = _get_char_size(text[idx]);
+                    text_tmp += text.substr(idx, char_size);
                     cv::Size size_tmp;
                     _get_text_size(size_tmp, text_tmp, *final_font, final_font_id, scale, thickness);
                     if (size_tmp.width >= text_max_width)
                     {
                         if (size_tmp.width > text_max_width)
                         {
-                            text_tmp.erase(text_tmp.length() - 1);
+                            text_tmp.erase(text_tmp.length() - char_size, char_size);
                         }
                         _put_text(img, text_tmp, point, cv_color, scale, thickness, *final_font, final_font_id);
                         point.x = x;
@@ -964,7 +987,7 @@ namespace maix::image
                         if (size_tmp.width > text_max_width)
                             continue;
                     }
-                    ++idx;
+                    idx += char_size;
                 }
                 // draw last line
                 if (!text_tmp.empty())
