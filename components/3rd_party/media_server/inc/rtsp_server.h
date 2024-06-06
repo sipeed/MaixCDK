@@ -15,9 +15,10 @@ int rtsp_get_server_port(void);
 int rtsp_server_start(void);
 int rtsp_server_stop(void);
 void rtsp_send_h265_data(uint8_t *asddata, size_t data_len);
-
 #ifdef __cplusplus
 }
 #endif
+
+std::vector<std::string> rtsp_get_server_urls(void);
 
 #endif // __RTSP_SERVER_H
