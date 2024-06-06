@@ -138,7 +138,8 @@ namespace maix::peripheral::pinmap
         else if (pin == "A22")
         {
             std::vector<std::string> funcs = {
-                "GPIOA22"
+                "GPIOA22",
+                "SPI1_SCK",
             };
             return funcs;
         }
@@ -146,6 +147,7 @@ namespace maix::peripheral::pinmap
         {
             std::vector<std::string> funcs = {
                 "GPIOA23",
+                "SPI1_MISO",
             };
             return funcs;
         }
@@ -153,6 +155,7 @@ namespace maix::peripheral::pinmap
         {
             std::vector<std::string> funcs = {
                 "GPIOA24",
+                "SPI1_CS",
             };
             return funcs;
         }
@@ -160,6 +163,7 @@ namespace maix::peripheral::pinmap
         {
             std::vector<std::string> funcs = {
                 "GPIOA25",
+                "SPI1_MOSI",
             };
             return funcs;
         }
@@ -331,6 +335,8 @@ namespace maix::peripheral::pinmap
         {
             if (func == "GPIOA22")
                 set_pinmux(0x03001050, 3);
+            else if (func == "SPI1_SCK")
+                set_pinmux(0x03001050, 3);
             else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
@@ -338,6 +344,8 @@ namespace maix::peripheral::pinmap
         else if (pin == "A23")
         {
             if (func == "GPIOA23")
+                set_pinmux(0x0300105C, 3);
+            else if (func == "SPI1_MISO")
                 set_pinmux(0x0300105C, 3);
             else
                 return err::ERR_ARGS;
@@ -347,6 +355,9 @@ namespace maix::peripheral::pinmap
         {
             if (func == "GPIOA24")
                 set_pinmux(0x03001060, 3);
+            else if (func == "SPI1_CS")
+                set_pinmux(0x03001060, 3);
+
             else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
@@ -354,6 +365,8 @@ namespace maix::peripheral::pinmap
         else if (pin == "A25")
         {
             if (func == "GPIOA25")
+                set_pinmux(0x03001054, 3);
+            else if (func == "SPI1_MOSI")
                 set_pinmux(0x03001054, 3);
             else
                 return err::ERR_ARGS;
