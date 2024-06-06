@@ -109,6 +109,10 @@ namespace maix::camera
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");
 
+        if (format == image::Format::FMT_RGB888 && width * height * 3 > 640 * 640 * 3) {
+            log::warn("Note that we do not recommend using large resolution RGB888 images, which can take up a lot of memory!\r\n");
+        }
+
         _width = (width == -1) ? 640 : width;
         _height = (height == -1) ? 480 : height;
         _format = format;
@@ -291,12 +295,14 @@ namespace maix::camera
         if (_show_colorbar) {
             image::Image *img = new image::Image(_width, _height);
             generate_colorbar(*img);
+            err::check_null_raise(img, "camera read failed");
             return img;
         } else {
             // it's better all done by impl to faster read, but if impl not support, we have to convert it
             if(_format_impl == _format)
             {
                 image::Image *img = _impl->read(buff, buff_size);
+                err::check_null_raise(img, "camera read failed");
                 return img;
             }
             else
@@ -304,6 +310,7 @@ namespace maix::camera
                 image::Image *img = _impl->read();
                 image::Image *img2 = img->to_format(_format, buff, buff_size);
                 delete img;
+                err::check_null_raise(img2, "camera read failed");
                 return img2;
             }
         }
