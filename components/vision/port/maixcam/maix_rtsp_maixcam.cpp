@@ -282,6 +282,11 @@ namespace maix::rtsp
         return "rtsp://" + real_ip + ":" + real_port + "/live";
     }
 
+    std::vector<std::string> Rtsp::get_urls()
+    {
+        return rtsp_get_server_urls();
+    }
+
     rtsp::Region *Rtsp::add_region(int x, int y, int width, int height, image::Format format) {
         if (format != image::Format::FMT_BGRA8888) {
             log::error("region support FMT_BGRA8888 only!\r\n");

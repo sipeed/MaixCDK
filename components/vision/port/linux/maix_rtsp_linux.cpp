@@ -71,6 +71,10 @@ namespace maix::rtsp
         return "not supported";
     }
 
+    std::vector<std::string> Rtsp::get_urls() {
+        return std::vector<std::string>();
+    }
+
     rtsp::Region *Rtsp::add_region(int x, int y, int width, int height, image::Format format) {
         (void)x;
         (void)y;
