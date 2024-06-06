@@ -157,19 +157,9 @@ namespace maix::display
     {
         err::Err e = err::ERR_NONE;
 
-#ifdef PLATFORM_MAIXCAM
-        image::Image *new_img = NULL;
-        if (img.format() == image::Format::FMT_GRAYSCALE) {
-            new_img = img.to_format(image::Format::FMT_YVU420SP);
-        } else {
-            new_img = &img;
-        }
-        if(img_trans)
-            img_trans->send_image(*new_img);
-#else
         if(img_trans)
             img_trans->send_image(img);
-#endif
+
         if (!is_opened())
         {
             log::debug("display not opened, now auto open\n");
@@ -182,11 +172,12 @@ namespace maix::display
         }
 
 #ifdef PLATFORM_MAIXCAM
-        maix::image::Format show_img_format = new_img->format();
+        maix::image::Format show_img_format = img.format();
         if (show_img_format != maix::image::Format::FMT_RGB888
         && show_img_format != maix::image::Format::FMT_YVU420SP
-        && show_img_format != maix::image::Format::FMT_BGRA8888) {
-            image::Image *show_img = new_img->to_format(maix::image::Format::FMT_RGB888);
+        && show_img_format != maix::image::Format::FMT_BGRA8888
+        && show_img_format != maix::image::Format::FMT_GRAYSCALE) {
+            image::Image *show_img = img.to_format(maix::image::Format::FMT_RGB888);
             if (show_img == NULL) {
                 log::error("image format convert failed\n");
                 return err::ERR_RUNTIME;
@@ -195,11 +186,7 @@ namespace maix::display
             _impl->show(*show_img, fit);
             delete show_img;
         } else {
-            _impl->show(*new_img, fit);
-        }
-
-        if (img.format() == image::Format::FMT_GRAYSCALE) {
-            delete new_img;
+            _impl->show(img, fit);
         }
         return e;
 #else
