@@ -419,9 +419,23 @@ namespace maix::image
         if(format == image::FMT_JPEG) // compress
         {
             switch (_format) {
+#ifdef PLATFORM_MAIXCAM
+            case image::FMT_GRAYSCALE:
+                {
+                image::Image *img = nullptr;
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_GRAYSCALE), 95)) {
+                    uint8_t *data;
+                    int data_size;
+                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
+                        img = new image::Image(_width, _height, format, data, data_size, true);
+                        mmf_enc_jpg_free(0);
+                    }
+                }
+                return img;
+                break;
+                }
             case image::FMT_YVU420SP:
                 {
-#ifdef PLATFORM_MAIXCAM
                 image::Image *img = nullptr;
                 if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), 95)) {
                     uint8_t *data;
@@ -432,9 +446,9 @@ namespace maix::image
                     }
                 }
                 return img;
-#endif
                 break;
                 }
+#endif
             default:
                 {
 #ifdef PLATFORM_MAIXCAM
