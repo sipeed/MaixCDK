@@ -1,10 +1,9 @@
 /**
- * @author lxowalle@sipeed
+ * @author spieed
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
  * @update 2023.9.8: Add framework, create this file.
  */
-
 #include "maix_adc.hpp"
 #include "maix_log.hpp"
 #include "cstdio"
@@ -13,11 +12,13 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <cstdlib>
 
-#define DEV_PATH "/dev/input/event0"
+#define DEV_PATH "/sys/class/cvi-saradc/cvi-saradc0/device/cv_saradc"
 
-namespace maix::peripheral::adc{    
-    ADC::ADC(int pin, int resolution, float vref)
+namespace maix::peripheral::adc{   
+
+    ADC::ADC(int pin, int resolution, float vref) : _vref(vref)
     {
         if (resolution == -1) {
             resolution = adc::RES_BIT_12;
@@ -42,13 +43,23 @@ namespace maix::peripheral::adc{
         }
         _pin = pin;
 
-        _vref = 180 * 1000;
+        if (vref < 0) 
+            _vref = 180 * 1000;
 
-        _fd = ::open(DEV_PATH, O_RDONLY | O_NONBLOCK);
+        const char adc_channel[] = "1";
+
+        _fd = ::open(DEV_PATH, O_RDWR | O_NONBLOCK);
         if (_fd < 0) {
             log::error("open %s failed\r\n", DEV_PATH);
             return;
         }
+
+        int ret = ::write(_fd, adc_channel, sizeof(adc_channel));
+        if (ret != sizeof(adc_channel)) {
+            log::error("set adc channel failed\r\n");
+            return;
+        }
+
     }
 
     ADC::~ADC()
@@ -60,36 +71,35 @@ namespace maix::peripheral::adc{
 
     int ADC::read()
     {
-        struct input_event data;
-        int value = -1;
-        if (sizeof(data) == ::read(_fd, &data, sizeof(data))) {
-            if (data.type == EV_KEY) {
-                log::warn("this is a key event? value: %d\r\n", data.value);
-                return -1;
-            } else if (data.type == EV_MSC) {
-                value = data.value;
-            }
-        } else {
+        if (_fd <= 2) {
+            log::error("is the adc device on?");
             return -1;
         }
+        int value = -1;
+        char buf[8]{0x00};
 
+        if (::lseek(_fd, 0, SEEK_SET) == -1) {
+            log::error("read adc failed");
+            return value;
+        }
+
+        int ret = ::read(_fd, buf, sizeof(buf));
+        if (ret < 0) {
+            log::error("read adc failed");
+            return value;
+        }
+
+        // log::info("ret = %d", ret);
+        // for (int i = 0; i < ret; ++i)
+        //     log::info("adc buf[%d] = %d", i, buf[i]);
+
+        value = std::atoi(buf);
         return value;
     }
 
     float ADC::read_vol()
     {
-        struct input_event data;
-        int value = -1;
-        if (sizeof(data) == ::read(_fd, &data, sizeof(data))) {
-            if (data.type == EV_KEY) {
-                log::warn("this is a key event? value: %d\r\n", data.value);
-                return -1;
-            } else if (data.type == EV_MSC) {
-                value = data.value;
-            }
-        } else {
-            return -1;
-        }
+        int value = this->read();
 
         return (value * _vref / _resolution);
     }
