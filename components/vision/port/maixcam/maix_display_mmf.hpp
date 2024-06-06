@@ -173,6 +173,12 @@ namespace maix::display
             if (this->_layer == 0) {
                 switch (format)
                 {
+                case image::FMT_GRAYSCALE:
+                    if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
+                        log::error("mmf_vo_frame_push failed\n");
+                        return err::ERR_RUNTIME;
+                    }
+                    break;
                 case image::FMT_RGB888:
                     if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
                         log::error("mmf_vo_frame_push failed\n");
