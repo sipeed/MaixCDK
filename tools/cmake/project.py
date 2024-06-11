@@ -365,9 +365,9 @@ def main(sdk_path, project_path):
         print("-- Build now")
         t = time.time()
         if args.no_gen:
-            build(build_path, configs, args.verbose)
+            build(build_path, configs, info, args.verbose)
         else:
-            rebuild(build_path, configs, args.verbose)
+            rebuild(build_path, configs, info, args.verbose)
         t = time.time() - t
         print("\n==================================")
         print("build time: {:.2f}s ({})".format(t, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
