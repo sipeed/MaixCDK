@@ -6,6 +6,7 @@
  */
 
 #include "maix_spi.hpp"
+#include "maix_log.hpp"
 #include "cstdio"
 
 namespace maix::peripheral::spi
