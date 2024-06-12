@@ -1,9 +1,4 @@
 
-#include "stdio.h"
-#include "global_config.h"
-#include "global_build_info_time.h"
-#include "global_build_info_version.h"
-
 #include "main.h"
 #include "maix_thread.hpp"
 #include "maix_util.hpp"
@@ -35,7 +30,7 @@ void run(void *args_in)
     int n = args->times;
     while (n--)
     {
-        printf("[%s] Hello %d\n", args->name.c_str(), n + 1);
+        log::info("[%s] Hello %d", args->name.c_str(), n + 1);
         thread::sleep_ms(1000);
     }
     args->running = false;
@@ -53,7 +48,7 @@ int _main()
     while(args2.running)
     {
         thread::sleep_ms(2000);
-        printf("main\n");
+        log::info("main");
     }
     th2.join();
     return 0;

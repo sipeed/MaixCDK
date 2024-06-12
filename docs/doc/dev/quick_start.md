@@ -56,7 +56,8 @@ maixcdk build
 
 修改了代码后，再次执行`maixcdk build`即可编译。
 
-> 因为使用了`cmake`作为编译工具，`build` 命令默认行为会重新执行`cmake`命令，如果希望不执行`cmake`命令只编译，可以使用`maixcdk build --no-rebuild`命令。
+`maixcdk build` 命令默认会扫描所有文件更改再构建，如果你没有增删源码文件可以执行`maixcdk build --no-gen`编译会更快。
+> 因为用了 `cmake`， `build`命令会每次都执行`cmake`命令，加了`--no-gen`参数后只会执行`make`命令所以更快，但是由于增删文件后需要执行`cmake`来扫描文件更改，为了防止开发者忘记执行所以默认行为就是每次都扫描再构建。
 
 也可以执行`maixcdk distclean` 清除所有编译产生的临时文件以从一个干净的环境开始编译（但是这样构建时间会很长，一般编译出现奇怪的问题可以先尝试这样解决）。
 
