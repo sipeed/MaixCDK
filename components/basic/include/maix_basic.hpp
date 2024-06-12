@@ -15,7 +15,6 @@
 #include "stdbool.h"
 
 #include "global_config.h"
-#include "global_build_info_time.h"
 #include "global_build_info_version.h"
 
 #include "maix_type.hpp"
