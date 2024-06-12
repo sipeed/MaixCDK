@@ -1,7 +1,7 @@
 
 #include "maix_basic.hpp"
 #include "maix_vision.hpp"
-#include "maix_nn_yolov5.hpp"
+#include "maix_nn_yolov8.hpp"
 #include "main.h"
 
 using namespace maix;
@@ -31,10 +31,10 @@ int _main(int argc, char *argv[])
 
 
 
-    nn::YOLOv5 detector;
+    nn::YOLOv8 detector;
     e = detector.load(model_path);
     err::check_raise(e, "load model failed");
-    log::info("load yolov5 model %s success", model_path);
+    log::info("load yolov8 model %s success", model_path);
 
     if (argc >= 3)
     {
