@@ -6,11 +6,12 @@
  */
 
 #include "maix_spi.hpp"
+#include "maix_log.hpp"
 #include "cstdio"
 
 namespace maix::peripheral::spi
 {
-    SPI::SPI(int id, spi::Mode mode, int freq, bool soft_cs , int polarity, int phase, int bits, int cs)
+    SPI::SPI(int id, spi::Mode mode, int freq, int polarity, int phase, int bits, unsigned char cs_enable, bool soft_cs, std::string cs)
     {
         throw err::Exception(err::Err::ERR_NOT_IMPL, "SPI not implemented");
     }

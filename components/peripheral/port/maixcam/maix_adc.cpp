@@ -1,8 +1,8 @@
 /**
- * @author spieed
+ * @author lxowalle@sipeed iawak9lkm@sipeed
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
- * @update 2023.9.8: Add framework, create this file.
+ * @update 2024.6.6: Add framework, create this file.
  */
 #include "maix_adc.hpp"
 #include "maix_log.hpp"
@@ -15,10 +15,12 @@
 #include <cstdlib>
 
 #define DEV_PATH "/sys/class/cvi-saradc/cvi-saradc0/device/cv_saradc"
+#define DEFAULT_VREF 5.0062
+#define ERR_NEAR_ZERO 0.01
 
 namespace maix::peripheral::adc{   
 
-    ADC::ADC(int pin, int resolution, float vref) : _vref(vref)
+    ADC::ADC(int pin, int resolution, float vref)
     {
         if (resolution == -1) {
             resolution = adc::RES_BIT_12;
@@ -43,8 +45,11 @@ namespace maix::peripheral::adc{
         }
         _pin = pin;
 
-        if (vref < 0) 
-            _vref = 180 * 1000;
+        if (vref < 0) {
+            _vref = DEFAULT_VREF;
+            log::info("ADC default vref:%lf", DEFAULT_VREF);
+        }
+            
 
         const char adc_channel[] = "1";
 
@@ -88,11 +93,6 @@ namespace maix::peripheral::adc{
             log::error("read adc failed");
             return value;
         }
-
-        // log::info("ret = %d", ret);
-        // for (int i = 0; i < ret; ++i)
-        //     log::info("adc buf[%d] = %d", i, buf[i]);
-
         value = std::atoi(buf);
         return value;
     }
@@ -101,6 +101,10 @@ namespace maix::peripheral::adc{
     {
         int value = this->read();
 
-        return (value * _vref / _resolution);
+        auto vol = value * _vref / _resolution;
+        if (vol < ERR_NEAR_ZERO)
+            vol = 0;
+
+        return vol;
     }
 }

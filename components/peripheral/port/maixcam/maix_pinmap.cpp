@@ -1,5 +1,5 @@
 /**
- * @author neucrack@sipeed
+ * @author neucrack@sipeed iawak9lkm@sipeed
  * @copyright Sipeed Ltd 2024-
  * @license Apache 2.0
  * @update 2024.5.13: create this file.
@@ -15,9 +15,53 @@
 
 namespace maix::peripheral::pinmap
 {
-
-#if PLATFORM_MAIXCAM
-
+    /**
+     * @brief ismod module.ko or rmmod module.ko
+     * 
+     * @param is_install true means insmod, false means rmmod
+     * @param dev_node device node, e.g. /dev/spidev4.0
+     * @param module_path path to module files, e.g. /mnt/system/ko/,
+     *                      this parameter is ignored if the module is uninstalled. 
+     * @param module_files modules that need to be executed, 
+     *                      starting with vector::begin for installing modules and vector::end()-1 for uninstalling modules.
+     * @return err::Err 
+     */
+    static inline err::Err __insmod(bool is_install, const std::string& dev_node,
+                                    const std::string& module_path, const std::vector<std::string>& module_files)
+    { 
+        if (!is_install) {
+            // rmmod
+            if (fs::exists(dev_node)) {
+                for (int i = module_files.size()-1; i >= 0; --i) {
+                    int ret = ::system((std::string("rmmod ")+module_files[i]).c_str());
+                    if (ret != 0) {
+                        log::error("rmmod %s error: %d", module_files[i].c_str(), ret);
+                        return err::ERR_RUNTIME;
+                    }
+                }
+                
+            }
+            return err::ERR_NONE;
+        } 
+        // insmod
+        if (!fs::exists(dev_node)) {
+            for (auto& mod : module_files) {
+                int ret = ::system((std::string("insmod ")+module_path+mod).c_str());
+                if (ret != 0) {
+                    log::error("insmod %s error: %d", mod.c_str(), ret);
+                    return err::ERR_RUNTIME;
+                }
+            }
+        }
+        return err::ERR_NONE;
+    }
+    static inline err::Err __insmod_spi4(bool is_install)
+    {
+        static const std::string dev_node("/dev/spidev4.0");
+        static const std::string module_path("/mnt/system/ko/");
+        static const std::vector<std::string> module_files{"spi-bitbang.ko", "spi-gpio.ko"};
+        return __insmod(is_install, dev_node, module_path, module_files);
+    }
 // 假设我们的系统页大小为4KB
 #define PAGE_SIZE 4096
 #define PAGE_MASK (PAGE_SIZE - 1)
@@ -98,7 +142,8 @@ namespace maix::peripheral::pinmap
         else if (pin == "A15")
         {
             std::vector<std::string> funcs = {
-                "GPIOA15"};
+                "GPIOA15",
+                "I2C5_SCL"};
             return funcs;
         }
         else if (pin == "A16")
@@ -139,32 +184,28 @@ namespace maix::peripheral::pinmap
         {
             std::vector<std::string> funcs = {
                 "GPIOA22",
-                "SPI1_SCK",
-            };
+                "SPI4_SCK"};
             return funcs;
         }
         else if (pin == "A23")
         {
             std::vector<std::string> funcs = {
                 "GPIOA23",
-                "SPI1_MISO",
-            };
+                "SPI4_MISO"};
             return funcs;
         }
         else if (pin == "A24")
         {
             std::vector<std::string> funcs = {
                 "GPIOA24",
-                "SPI1_CS",
-            };
+                "SPI4_CS"};
             return funcs;
         }
         else if (pin == "A25")
         {
             std::vector<std::string> funcs = {
                 "GPIOA25",
-                "SPI1_MOSI",
-            };
+                "SPI4_MOSI"};
             return funcs;
         }
         else if (pin == "A26")
@@ -178,7 +219,7 @@ namespace maix::peripheral::pinmap
         {
             std::vector<std::string> funcs = {
                 "GPIOA27",
-            };
+                "I2C5_SDA"};
             return funcs;
         }
         else if (pin == "A28")
@@ -205,8 +246,7 @@ namespace maix::peripheral::pinmap
                 "I2C1_SCL",
                 "PWM4",
                 "SPI2_CS",
-                "SDIO1_D3"
-                };
+                "SDIO1_D3"};
             return funcs;
         }
         else if (pin == "P19")
@@ -215,8 +255,7 @@ namespace maix::peripheral::pinmap
                 "GPIOP19",
                 "UART3_TX",
                 "PWM5",
-                "SDIO1_D2"
-                };
+                "SDIO1_D2"};
             return funcs;
         }
         else if (pin == "P20")
@@ -225,8 +264,7 @@ namespace maix::peripheral::pinmap
                 "GPIOP20",
                 "UART3_RX",
                 "PWM6",
-                "SDIO1_D1"
-                };
+                "SDIO1_D1"};
             return funcs;
         }
         else if (pin == "P21")
@@ -237,8 +275,7 @@ namespace maix::peripheral::pinmap
                 "I2C1_SDA",
                 "PWM7",
                 "SPI2_MISO",
-                "SDIO1_D0"
-                };
+                "SDIO1_D0"};
             return funcs;
         }
         else if (pin == "P22")
@@ -248,8 +285,7 @@ namespace maix::peripheral::pinmap
                 "I2C3_SCL",
                 "PWM8",
                 "SPI2_MOSI",
-                "SDIO1_CMD"
-                };
+                "SDIO1_CMD"};
             return funcs;
         }
         else if (pin == "P23")
@@ -259,8 +295,7 @@ namespace maix::peripheral::pinmap
                 "I2C3_SDA",
                 "PWM9",
                 "SPI2_SCK",
-                "SDIO1_CLK"
-                };
+                "SDIO1_CLK"};
             return funcs;
         }
         else
@@ -277,6 +312,46 @@ namespace maix::peripheral::pinmap
         }
         else if (pin == "A15")
         {
+            if (func == "GPIOA15")
+            {
+                // rmmod
+                if (fs::exists("/dev/i2c-5"))
+                {
+                    int ret = system("rmmod i2c-gpio");
+                    if (ret != 0)
+                    {
+                        log::error("rmmod error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                    ret = system("rmmod i2c-algo-bit");
+                    if (ret != 0)
+                    {
+                        log::error("rmmod error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                }
+            }
+            else if (func == "I2C5_SCL")
+            {
+                // insmod
+                if (!fs::exists("/dev/i2c-5"))
+                {
+                    int ret = system("insmod /mnt/system/ko/i2c-algo-bit.ko");
+                    if (ret != 0)
+                    {
+                        log::error("insmod i2c-algo-bit.ko error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                    ret = system("insmod /mnt/system/ko/i2c-gpio.ko");
+                    if (ret != 0)
+                    {
+                        log::error("insmod i2c-gpio error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                }
+            }
+            else
+                return err::ERR_ARGS;
             return err::ERR_NONE;
         }
         else if (pin == "A16")
@@ -333,42 +408,49 @@ namespace maix::peripheral::pinmap
         }
         else if (pin == "A22")
         {
-            if (func == "GPIOA22")
+            if (func == "GPIOA22") {
                 set_pinmux(0x03001050, 3);
-            else if (func == "SPI1_SCK")
+                return __insmod_spi4(false);
+            } else if (func == "SPI4_SCK") {
                 set_pinmux(0x03001050, 3);
-            else
+                return __insmod_spi4(true);
+            } else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
         }
         else if (pin == "A23")
         {
-            if (func == "GPIOA23")
+            if (func == "GPIOA23") {
                 set_pinmux(0x0300105C, 3);
-            else if (func == "SPI1_MISO")
+                return __insmod_spi4(false);
+            } else if (func == "SPI4_MISO") {
                 set_pinmux(0x0300105C, 3);
-            else
+                return __insmod_spi4(true);
+            } else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
         }
         else if (pin == "A24")
         {
-            if (func == "GPIOA24")
+            if (func == "GPIOA24") {
                 set_pinmux(0x03001060, 3);
-            else if (func == "SPI1_CS")
+                return __insmod_spi4(false);
+            } else if (func == "SPI4_CS") {
                 set_pinmux(0x03001060, 3);
-
-            else
+                return __insmod_spi4(true);
+            } else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
         }
         else if (pin == "A25")
         {
-            if (func == "GPIOA25")
+            if (func == "GPIOA25") {
                 set_pinmux(0x03001054, 3);
-            else if (func == "SPI1_MOSI")
+                return __insmod_spi4(false);
+            } else if (func == "SPI4_MOSI") {
                 set_pinmux(0x03001054, 3);
-            else
+                return __insmod_spi4(true);
+            } else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
         }
@@ -382,8 +464,46 @@ namespace maix::peripheral::pinmap
         }
         else if (pin == "A27")
         {
-            if (func == "GPIOA26")
+            if (func == "GPIOA27")
+            {
                 set_pinmux(0x03001058, 3);
+                // rmmod
+                if (fs::exists("/dev/i2c-5"))
+                {
+                    int ret = system("rmmod i2c-gpio");
+                    if (ret != 0)
+                    {
+                        log::error("rmmod error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                    ret = system("rmmod i2c-algo-bit");
+                    if (ret != 0)
+                    {
+                        log::error("rmmod error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                }
+            }
+            else if (func == "I2C5_SDA")
+            {
+                set_pinmux(0x03001058, 3);
+                // insmod
+                if (!fs::exists("/dev/i2c-5"))
+                {
+                    int ret = system("insmod /mnt/system/ko/i2c-algo-bit.ko");
+                    if (ret != 0)
+                    {
+                        log::error("insmod i2c-algo-bit.ko error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                    ret = system("insmod /mnt/system/ko/i2c-gpio.ko");
+                    if (ret != 0)
+                    {
+                        log::error("insmod i2c-gpio error: %d", ret);
+                        return err::ERR_RUNTIME;
+                    }
+                }
+            }
             else
                 return err::ERR_ARGS;
             return err::ERR_NONE;
@@ -514,23 +634,4 @@ namespace maix::peripheral::pinmap
         }
         return err::ERR_NOT_IMPL;
     }
-
-#else // #if PLATFORM_MAIXCAM
-
-    std::vector<std::string> get_pins()
-    {
-        return std::vector<std::string>();
-    }
-
-    std::vector<std::string> get_pin_functions(const std::string &pin)
-    {
-        return std::vector<std::string>();
-    }
-
-    err::Err set_pin_function(const std::string &pin, const std::string &func)
-    {
-        return err::ERR_NOT_IMPL;
-    }
-
-#endif // #if PLATFORM_MAIXCAM
 }

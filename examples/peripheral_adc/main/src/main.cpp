@@ -59,7 +59,7 @@ int _main(int argc, char* argv[])
      *      Vref = 1.6081V  R3 = 4.7321KΩ   Vin_max = 5.0062V
     */
 
-    ADC adc(0, RES_BIT_12, 5.0062);
+    ADC adc(0, RES_BIT_12);
 
     // Run until app want to exit, for example app::switch_app API will set exit flag.
     // And you can also call app::set_exit_flag(true) to mark exit.
