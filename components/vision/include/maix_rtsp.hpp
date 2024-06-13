@@ -131,6 +131,13 @@ namespace maix::rtsp
         std::string get_url();
 
         /**
+         * @brief Get url list of rtsp
+         * @return url list of rtsp
+         * @maixpy maix.rtsp.Rtsp.get_urls
+        */
+        std::vector<std::string> get_urls();
+
+        /**
          * @brief Get camera object from rtsp
          * @return camera object
          * @maixpy maix.rtsp.Rtsp.to_camera

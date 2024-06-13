@@ -43,7 +43,10 @@ def serve(pkg_path, port = 8888):
     ips = []
     for name in ifs:
         print(name)
-        if name.startswith("lo") or name.startswith("docker") or name.startswith("veth"):
+        name_lower = name.lower()
+        if name_lower.startswith("lo") or name_lower.startswith("docker") or name_lower.startswith("veth") or name_lower.startswith("vmware"):
+            continue
+        if ni.AF_INET not in ni.ifaddresses(name): # interface not get ip
             continue
         ip = ni.ifaddresses(name)[ni.AF_INET][0]['addr']
         print("-- fimd ip: {}".format(ip))
@@ -81,7 +84,14 @@ def serve(pkg_path, port = 8888):
         if local_ip.startswith("192.168."):
             final_ip = local_ip
             final_img = img_big
-    final_img.show(title="Scan the QR code to install")
+    final_img.save(os.path.join("dist", "tmp_qr_all.png"))
+    try:
+        final_img.show(title="Scan the QR code to install")
+    except Exception:
+        print("")
+        print("------------------------")
+        print("[Error] show image failed, you can remain see QR code at dist directory")
+        print("------------------------")
     # url = "http://{}:{}".format(, vars["project_args"].port)
     app.run(host="0.0.0.0", port = local_port)
 

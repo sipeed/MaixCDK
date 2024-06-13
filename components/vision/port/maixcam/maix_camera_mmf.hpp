@@ -18,10 +18,13 @@
 #include "sophgo_middleware.hpp"
 #include <signal.h>
 
-static void try_deinit_mmf(void *param)
+static void try_deinit_mmf()
 {
-    (void)param;
-    mmf_try_deinit(true);
+    static uint8_t is_called = 0;
+    if (!is_called) {
+        mmf_try_deinit(true);
+        is_called = 1;
+    }
 }
 
 static void signal_handle(int signal)
@@ -39,7 +42,7 @@ static void signal_handle(int signal)
     }
 
     maix::log::error("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
-    try_deinit_mmf(nullptr);
+    try_deinit_mmf();
     exit(1);
 }
 

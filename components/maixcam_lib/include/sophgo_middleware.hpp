@@ -17,7 +17,7 @@ typedef struct {
 } mmf_h265_stream_t;
 
 typedef struct {
-    uint8_t type;
+    uint8_t type;           // 0, jpg; 1, h265; 2, h264
     int w;
 	int h;
 	int fmt;
@@ -27,6 +27,14 @@ typedef struct {
 	int output_fps;			// h264/h265
 	int bitrate;			// h264/h265
 } mmf_venc_cfg_t;
+
+typedef struct {
+    uint8_t type;           // 0, jpg; 1, h265; 2, h264
+    int w;
+	int h;
+	int fmt;
+    int buffer_num;
+} mmf_vdec_cfg_t;
 
 // init sys
 int mmf_init(void);
@@ -141,4 +149,15 @@ int mmf_venc_push(int ch, uint8_t *data, int w, int h, int format);
 int mmf_venc_pop(int ch, mmf_stream_t *stream);
 int mmf_venc_free(int ch);
 int mmf_venc_get_cfg(int ch, mmf_venc_cfg_t *cfg);
+
+// vdec
+int mmf_vdec_unused_channel(void);
+int mmf_vdec_is_used(int ch);
+int mmf_add_vdec_channel(int ch, mmf_vdec_cfg_t *cfg);
+int mmf_del_vdec_channel(int ch);
+int mmf_del_vdec_channel_all();
+int mmf_vdec_push(int ch, uint8_t *data, int size, uint8_t is_start, uint8_t is_end);
+int mmf_vdec_pop(int ch, void **data, int *len, int *width, int *height, int *format);
+int mmf_vdec_free(int ch);
+int mmf_vdec_get_cfg(int ch, mmf_vdec_cfg_t *cfg);
 #endif // __SOPHGO_MIDDLEWARE_HPP__

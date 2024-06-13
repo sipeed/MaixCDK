@@ -1,5 +1,6 @@
 import sys, re, os
 import yaml
+import json
 
 
 # current dir path
@@ -51,6 +52,21 @@ def select_multi_toolchain(board_name, toolchain_info, select_id):
         break
     return toolchain_info[select_idx-1]
 
+def save_pkgs_info(sdk_path, files_info):
+    info_path = os.path.join(sdk_path, "dl", "pkgs_info.json")
+    count = 0
+    for name, files in files_info.items():
+        if len(files) > 0:
+            count += len(files)
+            for i, item in enumerate(files):
+                item["pkg_path"] = os.path.join(sdk_path, "dl", "pkgs", item["path"], item["filename"])
+    print("\n-------------------------------------------------------------------")
+    print("-- All {} files info need to be downloaded saved to\n   {}".format(count, info_path))
+    print("-------------------------------------------------------------------\n")
+    os.makedirs(os.path.dirname(info_path), exist_ok=True)
+    with open(info_path, "w") as f:
+        json.dump(files_info, f, indent=4)
+
 def main(board_name, boards_dir, out_cmake, toolchain_id = None):
 
     # parse mk file, find PLATFORM_.*?=y to get board name
@@ -71,17 +87,6 @@ def main(board_name, boards_dir, out_cmake, toolchain_id = None):
         sys.exit(1)
 
     check_toolchain_info(toolchain_info, board_name)
-
-    if toolchain_info["url"]:
-        items = [
-            {
-                "url": toolchain_info['url'],
-                "sha256sum": toolchain_info['sha256sum'],
-                "filename": toolchain_info['filename'],
-                "path": toolchain_info['path'],
-            }
-        ]
-        download_extract_files(items)
 
     toolchain_bin_path = os.path.join(dl_dir, "extracted", toolchain_info['bin_path']) if toolchain_info['bin_path'] else None
 

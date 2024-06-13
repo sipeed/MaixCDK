@@ -436,8 +436,15 @@ namespace maix
     err::Err ImageTrans::send_image(image::Image &img)
     {
         ClientHandle *handle = (ClientHandle *)this->_handle;
-        if (!handle->init)
-            return err::Err::ERR_NOT_READY;
+        if(!handle->init)
+        {
+            uint64_t t = time::time_ms();
+            while (!handle->init)
+            {
+                if(time::time_ms() - t > 500)
+                    return err::Err::ERR_NOT_READY;
+            }
+        }
         image::Image *compressed = &img;
         QueueItem item;
         if(_fmt == image::FMT_INVALID) // pause send mode

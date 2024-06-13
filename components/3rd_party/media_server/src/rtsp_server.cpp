@@ -637,9 +637,7 @@ int rtsp_server_init(char *ip, int port)
 
 	char new_ip[16] = {0};
 	if (ip == NULL) {
-		if (get_ip((char *)"eth0", new_ip) && get_ip((char *)"usb0", new_ip) && get_ip((char *)"wlan0", new_ip)) {
-			strcpy(new_ip, "0.0.0.0");
-		}
+		strcpy(new_ip, "0.0.0.0");
 	} else {
 		strcpy(new_ip, ip);
 	}
@@ -798,3 +796,27 @@ int rtsp_server_stop(void)
 #ifdef __cplusplus
 }
 #endif
+
+std::vector<std::string> rtsp_get_server_urls(void)
+{
+	char new_ip[16] = {0};
+
+	std::vector<std::string> ip_list;
+
+	if (!strcmp("0.0.0.0", priv.ip)) {
+		if (!get_ip((char *)"eth0", new_ip)) {
+			ip_list.push_back("rtsp://" + std::string(new_ip) + ":" + std::to_string(priv.port) + "/live");
+		}
+		if (!get_ip((char *)"usb0", new_ip)) {
+			ip_list.push_back("rtsp://" + std::string(new_ip) + ":" + std::to_string(priv.port) + "/live");
+		}
+		if (!get_ip((char *)"wlan0", new_ip)) {
+			ip_list.push_back("rtsp://" + std::string(new_ip) + ":" + std::to_string(priv.port) + "/live");
+		}
+	} else {
+		ip_list.push_back("rtsp://" + std::string(priv.ip) + ":" + std::to_string(priv.port) + "/live");
+	}
+
+
+	return ip_list;
+}

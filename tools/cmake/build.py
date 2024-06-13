@@ -6,6 +6,7 @@ import shutil
 import sys
 import re
 import traceback
+import json
 
 try:
     curr_dir = os.path.abspath(os.path.dirname(__file__))
@@ -128,7 +129,22 @@ def get_all_components_dl_info(find_dirs, kconfigs):
     files_info = get_components_files(components, valid_components, kconfigs)
     return files_info
 
-def rebuild(build_path, configs, verbose):
+def save_pkgs_info(sdk_path, files_info):
+    info_path = os.path.join(sdk_path, "dl", "pkgs_info.json")
+    count = 0
+    for name, files in files_info.items():
+        if len(files) > 0:
+            count += len(files)
+            for i, item in enumerate(files):
+                item["pkg_path"] = os.path.join(sdk_path, "dl", "pkgs", item["path"], item["filename"])
+    print("\n-------------------------------------------------------------------")
+    print("-- All {} files info need to be downloaded saved to\n   {}".format(count, info_path))
+    print("-------------------------------------------------------------------\n")
+    os.makedirs(os.path.dirname(info_path), exist_ok=True)
+    with open(info_path, "w") as f:
+        json.dump(files_info, f, indent=4)
+
+def rebuild(build_path, configs, toolchain_info, verbose):
     os.makedirs(build_path, exist_ok=True)
     os.chdir(build_path)
     config_path = os.path.join(build_path, "config", "global_config.mk")
@@ -142,6 +158,21 @@ def rebuild(build_path, configs, verbose):
     all_configs.update(kconfigs)
     find_dirs = get_components_find_dirs(configs)
     files_info = get_all_components_dl_info(find_dirs, all_configs)
+    # add toolchain dl info
+    dl_info = []
+    if toolchain_info["url"]:
+        dl_info = [
+            {
+                "url": toolchain_info['url'],
+                "sha256sum": toolchain_info['sha256sum'],
+                "filename": toolchain_info['filename'],
+                "path": toolchain_info['path'],
+            }
+        ]
+        download_extract_files(dl_info)
+    files_info["toolchain"] = dl_info
+
+    save_pkgs_info(configs["SDK_PATH"], files_info)
     for name, files in files_info.items():
         if len(files) > 0:
             print(f"\n-- Download files for component {name}")
@@ -175,11 +206,11 @@ def rebuild(build_path, configs, verbose):
         f.write(code)
 
     # build
-    build(build_path, configs, verbose)
+    build(build_path, configs, toolchain_info, verbose)
 
-def build(build_path, configs, verbose):
+def build(build_path, configs, toolchain_info, verbose):
     if not os.path.exists(build_path):
-        rebuild(build_path, configs, verbose)
+        rebuild(build_path, configs, toolchain_info, verbose)
         return
     os.chdir(build_path)
     if verbose:

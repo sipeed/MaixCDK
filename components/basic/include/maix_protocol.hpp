@@ -39,7 +39,7 @@ namespace maix
         {
             CMD_APP_MAX = 0xC8,     //  200, max app custom CMD value should < CMD_APP_MAX
 
-            CMD_SET_UPLOAD   = 0xF8, // set auto upload data mode
+            CMD_SET_REPORT   = 0xF8, // set auto upload data mode
             CMD_APP_LIST     = 0xF9,
             CMD_START_APP    = 0xFA,
             CMD_EXIT_APP     = 0xFB,
