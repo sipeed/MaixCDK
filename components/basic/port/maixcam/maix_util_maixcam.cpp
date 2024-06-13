@@ -42,21 +42,25 @@ namespace maix::util
         system("echo 9 > /proc/sys/kernel/printk");
     }
 
-    static std::vector<void(*)(void*)> *exit_function_list;
+    static std::vector<void(*)()> *exit_function_list;
 
-    void register_exit_function(void (*process)(void *)) {
+    void register_exit_function(void (*process)(void)) {
         if (exit_function_list == nullptr) {
-            exit_function_list = new std::vector<void(*)(void*)>;
+            exit_function_list = new std::vector<void(*)()>;
         }
         exit_function_list->push_back(process);
     }
 
-    void do_exit_function(void *param) {
+    void do_exit_function() {
         if (exit_function_list) {
             for (auto& func : *exit_function_list) {
-                func(param);
+                func();
             }
         }
+    }
+
+    void register_atexit() {
+        atexit(do_exit_function);
     }
 }
 

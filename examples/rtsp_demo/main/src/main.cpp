@@ -32,8 +32,14 @@ int _main(int argc, char* argv[])
     rgn_img->draw_string(0, 0, "hello");
     region3->update_canvas();
 
-    log::info("%s\r\n", rtsp.get_url().c_str());
+    std::vector<std::string> url = rtsp.get_urls();
+    for (size_t i = 0; i < url.size(); i ++) {
+        log::info("%s\r\n", url[i].c_str());
+    }
+
     rtsp.start();
+
+    uint64_t last_ms = time::time_ms();
     while(!app::need_exit()) {
         cnt ++;
         image::Color color = image::COLOR_BLACK;
@@ -54,6 +60,10 @@ int _main(int argc, char* argv[])
         maix::image::Image *img = cam2->read();
         disp.show(*img);
         delete img;
+
+        uint64_t curr_ms = time::time_ms();
+        log::info("loop use %lld ms\r\n", curr_ms - last_ms);
+        last_ms = curr_ms;
     }
 
     delete cam2;

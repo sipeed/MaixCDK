@@ -16,6 +16,130 @@ using namespace maix;
 
 namespace maix::audio
 {
+    typedef struct {
+        int file_size;  // pcm + 44
+        int channel;
+        int sample_rate;
+        int sample_bit;
+        int bitrate;
+        int data_size;  // size of pcm
+    } wav_header_t;
+
+    static int _create_wav_header(wav_header_t *header, uint8_t *data, size_t size)
+    {
+        if (size < 44) return -1;
+
+        int cnt = 0;
+        data[cnt ++] = 'R';
+        data[cnt ++] = 'I';
+        data[cnt ++] = 'F';
+        data[cnt ++] = 'F';
+
+        data[cnt ++] = (uint8_t)((header->file_size - 8) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->file_size - 8) >> 8) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->file_size - 8) >> 16) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->file_size - 8) >> 24) & 0xff);
+
+        data[cnt ++] = 'W';
+        data[cnt ++] = 'A';
+        data[cnt ++] = 'V';
+        data[cnt ++] = 'E';
+
+        data[cnt ++] = 'f';
+        data[cnt ++] = 'm';
+        data[cnt ++] = 't';
+        data[cnt ++] = ' ';
+
+        data[cnt ++] = 16;
+        data[cnt ++] = 0;
+        data[cnt ++] = 0;
+        data[cnt ++] = 0;
+
+        data[cnt ++] = 1;
+        data[cnt ++] = 0;
+
+        data[cnt ++] = (uint8_t)header->channel;
+        data[cnt ++] = 0;
+
+        data[cnt ++] = (uint8_t)((header->sample_rate) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->sample_rate) >> 8) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->sample_rate) >> 16) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->sample_rate) >> 24) & 0xff);
+
+        data[cnt ++] = (uint8_t)((header->bitrate) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->bitrate) >> 8) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->bitrate) >> 16) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->bitrate) >> 24) & 0xff);
+
+        data[cnt ++] = (uint8_t)(header->channel * header->sample_bit / 8);
+        data[cnt ++] = 0;
+
+        data[cnt ++] = (uint8_t)header->sample_bit;
+        data[cnt ++] = 0;
+
+        data[cnt ++] = 'd';
+        data[cnt ++] = 'a';
+        data[cnt ++] = 't';
+        data[cnt ++] = 'a';
+
+        data[cnt ++] = (uint8_t)((header->data_size) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->data_size) >> 8) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->data_size) >> 16) & 0xff);
+        data[cnt ++] = (uint8_t)(((header->data_size) >> 24) & 0xff);
+
+        return 0;
+    }
+
+    static int _read_wav_header(wav_header_t *header, uint8_t *data, size_t size)
+    {
+        if (size < 44) return -1;
+
+        int cnt = 0;
+        if (data[cnt ++] != 'R' || data[cnt ++] != 'I' || data[cnt ++] != 'F' || data[cnt ++] != 'F')
+        {
+            printf("RIFF not found in wav header!\r\n");
+            return -1;
+        }
+
+        cnt += 4; // jump file size
+
+        if (data[cnt ++] != 'W' || data[cnt ++] != 'A' || data[cnt ++] != 'V' || data[cnt ++] != 'E')
+        {
+            printf("WAVE not found in wav header!\r\n");
+            return -2;
+        }
+
+        cnt += 4; // jump fmt
+        cnt += 4;
+
+        int audio_format = (uint32_t)data[cnt ++]
+                        | ((uint32_t)data[cnt ++] << 8);
+        if (audio_format != 1) {
+            printf("audio format is not pcm!\r\n");
+            return -3;
+        }
+
+        header->channel = (uint32_t)data[cnt ++]
+                        | ((uint32_t)data[cnt ++] << 8);
+        header->sample_rate = (uint32_t)data[cnt ++]
+                            | ((uint32_t)data[cnt ++] << 8)
+                            | ((uint32_t)data[cnt ++] << 16)
+                            | ((uint32_t)data[cnt ++] << 24);
+        header->bitrate = (uint32_t)data[cnt ++]
+                            | ((uint32_t)data[cnt ++] << 8)
+                            | ((uint32_t)data[cnt ++] << 16)
+                            | ((uint32_t)data[cnt ++] << 24);
+        cnt += 2;
+        header->sample_bit = (uint32_t)data[cnt ++]
+                            | ((uint32_t)data[cnt ++] << 8);
+        cnt += 4;
+        header->data_size = (uint32_t)data[cnt ++]
+                            | ((uint32_t)data[cnt ++] << 8)
+                            | ((uint32_t)data[cnt ++] << 16)
+                            | ((uint32_t)data[cnt ++] << 24);
+        return 0;
+    }
+
     static int _alsa_capture_init(  snd_pcm_t **handle, snd_pcm_hw_params_t **hw_params, int *period_size,
                                     snd_pcm_format_t format, unsigned int sample_rate, unsigned int channels)
     {
@@ -281,6 +405,11 @@ namespace maix::audio
         _format = format;
         _channel = channel;
 
+        if (fs::splitext(_path) != ".wav"
+            && fs::splitext(_path) != ".pcm") {
+            err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+        }
+
         // alsa init
         snd_pcm_t *handle = NULL;
         snd_pcm_hw_params_t *hwparams;
@@ -341,6 +470,37 @@ namespace maix::audio
         return read_value;
     }
 
+    static int format_to_sample_bit(audio::Format format)
+    {
+        switch (format) {
+        case audio::Format::FMT_NONE: return 0;
+        case audio::Format::FMT_S8: return 8;
+        case audio::Format::FMT_S16_LE: return 16;
+        case audio::Format::FMT_S32_LE: return 32;
+        case audio::Format::FMT_S16_BE: return 16;
+        case audio::Format::FMT_S32_BE: return 32;
+        case audio::Format::FMT_U8: return 8;
+        case audio::Format::FMT_U16_LE: return 16;
+        case audio::Format::FMT_U32_LE: return 32;
+        case audio::Format::FMT_U16_BE: return 16;
+        case audio::Format::FMT_U32_BE: return 32;
+        default: return 0;
+        }
+        return 0;
+    }
+
+    static audio::Format wav_sample_bit_to_format(int sample_bit)
+    {
+        switch (sample_bit) {
+            case 8: return audio::Format::FMT_U8;
+            case 16: return audio::Format::FMT_S16_LE;
+            case 32: return audio::Format::FMT_S32_LE;
+            default: return audio::Format::FMT_NONE;
+        }
+
+        return audio::Format::FMT_NONE;
+    }
+
     maix::Bytes *Recorder::record(int record_ms) {
         snd_pcm_t *handle = (snd_pcm_t *)_handle;
         void *buffer = _buffer;
@@ -352,6 +512,26 @@ namespace maix::audio
         if (_file == NULL && _path.size() > 0) {
             _file = fopen(_path.c_str(), "w+");
             err::check_null_raise(_file, "Open file failed!");
+
+            if (fs::splitext(_path) == ".wav") {
+                wav_header_t header = {
+                    .file_size = 44,
+                    .channel = _channel,
+                    .sample_rate = _sample_rate,
+                    .sample_bit = format_to_sample_bit(_format),
+                    .bitrate = _channel * _sample_rate * format_to_sample_bit(_format) / 8,
+                    .data_size = 0,
+                };
+
+                uint8_t buffer[44];
+                if (0 != _create_wav_header(&header, buffer, sizeof(buffer))) {
+                    err::check_raise(err::ERR_RUNTIME, "create wav failed!");
+                }
+
+                if (sizeof(buffer) != fwrite(buffer, 1, sizeof(buffer), _file)) {
+                    err::check_raise(err::ERR_RUNTIME, "write wav header failed!");
+                }
+            }
         }
 
         if (record_ms > 0) {
@@ -410,6 +590,31 @@ namespace maix::audio
 
     err::Err Recorder::finish() {
         if (_file) {
+            if (fs::splitext(_path) == ".wav") {
+                int file_size = ftell(_file);
+                int pcm_size = file_size - 44;
+                char buffer[4];
+                buffer[0] = (uint8_t)((file_size - 8) & 0xff);
+                buffer[1] = (uint8_t)(((file_size - 8) >> 8) & 0xff);
+                buffer[2] = (uint8_t)(((file_size - 8) >> 16) & 0xff);
+                buffer[3] = (uint8_t)(((file_size - 8) >> 24) & 0xff);
+
+                fseek(_file, 4, SEEK_SET);
+                if (sizeof(buffer) != fwrite(buffer, 1, sizeof(buffer), _file)) {
+                    err::check_raise(err::ERR_RUNTIME, "write wav file size failed!");
+                }
+
+                buffer[0] = (uint8_t)((pcm_size) & 0xff);
+                buffer[1] = (uint8_t)(((pcm_size) >> 8) & 0xff);
+                buffer[2] = (uint8_t)(((pcm_size) >> 16) & 0xff);
+                buffer[3] = (uint8_t)(((pcm_size) >> 24) & 0xff);
+                fseek(_file, 40, SEEK_SET);
+                if (sizeof(buffer) != fwrite(buffer, 1, sizeof(buffer), _file)) {
+                    err::check_raise(err::ERR_RUNTIME, "write wav data size failed!");
+                }
+            }
+
+            fflush(_file);
             fclose(_file);
             _file = NULL;
         }
@@ -427,6 +632,35 @@ namespace maix::audio
         _format = format;
         _channel = channel;
         _period_size = 0;
+        _file = NULL;
+
+        if (fs::splitext(_path) != ".wav"
+            && fs::splitext(_path) != ".pcm") {
+            err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+        }
+
+        if (_file == NULL && _path.size() > 0) {
+            _file = fopen(_path.c_str(), "rb+");
+            err::check_null_raise(_file, "Open file failed!");
+
+            if (fs::splitext(_path) == ".wav") {
+                uint8_t buffer[44];
+                wav_header_t header = {0};
+                if (sizeof(buffer) != fread(buffer, 1, sizeof(buffer), _file)) {
+                    err::check_raise(err::ERR_RUNTIME, "read wav header failed!");
+                }
+
+                if (0 != _read_wav_header(&header, buffer, sizeof(buffer))) {
+                    err::check_raise(err::ERR_RUNTIME, "parse wav header failed!");
+                }
+
+                _sample_rate = header.sample_rate;
+                _channel = header.channel;
+                _format = wav_sample_bit_to_format(header.sample_bit);
+                // printf("sample rate:%d channel:%d format:%d\r\n", _sample_rate, _channel, _format);
+            }
+        }
+
         // alsa init
         snd_pcm_t *handle = NULL;
         snd_pcm_hw_params_t *hwparams;
@@ -438,9 +672,6 @@ namespace maix::audio
         _buffer = _alsa_prepare_buffer(format_p, channel, _period_size, &buffer_size);
         err::check_null_raise(_buffer, "player buffer init failed!");
         _buffer_size = (size_t)buffer_size;
-
-        // file init
-        _file = NULL;
     }
 
     Player::~Player() {
@@ -479,6 +710,10 @@ namespace maix::audio
             if (_file == NULL && _path.size() > 0) {
                 _file = fopen(_path.c_str(), "rb+");
                 err::check_null_raise(_file, "Open file failed!");
+            }
+
+            if (fs::splitext(_path) == ".wav") {
+                fseek(_file, 44, SEEK_SET);
             }
 
             int read_len = 0;

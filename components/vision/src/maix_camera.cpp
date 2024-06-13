@@ -109,6 +109,10 @@ namespace maix::camera
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");
 
+        if (format == image::Format::FMT_RGB888 && width * height * 3 > 640 * 640 * 3) {
+            log::warn("Note that we do not recommend using large resolution RGB888 images, which can take up a lot of memory!\r\n");
+        }
+
         _width = (width == -1) ? 640 : width;
         _height = (height == -1) ? 480 : height;
         _format = format;
@@ -291,12 +295,14 @@ namespace maix::camera
         if (_show_colorbar) {
             image::Image *img = new image::Image(_width, _height);
             generate_colorbar(*img);
+            err::check_null_raise(img, "camera read failed");
             return img;
         } else {
             // it's better all done by impl to faster read, but if impl not support, we have to convert it
             if(_format_impl == _format)
             {
                 image::Image *img = _impl->read(buff, buff_size);
+                err::check_null_raise(img, "camera read failed");
                 return img;
             }
             else
@@ -304,6 +310,7 @@ namespace maix::camera
                 image::Image *img = _impl->read();
                 image::Image *img2 = img->to_format(_format, buff, buff_size);
                 delete img;
+                err::check_null_raise(img2, "camera read failed");
                 return img2;
             }
         }
@@ -344,7 +351,7 @@ namespace maix::camera
         return err::ERR_NONE;
     }
 
-    uint64_t Camera::exposure(uint64_t value) {
+    int Camera::exposure(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -355,7 +362,7 @@ namespace maix::camera
         return _impl->exposure((uint32_t)value);
     }
 
-    uint32_t Camera::gain(uint32_t value) {
+    int Camera::gain(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -388,7 +395,7 @@ namespace maix::camera
         return _impl->vflip(value);
     }
 
-    uint32_t Camera::luma(uint32_t value) {
+    int Camera::luma(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -399,7 +406,7 @@ namespace maix::camera
         return _impl->luma(value);
     }
 
-    uint32_t Camera::constrast(uint32_t value) {
+    int Camera::constrast(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -410,7 +417,7 @@ namespace maix::camera
         return _impl->constrast(value);
     }
 
-    uint32_t Camera::saturation(uint32_t value) {
+    int Camera::saturation(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -421,7 +428,7 @@ namespace maix::camera
         return _impl->saturation(value);
     }
 
-    uint32_t Camera::awb_mode(uint32_t value) {
+    int Camera::awb_mode(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -432,7 +439,7 @@ namespace maix::camera
         return _impl->awb_mode(value);
     }
 
-    uint32_t Camera::exp_mode(uint32_t value) {
+    int Camera::exp_mode(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 

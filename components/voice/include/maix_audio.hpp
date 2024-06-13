@@ -52,7 +52,7 @@ namespace maix::audio
         int _period_size;
     public:
         /**
-         * @brief Construct a new Recorder object
+         * @brief Construct a new Recorder object. currectly only pcm and wav formats supported.
          * @param path record path. the path determines the location where you save the file, if path is none, the audio module will not save file.
          * @param sample_rate record sample rate, default is 48000(48KHz), means 48000 samples per second.
          * @param format record sample format, default is audio::Format::FMT_S16_LE, means sampling 16 bits at a time and save as signed 16 bits, little endian. see @audio::Format
@@ -73,11 +73,8 @@ namespace maix::audio
         int volume(int value = -1);
 
         /**
-         * Record, Read all cached data in buffer and return.
-         * @param record_ms record time. unit: ms
-         * @param sample_rate audio sample rate
-         * @param format audio sample format
-         * @param channel audio sample channel
+         * Record, Read all cached data in buffer and return. If there is no audio data in the buffer, may return empty data.
+         * @param record_ms Block and record audio data lasting `record_ms` milliseconds and save it to a file, the return value does not return audio data. Only valid if the initialisation `path` is set.
          * @return pcm data. datatype @see Bytes. If you pass in record_ms parameter, the return value is an empty Bytes object.
          * @maixpy maix.audio.Recorder.record
         */

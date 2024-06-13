@@ -10,12 +10,15 @@ namespace maix::util
 
     }
 
-    void register_exit_function(void (*process)(void *)) {
+    void register_exit_function(void (*process)(void)) {
         (void)process;
     }
 
-    void do_exit_function(void *param) {
-        (void)param;
+    void do_exit_function() {
+    }
+
+    void register_atexit() {
+        atexit(do_exit_function);
     }
 }
 

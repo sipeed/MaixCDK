@@ -245,16 +245,8 @@ def download_extract_files(items):
             }
     '''
     check_download_items(items)
-    # show items
-    info_path = os.path.join(sdk_path, "dl", "pkgs_info.json")
-    print("\n-------------------------------------------------------------------")
-    print("-- All {} files info need to be downloaded saved to\n   {}".format(len(items), info_path))
     for i, item in enumerate(items):
         item["pkg_path"] = os.path.join(sdk_path, "dl", "pkgs", item["path"], item["filename"])
-    print("-------------------------------------------------------------------\n")
-    os.makedirs(os.path.dirname(info_path), exist_ok=True)
-    with open(info_path, "w") as f:
-        json.dump(items, f, indent=4)
 
     for item in items:
         pkg_path = item["pkg_path"]
