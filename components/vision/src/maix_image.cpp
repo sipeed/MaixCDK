@@ -1077,6 +1077,8 @@ namespace maix::image
         for(size_t i=0; i<keypoints.size() / 2; ++i)
         {
             cv::Point center(keypoints[i * 2], keypoints[i * 2 + 1]);
+            if(center.x < 0 || center.y < 0)
+                continue;
             int radius = size;
             cv::circle(img, center, radius, cv_color, thickness);
         }
