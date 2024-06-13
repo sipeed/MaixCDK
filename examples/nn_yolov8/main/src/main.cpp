@@ -59,6 +59,7 @@ int _main(int argc, char *argv[])
             img->draw_rect(r.x, r.y, r.w, r.h, maix::image::Color::from_rgb(255, 0, 0));
             snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f", detector.labels[r.class_id].c_str(), r.score);
             img->draw_string(r.x, r.y, tmp_chars, maix::image::Color::from_rgb(255, 0, 0));
+            detector.draw_pose(*img, r.points, 4, image::COLOR_RED);
         }
         img->save("result.jpg");
         delete result;
@@ -84,6 +85,7 @@ int _main(int argc, char *argv[])
                 log::info("result: %s", r.to_str().c_str());
                 img->draw_rect(r.x, r.y, r.w, r.h, maix::image::Color::from_rgb(255, 0, 0));
                 img->draw_string(r.x, r.y, detector.labels[r.class_id], maix::image::Color::from_rgb(255, 0, 0));
+                detector.draw_pose(*img, r.points, 4, image::COLOR_RED);
             }
             disp.show(*img);
             delete result;

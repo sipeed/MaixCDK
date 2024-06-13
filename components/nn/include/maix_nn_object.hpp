@@ -31,7 +31,7 @@ namespace maix::nn
          * @maixcdk maix.nn.Object.Object
         */
         Object(int x = 0, int y = 0, int w = 0, int h = 0, int class_id = 0, float score = 0, std::vector<int> points = std::vector<int>())
-            : x(x), y(y), w(w), h(h), class_id(class_id), score(score), points(points)
+            : x(x), y(y), w(w), h(h), class_id(class_id), score(score), points(points), temp(NULL)
         {
         }
 
@@ -91,6 +91,12 @@ namespace maix::nn
          * @maixpy maix.nn.Object.points
         */
         std::vector<int> points;
+
+
+        /**
+         * For temperary usage, not for MaixPy API
+        */
+        void *temp;
     };
 
     /**
@@ -112,7 +118,7 @@ namespace maix::nn
          * @maixcdk maix.nn.ObjectFloat.ObjectFloat
         */
         ObjectFloat(float x = 0, float y = 0, float w = 0, float h = 0, float class_id = 0, float score = 0, std::vector<float> points = std::vector<float>())
-            : x(x), y(y), w(w), h(h), class_id(class_id), score(score), points(points)
+            : x(x), y(y), w(w), h(h), class_id(class_id), score(score), points(points), temp(NULL)
         {
         }
 
@@ -172,6 +178,11 @@ namespace maix::nn
          * @maixpy maix.nn.ObjectFloat.points
         */
         std::vector<float> points;
+
+        /**
+         * For temperary usage, not for MaixPy API
+        */
+        void *temp;
     };
 }
 
