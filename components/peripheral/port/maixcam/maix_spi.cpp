@@ -64,20 +64,26 @@ namespace maix::peripheral::spi
     SPI::SPI(int id, spi::Mode mode, int freq, int polarity, int phase, 
             int bits, unsigned char cs_enable, bool soft_cs, std::string cs)
                 :_used_soft_cs(soft_cs), _cs_enable(cs_enable), _bits(bits), _freq(freq)
-    {
-        if (mode == spi::Mode::SLAVE)
-            throw err::Exception(err::ERR_ARGS, "spi::Mode::SLAVE mode not implemented"); 
-        
+    {  
         {
+            if (mode == spi::Mode::SLAVE)
+                throw err::Exception(err::ERR_ARGS, "spi::Mode::SLAVE mode not implemented"); 
+
             uint32_t invalid_arguments = (
                 (mode & ~0x01) | (polarity & ~0x01) | (phase & ~0x01));
             if (invalid_arguments)
                 throw err::Exception(err::ERR_ARGS, "spi args error");
+
             if (soft_cs) {
                 auto pull = cs_enable ? gpio::Pull::PULL_DOWN : gpio::Pull::PULL_UP;
                 _cs = new gpio::GPIO(cs, gpio::Mode::OUT, pull);
                 if (nullptr == _cs) 
                     throw err::Exception(err::ERR_NO_MEM, "cannot alloc maix::peripheral::gpio");
+            } else if (cs_enable != 0) {
+                throw err::Exception(err::ERR_ARGS, "spi:switching the effective level of the default CS " 
+                                "is not supported for the time being, if you need a CS pin with an "
+                                "effective level of high, please use the parameter 'cs' to select a "
+                                "GPIO as the CS pin."); 
             }
 
             std::string dev_name("/dev/spidev"+std::to_string(id)+".0");
@@ -98,8 +104,8 @@ namespace maix::peripheral::spi
         if (ioctl(_fd, SPI_IOC_WR_MODE, &d8) < 0) 
             throw __ioctl_error(&_fd);
 
-        if (ioctl(_fd, SPI_IOC_RD_MODE, &d8) < 0)
-            throw __ioctl_error(&_fd);
+        // if (ioctl(_fd, SPI_IOC_RD_MODE, &d8) < 0)
+        //     throw __ioctl_error(&_fd);
         // log::info("SPI Read Mode: 0x%x", d8);
         
         if (ioctl(_fd, SPI_IOC_WR_MAX_SPEED_HZ, &freq) < 0) 
@@ -213,7 +219,6 @@ namespace maix::peripheral::spi
 
     bool SPI::is_busy()
     {
-        log::warn("SPI::is_busy no support");
         return false;
     }
 

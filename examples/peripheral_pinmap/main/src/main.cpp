@@ -12,19 +12,19 @@ int _main(int argc, char* argv[])
     std::vector<std::string> pins = peripheral::pinmap::get_pins();
     log::info("All pins:");
     for (auto& item : pins) {
-        log::info("\t%s", item.c_str());
-    }
+        printf("%s ", item.c_str());
+    } printf("\n");
 
     std::vector<std::string> gpio_a28_pin_functions = 
         peripheral::pinmap::get_pin_functions("A28");
     log::info("GPIO A28 pin functions:");
     for (auto& item : gpio_a28_pin_functions) {
-        log::info("\t%s", item.c_str());
-    }
+        printf("%s ", item.c_str());
+    } printf("\n");
 
     if (err::ERR_NONE != peripheral::pinmap::set_pin_function("A28", gpio_a28_pin_functions[0])) {
         log::error("set pin function failed");
-    }
+    } 
 
     log::info("Program exit");
 
