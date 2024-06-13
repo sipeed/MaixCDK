@@ -1,8 +1,8 @@
 /**
- * @author neucrack@sipeed, lxowalle@sipeed
+ * @author neucrack@sipeed, lxowalle@sipeed, support@sipeed.com
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
- * @update 2023.9.8: Add framework, create this file.
+ * @update 2024.6.6: Support for /dev/ttySx
  */
 
 #include "maix_uart.hpp"

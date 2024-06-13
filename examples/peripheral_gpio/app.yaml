@@ -1,11 +1,11 @@
-id: hello_world
-name: Hello world
-name[zh]: 你好世界
+id: switch_led
+name: switch_led
+name[zh]: 板载LED闪烁
 version: 1.0.0
 #icon: assets/hello.png
-author: Sipeed Ltd
-desc: Hello world example code
-desc[zh]: 你好世界样例代码
+author: hqy1433
+desc: Using GPIO14 to control onboard LED flashing
+desc[zh]: 使用GPIO14控制板载LED闪烁
 files:
   # assets: assets
 

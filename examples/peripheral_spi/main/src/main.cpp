@@ -1,27 +1,18 @@
-
 #include "maix_basic.hpp"
 #include "main.h"
 #include "maix_spi.hpp"
 #include "maix_pinmap.hpp"
+#include <map>
+
+
+#define USE_SPI4
+
+#ifndef USE_SPI4
+#define USE_SPI2
+#endif
 
 using namespace maix;
-
 using namespace maix::peripheral;
-
-void print_bytes(Bytes* bytes)
-{
-    for (long unsigned int i = 0; i < bytes->data_len; ++i)
-        log::info("\t[%d] = 0x%x", i, (*bytes)[i]);
-}
-
-void print_bytes(std::vector<unsigned char>& v)
-{
-    int cnt = 0;
-    for (auto i : v) {
-        log::info("\t[%d] = 0x%x", cnt, i);
-        ++cnt;
-    }      
-}
 
 int _main(int argc, char* argv[])
 {
@@ -33,114 +24,78 @@ int _main(int argc, char* argv[])
      * The MaixCAM(Soc:SG2002) SPI only supported by the master.
     */
 
+#ifdef USE_SPI4
+    const std::map<std::string, std::string> pin_functions{
+        {"A24", "SPI4_CS"},     /* Default CS of SPI4, currently the valid level of this CS is high 
+                                    and does not support to change, please wait for the fix. 
+                                    You can specify another GPIO as the CS pin. */
+        {"A23", "SPI4_MISO"},   /* MISO */
+        {"A25", "SPI4_MOSI"},   /* MOSI */
+        {"A22", "SPI4_SCK"},    /* SCK */
+        //{"A27", "GPIOA27"}      /* SOFT CS */
+    };
 
-    log::info("Use pinmap to configure SPI1.");
-    pinmap::set_pin_function("A24", "SPI1_CS");
-    pinmap::set_pin_function("A23", "SPI1_MISO");
-    pinmap::set_pin_function("A25", "SPI1_MOSI");
-    pinmap::set_pin_function("A22", "SPI1_SCK");
+    log::info("Use pinmap to configure SPI4.");
+    for (const auto& item : pin_functions) {
+        if (err::ERR_NONE != pinmap::set_pin_function(item.first, item.second)) {
+            log::error("Set pin{%s} to function{%s} failed!", 
+                item.first.c_str(), item.second.c_str());
+            return -1;
+        }
+    }
+
+    log::info("Init spi4");
+    spi::SPI dev(4, spi::Mode::MASTER, 1250000);   /* Use SPI4_CS */
+    // spi::SPI dev(4, spi::Mode::MASTER, 1250000, 0, 0, 8, 0, true, "A27"); /* Use SOFT CS */
+    log::info("Init spi4 end");
+#endif
+#ifdef USE_SPI2
+    const std::map<std::string, std::string> pin_functions{
+        {"P18", "SPI2_CS"},
+        {"P21", "SPI2_MISO"},
+        {"P22", "SPI2_MOSI"},
+        {"P23", "SPI2_SCK"}
+    };
+
+    log::info("Use pinmap to configure SPI2.");
+    for (const auto& item : pin_functions) {
+        if (err::ERR_NONE != pinmap::set_pin_function(item.first, item.second)) {
+            log::error("Set pin{%s} to function{%s} failed!", 
+                item.first.c_str(), item.second.c_str());
+            return -1;
+        }
+    }
+
+    log::info("Init spi2");
+    spi::SPI dev(2, spi::Mode::MASTER, 400000);
+    log::info("Init spi2 end");
+#endif
 
 
-    log::info("Init spi1");
-    // spi::SPI dev(1, spi::Mode::MASTER, 400000, true, 0, 0, 8, "A19", 0);
-    spi::SPI dev(1, spi::Mode::MASTER, 400000);
-    log::info("Init spi1 end");
 
     unsigned char str[] = "hello world\r\n";
-    Bytes b(str, sizeof(str));
     std::vector<unsigned char> v(str, str+sizeof(str));
-
-    log::info("====================DATA======================");
-    log::info("Bytes:");
-    print_bytes(&b);
-    log::info("");
-    log::info("vector:");
-    print_bytes(v);
-    log::info("==============================================");
-
 
     while(!app::need_exit())
     {
-
-        int ret = -1;
-
         /* Full-duplex transmission. */
         {
-            log::info("");
-            log::info("write_read start...");
-            /* Specifies that the number of bytes read is 2 bytes 
-                less than the number of bytes sent. */
-            int rlen = v.size() - 2;
-            auto res = dev.write_read(v, rlen);
+            auto res = dev.write_read(v, v.size());
             if (!res.size()) {
-                log::error("read error");
+                log::error("Read error.");
                 break;
             }
-            log::info("write_read %d bytes:", res.size());
-            print_bytes(res);
-            for (int i = 0; i < rlen; ++i) {
-                if (res[i] != b[i]) {
-                    log::error("loopback check Failed! w[%d]{0x%x}, r[%d]{0x%x}", 
-                                    i, b[i], i, res[i]);
-                    break;
-                }
-            }
-            log::info("write_read end");
-            log::info("");
-        }
 
-#if 0
-        /* Half-duplex transmission. */
-        {
-            log::info("");
-            log::info("write start...");
-            ret = dev.write(&b);
-            log::info("write %d bytes", ret);
-            ret = dev.write(v);
-            log::info("write %d bytes", ret);
-            log::info("write end");
-            log::info("");
-        }
+            log::info0("Send %d Bytes: ", v.size());
+            for (auto i : v)
+                printf("0x%02x ", i);
+            printf("\n");
 
-        /* Half-duplex transmission. */
-        {
-            log::info("");
-            log::info("read start...");
-            auto res = dev.read(10);
-            if (nullptr == res) {
-                log::error("read error");
-                break;
-            }
-            print_bytes(res);
-            delete res;
-            log::info("read end");
-            log::info("");
+            log::info0("Recv %d Bytes: ", res.size());
+            for (auto i : res)
+                printf("0x%02x ", i);
+            printf("\n");
         }
-
-        /* Full-duplex transmission. */
-        {
-            log::info("");
-            log::info("write_read start...");
-            int rlen = b.data_len+8;
-            auto res = dev.write_read(&b, rlen);
-            if (nullptr == res) {
-                log::error("read error");
-                break;
-            }
-            log::info("write_read %d bytes:", res->data_len);
-            print_bytes(res);
-            for (long unsigned int i = 0; i < b.data_len; ++i) {
-                if ((*res)[i] != b[i]) {
-                    log::error("loopback check Failed! w[%d]{0x%x}, r[%d]{0x%x}", 
-                                    i, b[i], i, (*res)[i]);
-                    break;
-                }
-            }
-            delete res;
-            log::info("write_read end");
-            log::info("");
-        }
-#endif
 
         app::set_exit_flag(true);
     }
