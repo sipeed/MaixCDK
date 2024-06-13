@@ -351,7 +351,7 @@ namespace maix::camera
         return err::ERR_NONE;
     }
 
-    uint64_t Camera::exposure(uint64_t value) {
+    int Camera::exposure(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -362,7 +362,7 @@ namespace maix::camera
         return _impl->exposure((uint32_t)value);
     }
 
-    uint32_t Camera::gain(uint32_t value) {
+    int Camera::gain(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -395,7 +395,7 @@ namespace maix::camera
         return _impl->vflip(value);
     }
 
-    uint32_t Camera::luma(uint32_t value) {
+    int Camera::luma(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -406,7 +406,7 @@ namespace maix::camera
         return _impl->luma(value);
     }
 
-    uint32_t Camera::constrast(uint32_t value) {
+    int Camera::constrast(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -417,7 +417,7 @@ namespace maix::camera
         return _impl->constrast(value);
     }
 
-    uint32_t Camera::saturation(uint32_t value) {
+    int Camera::saturation(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -428,7 +428,7 @@ namespace maix::camera
         return _impl->saturation(value);
     }
 
-    uint32_t Camera::awb_mode(uint32_t value) {
+    int Camera::awb_mode(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 
@@ -439,7 +439,7 @@ namespace maix::camera
         return _impl->awb_mode(value);
     }
 
-    uint32_t Camera::exp_mode(uint32_t value) {
+    int Camera::exp_mode(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;
 

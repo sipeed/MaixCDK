@@ -291,7 +291,7 @@ namespace maix::camera
          * @return camera exposure time
          * @maixpy maix.camera.Camera.exposure
         */
-        uint64_t exposure(uint64_t value = -1);
+        int exposure(int value = -1);
 
         /**
          * Set/Get camera gain
@@ -302,7 +302,7 @@ namespace maix::camera
          * @return camera gain
          * @maixpy maix.camera.Camera.gain
         */
-        uint32_t gain(uint32_t value = -1);
+        int gain(int value = -1);
 
         /**
          * Set/Get camera luma
@@ -313,7 +313,7 @@ namespace maix::camera
          * @return returns luma value
          * @maixpy maix.camera.Camera.luma
         */
-        uint32_t luma(uint32_t value = -1);
+        int luma(int value = -1);
 
         /**
          * Set/Get camera constrast
@@ -324,7 +324,7 @@ namespace maix::camera
          * @return returns constrast value
          * @maixpy maix.camera.Camera.constrast
         */
-        uint32_t constrast(uint32_t value = -1);
+        int constrast(int value = -1);
 
         /**
          * Set/Get camera saturation
@@ -335,7 +335,7 @@ namespace maix::camera
          * @return returns saturation value
          * @maixpy maix.camera.Camera.saturation
         */
-        uint32_t saturation(uint32_t value = -1);
+        int saturation(int value = -1);
 
         /**
          * Set/Get white balance mode
@@ -344,7 +344,7 @@ namespace maix::camera
          * @return returns awb mode
          * @maixpy maix.camera.Camera.awb_mode
         */
-        uint32_t awb_mode(uint32_t value = -1);
+        int awb_mode(int value = -1);
 
         /**
          * Set/Get exposure mode
@@ -353,7 +353,7 @@ namespace maix::camera
          * @return returns exposure mode
          * @maixpy maix.camera.Camera.exp_mode
         */
-        uint32_t exp_mode(uint32_t value = -1);
+        int exp_mode(int value = -1);
     private:
         std::string _device;
         int _ch;
