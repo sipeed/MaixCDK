@@ -32,7 +32,7 @@ int _main(int argc, char* argv[])
         {"A23", "SPI4_MISO"},   /* MISO */
         {"A25", "SPI4_MOSI"},   /* MOSI */
         {"A22", "SPI4_SCK"},    /* SCK */
-        {"A27", "GPIOA27"}      /* SOFT CS */
+        //{"A27", "GPIOA27"}      /* SOFT CS */
     };
 
     log::info("Use pinmap to configure SPI4.");
@@ -45,8 +45,8 @@ int _main(int argc, char* argv[])
     }
 
     log::info("Init spi4");
-    //spi::SPI dev(4, spi::Mode::MASTER, 400000);   /* Use SPI4_CS */
-    spi::SPI dev(4, spi::Mode::MASTER, 400000, 0, 0, 8, 0, true, "A27"); /* Use SOFT CS */
+    spi::SPI dev(4, spi::Mode::MASTER, 1250000);   /* Use SPI4_CS */
+    // spi::SPI dev(4, spi::Mode::MASTER, 1250000, 0, 0, 8, 0, true, "A27"); /* Use SOFT CS */
     log::info("Init spi4 end");
 #endif
 #ifdef USE_SPI2
