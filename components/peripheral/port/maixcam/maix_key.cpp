@@ -40,6 +40,8 @@ namespace maix::peripheral::key
     {
         if(_default_key)
             return;
+        _default_key = new Key(on_key);
+        _key_defult_listener = true;
     }
 
     void rm_default_listener()
@@ -233,6 +235,9 @@ namespace maix::peripheral::key
             }
             if (ev.type == EV_KEY)
             {
+                // fix key code
+                if(ev.code == KEY_DISPLAYTOGGLE)
+                    ev.code = KEY_OK;
                 key = ev.code;
                 value = ev.value;
                 break;
