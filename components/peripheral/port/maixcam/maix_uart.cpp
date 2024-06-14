@@ -1,8 +1,8 @@
 /**
- * @author neucrack@sipeed, lxowalle@sipeed, support@sipeed.com
+ * @author neucrack@sipeed, lxowalle@sipeed
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
- * @update 2024.6.6: Support for /dev/ttySx
+ * @update 2023.9.8: Add framework, create this file.
  */
 
 #include "maix_uart.hpp"
@@ -252,6 +252,9 @@ namespace maix::peripheral::uart
 			log::error("open uart %s failed\r\n", _uart_port.c_str());
 			return err::ERR_IO;
 		}
+		// self.oneByteTime = 1 / (self.com.baudrate / (self.com.bytesize + 2 + self.com.stopbits)) # 1 byte use time
+		_one_byte_time_us = 1000000.0 / (_baudrate / (_databits + 2 + (_stopbits == STOP_1_5 ? 1.5 : _stopbits)));
+		log::info("one byte time: %d", _one_byte_time_us);
 		return err::ERR_NONE;
 	}
 
@@ -386,7 +389,10 @@ namespace maix::peripheral::uart
 		{
 			while (1)
 			{
-				int len = _uart_read(_fd, buff + read_len, buff_len - read_len);
+				int left_len = buff_len - read_len;
+				if(left_len <= 0)
+					break;
+				int len = _uart_read(_fd, buff + read_len, left_len);
 				if(len < 0)
 				{
 					if(errno != EAGAIN)
@@ -404,7 +410,13 @@ namespace maix::peripheral::uart
 				else if (available(0) > 0)
 					continue;
 				else
+				{
+					int wait_time = _one_byte_time_us * 30; // system maybe use some time
+					time::sleep_us(wait_time > 50000 ? 50000: wait_time);
+					if (available(0) > 0)
+						continue;
 					break;
+				}
 			}
 			return read_len;
 		}
@@ -433,10 +445,31 @@ namespace maix::peripheral::uart
 		int read_len = 0;
 		int buff_len = len > 0 ? len : 512;
 		Bytes *data = new Bytes(NULL, buff_len);
-		read_len = read(data->data, buff_len, len, timeout);
-		if (read_len < 0)
-			read_len = 0;
-		data->data_len = read_len;
+		int received = 0;
+		uint64_t t = time::time_ms();
+		int t2;
+		while(1)
+		{
+			t2 = (int)(time::time_ms() - t);
+			if(timeout > 0 && t2 >= timeout)
+				break;
+			read_len = read(data->data + received, buff_len - received, len > 0 ? len - received : len, timeout > 0 ? t2 : timeout);
+			if (read_len < 0)
+				read_len = 0;
+			received += read_len;
+			data->data_len = received;
+			if(timeout > 0 && (int)(time::time_ms() - t) >= timeout)
+				break;
+			else if(received == buff_len)
+			{
+				buff_len = data->data_len * 2;
+				Bytes *data2 = new Bytes(data->data, buff_len, true, true);
+				delete data;
+				data = data2;
+				continue;
+			}
+			break;
+		}
 		return data;
 	}
 
@@ -502,7 +535,7 @@ namespace maix::peripheral::uart
 						device_path = fs::realpath("/sys/class/tty/" + dev + "/device");
 						subsystem = fs::basename(fs::realpath(device_path + "/subsystem"));
 					}
-					if (subsystem == "platform")
+					if (subsystem != "platform")
 						ports.push_back("/dev/" + dev);
 				}
 			}

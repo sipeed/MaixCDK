@@ -40,10 +40,6 @@ namespace maix::peripheral::key
     {
         if(_default_key)
             return;
-#if PLATFORM_MAIXCAM
-        _default_key = new Key(on_key);
-        _key_defult_listener = true;
-#endif
     }
 
     void rm_default_listener()
@@ -237,11 +233,6 @@ namespace maix::peripheral::key
             }
             if (ev.type == EV_KEY)
             {
-#if PLATFORM_MAIXCAM
-                // fix key code
-                if(ev.code == KEY_DISPLAYTOGGLE)
-                    ev.code = KEY_OK;
-#endif
                 key = ev.code;
                 value = ev.value;
                 break;
