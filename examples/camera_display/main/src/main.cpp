@@ -36,14 +36,14 @@ int _main(int argc, char* argv[])
         cmd_loop(&cam);
 
         // time when start read image from camera
-        t1 = time::time_ms();
+        t1 = time::ticks_ms();
 
         // read image from camera
         image::Image *img = cam.read();
         err::check_null_raise(img, "camera read failed");
 
         // time when read image finished
-        t2 = time::time_ms();
+        t2 = time::ticks_ms();
 
         // draw fps on image
         img->draw_string(0, 10, buf, image::Color::from_rgb(255, 0, 0), 1.5);
@@ -60,7 +60,7 @@ int _main(int argc, char* argv[])
         delete img;
 
         // calculate fps
-        t3 = time::time_ms();
+        t3 = time::ticks_ms();
         fps = 1000.0f/(t3-t1);
         snprintf(buf, sizeof(buf), "cam: %ld, disp: %ld, all: %ld (ms), fps: %.2f", t2-t1, t3-t2, t3-t1, fps);
     }
@@ -110,7 +110,7 @@ static int cmd_loop(camera::Camera *cam)
 
     if (scanf("%d  %ld\r\n", &cmd, &value) > 0) {
         log::info("cmd:%d %ld\r\n", cmd, value);
-        t1 = time::time_ms();
+        t1 = time::ticks_ms();
         switch (cmd) {
         case 0:
         {
@@ -184,7 +184,7 @@ static int cmd_loop(camera::Camera *cam)
         break;
         default:printf("Find not cmd!\r\n"); break;
         }
-        log::info("cmd use %ld ms\r\n", time::time_ms() - t1);
+        log::info("cmd use %ld ms\r\n", time::ticks_ms() - t1);
         fflush(stdin);
     }
 

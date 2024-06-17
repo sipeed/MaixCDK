@@ -50,22 +50,22 @@ int _main(int argc, char* argv[])
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
         video::Video v = video::Video(path);
 
-        uint64_t start_ms = time::time_ms();
+        uint64_t start_ms = time::ticks_ms();
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
             image::Image *img = cam.read();
             video::Packet *packet = v.encode(img);
-            if (time::time_ms() - start_ms > record_s * 1000) {
+            if (time::ticks_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
             delete img;
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::ticks_ms() - last_loop);
             delete packet;
-            last_loop = time::time_ms();
+            last_loop = time::ticks_ms();
         }
         break;
     }
@@ -81,20 +81,20 @@ int _main(int argc, char* argv[])
         video::Video v = video::Video(path);
         v.bind_camera(&cam);
 
-        uint64_t start_ms = time::time_ms();
+        uint64_t start_ms = time::ticks_ms();
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
             video::Packet *packet = v.encode();
-            if (time::time_ms() - start_ms > record_s * 1000) {
+            if (time::ticks_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::ticks_ms() - last_loop);
             delete packet;
-            last_loop = time::time_ms();
+            last_loop = time::ticks_ms();
         }
         break;
     }
@@ -109,22 +109,22 @@ int _main(int argc, char* argv[])
         camera::Camera cam = camera::Camera(2560, 1440, image::Format::FMT_YVU420SP);
         video::Video v = video::Video(path);
 
-        uint64_t start_ms = time::time_ms();
+        uint64_t start_ms = time::ticks_ms();
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
             image::Image *img = cam.read();
             video::Packet *packet = v.encode(img);
-            if (time::time_ms() - start_ms > record_s * 1000) {
+            if (time::ticks_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
             delete img;
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::ticks_ms() - last_loop);
             delete packet;
-            last_loop = time::time_ms();
+            last_loop = time::ticks_ms();
         }
         break;
     }
@@ -140,20 +140,20 @@ int _main(int argc, char* argv[])
         video::Video v = video::Video(path);
         v.bind_camera(&cam);
 
-        uint64_t start_ms = time::time_ms();
+        uint64_t start_ms = time::ticks_ms();
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
             video::Packet *packet = v.encode();
-            if (time::time_ms() - start_ms > record_s * 1000) {
+            if (time::ticks_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
             }
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::ticks_ms() - last_loop);
             delete packet;
-            last_loop = time::time_ms();
+            last_loop = time::ticks_ms();
         }
         break;
     }
@@ -170,12 +170,12 @@ int _main(int argc, char* argv[])
         video::Video v = video::Video(path, 640, 480, image::Format::FMT_YVU420SP, 30, 30, true);
         v.bind_camera(&cam);
 
-        uint64_t start_ms = time::time_ms();
+        uint64_t start_ms = time::ticks_ms();
         uint64_t last_loop = start_ms;
         int count = 0;
         while(!app::need_exit()) {
             video::Packet *packet = v.encode();
-            if (time::time_ms() - start_ms > record_s * 1000) {
+            if (time::ticks_ms() - start_ms > record_s * 1000) {
                 log::info("finish\r\n");
                 v.finish();
                 app::set_exit_flag(true);
@@ -184,9 +184,9 @@ int _main(int argc, char* argv[])
             image::Image *img = v.capture();
             disp.show(*img);
 
-            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::time_ms() - last_loop);
+            printf("Packet[%d] data:%p size:%ld use %ld ms\r\n", count ++, packet->data(), packet->data_size(), time::ticks_ms() - last_loop);
             delete packet;
-            last_loop = time::time_ms();
+            last_loop = time::ticks_ms();
         }
         break;
     }

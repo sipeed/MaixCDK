@@ -22,14 +22,14 @@ int _main(int argc, char* argv[])
     log::info("screen size: %dx%d\n", screen.width(), screen.height());
 
     // time when start read image from camera
-    t1 = time::time_ms();
+    t1 = time::ticks_ms();
 
     // read image from camera
     maix::image::Image *img = maix::image::load(argv[1]);
     err::check_null_raise(img, "camera read failed");
 
     // time when read image finished
-    t2 = time::time_ms();
+    t2 = time::ticks_ms();
 
     screen.show(*img);
 
@@ -37,7 +37,7 @@ int _main(int argc, char* argv[])
     delete img;
 
     // calculate fps
-    t3 = time::time_ms();
+    t3 = time::ticks_ms();
     snprintf(buf, sizeof(buf), "load: %ld, disp: %ld, all: %ld (ms)", t2-t1, t3-t2, t3-t1);
     while(!app::need_exit())
     {

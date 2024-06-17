@@ -412,7 +412,7 @@ bssid / frequency / signal level / flags / ssid
     }
     err::Err Wifi::connect(const std::string &ssid, const std::string &password, bool wait, int timeout)
     {
-        uint64_t t = time::time();
+        uint64_t t = time::ticks_s();
         _ssid = ssid;
         _ssid_cached = true;
 #if PLATFORM_MAIXCAM
@@ -456,7 +456,7 @@ bssid / frequency / signal level / flags / ssid
 #else
         throw err::Exception(err::ERR_NOT_IMPL, "connect wifi not implemented in this platform");
 #endif
-        while (wait && !is_connected() && time::time() - t < timeout)
+        while (wait && !is_connected() && time::ticks_s() - t < timeout)
         {
             time::sleep_ms(50);
         }

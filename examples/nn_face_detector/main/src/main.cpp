@@ -57,9 +57,9 @@ int _main(int argc, char *argv[])
             log::warn("image size not match model input size, will auto resize from %dx%d to %dx%d", img->width(), img->height(), detector.input_size().width(), detector.input_size().height());
         }
         log::info("detect now");
-        uint64_t t = time::time_ms();
+        uint64_t t = time::ticks_ms();
         std::vector<nn::Object> *result = detector.detect(*img, conf_threshold, iou_threshold);
-        log::info("time: %lldms", time::time_ms() - t);
+        log::info("time: %lldms", time::ticks_ms() - t);
         if(result->size() == 0)
         {
             log::info("no object detected !");
@@ -86,7 +86,7 @@ int _main(int argc, char *argv[])
         display::Display disp = display::Display();
         while (!app::need_exit())
         {
-            uint64_t t = time::time_ms();
+            uint64_t t = time::ticks_ms();
             maix::image::Image *img = cam.read();
             err::check_null_raise(img, "read camera failed");
             std::vector<nn::Object> *result = detector.detect(*img);
@@ -101,7 +101,7 @@ int _main(int argc, char *argv[])
             disp.show(*img);
             delete result;
             delete img;
-            log::info("time: %d ms", time::time_ms() - t);
+            log::info("time: %d ms", time::ticks_ms() - t);
         }
     }
 
