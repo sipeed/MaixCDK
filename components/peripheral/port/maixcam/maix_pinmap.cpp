@@ -17,18 +17,18 @@ namespace maix::peripheral::pinmap
 {
     /**
      * @brief ismod module.ko or rmmod module.ko
-     * 
+     *
      * @param is_install true means insmod, false means rmmod
      * @param dev_node device node, e.g. /dev/spidev4.0
      * @param module_path path to module files, e.g. /mnt/system/ko/,
-     *                      this parameter is ignored if the module is uninstalled. 
-     * @param module_files modules that need to be executed, 
+     *                      this parameter is ignored if the module is uninstalled.
+     * @param module_files modules that need to be executed,
      *                      starting with vector::begin for installing modules and vector::end()-1 for uninstalling modules.
-     * @return err::Err 
+     * @return err::Err
      */
     static inline err::Err __insmod(bool is_install, const std::string& dev_node,
                                     const std::string& module_path, const std::vector<std::string>& module_files)
-    { 
+    {
         if (!is_install) {
             // rmmod
             if (fs::exists(dev_node)) {
@@ -39,10 +39,9 @@ namespace maix::peripheral::pinmap
                         return err::ERR_RUNTIME;
                     }
                 }
-                
             }
             return err::ERR_NONE;
-        } 
+        }
         // insmod
         if (!fs::exists(dev_node)) {
             for (auto& mod : module_files) {
@@ -121,6 +120,7 @@ namespace maix::peripheral::pinmap
             "A27",
             "A28",
             "A29",
+            "B3",
             "P18",
             "P19",
             "P20",
@@ -237,6 +237,13 @@ namespace maix::peripheral::pinmap
                 "UART2_RX",
                 "JTAG_TDO"};
             return funcs;
+        }
+        else if (pin == "B3")
+        {
+            return std::vector<std::string>{
+                "GPIOB3",
+                "ADC"
+            };
         }
         else if (pin == "P18")
         {
@@ -530,6 +537,11 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001074, 0);
             else
                 return err::ERR_ARGS;
+            return err::ERR_NONE;
+        }
+        else if (pin == "B3")
+        {
+            set_pinmux(0x030010F8, 3);
             return err::ERR_NONE;
         }
         else if (pin == "P18")
