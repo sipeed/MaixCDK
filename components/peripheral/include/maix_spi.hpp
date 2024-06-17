@@ -25,12 +25,6 @@ namespace maix::peripheral::spi
 
     /**
      * Peripheral spi class
-     *
-     * MaixCAM's SPI1 is a software SPI,
-     * its device node is /dev/spidev4.0,
-     * in practice you only need to pass 1 at the parameter id to use it,
-     * and CDK will automatically complete the mapping relationship.
-     *
      * @maixpy maix.peripheral.spi.SPI
      */
     class SPI
