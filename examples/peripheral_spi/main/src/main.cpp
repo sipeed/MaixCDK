@@ -26,8 +26,8 @@ int _main(int argc, char* argv[])
 
 #ifdef USE_SPI4
     const std::map<std::string, std::string> pin_functions{
-        {"A24", "SPI4_CS"},     /* Default CS of SPI4, currently the valid level of this CS is high 
-                                    and does not support to change, please wait for the fix. 
+        {"A24", "SPI4_CS"},     /* Default CS of SPI4, currently the valid level of this CS is high
+                                    and does not support to change, please wait for the fix.
                                     You can specify another GPIO as the CS pin. */
         {"A23", "SPI4_MISO"},   /* MISO */
         {"A25", "SPI4_MOSI"},   /* MOSI */
@@ -38,7 +38,7 @@ int _main(int argc, char* argv[])
     log::info("Use pinmap to configure SPI4.");
     for (const auto& item : pin_functions) {
         if (err::ERR_NONE != pinmap::set_pin_function(item.first, item.second)) {
-            log::error("Set pin{%s} to function{%s} failed!", 
+            log::error("Set pin{%s} to function{%s} failed!",
                 item.first.c_str(), item.second.c_str());
             return -1;
         }
@@ -60,7 +60,7 @@ int _main(int argc, char* argv[])
     log::info("Use pinmap to configure SPI2.");
     for (const auto& item : pin_functions) {
         if (err::ERR_NONE != pinmap::set_pin_function(item.first, item.second)) {
-            log::error("Set pin{%s} to function{%s} failed!", 
+            log::error("Set pin{%s} to function{%s} failed!",
                 item.first.c_str(), item.second.c_str());
             return -1;
         }

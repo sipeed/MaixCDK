@@ -18,7 +18,7 @@
 #define DEFAULT_VREF 5.0062
 #define ERR_NEAR_ZERO 0.01
 
-namespace maix::peripheral::adc{   
+namespace maix::peripheral::adc{
 
     ADC::ADC(int pin, int resolution, float vref)
     {
@@ -49,7 +49,6 @@ namespace maix::peripheral::adc{
             _vref = DEFAULT_VREF;
             log::info("ADC default vref:%lf", DEFAULT_VREF);
         }
-            
 
         const char adc_channel[] = "1";
 
@@ -70,7 +69,7 @@ namespace maix::peripheral::adc{
     ADC::~ADC()
     {
         if (_fd > 2) {
-            close(_fd);
+            ::close(_fd);
         }
     }
 

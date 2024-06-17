@@ -25,12 +25,12 @@ namespace maix::peripheral::spi
 
     /**
      * Peripheral spi class
-     * 
-     * MaixCAM's SPI1 is a software SPI, 
-     * its device node is /dev/spidev4.0, 
-     * in practice you only need to pass 1 at the parameter id to use it, 
+     *
+     * MaixCAM's SPI1 is a software SPI,
+     * its device node is /dev/spidev4.0,
+     * in practice you only need to pass 1 at the parameter id to use it,
      * and CDK will automatically complete the mapping relationship.
-     * 
+     *
      * @maixpy maix.peripheral.spi.SPI
      */
     class SPI
@@ -50,7 +50,7 @@ namespace maix::peripheral::spi
          * @param[in] cs soft cs pin number, std::string type, default is "GPIOA19", if SPI support multi hardware cs, you can set it to other value.
          * @maixpy maix.peripheral.spi.SPI.__init__
          */
-        SPI(int id, spi::Mode mode, int freq, int polarity = 0, int phase = 0, 
+        SPI(int id, spi::Mode mode, int freq, int polarity = 0, int phase = 0,
             int bits = 8, unsigned char cs_enable=0, bool soft_cs = false, std::string cs = "GPIOA19");
         ~SPI();
 
@@ -58,7 +58,7 @@ namespace maix::peripheral::spi
          * @brief read data from spi
          * @param[in] length read length, int type
          * @return bytes data, Bytes type in C++, bytes type in MaixPy. You need to delete it manually after use in C++.
-         * @maixcdk maix.peripheral.spi.SPI.write
+         * @maixpy maix.peripheral.spi.SPI.read
          */
         Bytes *read(int length);
 
@@ -76,7 +76,7 @@ namespace maix::peripheral::spi
          * the member range of the list is [0,255]
          * @return write length, int type, if write failed, return -err::Err code.
          * @maixcdk maix.peripheral.spi.SPI.write
-         * 
+         *
          */
         int write(std::vector<unsigned char> data);
 
@@ -94,7 +94,6 @@ namespace maix::peripheral::spi
          * @param[in] read_len read length, int type, should > 0.
          * @return read data, vector<unsigned char> type
          * @maixcdk maix.peripheral.spi.SPI.write_read
-         * 
          */
         std::vector<unsigned char> write_read(std::vector<unsigned char> data, int read_len);
 
@@ -103,7 +102,7 @@ namespace maix::peripheral::spi
          * @param[in] data data to write, Bytes type in C++, bytes type in MaixPy
          * @param[in] read_len read length, int type, should > 0.
          * @return read data, Bytes type in C++, bytes type in MaixPy. You need to delete it manually after use in C++.
-         * @maixcdk maix.peripheral.spi.SPI.write_read
+         * @maixpy maix.peripheral.spi.SPI.write_read
          */
         Bytes *write_read(Bytes *data, int read_len);
 
