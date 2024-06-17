@@ -73,12 +73,12 @@ int _main(int argc, char *argv[])
         display::Display disp = display::Display();
         while (!app::need_exit())
         {
-            uint64_t t = time::time_ms();
+            uint64_t t = time::ticks_ms();
             maix::image::Image *img = cam.read();
             err::check_null_raise(img, "read camera failed");
-            uint64_t t2 = time::time_ms();
+            uint64_t t2 = time::ticks_ms();
             std::vector<nn::Object> *result = detector.detect(*img);
-            uint64_t t3 = time::time_ms();
+            uint64_t t3 = time::ticks_ms();
             for (auto &r : *result)
             {
                 log::info("result: %s", r.to_str().c_str());
@@ -88,7 +88,7 @@ int _main(int argc, char *argv[])
             disp.show(*img);
             delete result;
             delete img;
-            log::info("time: all %d ms, detect %d ms", time::time_ms() - t, t3 - t2);
+            log::info("time: all %d ms, detect %d ms", time::ticks_ms() - t, t3 - t2);
         }
     }
 

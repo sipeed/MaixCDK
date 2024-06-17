@@ -15,6 +15,10 @@ namespace maix::time
     /**
      * Get current time in s
      * @return current time in s, double type
+     * @attention If board have no RTC battery, when bootup and connect to network,
+     * system will automatically sync time by NTP, will cause time() have big change,
+     * e.g. before NTP: 10(s), after: 1718590639.5149617(s).
+     * If you want to calculate time interval, please use ticks_s().
      * @maixpy maix.time.time
     */
     double time();
@@ -22,6 +26,10 @@ namespace maix::time
     /**
      * Get current time in ms
      * @return current time in ms, uint64_t type
+     * @attention If board have no RTC battery, when bootup and connect to network,
+     * system will automatically sync time by NTP, will cause time() have big change,
+     * e.g. before NTP: 10000(ms), after: 1718590639000(ms)
+     * If you want to calculate time interval, please use ticks_ms().
      * @maixpy maix.time.time_ms
     */
     uint64_t time_ms();
@@ -29,6 +37,9 @@ namespace maix::time
     /**
      * Get current time in s
      * @return current time in s, uint64_t type
+     * @attention If board have no RTC battery, when bootup and connect to network,
+     * system will automatically sync time by NTP, will cause time() have big change,
+     * e.g. before NTP: 10(s), after: 1718590639(s)
      * @maixpy maix.time.time_s
     */
     uint64_t time_s();
@@ -36,18 +47,57 @@ namespace maix::time
     /**
      * Get current time in us
      * @return current time in us, uint64_t type
+     * @attention If board have no RTC battery, when bootup and connect to network,
+     * system will automatically sync time by NTP, will cause time() have big change,
+     * e.g. before NTP: 10000000(us), after: 1718590639000000(s)
+     * If you want to calculate time interval, please use ticks_us().
      * @maixpy maix.time.time_us
     */
     uint64_t time_us();
 
     /**
-     * Calculate time difference
+     * Calculate time difference in s.
      * @param last last time
-     * @param now current time
+     * @param now current time, can be -1 if use current time
      * @return time difference
+     * @attention If board have no RTC battery, when bootup and connect to network,
+     * system will automatically sync time by NTP, will cause time() have big change, and lead to big value.
+     * e.g. before NTP: 1(s), after: 1718590500(s)
+     * If you want to calculate time interval, please use ticks_diff().
      * @maixpy maix.time.time_diff
     */
     double time_diff(double last, double now = -1);
+
+
+    /**
+     * Get current time in s since bootup
+     * @return current time in s, double type
+     * @maixpy maix.time.ticks_s
+    */
+    double ticks_s();
+
+    /**
+     * Get current time in ms since bootup
+     * @return current time in ms, uint64_t type
+     * @maixpy maix.time.ticks_ms
+    */
+    uint64_t ticks_ms();
+
+    /**
+     * Get current time in us since bootup
+     * @return current time in us, uint64_t type
+     * @maixpy maix.time.ticks_us
+    */
+    uint64_t ticks_us();
+
+    /**
+     * Calculate time difference in s.
+     * @param last last time
+     * @param now current time, can be -1 if use current time
+     * @return time difference
+     * @maixpy maix.time.ticks_diff
+    */
+    double ticks_diff(double last, double now = -1);
 
     /**
      * Sleep seconds

@@ -39,7 +39,7 @@ int _main(int argc, char *argv[])
     display::Display disp = display::Display();
     while (!app::need_exit())
     {
-        uint64_t t = time::time_ms();
+        uint64_t t = time::ticks_ms();
         maix::image::Image *img = cam.read();
         err::check_null_raise(img, "read camera failed");
         std::vector<nn::FaceObject> *result = recognizer.recognize(*img, conf_threshold, iou_threshold);
@@ -54,7 +54,7 @@ int _main(int argc, char *argv[])
         disp.show(*img);
         delete result;
         delete img;
-        log::info("time: %d ms", time::time_ms() - t);
+        log::info("time: %d ms", time::ticks_ms() - t);
     }
 
     log::info("Program exit");

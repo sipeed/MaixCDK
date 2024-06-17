@@ -219,10 +219,10 @@ namespace maix::rtmp {
 				break;
 			}
 
-			clock = time::time_ms();
+			clock = time::ticks_ms();
 			while (1 == flv_reader_read(f, &type, &timestamp, &taglen, packet, packet_size))
 			{
-				// log::debug("[%ld]type:%d  timestemp:%d taglen:%ld\r\n", time::time_ms(), type, timestamp, taglen);
+				// log::debug("[%ld]type:%d  timestemp:%d taglen:%ld\r\n", time::ticks_ms(), type, timestamp, taglen);
 
 				rtmp->lock(-1);
 				if (!rtmp->is_started()) {
@@ -230,7 +230,7 @@ namespace maix::rtmp {
 					break;
 				}
 
-				uint64_t t = time::time_ms();
+				uint64_t t = time::ticks_ms();
 				if (clock + timestamp > t && clock + timestamp < t + 3 * 1000) // dts skip
 				{
 					// log::info("skip dts, sleep %d ms\r\n", clock + timestamp - t);
@@ -292,7 +292,7 @@ namespace maix::rtmp {
 
 		uint32_t stream_size = 0;
 		uint32_t timestamp = 0;
-		uint64_t curr_ms = time::time_ms();
+		uint64_t curr_ms = time::ticks_ms();
 		uint64_t last_ms = curr_ms;
 
 		bool first_frame = 1;
@@ -345,7 +345,7 @@ namespace maix::rtmp {
 				}
 
 				if (first_frame) {
-					last_ms = time::time_ms();
+					last_ms = time::ticks_ms();
 					timestamp = 0;
 					first_frame = false;
 				}
@@ -367,7 +367,7 @@ namespace maix::rtmp {
 					break;
 				}
 
-				curr_ms = time::time_ms();
+				curr_ms = time::ticks_ms();
 				timestamp = curr_ms - last_ms;
 
 				if (data_size > 2560 * 1440 * 3 / 2) {

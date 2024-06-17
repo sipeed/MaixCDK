@@ -537,13 +537,13 @@ namespace maix::audio
         }
 
         if (record_ms > 0) {
-            uint64_t start_ms = time::time_ms();
+            uint64_t start_ms = time::ticks_ms();
             if (_path.size() <= 0) {
                 log::error("If you pass in the record_ms parameter, you must also set the correct path in audio::Audio()\r\n");
                 return new Bytes();
             }
 
-            while (time::time_ms() - start_ms <= (uint64_t)record_ms) {
+            while (time::ticks_ms() - start_ms <= (uint64_t)record_ms) {
                 len = 0;
                 while (len >= 0) {
                     len = _alsa_capture_pop(handle, format, channel, _period_size, buffer, buffer_size);

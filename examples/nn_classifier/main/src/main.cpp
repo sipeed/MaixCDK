@@ -53,7 +53,7 @@ int _main(int argc, char* argv[])
         display::Display disp = display::Display();
         while(!app::need_exit())
         {
-            uint64_t t = time::time_ms();
+            uint64_t t = time::ticks_ms();
             image::Image *img = cam.read();
             err::check_null_raise(img, "read camera failed");
             std::vector<std::pair<int, float>> * result = classifier.classify(*img);
@@ -64,7 +64,7 @@ int _main(int argc, char* argv[])
             disp.show(*img);
             delete result;
             delete img;
-            log::info("time: %d ms", time::time_ms() - t);
+            log::info("time: %d ms", time::ticks_ms() - t);
         }
     }
 
