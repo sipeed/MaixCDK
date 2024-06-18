@@ -12,11 +12,13 @@ static void helper(void)
     log::info(
     "==================================\r\n"
     "Please input command:\r\n"
-    "0 [path] [record_ms] [sample_rate] [channel] [format]: record and save to path, ./audio_demo 0 output.pcm 3\r\n"
-    "1 [path] [sample_rate] [channel] [format]: record and save to path, ./audio_demo 1 output.pcm 48000 1 2\r\n"
+    "0 [path] [record_ms] [sample_rate] [channel] [format]: record block, ./audio_demo 0 output.pcm 3\r\n"
+    "1 [path] [sample_rate] [channel] [format]: record nonblock, ./audio_demo 1 output.pcm 48000 1 2\r\n"
     "2 [volumn]: set recorder volume, ./audio_demo 2 12\r\n"
-    "3 [path] [sample_rate] [channel] [format]: playback path, ./audio_demo 3 output.pcm\r\n"
-    "4 [path] [sample_rate] [channel] [format]: playback path, ./audio_demo 4 output.pcm 48000 1 2\r\n"
+    "3 [path] [sample_rate] [channel] [format]: playback block, ./audio_demo 3 output.pcm\r\n"
+    "4 [path] [sample_rate] [channel] [format]: playback nonblock, ./audio_demo 4 output.pcm 48000 1 2\r\n"
+    "5 [path] [sample_rate] [channel] [format]: record nonblock  and save with fopen, ./audio_demo 5 output.pcm 48000 1 2\r\n"
+    "6 [path] [sample_rate] [channel] [format]: playback nonblock and load with fopen./audio_demo 6 output.pcm 48000 1 2\r\n"
     "\r\n"
     "Note: format = 2, means FMT_S16_LE\r\n"
     "==================================\r\n");
@@ -157,6 +159,72 @@ int _main(int argc, char* argv[])
 
         log::info("Playback %s\r\n", path.c_str());
         audio::Player p = audio::Player(path, sample_rate, format, channel);
+        p.play();
+        while (!app::need_exit()) {
+            time::sleep_ms(1000);
+        }
+        break;
+    }
+    case 5:
+    {
+        std::string path = "output.pcm";
+        int sample_rate = 48000, channel = 1;
+        audio::Format format = audio::Format::FMT_S16_LE;
+        if (argc > 2) path = argv[2];
+        if (argc > 3) sample_rate = atoi(argv[3]);
+        if (argc > 4) channel = atoi(argv[4]);
+        if (argc > 5) {
+            switch (atoi(argv[5])) {
+            case 2:
+                format = audio::Format::FMT_S16_LE;
+                break;
+            default:
+                log::error("Only support format = 2(FMT_S16_LE)\r\n");
+                break;
+            }
+        }
+
+        log::info("Ready to record and save to %s\r\n", path.c_str());
+        audio::Recorder r = audio::Recorder("", sample_rate, format, channel);
+
+        FILE *file;
+        file = fopen(path.c_str(), "wb+");
+        err::check_null_raise(file);
+
+        while (!app::need_exit()) {
+            Bytes *b = r.record(-1);
+            log::info("read bytes %p len %ld\r\n", b->data, b->data_len);
+            fwrite(b->data, 1, b->data_len, file);
+            delete b;
+
+            time::sleep_ms(200);
+        }
+        r.finish();
+        fclose(file);
+
+        break;
+    }
+    case 6:
+    {
+        std::string path = "output.pcm";
+        int sample_rate = 48000, channel = 1;
+        audio::Format format = audio::Format::FMT_S16_LE;
+        if (argc > 2) path = argv[2];
+        if (argc > 3) sample_rate = atoi(argv[3]);
+        if (argc > 4) channel = atoi(argv[4]);
+        if (argc > 5) {
+            switch (atoi(argv[5])) {
+            case 2:
+                format = audio::Format::FMT_S16_LE;
+                break;
+            default:
+                log::error("Only support format = 2(FMT_S16_LE)\r\n");
+                break;
+            }
+        }
+
+        log::info("Playback %s\r\n", path.c_str());
+        audio::Player p = audio::Player("", sample_rate, format, channel);
 
         FILE *file;
         file = fopen(path.c_str(), "rb+");
