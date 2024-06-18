@@ -972,17 +972,56 @@ namespace maix::image
             int text_width = size.width;
             int text_height = size.height;
             int text_max_width = _width - x;
+            bool wrap_now = false;
+            if(strstr(text.c_str(), "\n") >= 0 || strstr(text.c_str(), "\r") >= 0)
+                wrap_now = true;
+
             // auto wrap
-            if (text_width > text_max_width)
+            if (wrap_now || text_width > text_max_width)
             {
                 // loop to calculate text width, if reach to image width, draw text on image, and move to next line go on
                 size_t idx = 0;
                 std::string text_tmp;
                 cv::Size size_tmp;
                 uint8_t char_size = 1;
+                bool last_is_r = false;
+                wrap_now = false;
                 while (idx < text.length())
                 {
-                    char_size = _get_char_size(text[idx]);
+                    char c = text[idx];
+                    wrap_now = false;
+                    if(c == '\r')
+                    {
+                        last_is_r = true;
+                        wrap_now = true;
+                    }
+                    else if(c == '\n')
+                    {
+                        if(last_is_r)
+                        {
+                            last_is_r = false;
+                            ++idx;
+                            continue;
+                        }
+                        wrap_now = true;
+                        last_is_r = false;
+                    }
+                    else
+                    {
+                        last_is_r = false;
+                    }
+                    if(wrap_now)
+                    {
+                        _put_text(img, text_tmp, point, cv_color, scale, thickness, *final_font, final_font_id);
+                        point.x = x;
+                        point.y += text_height + wrap_space;
+                        text_tmp.clear();
+                        if (point.y + text_height >= _height)
+                            break;
+                        ++idx;
+                        continue;
+                    }
+                    char_size = _get_char_size(c);
                     text_tmp += text.substr(idx, char_size);
                     cv::Size size_tmp;
                     _get_text_size(size_tmp, text_tmp, *final_font, final_font_id, scale, thickness);

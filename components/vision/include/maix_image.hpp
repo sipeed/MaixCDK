@@ -1484,7 +1484,7 @@ namespace maix::image
      * Load image from file, and convert to Image object
      * @param path image file path
      * @param format read as this format, if not match, will convert to this format, by default is RGB888
-     * @return Image object
+     * @return Image object, if load failed, will return None(nullptr in C++), so you should care about it.
      * @maixpy maix.image.load
      */
     image::Image *load(const char *path, image::Format format = image::Format::FMT_RGB888);
