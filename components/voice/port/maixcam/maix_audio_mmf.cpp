@@ -405,9 +405,11 @@ namespace maix::audio
         _format = format;
         _channel = channel;
 
-        if (fs::splitext(_path) != ".wav"
-            && fs::splitext(_path) != ".pcm") {
-            err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+        if (path.size() > 0) {
+            if (fs::splitext(_path) != ".wav"
+                && fs::splitext(_path) != ".pcm") {
+                err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+            }
         }
 
         // alsa init
@@ -634,9 +636,11 @@ namespace maix::audio
         _period_size = 0;
         _file = NULL;
 
-        if (fs::splitext(_path) != ".wav"
-            && fs::splitext(_path) != ".pcm") {
-            err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+        if (path.size() > 0) {
+            if (fs::splitext(_path) != ".wav"
+                && fs::splitext(_path) != ".pcm") {
+                err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+            }
         }
 
         if (_file == NULL && _path.size() > 0) {
