@@ -120,6 +120,11 @@ def pack(project_path, bin_path="main.py", extra_files = {}):
         app_info["files"] = get_files(project_path, app_info.get("exclude", []))
         # append app_info["extra_include"] items
         app_info["files"].update(app_info.get("extra_include", {}))
+    if type(app_info["files"]) == list:
+        li = app_info["files"]
+        app_info["files"] = {}
+        for k in li:
+            app_info["files"][k] = k
 
     # copy main.py
     if bin_path.endswith(".py"):
