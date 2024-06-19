@@ -254,7 +254,7 @@ namespace maix::peripheral::uart
 		}
 		// self.oneByteTime = 1 / (self.com.baudrate / (self.com.bytesize + 2 + self.com.stopbits)) # 1 byte use time
 		_one_byte_time_us = 1000000.0 / (_baudrate / (_databits + 2 + (_stopbits == STOP_1_5 ? 1.5 : _stopbits)));
-		log::info("one byte time: %d", _one_byte_time_us);
+		log::debug("one byte time: %d", _one_byte_time_us);
 		return err::ERR_NONE;
 	}
 
