@@ -197,4 +197,13 @@ namespace maix::nn
         return _impl->forward_image(img, mean, scale, fit, copy_result);
     }
 
+    int SelfLearnClassifier::learn()
+    {
+        #if PLATFORM_MAIXCAM
+            return maix_nn_self_learn_classifier_learn(_features, _features_sample, _feature_num);
+        #else
+            throw err::Exception(err::ERR_NOT_IMPL);
+        #endif
+    }
+
 } // namespace maix::nn

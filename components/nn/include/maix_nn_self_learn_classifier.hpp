@@ -7,7 +7,6 @@
 #pragma once
 
 #include "maix_basic.hpp"
-#include "maix_nn_maixcam.hpp"
 
 namespace maix::nn
 {
@@ -272,10 +271,7 @@ namespace maix::nn
          * @return learn epoch(times), 0 means learn nothing.
          * @maixpy maix.nn.SelfLearnClassifier.learn
          */
-        int learn()
-        {
-            return maix_nn_self_learn_classifier_learn(_features, _features_sample, _feature_num);
-        }
+        int learn();
 
         /**
          * Clear all class and samples
