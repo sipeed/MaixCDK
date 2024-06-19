@@ -215,18 +215,19 @@ namespace maix::nn
          * Forward image to model, get result. Only for image input, use classify_raw for tensor input.
          * @param img image, format should match model input_type， or will raise err.Exception
          * @param softmax if true, will do softmax to result, or will return raw value
+         * @param fit image resize fit mode, default Fit.FIT_COVER, see image.Fit.
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
          * @return result, a list of (label, score). In C++, you need to delete it after use.
          * @maixpy maix.nn.Classifier.classify
          */
-        std::vector<std::pair<int, float>> *classify(image::Image &img, bool softmax = true)
+        std::vector<std::pair<int, float>> *classify(image::Image &img, bool softmax = true, image::Fit fit = image::FIT_COVER)
         {
             if (img.format() != _input_img_fmt)
             {
                 throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
             }
             tensor::Tensors *outputs;
-            outputs = _model->forward_image(img, this->mean, this->scale, maix::image::FIT_COVER, false);
+            outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
             if (!outputs)
             {
                 throw err::Exception("forward image failed");
