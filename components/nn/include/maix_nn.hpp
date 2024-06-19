@@ -99,6 +99,20 @@ namespace maix::nn
         std::vector<int> shape;
 
         /**
+         * Shape as one int type, multiply all dims of shape
+         * @maixpy maix.nn.LayerInfo.shape_int
+         */
+        int shape_int()
+        {
+            int n = shape.size() == 0 ? 0 : 1;
+            for(auto i : shape)
+            {
+                n *= i;
+            }
+            return n;
+        }
+
+        /**
          * To string
          * @maixpy maix.nn.LayerInfo.to_str
          */
