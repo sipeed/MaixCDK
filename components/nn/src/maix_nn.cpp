@@ -9,6 +9,7 @@
 #include "maix_nn.hpp"
 #include "maix_basic.hpp"
 #include "inifile.h"
+#include "maix_nn_self_learn_classifier.hpp"
 
 #if PLATFORM_MAIXCAM
     #include "maix_nn_maixcam.hpp"
