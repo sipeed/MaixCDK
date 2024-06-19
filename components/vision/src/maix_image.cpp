@@ -973,7 +973,7 @@ namespace maix::image
             int text_height = size.height;
             int text_max_width = _width - x;
             bool wrap_now = false;
-            if(strstr(text.c_str(), "\n") >= 0 || strstr(text.c_str(), "\r") >= 0)
+            if(strstr(text.c_str(), "\n") != NULL || strstr(text.c_str(), "\r") != NULL)
                 wrap_now = true;
 
             // auto wrap
