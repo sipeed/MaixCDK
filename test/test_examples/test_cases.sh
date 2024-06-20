@@ -44,31 +44,11 @@ function test_start()
 
 cd ../../examples
 
-test_start hello_world
-test_start camera_display
-test_start comm_protocol
-test_start comm_uart
-test_start gui_lvgl
-test_start gui_simple
-test_start i18n
-test_start image_method
-test_start image_show
-test_start key_demo
-test_start multi_threads
-test_start nn_classifier
-test_start nn_runner
-test_start nn_yolov5
-test_start opencv_demo
-test_start peripheral_gpio
-test_start peripheral_i2c_eeprom
-test_start peripheral_pwm_lcd_backlight
-test_start rtsp_demo
-test_start video_record_mp4
-test_start websocket_client
-test_start websocket_server
-test_start wifi_demo
-test_start video_demo
-test_start audio_demo
+for dir in */; do
+  if [ -d "$dir" ]; then
+    test_start "${dir%/}"
+  fi
+done
 
 
 

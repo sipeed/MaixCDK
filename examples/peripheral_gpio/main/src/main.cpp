@@ -1,5 +1,6 @@
 #include "maix_basic.hpp"
 #include "maix_gpio.hpp"
+#include "maix_pinmap.hpp"
 #include "main.h"
 
 using namespace maix;
@@ -10,7 +11,8 @@ int _main(int argc, char* argv[])
     log::info("Program start");
 
     log::info("Toggle_led");
-    gpio::GPIO gpio_14("GPIOA14",gpio::Mode::OUT,gpio::Pull::PULL_NONE);
+    pinmap::set_pin_function("A26", "GPIOA26");
+    gpio::GPIO gpio_14("GPIOA26", gpio::Mode::OUT, gpio::Pull::PULL_NONE);
     // Run until app want to exit, for example app::switch_app API will set exit flag.
     // And you can also call app::set_exit_flag(true) to mark exit.
     while(!app::need_exit())

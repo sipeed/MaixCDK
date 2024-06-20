@@ -118,14 +118,14 @@ int _main(int argc, char* argv[])
         {
             image::Image *img_copy;
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean_pool(2, 2);
-            log::info("mean pool gray image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("mean pool gray image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_mean_pool.png");
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img_copy = img->mean_pool(2, 2, true);
-            log::info("mean pool gray image copy cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("mean pool gray image copy cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_mean_pool_copy.png");
 
             delete img_copy;
@@ -141,9 +141,9 @@ int _main(int argc, char* argv[])
             img = src_img->copy();
             // img = src_img->resize(6, 4);
             // print_image(*img);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean_pool(2, 2);
-            log::info("mean pool rgb888 image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("mean pool rgb888 image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_mean_pool.png");
             // print_image(*img);
             delete img;
@@ -151,9 +151,9 @@ int _main(int argc, char* argv[])
             img = src_img->copy();
             // img = src_img->resize(6, 4);
             // print_image(*img);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img_copy = img->mean_pool(2, 2, true);
-            log::info("mean pool rgb888 image copy cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("mean pool rgb888 image copy cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img_copy->save("out_rgb888_640x480_mean_pool_copy.png");
             // print_image(*img_copy);
             delete img;
@@ -170,9 +170,9 @@ int _main(int argc, char* argv[])
 #if 1
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint_pool(2, 2, 0.5);
-            log::info("midpoint pool gray image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("midpoint pool gray image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint_pool.png");
             delete img;
         }
@@ -181,9 +181,9 @@ int _main(int argc, char* argv[])
 #if 1
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint_pool(2, 2, 0.5);
-            log::info("midpoint pool rgb888 image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("midpoint pool rgb888 image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint_pool.png");
             delete img;
         }
@@ -199,9 +199,9 @@ int _main(int argc, char* argv[])
         {
             image::Image *jpg;
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             jpg = img->compress();
-            log::info("compress gray image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("compress gray image cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
             f.open("./out_gray_640x480_compress.jpg", "w+");
             f.write(jpg->data(), jpg->data_size());
@@ -216,9 +216,9 @@ int _main(int argc, char* argv[])
         {
             image::Image *jpg;
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             jpg = img->compress();
-            log::info("compress rgb888 image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("compress rgb888 image cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
             f.open("./out_rgb888_640x480_compress.jpg", "w+");
             f.write(jpg->data(), jpg->data_size());
@@ -241,16 +241,16 @@ int _main(int argc, char* argv[])
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->clear();
-            log::info("clear gray image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("clear gray image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_clear.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->clear(&mask_img);
-            log::info("clear gray image with mask cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("clear gray image with mask cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_clear_mask.png");
             delete img;
 
@@ -266,16 +266,16 @@ int _main(int argc, char* argv[])
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->clear();
-            log::info("clear rgb888 image cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("clear rgb888 image cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_clear.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->clear(&mask_img);
-            log::info("clear rgb888 image with mask cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("clear rgb888 image with mask cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_clear_mask.png");
             delete img;
 
@@ -288,18 +288,18 @@ int _main(int argc, char* argv[])
 #if TEST_MASK_RECTANGE
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_rectange();
-        log::info("img.mask_rectange() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_rectange() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_gray_640x480_mask_rectange.png");
         delete img;
     }
 
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_rectange();
-        log::info("img.mask_rectange() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_rectange() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_rgb888_640x480_mask_rectange.png");
         delete img;
     }
@@ -308,18 +308,18 @@ int _main(int argc, char* argv[])
 #if TEST_MASK_CIRCLE
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_circle();
-        log::info("img.mask_circle() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_circle() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_gray_640x480_mask_circle.png");
         delete img;
     }
 
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_circle();
-        log::info("img.mask_circle() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_circle() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_rgb888_640x480_mask_circle.png");
         delete img;
     }
@@ -328,18 +328,18 @@ int _main(int argc, char* argv[])
 #if TEST_MASK_ELLIPSE
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_ellipse();
-        log::info("img.mask_ellipse() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_ellipse() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_gray_640x480_mask_ellipse.png");
         delete img;
     }
 
     {
         image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-        start_time = time::time_us();
+        start_time = time::ticks_us();
         img->mask_ellipse();
-        log::info("img.mask_ellipse() cost %d us\r\n", (int)(time::time_us() - start_time));
+        log::info("img.mask_ellipse() cost %d us\r\n", (int)(time::ticks_us() - start_time));
         img->save("out_rgb888_640x480_mask_ellipse.png");
         delete img;
     }
@@ -357,16 +357,16 @@ int _main(int argc, char* argv[])
             std::vector<std::vector<int>> thresholds = {{13, 24}};
 
             img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->binary(thresholds);
-            log::info("gray img->binary(thresholds) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->binary(thresholds) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_binary.png");
             delete img;
 
             img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->binary(thresholds, false, false, &mask_img);
-            log::info("gray img->binary(thresholds, false, false, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->binary(thresholds, false, false, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_binary_mask.png");
             delete img;
 
@@ -386,22 +386,22 @@ int _main(int argc, char* argv[])
             // img = src_img->copy();
             // cv::Mat bgrImage(img->height(), img->width(), CV_8UC((int)image::fmt_size[img->format()]), img->data());
             // cv::Mat labImage;
-            // start_time = time::time_us();
+            // start_time = time::ticks_us();
             // cv::cvtColor(bgrImage, labImage, cv::COLOR_BGR2Lab);
-            // log::info("rgb888 cv::cvtColor(bgrImage, labImage, cv::COLOR_BGR2Lab) cost %d us\r\n", (int)(time::time_us() - start_time));
+            // log::info("rgb888 cv::cvtColor(bgrImage, labImage, cv::COLOR_BGR2Lab) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             // // cv::threshold(mat, binaryImage, 128, 255, cv2.THRESH_BINARY);
 
             img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->binary(thresholds);
-            log::info("rgb888 img->binary(thresholds) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->binary(thresholds) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_binary.png");
             delete img;
 
             img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->binary(thresholds, false, false, &mask_img);
-            log::info("rgb888 img->binary(thresholds, false, false, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->binary(thresholds, false, false, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_binary_mask.png");
             delete img;
 
@@ -421,9 +421,9 @@ int _main(int argc, char* argv[])
             // img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             // print_image(*img);
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->invert();
-            log::info("gray img->invert() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->invert() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_invert.png");
             // print_image(*img);
 
@@ -440,9 +440,9 @@ int _main(int argc, char* argv[])
             // img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             // print_image(*img);
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->invert();
-            log::info("rgb888 img->invert() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->invert() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_invert.png");
             // print_image(*img);
 
@@ -466,9 +466,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_and(other_img);
-            log::info("gray img->b_and(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_and(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_and.png");
             print_image(*img);
             delete img;
@@ -478,9 +478,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_and(other_img, &mask_img);
-            log::info("gray img->b_and(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_and(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_and.png");
             print_image(*img);
             delete img;
@@ -501,9 +501,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_and(other_img);
-            log::info("rgb888 img->b_and(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_and(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_and.png");
             print_image(*img);
             delete img;
@@ -513,9 +513,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_and(other_img, &mask_img);
-            log::info("rgb888 img->b_and(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_and(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_and_mask.png");
             print_image(*img);
             delete img;
@@ -540,9 +540,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nand(other_img);
-            log::info("gray img->b_nand(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_nand(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_nand.png");
             print_image(*img);
             delete img;
@@ -552,9 +552,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nand(other_img, &mask_img);
-            log::info("gray img->b_nand(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_nand(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_nand.png");
             print_image(*img);
             delete img;
@@ -575,9 +575,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nand(other_img);
-            log::info("rgb888 img->b_nand(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_nand(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_nand.png");
             print_image(*img);
             delete img;
@@ -587,9 +587,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nand(other_img, &mask_img);
-            log::info("rgb888 img->b_nand(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_nand(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_nand_mask.png");
             print_image(*img);
             delete img;
@@ -614,9 +614,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_or(other_img);
-            log::info("gray img->b_or(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_or(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_or.png");
             print_image(*img);
             delete img;
@@ -626,9 +626,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_or(other_img, &mask_img);
-            log::info("gray img->b_or(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_or(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_or.png");
             print_image(*img);
             delete img;
@@ -649,9 +649,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_or(other_img);
-            log::info("rgb888 img->b_or(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_or(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_or.png");
             print_image(*img);
             delete img;
@@ -661,9 +661,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_or(other_img, &mask_img);
-            log::info("rgb888 img->b_or(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_or(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_or_mask.png");
             print_image(*img);
             delete img;
@@ -688,9 +688,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nor(other_img);
-            log::info("gray img->b_nor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_nor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_nor.png");
             print_image(*img);
             delete img;
@@ -700,9 +700,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nor(other_img, &mask_img);
-            log::info("gray img->b_nor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_nor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_nor.png");
             print_image(*img);
             delete img;
@@ -723,9 +723,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nor(other_img);
-            log::info("rgb888 img->b_nor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_nor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_nor.png");
             print_image(*img);
             delete img;
@@ -735,9 +735,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_nor(other_img, &mask_img);
-            log::info("rgb888 img->b_nor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_nor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_nor_mask.png");
             print_image(*img);
             delete img;
@@ -762,9 +762,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xor(other_img);
-            log::info("gray img->b_xor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_xor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_xor.png");
             print_image(*img);
             delete img;
@@ -774,9 +774,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xor(other_img, &mask_img);
-            log::info("gray img->b_xor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_xor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_xor.png");
             print_image(*img);
             delete img;
@@ -797,9 +797,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xor(other_img);
-            log::info("rgb888 img->b_xor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_xor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_xor.png");
             print_image(*img);
             delete img;
@@ -809,9 +809,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xor(other_img, &mask_img);
-            log::info("rgb888 img->b_xor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_xor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_xor_mask.png");
             print_image(*img);
             delete img;
@@ -836,9 +836,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xnor(other_img);
-            log::info("gray img->b_xnor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_xnor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_xnor.png");
             print_image(*img);
             delete img;
@@ -848,9 +848,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xnor(other_img, &mask_img);
-            log::info("gray img->b_xnor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->b_xnor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_b_xnor.png");
             print_image(*img);
             delete img;
@@ -871,9 +871,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xnor(other_img);
-            log::info("rgb888 img->b_xnor(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_xnor(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_xnor.png");
             print_image(*img);
             delete img;
@@ -883,9 +883,9 @@ int _main(int argc, char* argv[])
             other_img = src_img->resize(INPUT_IMG_W, INPUT_IMG_H);
             print_image(*img);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->b_xnor(other_img, &mask_img);
-            log::info("rgb888 img->b_xnor(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->b_xnor(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_b_xnor_mask.png");
             print_image(*img);
             delete img;
@@ -901,16 +901,16 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->awb();
-            log::info("img.awb() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.awb() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_awb.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->awb(true);
-            log::info("img.mode(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_awb_max.png");
             delete img;
         }
@@ -921,19 +921,19 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             std::vector<float> color_matrix_3x3= {
                 1, 0, 0.5,
                 0, 1, 0.5,
                 0, 0, 0
             };
             img->ccm(color_matrix_3x3);
-            log::info("img.ccm(color_matrix_3x3) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.ccm(color_matrix_3x3) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_ccm_3x3.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             std::vector<float> color_matrix_4x3= {
                 1, 0, 0.5,
                 0, 1, 0.5,
@@ -941,7 +941,7 @@ int _main(int argc, char* argv[])
                 -50, 20, 20
             };
             img->ccm(color_matrix_4x3);
-            log::info("img.ccm(color_matrix_4x3) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.ccm(color_matrix_4x3) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_ccm_4x3.png");
             delete img;
         }
@@ -952,46 +952,46 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2);
-            log::info("img.gamma(0.2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gamma_0.2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2, 2);
-            log::info("img.gamma(0.2, 2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2, 2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gamma0.2_contrast2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2, 2, 0.8);
-            log::info("img.gamma(0.2, 2, 0.8) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2, 2, 0.8) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gamma0.2_contrast2_brightness0.8.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2);
-            log::info("img.gamma(0.2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gamma_0.2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2, 2);
-            log::info("img.gamma(0.2, 2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2, 2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gamma0.2_contrast2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gamma(0.2, 2, 0.8);
-            log::info("img.gamma(0.2, 2, 0.8) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gamma(0.2, 2, 0.8) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gamma0.2_contrast2_brightness0.8.png");
             delete img;
         }
@@ -1002,18 +1002,18 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->negate();
-            log::info("img.negate cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.negate cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_negate.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->negate();
-            log::info("img.negate() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.negate() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_negate.png");
             delete img;
         }
@@ -1032,58 +1032,58 @@ int _main(int argc, char* argv[])
 
             // hmirror without other image
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->replace(NULL, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_replace_hmirror_without_other.png");
             delete img;
 
             // hmirror
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_gray_640x480_replace_hmirror.png");
             delete img;
 
             // vflip
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, false, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_gray_640x480_replace_vflip.png");
             delete img;
 
             // flip=false, hmirror=false, transpose=false
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_gray_640x480_replace_rot0.png");
             delete img;
 
             // flip=true, hmirror=true, transpose=false
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true, true);
-            log::info("img.replace(img, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_gray_640x480_replace_rot180.png");
             delete img;
 
             // flip=true, hmirror=false, transpose=true
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true, false, true, &mask_img);
-            log::info("img.replace(img, true, false, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, true, false, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_gray_640x480_replace_rot90.png");
             delete img;
 
             // flip=false, hmirror=true, transpose=true
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image src_img2(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img2.replace(img, false, true, true, &mask_img);
-            log::info("img.replace(img, false, true, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, false, true, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img2.save("out_gray_640x480_replace_rot270.png");
             delete img;
         }
@@ -1098,58 +1098,58 @@ int _main(int argc, char* argv[])
 
             // hmirror without other image
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->replace(NULL, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_replace_hmirror_without_other.png");
             delete img;
 
             // hmirror
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_rgb888_640x480_replace_hmirror.png");
             delete img;
 
             // vflip
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, false, true);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_rgb888_640x480_replace_vflip.png");
             delete img;
 
             // flip=false, hmirror=false, transpose=false
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img);
-            log::info("img.replace(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_rgb888_640x480_replace_rot0.png");
             delete img;
 
             // flip=true, hmirror=true, transpose=false
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true, true);
-            log::info("img.replace(img, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_rgb888_640x480_replace_rot180.png");
             delete img;
 
             // flip=true, hmirror=false, transpose=true
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img.replace(img, true, false, true, &mask_img);
-            log::info("img.replace(img, true, false, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, true, false, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img.save("out_rgb888_640x480_replace_rot90.png");
             delete img;
 
             // flip=false, hmirror=true, transpose=true
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image src_img2(img->width(), img->height(), image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             src_img2.replace(img, false, true, true, &mask_img);
-            log::info("img.replace(img, false, true, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.replace(img, false, true, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             src_img2.save("out_rgb888_640x480_replace_rot270.png");
             delete img;
         }
@@ -1167,18 +1167,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->add(other_img);
-            log::info("gray img->add(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->add(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_add.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->add(other_img, &mask_img);
-            log::info("gray img->add(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->add(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_add_mask.png");
             delete img;
             delete other_img;
@@ -1196,18 +1196,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->add(other_img);
-            log::info("rgb888 img->add(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->add(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_add.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->add(other_img, &mask_img);
-            log::info("rgb888 img->add(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->add(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_add_mask.png");
             delete img;
             delete other_img;
@@ -1229,18 +1229,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->sub(other_img);
-            log::info("gray img->sub(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->sub(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_sub.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->sub(other_img, true, &mask_img);
-            log::info("gray img->sub(other_img, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->sub(other_img, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_sub_true_mask.png");
             delete img;
             delete other_img;
@@ -1258,18 +1258,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->sub(other_img);
-            log::info("rgb888 img->sub(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->sub(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_sub.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->sub(other_img, true, &mask_img);
-            log::info("rgb888 img->sub(other_img, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->sub(other_img, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_sub_true_mask.png");
             delete img;
             delete other_img;
@@ -1291,18 +1291,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mul(other_img);
-            log::info("gray img->mul(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->mul(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_mul.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mul(other_img, true, &mask_img);
-            log::info("gray img->mul(other_img, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->mul(other_img, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_mul_true_mask.png");
             delete img;
             delete other_img;
@@ -1320,18 +1320,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mul(other_img);
-            log::info("rgb888 img->mul(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->mul(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_mul.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mul(other_img, true, &mask_img);
-            log::info("rgb888 img->mul(other_img, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->mul(other_img, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_mul_true_mask.png");
             delete img;
             delete other_img;
@@ -1353,18 +1353,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->div(other_img);
-            log::info("gray img->div(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->div(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_div.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->div(other_img, false, true, &mask_img);
-            log::info("gray img->div(other_img, false, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->div(other_img, false, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_div_false_true_mask.png");
             delete img;
             delete other_img;
@@ -1382,18 +1382,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->div(other_img);
-            log::info("rgb888 img->div(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->div(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_div.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->div(other_img, false, true, &mask_img);
-            log::info("rgb888 img->div(other_img, false, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->div(other_img, false, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_div_false_true_mask.png");
             delete img;
             delete other_img;
@@ -1415,18 +1415,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->min(other_img);
-            log::info("gray img->min(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->min(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_min.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->min(other_img, &mask_img);
-            log::info("gray img->min(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->min(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_min_mask.png");
             delete img;
             delete other_img;
@@ -1444,18 +1444,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->min(other_img);
-            log::info("rgb888 img->min(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->min(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_min.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->min(other_img, &mask_img);
-            log::info("rgb888 img->min(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->min(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_min_mask.png");
             delete img;
             delete other_img;
@@ -1477,18 +1477,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->max(other_img);
-            log::info("gray img->max(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->max(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_max.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->max(other_img, &mask_img);
-            log::info("gray img->max(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->max(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_max_mask.png");
             delete img;
             delete other_img;
@@ -1506,18 +1506,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->max(other_img);
-            log::info("rgb888 img->max(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->max(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_max.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->max(other_img, &mask_img);
-            log::info("rgb888 img->max(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->max(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_max_mask.png");
             delete img;
             delete other_img;
@@ -1539,18 +1539,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->difference(other_img);
-            log::info("gray img->difference(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->difference(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_difference.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->difference(other_img, &mask_img);
-            log::info("gray img->difference(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->difference(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_difference_mask.png");
             delete img;
             delete other_img;
@@ -1568,18 +1568,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->difference(other_img);
-            log::info("rgb888 img->difference(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->difference(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_difference.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->difference(other_img, &mask_img);
-            log::info("rgb888 img->difference(other_img, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->difference(other_img, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_difference_mask.png");
             delete img;
             delete other_img;
@@ -1601,18 +1601,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->blend(other_img);
-            log::info("gray img->blend(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->blend(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_blend.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->blend(other_img, 64, &mask_img);
-            log::info("gray img->blend(other_img, 64, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img->blend(other_img, 64, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_blend_64_mask.png");
             delete img;
             delete other_img;
@@ -1630,18 +1630,18 @@ int _main(int argc, char* argv[])
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->blend(other_img);
-            log::info("rgb888 img->blend(other_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->blend(other_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_blend.png");
             delete img;
             delete other_img;
 
             img = src_img->copy();
             other_img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->blend(other_img, 64, &mask_img);
-            log::info("rgb888 img->blend(other_img, 64, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img->blend(other_img, 64, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_blend_64_mask.png");
             delete img;
             delete other_img;
@@ -1656,64 +1656,64 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *gray_img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             gray_img->histeq();
-            log::info("gray_img.histeq() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray_img.histeq() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             gray_img->save("out_gray_640x480_histeq.png");
             delete gray_img;
 
             gray_img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             gray_img->histeq(true);
-            log::info("gray_img.histeq(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray_img.histeq(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             gray_img->save("out_gray_640x480_histeq_adaptive.png");
             delete gray_img;
 
             gray_img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             gray_img->histeq(false, 10);
-            log::info("gray_img.histeq(true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray_img.histeq(true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             gray_img->save("out_gray_640x480_histeq_clip_limit_10.png");
             delete gray_img;
 
             gray_img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image mask_img = image::Image(gray_img->width(), gray_img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(0, 0, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             gray_img->histeq(false, 10, &mask_img);
-            log::info("gray_img.histeq(true, 10, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray_img.histeq(true, 10, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             gray_img->save("out_gray_640x480_histeq_mask.png");
             delete gray_img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->histeq();
-            log::info("img.histeq() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.histeq() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_histeq.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->histeq(true);
-            log::info("img.histeq(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.histeq(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_histeq_adaptive.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->histeq(false, 10);
-            log::info("img.histeq(true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.histeq(true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_histeq_clip_limit_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(0, 0, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->histeq(false, 10, &mask_img);
-            log::info("img.histeq(true, 10, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.histeq(true, 10, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_histeq_mask.png");
             delete img;
         }
@@ -1724,78 +1724,78 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2);
-            log::info("img.mean() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mean.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true);
-            log::info("img.mean(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mean_thr_true.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, 10);
-            log::info("img.mean(true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mean_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, -10);
-            log::info("img.mean(true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mean_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(0, 0, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, 0, true, &mask_img);
-            log::info("img.mean(true, 10, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, 10, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mean_invert_and_mask.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2);
-            log::info("img.mean() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mean.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true);
-            log::info("img.mean(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mean_thr_true.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, 10);
-            log::info("img.mean(true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mean_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, -10);
-            log::info("img.mean(true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mean_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(0, 0, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mean(2, true, 0, true, &mask_img);
-            log::info("img.mean(true, 10, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mean(true, 10, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mean_invert_and_mask.png");
             delete img;
         }
@@ -1806,106 +1806,106 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2);
-            log::info("img.median(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.1);
-            log::info("img.median(2, 0.1) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.1) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_1.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.9);
-            log::info("img.median(2, 0.9) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.9) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_9.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true);
-            log::info("img.median(2, 0.5, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_thr_en.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, 10);
-            log::info("img.median(2, 0.5, true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, -10);
-            log::info("img.median(2, 0.5, true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, 0, true, &mask_img);
-            log::info("img.median(2, 0.5, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_median_invert_and_mask.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2);
-            log::info("img.median(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.1);
-            log::info("img.median(2, 0.1) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.1) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_1.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.9);
-            log::info("img.median(2, 0.9) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.9) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_9.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true);
-            log::info("img.median(2, 0.5, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_thr_en.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, 10);
-            log::info("img.median(2, 0.5, true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, -10);
-            log::info("img.median(2, 0.5, true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->median(2, 0.5, true, 0, true, &mask_img);
-            log::info("img.median(2, 0.5, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.median(2, 0.5, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_median_invert_and_mask.png");
             delete img;
         }
@@ -1916,78 +1916,78 @@ int _main(int argc, char* argv[])
     {
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2);
-            log::info("img.mode(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mode.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true);
-            log::info("img.mode(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mode_thr_en.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, 10);
-            log::info("img.mode(2, true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mode_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, -10);
-            log::info("img.mode(2, true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mode_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, 0, true, &mask_img);
-            log::info("img.mode(2, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_64x64_mode_invert_and_mask.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2);
-            log::info("img.mode(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mode.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true);
-            log::info("img.mode(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mode_thr_en.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, 10);
-            log::info("img.mode(2, true, 10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, 10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mode_oft_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, -10);
-            log::info("img.mode(2, true, -10) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, -10) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mode_oft_neg_10.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image mask_img = image::Image(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->mode(2, true, 0, true, &mask_img);
-            log::info("img.mode(2, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.mode(2, true, 0, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_64x64_mode_invert_and_mask.png");
             delete img;
         }
@@ -2000,37 +2000,37 @@ int _main(int argc, char* argv[])
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2);
-            log::info("img.midpoint(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2);
-            log::info("img.midpoint(2, 0.2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint_bias0.2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true);
-            log::info("img.midpoint(2, 0.2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint_bias0.2_thr.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true, -20);
-            log::info("img.midpoint(2, 0.2, true, -20) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true, -20) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint_bias0.2_thr_oft20.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true, -20, true, &mask_img);
-            log::info("img.midpoint(2, 0.2, true, -20, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true, -20, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_midpoint_bias0.2_thr_oft20_invert.png");
             delete img;
         }
@@ -2039,37 +2039,37 @@ int _main(int argc, char* argv[])
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2);
-            log::info("img.midpoint(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2);
-            log::info("img.midpoint(2, 0.2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint_bias0.2.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true);
-            log::info("img.midpoint(2, 0.2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint_bias0.2_thr.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true, -20);
-            log::info("img.midpoint(2, 0.2, true, -20) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true, -20) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint_bias0.2_thr_oft20.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->midpoint(2, 0.2, true, -20, true, &mask_img);
-            log::info("img.midpoint(2, 0.2, true, -20, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.midpoint(2, 0.2, true, -20, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_midpoint_bias0.2_thr_oft20_invert.png");
             delete img;
         }
@@ -2086,44 +2086,44 @@ int _main(int argc, char* argv[])
                                         -2, 12, -2,
                                         -1, -2, -1};
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->morph(1, kernel);
-            log::info("img.morph(1, kernel) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200);
-            log::info("img.morph(1, kernel, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200, 200);
-            log::info("img.morph(1, kernel, 200, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3_mul200_add20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200, 200, true);
-            log::info("img.morph(1, kernel, 200, 200, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200, 200, true, 20);
-            log::info("img.morph(1, kernel, 200, 200, true, 20) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true, 20) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200, 200, true, 20, true, &mask_img);
-            log::info("img.morph(1, kernel, 200, 200, true, 20, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true, 20, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_morph_kernel3x3_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2136,44 +2136,44 @@ int _main(int argc, char* argv[])
                                         -2, 12, -2,
                                         -1, -2, -1};
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->morph(1, kernel);
-            log::info("img.morph(1, kernel) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->morph(1, kernel, 200);
-            log::info("img.morph(1, kernel, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->morph(1, kernel, 200, 200);
-            log::info("img.morph(1, kernel, 200, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3_mul200_add20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->morph(1, kernel, 200, 200, true);
-            log::info("img.morph(1, kernel, 200, 200, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->morph(1, kernel, 200, 200, true, 20);
-            log::info("img.morph(1, kernel, 200, 200, true, 20) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true, 20) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->morph(1, kernel, 200, 200, true, 20, true, &mask_img);
-            log::info("img.morph(1, kernel, 200, 200, true, 20, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.morph(1, kernel, 200, 200, true, 20, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_morph_kernel3x3_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2187,51 +2187,51 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gaussian(2);
-            log::info("img.gaussian(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true);
-            log::info("img.gaussian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true, 0.005);
-            log::info("img.gaussian(2, true, 0.005) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, true, 0.005) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true, 0.005, 200);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp_mul200_add200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true, 0.005, 200, true);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true, 0.005, 200, true, 20);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->gaussian(2, true, 0.005, 200, true, 20, true, &mask_img);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_gaussian_size2_unsharp_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2241,51 +2241,51 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->gaussian(1);
-            log::info("img.gaussian(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true, 0.005);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true, 0.005, 200);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp_mul200_add200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true, 0.005, 200, true);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true, 0.005, 200, true, 20);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->gaussian(2, true, 0.005, 200, true, 20, true, &mask_img);
-            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.gaussian(2, 200) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_gaussian_size2_unsharp_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2299,51 +2299,51 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->laplacian(2);
-            log::info("img.laplacian(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true, 0.005);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true, 0.005, 200);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen_mul200_add200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true, 0.005, 200, true);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true, 0.005, 200, true, 20);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->laplacian(2, true, 0.005, 200, true, 20, true, &mask_img);
-            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(2, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_laplacian_size2_sharpen_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2353,51 +2353,51 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->laplacian(1);
-            log::info("img.laplacian(1) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true, 200);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen_mul200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true, 200, 200);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen_mul200_add200.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true, 200, 200, true);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen_mul200_add200_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true, 200, 200, true, 20);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen_mul200_add200_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->laplacian(1, true, 200, 200, true, 20, true, &mask_img);
-            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.laplacian(1, true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_laplacian_size2_sharpen_mul200_add200_thr_oft20_invert.png");
             delete img;
         }
@@ -2411,44 +2411,44 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->bilateral(2);
-            log::info("img.bilateral(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->bilateral(1, 0.5);
-            log::info("img.bilateral(1, 0.5) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.5) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2_color0.5.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->bilateral(1, 0.5, 0.1);
-            log::info("img.bilateral(1, 0.5, 0.1) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.5, 0.1) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2_color0.1_sigma0.1.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->bilateral(1, 0.1, 1, true);
-            log::info("img.bilateral(1, 0.1, 1, true)) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true)) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2_color0.1_sigma1_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->bilateral(1, 0.1, 1, true, 5);
-            log::info("img.bilateral(1, 0.1, 1, true, 5) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true, 5) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2_color0.1_sigma1_thr_oft20.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->bilateral(1, 0.1, 1, true, 5, true, &mask_img);
-            log::info("img.bilateral(1, 0.1, 1, true, 5, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true, 5, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_bilateral_size2_color0.1_sigma1_thr_oft20_invert.png");
             delete img;
         }
@@ -2458,44 +2458,44 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->bilateral(2);
-            log::info("img.bilateral(2) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(2) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->bilateral(1, 0.5);
-            log::info("img.bilateral(1, 0.5) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.5) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2_color0.5.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->bilateral(1, 0.5, 0.1);
-            log::info("img.bilateral(1, 0.5, 0.1) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.5, 0.1) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2_color0.5_sigma0.1.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->bilateral(1, 0.1, 1, true);
-            log::info("img.bilateral(1, 0.1, 1, true)) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true)) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2_color0.1_sigma1_thr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->bilateral(1, 0.1, 1, true, 5);
-            log::info("img.bilateral(1, 0.1, 1, true, 5) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true, 5) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2_color0.1_sigma1_thr_oft5.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->bilateral(1, 0.1, 1, true, 5, true, &mask_img);
-            log::info("img.bilateral(1, 0.1, 1, true, 5, true, &mask_img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.bilateral(1, 0.1, 1, true, 5, true, &mask_img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_bilateral_size2_color0.1_sigma1_thr_oft5_invert.png");
             delete img;
         }
@@ -2507,32 +2507,32 @@ int _main(int argc, char* argv[])
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->linpolar();
-            log::info("img.linpolar() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.linpolar() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_linpolar.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->linpolar(true);
-            log::info("img.linpolar(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.linpolar(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_linpolar_reverse.png");
             delete img;
         }
 
         {
             image::Image *img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->linpolar();
-            log::info("img.linpolar() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.linpolar() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_linpolar.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->linpolar(true);
-            log::info("img.linpolar(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.linpolar(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_linpolar_reverse.png");
             delete img;
         }
@@ -2546,16 +2546,16 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->logpolar();
-            log::info("img.logpolar() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.logpolar() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_logpolar.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->logpolar(true);
-            log::info("img.logpolar(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.logpolar(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_logpolar_reverse.png");
             delete img;
         }
@@ -2565,16 +2565,16 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->logpolar();
-            log::info("img.logpolar() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.logpolar() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_logpolar.png");
             delete img;
 
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->logpolar(true);
-            log::info("img.logpolar(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.logpolar(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_logpolar_reverse.png");
             delete img;
         }
@@ -2588,30 +2588,30 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_GRAYSCALE);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->lens_corr();
-            log::info("img.lens_corr() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_lens_corr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->lens_corr(2.0);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_lens_corr_strength2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->lens_corr(2.0, 0.5);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_lens_corr_strength2_zoom0.5.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_GRAYSCALE);
             img->lens_corr(2.0, 0.5, 1, 1);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_lens_corr_strength2_zoom0.5_x1,y1.png");
             delete img;
         }
@@ -2621,30 +2621,30 @@ int _main(int argc, char* argv[])
             image::Image mask_img(img->width(), img->height(), image::Format::FMT_RGB888);
             mask_img.draw_rect(mask_img.width() / 4, mask_img.height() / 4, mask_img.width() / 2, mask_img.height() / 2, 255, -1);
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->lens_corr();
-            log::info("img.lens_corr() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_lens_corr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->lens_corr(2.0);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_lens_corr_strength2.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->lens_corr(2.0, 0.5);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_lens_corr_strength2_zoom0.5.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img = image::load(test_640x480_png, image::Format::FMT_RGB888);
             img->lens_corr(2.0, 0.5, 1, 1);
-            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.lens_corr(true) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_lens_corr_strength2_zoom0.5_x1,y1.png");
             delete img;
         }
@@ -2666,15 +2666,15 @@ int _main(int argc, char* argv[])
             double fov = 60;
             std::vector<float> corners = {};
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->rotation_corr();
-            log::info("img.rotation_corr() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.rotation_corr() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_rotation_corr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans, zoom, fov, corners);
-            log::info("img.rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_rotation_corr_input.png");
             delete img;
         }
@@ -2692,15 +2692,15 @@ int _main(int argc, char* argv[])
             double fov = 60;
             std::vector<float> corners = {};
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->rotation_corr();
-            log::info("img.rotation_corr() cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.rotation_corr() cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_rotation_corr.png");
             delete img;
 
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans, zoom, fov, corners);
-            log::info("img.rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.rotation_corr(x_rot, y_rot, z_rot, x_trans, y_trans) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_rotation_corr_input.png");
             delete img;
         }
@@ -2739,9 +2739,9 @@ int _main(int argc, char* argv[])
                 difference.draw_rect(0, 0, difference.width(), difference.height(), 255, -1);
 
                 std::map<std::string, std::vector<float>> hist;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 hist = img->get_histogram(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
-                log::info("gray get histogram cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("gray get histogram cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -2798,9 +2798,9 @@ int _main(int argc, char* argv[])
                 difference.draw_rect(0, 0, difference.width(), difference.height(), 255, -1);
 
                 std::map<std::string, std::vector<float>> hist;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 hist = img->get_histogram(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
-                log::info("rgb888 get histogram cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("rgb888 get histogram cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 // Process results
                 {
@@ -2877,9 +2877,9 @@ int _main(int argc, char* argv[])
                 int b_bins = 256;
 
                 image::Statistics statistics;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 statistics = img->get_statistics(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
-                log::info("gray get statistics cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("gray get statistics cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 std::map<std::string, std::vector<float>> hist;
                 hist = img->get_histogram(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
@@ -2943,9 +2943,9 @@ int _main(int argc, char* argv[])
                 int a_bins = 256;
                 int b_bins = 256;
                 image::Statistics statistics;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 statistics = img->get_statistics(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
-                log::info("rgb888 get statistics cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("rgb888 get statistics cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 std::map<std::string, std::vector<float>> hist;
                 hist = img->get_histogram(thresholds, invert, roi, bins, l_bins, a_bins, b_bins, NULL);
@@ -3033,9 +3033,9 @@ int _main(int argc, char* argv[])
                 int pixels_threshold = 100;
                 int robust = false;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->get_regression(thresholds, invert, roi, x_stride, y_stride, area_threshold, pixels_threshold, robust);
-                log::info("gray get regression %d cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("gray get regression %d cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -3095,9 +3095,9 @@ int _main(int argc, char* argv[])
                 int pixels_threshold = 100;
                 int robust = false;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->get_regression(thresholds, invert, roi, x_stride, y_stride, area_threshold, pixels_threshold, robust);
-                log::info("rgb888 get regression %d cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("rgb888 get regression %d cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &l : lines) {
@@ -3137,23 +3137,23 @@ int _main(int argc, char* argv[])
 
             //
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_flood_fill.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100, 0.10, 0.10, image::COLOR_WHITE);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_flood_fill_seed_floating.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100, 0.10, 0.10, image::COLOR_WHITE, true, true, &mask_img);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_flood_fill_seed_floating_invert.png");
             delete img;
 
@@ -3168,23 +3168,23 @@ int _main(int argc, char* argv[])
 
             //
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_flood_fill.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100, 0.10, 0.10, image::COLOR_WHITE);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_flood_fill_seed_floating.png");
             delete img;
 
             img = src_img->copy();
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->flood_fill(100, 100, 0, 0, image::COLOR_WHITE, false, false, &mask_img);
-            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("img.flood_fill(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_flood_fill_seed_floating_invert.png");
             delete img;
 
@@ -3204,9 +3204,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->erode(2, -1, &mask_img);
-            log::info("gray img.erode(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.erode(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_erode_mask.png");
             delete img;
 
@@ -3222,18 +3222,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->erode(2);
-            log::info("rgb888 img.erode(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.erode(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_erode.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->erode(2, -1, &mask_img);
-            log::info("rgb888 img.erode(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.erode(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_erode_mask.png");
             delete img;
 
@@ -3253,9 +3253,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->dilate(2, 0, &mask_img);
-            log::info("gray img.dilate(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.dilate(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_dilate_mask.png");
             delete img;
 
@@ -3271,18 +3271,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->dilate(2, 0);
-            log::info("rgb888 img.dilate(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.dilate(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_dilate.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->dilate(2, 0, &mask_img);
-            log::info("rgb888 img.dilate(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.dilate(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_dilate_mask.png");
             delete img;
 
@@ -3302,9 +3302,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->open(2, 0, &mask_img);
-            log::info("gray img.open(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.open(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_open.png");
             delete img;
 
@@ -3320,18 +3320,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->open(2, 0);
-            log::info("rgb888 img.open(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.open(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_open.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->open(2, 0, &mask_img);
-            log::info("rgb888 img.open(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.open(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_open_mask.png");
             delete img;
 
@@ -3351,9 +3351,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->close(2, 0, &mask_img);
-            log::info("gray img.close(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.close(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_close.png");
             delete img;
 
@@ -3369,18 +3369,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->close(2, 0);
-            log::info("rgb888 img.close(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.close(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_close.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->close(2, 0, &mask_img);
-            log::info("rgb888 img.close(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.close(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_close_mask.png");
             delete img;
 
@@ -3400,9 +3400,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->top_hat(2, 0, &mask_img);
-            log::info("gray img.top_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.top_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_top_hat.png");
             delete img;
 
@@ -3418,18 +3418,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->top_hat(2, 0);
-            log::info("rgb888 img.top_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.top_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_top_hat.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->top_hat(2, 0, &mask_img);
-            log::info("rgb888 img.top_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.top_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_top_hat_mask.png");
             delete img;
 
@@ -3449,9 +3449,9 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{20, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->black_hat(2, 0, &mask_img);
-            log::info("gray img.black_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("gray img.black_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_gray_640x480_black_hat.png");
             delete img;
 
@@ -3467,18 +3467,18 @@ int _main(int argc, char* argv[])
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->black_hat(2, 0);
-            log::info("rgb888 img.black_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.black_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_black_hat.png");
             delete img;
 
             //
             img = src_img->copy();
             img->binary({{10, 80}});
-            start_time = time::time_us();
+            start_time = time::ticks_us();
             img->black_hat(2, 0, &mask_img);
-            log::info("rgb888 img.black_hat(img) cost %d us\r\n", (int)(time::time_us() - start_time));
+            log::info("rgb888 img.black_hat(img) cost %d us\r\n", (int)(time::ticks_us() - start_time));
             img->save("out_rgb888_640x480_black_hat_mask.png");
             delete img;
 
@@ -3520,9 +3520,9 @@ int _main(int argc, char* argv[])
                 int x_hist_bins_max = 2;
                 int y_hist_bins_max = 2;
                 std::vector<image::Blob> blobs;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 blobs = img->find_blobs(thresholds, invert, roi, x_stride, y_stride, area_threshold, pixels_threshold, merge, margin, x_hist_bins_max, y_hist_bins_max);
-                log::info("find %d blobs cost %d us\r\n", blobs.size(), (int)(time::time_us() - start_time));
+                log::info("find %d blobs cost %d us\r\n", blobs.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -3631,9 +3631,9 @@ int _main(int argc, char* argv[])
                 int x_hist_bins_max = 2;
                 int y_hist_bins_max = 2;
                 std::vector<image::Blob> blobs;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 blobs = img->find_blobs(thresholds, invert, roi, x_stride, y_stride, area_threshold, pixels_threshold, merge, margin, x_hist_bins_max, y_hist_bins_max);
-                log::info("find %d blobs cost %d us\r\n", blobs.size(), (int)(time::time_us() - start_time));
+                log::info("find %d blobs cost %d us\r\n", blobs.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : blobs) {
@@ -3741,9 +3741,9 @@ int _main(int argc, char* argv[])
                 int theta_margin = 30;
                 int rho_margin = 30;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->find_lines(roi, x_stride, y_stride, threshold, theta_margin, rho_margin);
-                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -3798,9 +3798,9 @@ int _main(int argc, char* argv[])
                 int theta_margin = 30;
                 int rho_margin = 30;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->find_lines(roi, x_stride, y_stride, threshold, theta_margin, rho_margin);
-                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &l : lines) {
@@ -3856,9 +3856,9 @@ int _main(int argc, char* argv[])
                 int merge_distance = 1;
                 int max_theta_difference = 20;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->find_line_segments(roi, merge_distance, max_theta_difference);
-                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -3910,9 +3910,9 @@ int _main(int argc, char* argv[])
                 int merge_distance = 20;
                 int max_theta_difference = 20;
                 std::vector<image::Line> lines;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 lines = img->find_line_segments(roi, merge_distance, max_theta_difference);
-                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::time_us() - start_time));
+                log::info("find %d lines cost %d us\r\n", lines.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &l : lines) {
@@ -3975,9 +3975,9 @@ int _main(int argc, char* argv[])
                 int r_max = 50;
                 int r_step = 2;
                 std::vector<image::Circle> circles;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 circles = img->find_circles(roi, x_stride, y_stride, threshold, x_margin, y_margin, r_margin, r_min, r_max, r_step);
-                log::info("find %d circles cost %d us\r\n", circles.size(), (int)(time::time_us() - start_time));
+                log::info("find %d circles cost %d us\r\n", circles.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4029,9 +4029,9 @@ int _main(int argc, char* argv[])
                 int r_max = 50;
                 int r_step = 2;
                 std::vector<image::Circle> circles;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 circles = img->find_circles(roi, x_stride, y_stride, threshold, x_margin, y_margin, r_margin, r_min, r_max, r_step);
-                log::info("find %d circles cost %d us\r\n", circles.size(), (int)(time::time_us() - start_time));
+                log::info("find %d circles cost %d us\r\n", circles.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : circles) {
@@ -4079,9 +4079,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int threshold = 1000;
                 std::vector<image::Rect> rects;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 rects = img->find_rects(roi, threshold);
-                log::info("find %d rects cost %d us\r\n", rects.size(), (int)(time::time_us() - start_time));
+                log::info("find %d rects cost %d us\r\n", rects.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4134,9 +4134,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int threshold = 1000;
                 std::vector<image::Rect> rects;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 rects = img->find_rects(roi, threshold);
-                log::info("find %d rects cost %d us\r\n", rects.size(), (int)(time::time_us() - start_time));
+                log::info("find %d rects cost %d us\r\n", rects.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : rects) {
@@ -4188,9 +4188,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 std::vector<image::QRCode> qrcodes;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 qrcodes = img->find_qrcodes(roi);
-                log::info("find %d qrcodes cost %d us\r\n", qrcodes.size(), (int)(time::time_us() - start_time));
+                log::info("find %d qrcodes cost %d us\r\n", qrcodes.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4262,9 +4262,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 std::vector<image::QRCode> qrcodes;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 qrcodes = img->find_qrcodes(roi);
-                log::info("find %d qrcodes cost %d us\r\n", qrcodes.size(), (int)(time::time_us() - start_time));
+                log::info("find %d qrcodes cost %d us\r\n", qrcodes.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : qrcodes) {
@@ -4345,9 +4345,9 @@ int _main(int argc, char* argv[])
                 int cx = img->width() / 2;
                 int cy = img->height() / 2;
                 std::vector<image::AprilTag> apriltags;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 apriltags = img->find_apriltags(roi, families, fx, fy, cx, cy);
-                log::info("find %d apriltags cost %d us\r\n", apriltags.size(), (int)(time::time_us() - start_time));
+                log::info("find %d apriltags cost %d us\r\n", apriltags.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4424,7 +4424,7 @@ int _main(int argc, char* argv[])
                 float fx = -1;
                 float fy = -1;
                 std::vector<image::AprilTag> apriltags;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 maix::image::Image *resize_img = img->resize(160, 120);
                 int cx = resize_img->width() / 2;
                 int cy = resize_img->height() / 2;
@@ -4434,11 +4434,11 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {0, 0, resize_img->width(), resize_img->height()};
                 apriltags = resize_img->find_apriltags(roi, families, fx, fy, cx, cy);
                 delete resize_img;
-                log::info("find %d apriltags cost %d us\r\n", apriltags.size(), (int)(time::time_us() - start_time));
+                log::info("find %d apriltags cost %d us\r\n", apriltags.size(), (int)(time::ticks_us() - start_time));
 
                 static uint64_t last_us = 0;
-                log::info("loop cost %d us\r\n", (int)(time::time_us() - last_us));
-                last_us = time::time_us();
+                log::info("loop cost %d us\r\n", (int)(time::ticks_us() - last_us));
+                last_us = time::ticks_us();
 
                 // Process results
                 for (auto &a : apriltags) {
@@ -4531,9 +4531,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int effort = 200;
                 std::vector<image::DataMatrix> datamatrices;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 datamatrices = img->find_datamatrices(roi, effort);
-                log::info("find %d datamatrices cost %d us\r\n", datamatrices.size(), (int)(time::time_us() - start_time));
+                log::info("find %d datamatrices cost %d us\r\n", datamatrices.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4600,9 +4600,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int effort = 200;
                 std::vector<image::DataMatrix> datamatrices;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 datamatrices = img->find_datamatrices(roi, effort);
-                log::info("find %d datamatrices cost %d us\r\n", datamatrices.size(), (int)(time::time_us() - start_time));
+                log::info("find %d datamatrices cost %d us\r\n", datamatrices.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : datamatrices) {
@@ -4672,9 +4672,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 std::vector<image::BarCode> barcodes;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 barcodes = img->find_barcodes(roi);
-                log::info("find %d barcodes cost %d us\r\n", barcodes.size(), (int)(time::time_us() - start_time));
+                log::info("find %d barcodes cost %d us\r\n", barcodes.size(), (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4737,9 +4737,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 std::vector<image::BarCode> barcodes;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 barcodes = img->find_barcodes(roi);
-                log::info("find %d barcodes cost %d us\r\n", barcodes.size(), (int)(time::time_us() - start_time));
+                log::info("find %d barcodes cost %d us\r\n", barcodes.size(), (int)(time::ticks_us() - start_time));
 
                 // Process results
                 for (auto &a : barcodes) {
@@ -4849,9 +4849,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = template_roi;
                 bool logpolar = true;
                 image::Displacement displacement;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 displacement = img->find_displacement(*new_template_img, roi, template_roi, logpolar);
-                log::info("find %d displacement cost %d us\r\n", 1, (int)(time::time_us() - start_time));
+                log::info("find %d displacement cost %d us\r\n", 1, (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -4948,9 +4948,9 @@ int _main(int argc, char* argv[])
                 image::TemplateMatch search = image::SEARCH_DS;
                 // image::TemplateMatch search = image::SEARCH_EX;
                 std::vector<int> template_rect;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 template_rect = img->find_template(*new_template_img, threshold, roi, step, search);
-                log::info("find %d template_roi cost %d us\r\n", template_roi.size() != 0 ? 1 : 0, (int)(time::time_us() - start_time));
+                log::info("find %d template_roi cost %d us\r\n", template_roi.size() != 0 ? 1 : 0, (int)(time::ticks_us() - start_time));
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
                 img = new_rgb_img;
@@ -5002,9 +5002,9 @@ int _main(int argc, char* argv[])
                 // image::TemplateMatch search = image::SEARCH_DS;
                 image::TemplateMatch search = image::SEARCH_EX;
                 std::vector<int> template_rect;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 template_rect = img->find_template(*new_template_img, threshold, roi, step, search);
-                log::info("find %d template_roi cost %d us\r\n", template_roi.size() != 0 ? 1 : 0, (int)(time::time_us() - start_time));
+                log::info("find %d template_roi cost %d us\r\n", template_roi.size() != 0 ? 1 : 0, (int)(time::ticks_us() - start_time));
 
                 // Process results
                 if (template_rect.size() >= 4) {
@@ -5070,14 +5070,14 @@ int _main(int argc, char* argv[])
                 std::vector<int> first_keypoint_roi = {img->width() / 8, img->height() / 8, img->width() / 4, img->height() / 4};
                 int distance = 0;
                 if (need_first_keypoint && key == 's') {
-                    start_time = time::time_us();
+                    start_time = time::ticks_us();
                     first_keypoint = img->find_lbp(first_keypoint_roi);
-                    log::info("find first lbp cost %d us\r\n", (int)(time::time_us() - start_time));
+                    log::info("find first lbp cost %d us\r\n", (int)(time::ticks_us() - start_time));
                     need_first_keypoint = 0;
                 } else if (!need_first_keypoint) {
-                    start_time = time::time_us();
+                    start_time = time::ticks_us();
                     image::LBPKeyPoint keypoint = img->find_lbp(roi);
-                    log::info("find other lbp cost %d us\r\n", (int)(time::time_us() - start_time));
+                    log::info("find other lbp cost %d us\r\n", (int)(time::ticks_us() - start_time));
                     // distance = img->match_lbp_descriptor(first_keypoint, keypoint);
                 }
 
@@ -5142,14 +5142,14 @@ int _main(int argc, char* argv[])
                 std::vector<int> first_keypoint_roi = {img->width() / 8, img->height() / 8, img->width() / 4, img->height() / 4};
                 int distance = 0;
                 if (need_first_keypoint && key == 's') {
-                    start_time = time::time_us();
+                    start_time = time::ticks_us();
                     first_keypoint = img->find_lbp(first_keypoint_roi);
-                    log::info("find first lbp cost %d us\r\n", (int)(time::time_us() - start_time));
+                    log::info("find first lbp cost %d us\r\n", (int)(time::ticks_us() - start_time));
                     need_first_keypoint = 0;
                 } else if (!need_first_keypoint) {
-                    start_time = time::time_us();
+                    start_time = time::ticks_us();
                     image::LBPKeyPoint keypoint = img->find_lbp(roi);
-                    log::info("find other lbp cost %d us\r\n", (int)(time::time_us() - start_time));
+                    log::info("find other lbp cost %d us\r\n", (int)(time::ticks_us() - start_time));
                     // distance = img->match_lbp_descriptor(first_keypoint, keypoint);
                 }
 
@@ -5206,9 +5206,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 image::EdgeDetector edge_type = image::EDGE_CANNY;
                 std::vector<int> threshold = {100, 200};
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 img = img->find_edges(edge_type, roi, threshold);
-                log::info("find edges cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("find edges cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -5249,9 +5249,9 @@ int _main(int argc, char* argv[])
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 image::EdgeDetector edge_type = image::EDGE_CANNY;
                 std::vector<int> threshold = {100, 200};
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 img->find_edges(edge_type, roi, threshold);
-                log::info("find edges cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("find edges cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 // Process results
                 // None
@@ -5295,9 +5295,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int size = 8;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 img = img->find_hog(roi, size);
-                log::info("find hog cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("find hog cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 image::Image *new_rgb_img = img->to_format(image::Format::FMT_RGB888);
                 delete img;
@@ -5337,9 +5337,9 @@ int _main(int argc, char* argv[])
                 // Process find
                 std::vector<int> roi = {img->width() / 4, img->height() / 4, img->width() / 2, img->height() / 2};
                 int size = 8;
-                start_time = time::time_us();
+                start_time = time::ticks_us();
                 img = img->find_hog(roi, size);
-                log::info("find edges cost %d us\r\n", (int)(time::time_us() - start_time));
+                log::info("find edges cost %d us\r\n", (int)(time::ticks_us() - start_time));
 
                 // Process results
                 // None

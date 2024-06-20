@@ -18,18 +18,18 @@ namespace maix::http
 		}
 
         err::Err JpegStreamer::start() {
-
+			return err::ERR_NOT_IMPL;
 		}
 
         err::Err JpegStreamer::stop() {
-
+			return err::ERR_NOT_IMPL;
 		}
 
         err::Err JpegStreamer::write(image::Image *img) {
-
+			return err::ERR_NOT_IMPL;
 		}
 
         err::Err JpegStreamer::set_html(std::string data) {
-
+			return err::ERR_NOT_IMPL;
 		}
 }

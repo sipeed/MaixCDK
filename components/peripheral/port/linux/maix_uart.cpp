@@ -254,7 +254,7 @@ namespace maix::peripheral::uart
 		}
 		// self.oneByteTime = 1 / (self.com.baudrate / (self.com.bytesize + 2 + self.com.stopbits)) # 1 byte use time
 		_one_byte_time_us = 1000000.0 / (_baudrate / (_databits + 2 + (_stopbits == STOP_1_5 ? 1.5 : _stopbits)));
-		log::info("one byte time: %d", _one_byte_time_us);
+		log::debug("one byte time: %d", _one_byte_time_us);
 		return err::ERR_NONE;
 	}
 
@@ -383,7 +383,7 @@ namespace maix::peripheral::uart
 	{
 		if (!is_open())
 			return -err::ERR_NOT_OPEN;
-		uint64_t t = time::time_ms();
+		uint64_t t = time::ticks_ms();
 		int read_len = 0;
 		if (recv_len == -1)
 		{
@@ -405,7 +405,7 @@ namespace maix::peripheral::uart
 				{
 					read_len += len;
 				}
-				if (timeout > 0 && (time::time_ms() - t) < (uint64_t)timeout)
+				if (timeout > 0 && (time::ticks_ms() - t) < (uint64_t)timeout)
 					time::sleep_ms(1);
 				else if (available(0) > 0)
 					continue;
@@ -424,7 +424,7 @@ namespace maix::peripheral::uart
 		{
 			do
 			{
-				if (available(timeout - (time::time_ms() - t)))
+				if (available(timeout - (time::ticks_ms() - t)))
 				{
 					int len = _uart_read(_fd, buff + read_len, recv_len - read_len);
 					if (len < 0)
@@ -434,7 +434,7 @@ namespace maix::peripheral::uart
 					}
 					read_len += len;
 				}
-			} while (read_len < recv_len && (timeout < 0 || (timeout > 0 && (time::time_ms() - t) < (uint64_t)timeout)));
+			} while (read_len < recv_len && (timeout < 0 || (timeout > 0 && (time::ticks_ms() - t) < (uint64_t)timeout)));
 			return read_len;
 		}
 		throw err::Exception(err::ERR_ARGS, "recv_len must be -1 or > 0");
@@ -446,11 +446,11 @@ namespace maix::peripheral::uart
 		int buff_len = len > 0 ? len : 512;
 		Bytes *data = new Bytes(NULL, buff_len);
 		int received = 0;
-		uint64_t t = time::time_ms();
+		uint64_t t = time::ticks_ms();
 		int t2;
 		while(1)
 		{
-			t2 = (int)(time::time_ms() - t);
+			t2 = (int)(time::ticks_ms() - t);
 			if(timeout > 0 && t2 >= timeout)
 				break;
 			read_len = read(data->data + received, buff_len - received, len > 0 ? len - received : len, timeout > 0 ? t2 : timeout);
@@ -458,7 +458,7 @@ namespace maix::peripheral::uart
 				read_len = 0;
 			received += read_len;
 			data->data_len = received;
-			if(timeout > 0 && (int)(time::time_ms() - t) >= timeout)
+			if(timeout > 0 && (int)(time::ticks_ms() - t) >= timeout)
 				break;
 			else if(received == buff_len)
 			{
@@ -482,11 +482,11 @@ namespace maix::peripheral::uart
 			throw err::Exception(err::ERR_ARGS, "timeout must be -1 or > 0");
 		}
 		Bytes *data = new Bytes(NULL, buff_len);
-		uint64_t t = time::time_ms();
+		uint64_t t = time::ticks_ms();
 		do
 		{
 			uint8_t chr;
-			int len = this->read(&chr, 1, 1, (timeout < 0 ? -1 : (int)(time::time_ms() - t)));
+			int len = this->read(&chr, 1, 1, (timeout < 0 ? -1 : (int)(time::ticks_ms() - t)));
 			if(len < 0)
 			{
 				log::error("uart read failed: %d\n", - len);
@@ -503,7 +503,7 @@ namespace maix::peripheral::uart
 			{
 				time::sleep_ms(1);
 			}
-		} while (timeout < 0 || (timeout > 0 && (time::time_ms() - t) < (uint64_t)timeout));
+		} while (timeout < 0 || (timeout > 0 && (time::ticks_ms() - t) < (uint64_t)timeout));
 
 		data->data_len = read_len;
 		return data;

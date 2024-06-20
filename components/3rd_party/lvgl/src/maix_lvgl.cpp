@@ -21,7 +21,7 @@ namespace maix
 
     static inline uint32_t get_time_ms()
     {
-        return time::time_ms();
+        return time::ticks_ms();
     }
 
     void lvgl_init(display::Display *display, touchscreen::TouchScreen *touchscreen)

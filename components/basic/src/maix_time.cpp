@@ -5,7 +5,6 @@
  * @update 2023.9.8: Add framework, create this file.
  */
 
-
 #include "maix_time.hpp"
 
 #include <time.h>
@@ -43,8 +42,36 @@ namespace maix::time
 
     double time_diff(double last, double now)
     {
-        if(now < 0)
+        if (now < 0)
             now = time();
+        return now - last;
+    }
+
+    double ticks_s()
+    {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec + ts.tv_nsec / 1000000000.0;
+    }
+
+    uint64_t ticks_ms()
+    {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    }
+
+    uint64_t ticks_us()
+    {
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+    }
+
+    double ticks_diff(double last, double now)
+    {
+        if (now < 0)
+            now = ticks_s();
         return now - last;
     }
 
