@@ -8,9 +8,9 @@ using namespace std;
 using namespace maix;
 
 uint64_t t = 0;
-#define t_start() t = time::time_us()
-#define t_end(msg) do{log::info("%s cost: %d us", msg, time::time_us() - t);}while(0)
-#define t_end_start(msg) do{log::info("%s cost: %d us", msg, time::time_us() - t);t_start();}while(0)
+#define t_start() t = time::ticks_us()
+#define t_end(msg) do{log::info("%s cost: %d us", msg, time::ticks_us() - t);}while(0)
+#define t_end_start(msg) do{log::info("%s cost: %d us", msg, time::ticks_us() - t);t_start();}while(0)
 
 void opencv_ops(cv::Mat &rgb)
 {
@@ -163,27 +163,27 @@ void opencv_ops(cv::Mat &rgb)
 void opencv_test(string &img_path)
 {
     // read
-    uint64_t t = time::time_ms();
+    uint64_t t = time::ticks_ms();
     cv::Mat img = cv::imread(img_path);
-    log::info("read image cost: %d ms", time::time_ms() - t);
+    log::info("read image cost: %d ms", time::ticks_ms() - t);
     if (img.empty())
     {
         printf("read image failed: %s\n", img_path.c_str());
         return;
     }
-    t = time::time_ms();
+    t = time::ticks_ms();
     // draw rectangle on center
     cv::rectangle(img, cv::Point(img.cols/4, img.rows/4), cv::Point(img.cols*3/4, img.rows*3/4), cv::Scalar(0, 0, 255), 2);
-    log::info("draw rectangle cost: %d ms", time::time_ms() - t);
+    log::info("draw rectangle cost: %d ms", time::ticks_ms() - t);
     // save to file
     string out_path = img_path + ".out.png";
-    t = time::time_ms();
+    t = time::ticks_ms();
     cv::imwrite(out_path, img);
-    log::info("save image cost: %d ms", time::time_ms() - t);
+    log::info("save image cost: %d ms", time::ticks_ms() - t);
 
-    t = time::time_ms();
+    t = time::ticks_ms();
     opencv_ops(img);
-    log::info("opencv ops cost: %d ms", time::time_ms() - t);
+    log::info("opencv ops cost: %d ms", time::ticks_ms() - t);
 }
 
 

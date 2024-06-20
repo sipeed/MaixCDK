@@ -9,6 +9,7 @@
 #include "maix_nn.hpp"
 #include "maix_basic.hpp"
 #include "inifile.h"
+#include "maix_nn_self_learn_classifier.hpp"
 
 #if PLATFORM_MAIXCAM
     #include "maix_nn_maixcam.hpp"
@@ -195,6 +196,15 @@ namespace maix::nn
     tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result)
     {
         return _impl->forward_image(img, mean, scale, fit, copy_result);
+    }
+
+    int SelfLearnClassifier::learn()
+    {
+        #if PLATFORM_MAIXCAM
+            return maix_nn_self_learn_classifier_learn(_features, _features_sample, _feature_num);
+        #else
+            throw err::Exception(err::ERR_NOT_IMPL);
+        #endif
     }
 
 } // namespace maix::nn

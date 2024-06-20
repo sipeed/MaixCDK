@@ -39,7 +39,7 @@ int _main(int argc, char* argv[])
 
     rtsp.start();
 
-    uint64_t last_ms = time::time_ms();
+    uint64_t last_ms = time::ticks_ms();
     while(!app::need_exit()) {
         cnt ++;
         image::Color color = image::COLOR_BLACK;
@@ -61,7 +61,7 @@ int _main(int argc, char* argv[])
         disp.show(*img);
         delete img;
 
-        uint64_t curr_ms = time::time_ms();
+        uint64_t curr_ms = time::ticks_ms();
         log::info("loop use %lld ms\r\n", curr_ms - last_ms);
         last_ms = curr_ms;
     }

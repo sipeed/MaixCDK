@@ -73,7 +73,7 @@ static std::vector<std::string> split(const std::string &s, const std::string &d
 
 int _main(int argc, char* argv[])
 {
-    uint64_t t = time::time_ms();
+    uint64_t t = time::ticks_ms();
     log::info("Program start");
     std::string model_type = "unknown";
     int ret = 0;
@@ -101,7 +101,7 @@ int _main(int argc, char* argv[])
     string label_path = "";
 
     nn::NN model(model_path);
-    log::info("load model %s success, time: %d ms", model_path, time::time_ms() - t);
+    log::info("load model %s success, time: %d ms", model_path, time::ticks_ms() - t);
 
     // get model info like preprocess, postprocess info, etc.
     std::map<std::string, std::string> extra_info = model.extra_info();
@@ -182,20 +182,20 @@ int _main(int argc, char* argv[])
     }
 
     log::info("load image now");
-    t = time::time_ms();
+    t = time::ticks_ms();
     maix::image::Image *img = maix::image::load(img_path, img_fmt);
     if(!img)
     {
         log::error("load image %s failed", img_path);
         return -1;
     }
-    log::info("load image %s success: %s, time: %d ms", img_path, img->to_str().c_str(), time::time_ms() - t);
+    log::info("load image %s success: %s, time: %d ms", img_path, img->to_str().c_str(), time::ticks_ms() - t);
 
     if(img->width() != inputs_info[0].shape[3] || img->height() != inputs_info[0].shape[2])
     {
         log::warn("image size not match model input size, will auto resize from %dx%d to %dx%d", img->width(), img->height(), inputs_info[0].shape[3], inputs_info[0].shape[2]);
     }
-    t = time::time_us();
+    t = time::ticks_us();
     tensor::Tensors *outputs;
     int count = 0;
     while (1)
@@ -213,7 +213,7 @@ int _main(int argc, char* argv[])
     }
     if(outputs)
     {
-        log::info("forward image success, time: %d us", (int)((time::time_us() - t) / forward_loop));
+        log::info("forward image success, time: %d us", (int)((time::ticks_us() - t) / forward_loop));
         for(auto &it : *outputs)
         {
             tensor::Tensor *tensor = it.second;

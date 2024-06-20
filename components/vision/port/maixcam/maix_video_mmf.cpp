@@ -126,7 +126,7 @@ namespace maix::video
         int stream_size = 0;
 
         uint64_t pts = 0, dts = 0;
-        uint64_t curr_ms = time::time_ms();
+        uint64_t curr_ms = time::ticks_ms();
         uint64_t diff_ms = 0;
         if (!_encode_started) {
             _encode_started = true;
