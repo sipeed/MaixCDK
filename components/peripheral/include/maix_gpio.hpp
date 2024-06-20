@@ -1,5 +1,5 @@
 /**
- * @author neucrack@sipeed, lxowalle@sipeed
+ * @author neucrack@sipeed, lxowalle@sipeed, iawak9lkm@sipeed
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
  * @update 2023.9.8: Add framework, create this file.
@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include "maix_basic.hpp"
 
 namespace maix::peripheral::gpio
 {
@@ -86,11 +87,36 @@ namespace maix::peripheral::gpio
          */
         void toggle();
 
+        /**
+         * @brief gpio get mode
+         * @maixpy maix.peripheral.gpio.GPIO.get_mode
+         */
+        gpio::Mode get_mode();
+
+        /**
+         * @brief get gpio pull
+         * @return gpio::Pull type
+         * @maixpy maix.peripheral.gpio.GPIO.get_pull
+         */
+        gpio::Pull get_pull();
+
+        /**
+         * @brief reset gpio
+         * @param[in] mode gpio mode. gpio.Mode type
+         * @param[in] pull gpio pull. gpio.Pull type
+         * For input mode, this will set gpio default status(value), if set to gpio.Pull.PULL_NONE, gpio value will be floating.
+         * For output mode, this will set gpio default status(value), if set to gpio.Pull.PULL_UP, gpio value will be 1, else 0.
+         * @return err::Err type
+         * @maixpy maix.peripheral.gpio.GPIO.reset
+         */
+        err::Err reset(gpio::Mode mode, gpio::Pull pull);
+
     private:
         std::string _pin;
         gpio::Mode  _mode;
         gpio::Pull  _pull;
         int         _fd;
+        int         _offset;
         int         _line;
         bool        _special;
     };

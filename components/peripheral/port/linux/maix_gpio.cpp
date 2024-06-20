@@ -1,5 +1,5 @@
 /**
- * @author neucrack@sipeed
+ * @author neucrack@sipeed, iawak9lkm@sipeed
  * @copyright Sipeed Ltd 2024-
  * @license Apache 2.0
  * @update 2024.5.13: update this file.
@@ -39,7 +39,6 @@ namespace maix::peripheral::gpio
 
 	GPIO::GPIO(std::string pin, gpio::Mode mode, gpio::Pull pull)
 	{
-		this->_pin = pin;
 		this->_mode = mode;
 		this->_pull = pull;
 		this->_fd = 0;
@@ -160,5 +159,48 @@ namespace maix::peripheral::gpio
 			high();
 		else
 			low();
+	}
+
+	gpio::Mode GPIO::get_mode()
+	{
+		return _mode;
+	}
+
+	gpio::Pull GPIO::get_pull()
+	{
+		return _pull;
+	}
+
+	err::Err GPIO::reset(gpio::Mode mode, gpio::Pull pull)
+	{
+		if (mode == _mode && pull == _pull)
+			return err::ERR_NONE;
+
+		if (this->_line > 0) {
+			::close(this->_line);
+			this->_line = -1;
+		}
+
+		struct gpiohandle_request req;
+		::memset(&req, 0, sizeof(req));
+		req.lineoffsets[0] = _offset;
+		req.lines = 1;
+		if (mode == gpio::Mode::IN)
+			req.flags = GPIOHANDLE_REQUEST_INPUT;
+		else if (mode == gpio::Mode::OUT)
+			req.flags = GPIOHANDLE_REQUEST_OUTPUT;
+		else if (mode == gpio::Mode::OUT_OD)
+			req.flags = GPIOHANDLE_REQUEST_OUTPUT | GPIOHANDLE_REQUEST_OPEN_DRAIN;
+		req.default_values[0] = (pull == gpio::Pull::PULL_UP ? 1 : 0);
+		::strncpy(req.consumer_label, "maix_gpio", sizeof(req.consumer_label));
+		if (::ioctl(_fd, GPIO_GET_LINEHANDLE_IOCTL, &req) < 0) {
+			log::error("gpio set mode err: %s", ::strerror(errno));
+			return err::ERR_IO;
+		}
+
+		this->_line = req.fd;
+		this->_mode = mode;
+		this->_pull = pull;
+		return err::ERR_NONE;
 	}
 }; // namespace maix::peripheral::gpio
