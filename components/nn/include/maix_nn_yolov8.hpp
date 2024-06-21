@@ -327,30 +327,34 @@ namespace maix::nn
          * @param points keypoits, int list type, [x, y, x, y ...]
          * @param radius radius of points.
          * @param color color of points.
+         * @param body true, if points' length is 17*2 and body is ture, will draw lines as human body, if set to false won't draw lines, default true.
          * @maixpy maix.nn.YOLOv8.draw_pose
          */
-        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED)
+        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, bool body=true)
         {
             if (points.size() < 2 || points.size() % 2 != 0)
             {
                 throw std::runtime_error("keypoints size must >= 2 and multiple of 2");
                 return;
             }
-            int pos[] = {9, 7, 7, 5, 6, 8, 8, 10, 5, 11, 6, 12, 5, 6, 11, 12, 11, 13, 15, 13, 14, 12, 14, 16};
-            for (int i = 0; i < 12; ++i)
+            if(points.size() == 17 * 2 && body)
             {
-                int x1 = points[pos[i * 2] * 2];
-                int y1 = points[pos[i * 2] * 2 + 1];
-                int x2 = points[pos[i * 2 + 1] * 2];
-                int y2 = points[pos[i * 2 + 1] * 2 + 1];
-                if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
-                    continue;
-                img.draw_line(x1, y1, x2, y2, image::COLOR_RED, 2);
+                int pos[] = {9, 7, 7, 5, 6, 8, 8, 10, 5, 11, 6, 12, 5, 6, 11, 12, 11, 13, 15, 13, 14, 12, 14, 16};
+                for (int i = 0; i < 12; ++i)
+                {
+                    int x1 = points[pos[i * 2] * 2];
+                    int y1 = points[pos[i * 2] * 2 + 1];
+                    int x2 = points[pos[i * 2 + 1] * 2];
+                    int y2 = points[pos[i * 2 + 1] * 2 + 1];
+                    if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
+                        continue;
+                    img.draw_line(x1, y1, x2, y2, image::COLOR_RED, 2);
+                }
+                int x = (points[5 * 2] + points[6 * 2]) / 2;
+                int y = (points[5 * 2 + 1] + points[6 * 2 + 1]) / 2;
+                if (!(points[5 * 2] < 0 || points[5 * 2 + 1] < 0 || points[6 * 2] < 0 || points[6 * 2 + 1] < 0 || x < 0 || y < 0 || points[0] < 0 || points[1] < 0))
+                    img.draw_line(points[0], points[1], x, y, image::COLOR_RED, 2);
             }
-            int x = (points[5 * 2] + points[6 * 2]) / 2;
-            int y = (points[5 * 2 + 1] + points[6 * 2 + 1]) / 2;
-            if (!(points[5 * 2] < 0 || points[5 * 2 + 1] < 0 || points[6 * 2] < 0 || points[6 * 2 + 1] < 0 || x < 0 || y < 0 || points[0] < 0 || points[1] < 0))
-                img.draw_line(points[0], points[1], x, y, image::COLOR_RED, 2);
             for (size_t i = 0; i < points.size() / 2; ++i)
             {
                 int x = points[i * 2];
@@ -420,6 +424,7 @@ namespace maix::nn
 
         tensor::Tensor *_decode_objs(std::vector<nn::Object> &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h)
         {
+            float stride[3] = {8, 16, 32};
             tensor::Tensor *score_out = NULL; // shape 1, 80, 8400, 1
             tensor::Tensor *box_out = NULL;   // shape 1,  1,    4, 8400
             tensor::Tensor *kp_out = NULL;    // shape 1, 51, 8400, 1
@@ -429,19 +434,22 @@ namespace maix::nn
                 {
                     box_out = i.second;
                 }
-                else if (i.second->shape()[1] == 51) // 17 * 3
-                {
-                    kp_out = i.second;
-                }
-                else
+                else if(strstr(i.first.c_str(), "Sigmoid") > 0)
                 {
                     score_out = i.second;
                 }
+                else
+                {
+                    kp_out = i.second;
+                }
+            }
+            if(!score_out || !kp_out)
+            {
+                throw err::Exception(err::ERR_ARGS, "model output not valid");
             }
             int total_box_num = box_out->shape()[3];
             // int class_num = this->labels.size();
             int class_num = score_out->shape()[1];
-            float stride[3] = {8, 16, 32};
             float *scores_ptr = (float *)score_out->data();
             float *dets_ptr = (float *)box_out->data();
             int idx_start[3] = {
@@ -514,13 +522,14 @@ namespace maix::nn
         void _decode_keypoints(std::vector<nn::Object> &objs, tensor::Tensor *kp_out)
         {
             float *data = (float *)kp_out->data();
+            int keypoint_num = kp_out->shape()[1] / 3; // 1, 51, 8400, 1
             int total_box_num = kp_out->shape()[2]; // 1, 51, 8400, 1
             for (size_t i = 0; i < objs.size(); ++i)
             {
                 nn::Object &o = objs.at(i);
                 _KpInfo *kp_info = (_KpInfo *)o.temp;
                 float *p = data + kp_info->idx;
-                for (int k = 0; k < 17; ++k)
+                for (int k = 0; k < keypoint_num; ++k)
                 {
                     float score = _sigmoid(p[(k * 3 + 2) * total_box_num]);
                     int x = -1;
