@@ -434,7 +434,7 @@ namespace maix::nn
                 {
                     box_out = i.second;
                 }
-                else if(strstr(i.first.c_str(), "Sigmoid") > 0)
+                else if(strstr(i.first.c_str(), "Sigmoid") != NULL)
                 {
                     score_out = i.second;
                 }
