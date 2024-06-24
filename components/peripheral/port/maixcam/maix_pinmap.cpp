@@ -363,54 +363,76 @@ namespace maix::peripheral::pinmap
         }
         else if (pin == "A16")
         {
-            if (func == "GPIOA16")
+            if (func == "GPIOA16") {
                 set_pinmux(0x03001040, 3);
-            else if (func == "UART0_TX")
+                set_pinmux(0x0300190c, 0x44);
+            } else if (func == "UART0_TX") {
                 set_pinmux(0x03001040, 0);
-            else if (func == "PWM4")
+                set_pinmux(0x0300190c, 0x44);
+            } else if (func == "PWM4") {
                 set_pinmux(0x03001040, 2);
-            else
+                set_pinmux(0x0300190c, 0x84);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "A17")
         {
-            if (func == "GPIOA17")
+            if (func == "GPIOA17") {
                 set_pinmux(0x03001044, 3);
-            else if (func == "UART0_RX")
+                set_pinmux(0x03001910, 0x44);
+            } else if (func == "UART0_RX") {
                 set_pinmux(0x03001044, 0);
-            else if (func == "PWM5")
+                set_pinmux(0x03001910, 0x44);
+            } else if (func == "PWM5") {
                 set_pinmux(0x03001044, 2);
-            else
+                set_pinmux(0x03001910, 0x84);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "A18")
         {
-            if (func == "GPIOA18")
+            if (func == "GPIOA18") {
                 set_pinmux(0x03001068, 3);
-            else if (func == "UART1_RX")
+                set_pinmux(0x03001934, 0x44);
+            } else if (func == "UART1_RX") {
                 set_pinmux(0x03001068, 6);
-            else if (func == "PWM6")
+                set_pinmux(0x03001934, 0x44);
+            } else if (func == "PWM6") {
                 set_pinmux(0x03001068, 2);
-            else if (func == "JTAG_TCK")
+                set_pinmux(0x03001934, 0x84);
+            }  else if (func == "JTAG_TCK") {
                 set_pinmux(0x03001068, 0);
-            else
+                set_pinmux(0x03001934, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "A19")
         {
-            if (func == "GPIOA19")
+            if (func == "GPIOA19") {
                 set_pinmux(0x03001064, 3);
-            else if (func == "UART1_TX")
+                set_pinmux(0x03001930, 0x44);
+            } else if (func == "UART1_TX") {
                 set_pinmux(0x03001064, 6);
-            else if (func == "PWM7")
+                set_pinmux(0x03001930, 0x44);
+            } else if (func == "PWM7") {
                 set_pinmux(0x03001064, 2);
-            else if (func == "JTAG_TMS")
+                set_pinmux(0x03001930, 0x84);
+            } else if (func == "JTAG_TMS") {
                 set_pinmux(0x03001064, 0);
-            else
+                set_pinmux(0x03001930, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "A22")
@@ -546,98 +568,140 @@ namespace maix::peripheral::pinmap
         }
         else if (pin == "P18")
         {
-            if (func == "GPIOP18")
+            if (func == "GPIOP18") {
                 set_pinmux(0x030010D0, 3);
-            else if (func == "UART3_CTS")
+                set_pinmux(0x05027058, 0x44);
+            } else if (func == "UART3_CTS") {
                 set_pinmux(0x030010D0, 5);
-            else if (func == "I2C1_SCL")
+                set_pinmux(0x05027058, 0x44);
+            } else if (func == "I2C1_SCL") {
                 set_pinmux(0x030010D0, 2);
-            else if (func == "PWM4")
+                set_pinmux(0x05027058, 0x44);
+            } else if (func == "PWM4") {
                 set_pinmux(0x030010D0, 7);
-            else if (func == "SPI2_CS")
+                set_pinmux(0x05027058, 0x84);
+            } else if (func == "SPI2_CS") {
                 set_pinmux(0x030010D0, 1);
-            else if (func == "SDIO1_D3")
+                set_pinmux(0x05027058, 0x44);
+            } else if (func == "SDIO1_D3") {
                 set_pinmux(0x030010D0, 0);
-            else
+                set_pinmux(0x05027058, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "P19")
         {
-            if (func == "GPIOP19")
+            if (func == "GPIOP19") {
                 set_pinmux(0x030010D4, 3);
-            else if (func == "UART3_TX")
+                set_pinmux(0x0502705c, 0x44);
+            } else if (func == "UART3_TX") {
                 set_pinmux(0x030010D4, 5);
-            else if (func == "PWM5")
+                set_pinmux(0x0502705c, 0x44);
+            } else if (func == "PWM5") {
                 set_pinmux(0x030010D4, 7);
-            else if (func == "SDIO1_D2")
+                set_pinmux(0x0502705c, 0x84);
+            } else if (func == "SDIO1_D2") {
                 set_pinmux(0x030010D4, 0);
-            else
+                set_pinmux(0x0502705c, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "P20")
         {
-            if (func == "GPIOP20")
+            if (func == "GPIOP20") {
                 set_pinmux(0x030010D8, 3);
-            else if (func == "UART3_RX")
+                set_pinmux(0x05027060, 0x44);
+            } else if (func == "UART3_RX") {
                 set_pinmux(0x030010D8, 5);
-            else if (func == "PWM6")
+                set_pinmux(0x05027060, 0x44);
+            } else if (func == "PWM6") {
                 set_pinmux(0x030010D8, 7);
-            else if (func == "SDIO1_D1")
+                set_pinmux(0x05027060, 0x84);
+            } else if (func == "SDIO1_D1") {
                 set_pinmux(0x030010D8, 0);
-            else
+                set_pinmux(0x05027060, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "P21")
         {
-            if (func == "GPIOP21")
+            if (func == "GPIOP21") {
                 set_pinmux(0x030010DC, 3);
-            else if (func == "UART3_RTS")
+                set_pinmux(0x05027064, 0x44);
+            } else if (func == "UART3_RTS") {
                 set_pinmux(0x030010DC, 5);
-            else if (func == "I2C1_SDA")
+                set_pinmux(0x05027064, 0x44);
+            } else if (func == "I2C1_SDA") {
                 set_pinmux(0x030010DC, 2);
-            else if (func == "PWM7")
+                set_pinmux(0x05027064, 0x44);
+            } else if (func == "PWM7") {
                 set_pinmux(0x030010DC, 7);
-            else if (func == "SPI2_MISO")
+                set_pinmux(0x05027064, 0x84);
+            } else if (func == "SPI2_MISO") {
                 set_pinmux(0x030010DC, 1);
-            else if (func == "SDIO1_D0")
+                set_pinmux(0x05027064, 0x44);
+            } else if (func == "SDIO1_D0") {
                 set_pinmux(0x030010DC, 0);
-            else
+                set_pinmux(0x05027064, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "P22")
         {
-            if (func == "GPIOP22")
+            if (func == "GPIOP22") {
                 set_pinmux(0x030010E0, 3);
-            else if (func == "I2C3_SCL")
+                set_pinmux(0x05027068, 0x44);
+            } else if (func == "I2C3_SCL") {
                 set_pinmux(0x030010E0, 2);
-            else if (func == "PWM8")
+                set_pinmux(0x05027068, 0x44);
+            } else if (func == "PWM8") {
                 set_pinmux(0x030010E0, 7);
-            else if (func == "SPI2_MOSI")
+                set_pinmux(0x05027068, 0x84);
+            } else if (func == "SPI2_MOSI") {
                 set_pinmux(0x030010E0, 1);
-            else if (func == "SDIO1_CMD")
+                set_pinmux(0x05027068, 0x44);
+            } else if (func == "SDIO1_CMD") {
                 set_pinmux(0x030010E0, 0);
-            else
+                set_pinmux(0x05027068, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else if (pin == "P23")
         {
-            if (func == "GPIOP23")
+            if (func == "GPIOP23") {
                 set_pinmux(0x030010E4, 3);
-            else if (func == "I2C3_SDA")
+                set_pinmux(0x0502706c, 0x44);
+            } else if (func == "I2C3_SDA") {
                 set_pinmux(0x030010E4, 2);
-            else if (func == "PWM9")
+                set_pinmux(0x0502706c, 0x44);
+            } else if (func == "PWM9") {
                 set_pinmux(0x030010E4, 7);
-            else if (func == "SPI2_SCK")
+                set_pinmux(0x0502706c, 0x44);
+            } else if (func == "SPI2_SCK") {
                 set_pinmux(0x030010E4, 1);
-            else if (func == "SDIO1_CLK")
+                set_pinmux(0x0502706c, 0x84);
+            } else if (func == "SDIO1_CLK") {
                 set_pinmux(0x030010E4, 0);
-            else
+                set_pinmux(0x0502706c, 0x44);
+            } else {
                 return err::ERR_ARGS;
+            }
+
             return err::ERR_NONE;
         }
         else
