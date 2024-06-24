@@ -710,7 +710,7 @@ namespace maix::audio
         unsigned int channel = _channel;
         int len = 0;
 
-        if (!data || !data->data) {
+        if (!data || !data->data || !data->size()) {
             if (_file == NULL && _path.size() > 0) {
                 _file = fopen(_path.c_str(), "rb+");
                 err::check_null_raise(_file, "Open file failed!");
