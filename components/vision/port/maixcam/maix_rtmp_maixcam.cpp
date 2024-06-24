@@ -57,12 +57,20 @@ int maix_rtmp_client_push_h264(rtmp_client_t *client, struct flv_vec_t *vec, int
 		int raw_size = (uint8_t *)vec[i].ptr + vec[i].len - raw;
 		uint8_t nalutype = nalu[0] & 0x1f;
 		if (nalutype == 0x7 || nalutype == 0x8 || nalutype == 6) {
-			if (tmp_offset + raw_size > tmp_max_size) return -1;
+			if (tmp_offset + raw_size > tmp_max_size) {
+				free(tmp);
+				tmp = NULL;
+				return -1;
+			}
 			memcpy(tmp + tmp_offset, raw, raw_size);
 			tmp_offset += raw_size;
 
 		}  else if (nalutype == 0x5 || nalutype == 0x1) {
-			if (tmp_offset + raw_size > tmp_max_size) return -1;
+			if (tmp_offset + raw_size > tmp_max_size) {
+				free(tmp);
+				tmp = NULL;
+				return -1;
+			}
 			memcpy(tmp + tmp_offset, raw, raw_size);
 			tmp_offset += raw_size;
 
@@ -70,10 +78,13 @@ int maix_rtmp_client_push_h264(rtmp_client_t *client, struct flv_vec_t *vec, int
 			int flv_size;
 			if (0 != maix_avc2flv(tmp, tmp_offset, timestamp, timestamp, &flv, &flv_size)) {
 				printf("maix_avc2flv failed!\r\n");
+				free(tmp);
+				tmp = NULL;
 				return -1;
 			}
 			// printf("tmp_offset:%d flv:%p flv_size:%d timestamp:%d\r\n", tmp_offset, flv, flv_size, timestamp);
 			free(tmp);
+			tmp = NULL;
 			uint8_t *flv_next = flv;
 			while (1) {
 				if (flv_next >= (flv + flv_size)) break;
@@ -88,6 +99,11 @@ int maix_rtmp_client_push_h264(rtmp_client_t *client, struct flv_vec_t *vec, int
 
 			tmp_offset = 0;
 		}
+	}
+
+	if (tmp) {
+		free(tmp);
+		tmp = NULL;
 	}
 
 	return 0;
