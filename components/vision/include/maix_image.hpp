@@ -615,7 +615,7 @@ namespace maix::image
          * @brief Sets all pixels in the image to black or white depending on if the pixel is inside of a threshold in the threshold list thresholds or not.
          * @note For GRAYSCALE format, Lmin and Lmax range is [0, 255]. For RGB888 format, Lmin and Lmax range is [0, 100].
          * @param thresholds You can define multiple thresholds.
-         * For GRAYSCALE format, you can use {{Lmin, Lmax}, ...} to define one or more thresholds, and Lmin and Lmax range is [0, 255].
+         * For GRAYSCALE format, you can use {{Lmin, Lmax}, ...} to define one or more thresholds.
          * For RGB888 format, you can use {{Lmin, Lmax, Amin, Amax, Bmin, Bmax}, ...} to define one or more thresholds.
          * Where the upper case L,A,B represent the L,A,B channels of the LAB image format, and min, max represent the minimum and maximum values of the corresponding channels.
          * @param invert If true, the thresholds will be inverted before the operation. default is false.
