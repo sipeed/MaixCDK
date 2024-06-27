@@ -2345,6 +2345,273 @@ namespace maix::image
     };
 
     /**
+     * Percentile class
+     * @maixpy maix.image.Percentile
+     */
+    class Percentile {
+    private:
+        int _l_value;
+        int _a_value;
+        int _b_value;
+    public:
+        Percentile(){};
+
+        /**
+         * @brief Percentile constructor
+         * @param l_value
+         * for grayscale image, it is grayscale percentile value (between 0 and 255).
+         * for rgb888 image, it is l channel percentile value of lab (between 0 and 100).
+         * @param a_value for rgb888 image, it is a channel percentile value of lab format(between -128 and 127).
+         * @param b_value for rgb888 image, it is b channel percentile value of lab format(between -128 and 127).
+         * @maixpy maix.image.Percentile.__init__
+        */
+        Percentile(int l_value, int a_value = 0, int b_value = 0)
+        {
+            this->_l_value = l_value;
+            this->_a_value = a_value;
+            this->_b_value = b_value;
+        }
+
+        ~Percentile(){};
+
+        /**
+         * @brief Subscript operator
+         * @maixpy maix.image.Percentile.__getitem__
+         */
+        int &__getitem__(int index)
+        {
+            switch (index) {
+            case 0: return _l_value;
+            case 1: return _a_value;
+            case 2: return _b_value;
+            default:throw std::out_of_range("Percentile index out of range");
+            }
+        }
+
+        /**
+         * @brief Return the grayscale percentile value (between 0 and 255).
+         * @return returns grayscale percentile value
+         * @maixpy maix.image.Percentile.value
+        */
+        int value() {
+            return this->_l_value;
+        }
+
+        /**
+         * @brief Return the l channel percentile value of lab format (between 0 and 100).
+         * @return returns l channel percentile value
+         * @maixpy maix.image.Percentile.l_value
+        */
+        int l_value() {
+            return this->_l_value;
+        }
+
+        /**
+         * @brief Return the a channel percentile value of lab format (between -128 and 127).
+         * @return returns a channel percentile value
+         * @maixpy maix.image.Percentile.a_value
+        */
+        int a_value() {
+            return this->_a_value;
+        }
+
+        /**
+         * @brief Return the b channel percentile value of lab format (between -128 and 127).
+         * @return returns b channel percentile value
+         * @maixpy maix.image.Percentile.b_value
+        */
+        int b_value() {
+            return this->_b_value;
+        }
+    };
+
+
+    /**
+     * Threshold class
+     * @maixpy maix.image.Threshold
+     */
+    class Threshold {
+    private:
+        int _l_value;
+        int _a_value;
+        int _b_value;
+    public:
+        Threshold(){};
+
+        /**
+         * @brief Threshold constructor
+         * @param l_value
+         * for grayscale image, it is grayscale threshold value (between 0 and 255).
+         * for rgb888 image, it is l channel threshold value of lab (between 0 and 100).
+         * @param a_value for rgb888 image, it is a channel threshold value of lab format(between -128 and 127).
+         * @param b_value for rgb888 image, it is b channel threshold value of lab format(between -128 and 127).
+         * @maixpy maix.image.Threshold.__init__
+        */
+        Threshold(int l_value, int a_value = 0, int b_value = 0)
+        {
+            this->_l_value = l_value;
+            this->_a_value = a_value;
+            this->_b_value = b_value;
+        }
+
+        ~Threshold(){};
+
+        /**
+         * @brief Subscript operator
+         * @maixpy maix.image.Threshold.__getitem__
+         */
+        int &__getitem__(int index)
+        {
+            switch (index) {
+            case 0: return _l_value;
+            case 1: return _a_value;
+            case 2: return _b_value;
+            default:throw std::out_of_range("Threshold index out of range");
+            }
+        }
+
+        /**
+         * @brief Return the grayscale threshold value (between 0 and 255).
+         * @return returns grayscale threshold value
+         * @maixpy maix.image.Threshold.value
+        */
+        int value() {
+            return this->_l_value;
+        }
+
+        /**
+         * @brief Return the l channel threshold value of lab format (between 0 and 100).
+         * @return returns l channel percentile value
+         * @maixpy maix.image.Threshold.l_value
+        */
+        int l_value() {
+            return this->_l_value;
+        }
+
+        /**
+         * @brief Return the a channel threshold value of lab format (between -128 and 127).
+         * @return returns a channel percentile value
+         * @maixpy maix.image.Threshold.a_value
+        */
+        int a_value() {
+            return this->_a_value;
+        }
+
+        /**
+         * @brief Return the b channel threshold value of lab format (between -128 and 127).
+         * @return returns b channel percentile value
+         * @maixpy maix.image.Threshold.b_value
+        */
+        int b_value() {
+            return this->_b_value;
+        }
+    };
+
+    /**
+     * Histogram class
+     * @maixpy maix.image.Histogram
+     */
+    class Histogram {
+    private:
+        image::Format format;
+        std::vector<float> l_bin;
+        std::vector<float> a_bin;
+        std::vector<float> b_bin;
+    public:
+        Histogram(){};
+
+        /**
+         * Histogram constructor
+         * @param l_value
+         * for grayscale image, it is grayscale threshold value list (the range of element values in the list is 0 and 255).
+         * for rgb888 image, it is l channel threshold value list of lab (the range of element values in the list is 0 and 100).
+         * @param a_value for rgb888 image, it is a channel threshold value list of lab format(the range of element values in the list is -128 and 127).
+         * @param b_value for rgb888 image, it is b channel threshold value list of lab format(the range of element values in the list is -128 and 127).
+         * @param format format of the source image
+         * @maixpy maix.image.Histogram.__init__
+        */
+        Histogram(std::vector<float> l_bin, std::vector<float> a_bin, std::vector<float> b_bin, image::Format format = image::Format::FMT_RGB888)
+        {
+            this->l_bin = l_bin;
+            this->a_bin = a_bin;
+            this->b_bin = b_bin;
+            this->format = format;
+        }
+
+        ~Histogram(){};
+
+        /**
+         * @brief Subscript operator
+         * @maixpy maix.image.Histogram.__getitem__
+         */
+        int &__getitem__(int index)
+        {
+            switch (index) {
+            default:throw std::out_of_range("Histogram index out of range");
+            }
+        }
+
+        /**
+         * @brief Returns a list of floats for the grayscale histogram.
+         * @maixpy maix.image.Histogram.bins
+        */
+        std::vector<float> bins() {
+            return this->l_bin;
+        }
+
+        /**
+         * @brief Returns a list of floats for the RGB565 histogram LAB L channel.
+         * @maixpy maix.image.Histogram.l_bins
+        */
+        std::vector<float> l_bins() {
+            return this->l_bin;
+        }
+
+        /**
+         * @brief Returns a list of floats for the RGB565 histogram LAB A channel.
+         * @maixpy maix.image.Histogram.a_bins
+        */
+        std::vector<float> a_bins() {
+            return this->a_bin;
+        }
+
+        /**
+         * @brief Returns a list of floats for the RGB565 histogram LAB B channel.
+         * @maixpy maix.image.Histogram.b_bins
+        */
+        std::vector<float> b_bins() {
+            return this->b_bin;
+        }
+
+        /**
+         * @brief Computes the CDF of the histogram channels and returns a image::Percentile object
+         * @param percentile the values of the histogram at the passed in percentile (0.0 - 1.0) (float).
+         * So, if you pass in 0.1 this method will tell you (going from left-to-right in the histogram)
+         * what bin when summed into an accumulator caused the accumulator to cross 0.1. This is useful
+         * to determine min (with 0.1) and max (with 0.9) of a color distribution without outlier effects
+         * ruining your results for adaptive color tracking.
+         * @return image::Percentile object
+         * @maixpy maix.image.Histogram.get_percentile
+        */
+        image::Percentile get_percentile(float percentile);
+
+        /**
+         * @brief Uses Otsu’s Method to compute the optimal threshold values that split the histogram into two halves for each channel of the histogram and returns a image::Threshold object.
+         * @return image::Threshold object
+         * @maixpy maix.image.Histogram.get_threshold
+        */
+        image::Threshold get_threshold();
+
+        /**
+         * @brief Computes the mean, median, mode, standard deviation, min, max, lower quartile, and upper quartile of each color channel in the histogram and returns a image::Statistics object.
+         * @return image::Statistics object
+         * @maixpy maix.image.Histogram.get_statistics
+        */
+        image::Statistics get_statistics();
+    };
+
+
+    /**
      * LBPKeyPoint class
      * @maixpy maix.image.LBPKeyPoint
      */

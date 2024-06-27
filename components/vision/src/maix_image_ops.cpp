@@ -919,15 +919,13 @@ namespace maix::image {
         return this;
     }
 
-    std::map<std::string, std::vector<float>> Image::get_histogram(std::vector<std::vector<int>> thresholds, bool invert, std::vector<int> roi, int bins, int l_bins, int a_bins, int b_bins, image::Image *difference) {
-        std::map<std::string, std::vector<float>> result = std::map<std::string, std::vector<float>>();
+    image::Histogram Image::get_histogram(std::vector<std::vector<int>> thresholds, bool invert, std::vector<int> roi, int bins, int l_bins, int a_bins, int b_bins, image::Image *difference) {
         image_t src_img, *other_img = NULL;
         convert_to_imlib_image(this, &src_img);
         if (difference) {
             other_img = (image_t *)malloc(sizeof(image_t));
             if (!other_img) {
-                log::error("malloc image_t failed");
-                return result;
+                err::check_raise(err::ERR_RUNTIME, "malloc failed");
             }
             convert_to_imlib_image(difference, other_img);
         }
@@ -970,23 +968,117 @@ namespace maix::image {
             imlib_get_histogram(&hist, &src_img, &roi_rect, &thresholds_list, invert, other_img);
             break;
         default:
-            log::error("format not support: %d", _format);
-            return result;
+            err::check_raise(err::ERR_RUNTIME, "format not support");
         }
 
         std::vector<float> l_bins_data(hist.LBins, hist.LBins + hist.LBinCount);
         std::vector<float> a_bins_data(hist.ABins, hist.ABins + hist.ABinCount);
         std::vector<float> b_bins_data(hist.BBins, hist.BBins + hist.BBinCount);
-        result["L"] = l_bins_data;
-        result["A"] = a_bins_data;
-        result["B"] = b_bins_data;
 
         list_free(&thresholds_list);
         if (difference && other_img) free(other_img);
         if (hist.LBins) free(hist.LBins);
         if (hist.ABins) free(hist.ABins);
         if (hist.BBins) free(hist.BBins);
-        return result;
+
+        return image::Histogram(l_bins_data, a_bins_data, b_bins_data, this->_format);
+    }
+
+    image::Percentile Histogram::get_percentile(float percentile) {
+        pixformat_t imlib_format = PIXFORMAT_RGB888;
+        switch (this->format) {
+        case Format::FMT_GRAYSCALE:
+            imlib_format = PIXFORMAT_GRAYSCALE;
+            break;
+        case Format::FMT_RGB565:
+            imlib_format = PIXFORMAT_RGB565;
+            break;
+        case Format::FMT_BGR888:    // fall through
+        case Format::FMT_RGB888:
+            imlib_format = PIXFORMAT_RGB565;        // for method imlib_get_percentile, rgb888 and rgb565 have the same results
+            break;
+        default:
+            err::check_raise(err::ERR_RUNTIME, "format not support!");
+        }
+
+        histogram_t hist;
+        hist.LBinCount = this->l_bin.size();
+        hist.ABinCount = this->a_bin.size();
+        hist.BBinCount = this->b_bin.size();
+        hist.LBins = this->l_bin.data();
+        hist.ABins = this->l_bin.data();
+        hist.BBins = this->l_bin.data();
+
+        percentile_t p = {0};
+        imlib_get_percentile(&p, imlib_format, &hist, percentile);
+
+        return image::Percentile(p.LValue, p.AValue, p.BValue);
+    }
+
+    image::Threshold Histogram::get_threshold() {
+        pixformat_t imlib_format = PIXFORMAT_RGB888;
+        switch (this->format) {
+        case Format::FMT_GRAYSCALE:
+            imlib_format = PIXFORMAT_GRAYSCALE;
+            break;
+        case Format::FMT_RGB565:
+            imlib_format = PIXFORMAT_RGB565;
+            break;
+        case Format::FMT_BGR888:    // fall through
+        case Format::FMT_RGB888:
+            imlib_format = PIXFORMAT_RGB565;        // for method imlib_get_threshold, rgb888 and rgb565 have the same results
+            break;
+        default:
+            err::check_raise(err::ERR_RUNTIME, "format not support!");
+        }
+
+        histogram_t hist = {0};
+        hist.LBinCount = this->l_bin.size();
+        hist.ABinCount = this->a_bin.size();
+        hist.BBinCount = this->b_bin.size();
+        hist.LBins = this->l_bin.data();
+        hist.ABins = this->l_bin.data();
+        hist.BBins = this->l_bin.data();
+
+        threshold_t t = {0};
+        imlib_get_threshold(&t, imlib_format, &hist);
+
+        return image::Threshold(t.LValue, t.AValue, t.BValue);
+    }
+
+    image::Statistics Histogram::get_statistics() {
+        pixformat_t imlib_format = PIXFORMAT_RGB888;
+        switch (this->format) {
+        case Format::FMT_GRAYSCALE:
+            imlib_format = PIXFORMAT_GRAYSCALE;
+            break;
+        case Format::FMT_RGB565:
+            imlib_format = PIXFORMAT_RGB565;
+            break;
+        case Format::FMT_BGR888:    // fall through
+        case Format::FMT_RGB888:
+            imlib_format = PIXFORMAT_RGB888;
+            break;
+        default:
+            err::check_raise(err::ERR_RUNTIME, "format not support!");
+        }
+
+        histogram_t hist = {0};
+        hist.LBinCount = this->l_bin.size();
+        hist.ABinCount = this->a_bin.size();
+        hist.BBinCount = this->b_bin.size();
+        hist.LBins = this->l_bin.data();
+        hist.ABins = this->l_bin.data();
+        hist.BBins = this->l_bin.data();
+
+        statistics_t stats = {0};
+        imlib_get_statistics(&stats, imlib_format, &hist);
+
+        std::vector<int> l_statistics = {stats.LMean, stats.LMedian, stats.LMode, stats.LSTDev, stats.LMin, stats.LMax, stats.LLQ, stats.LUQ};
+        std::vector<int> a_statistics = {stats.AMean, stats.AMedian, stats.AMode, stats.ASTDev, stats.AMin, stats.AMax, stats.LLQ, stats.AUQ};
+        std::vector<int> b_statistics = {stats.BMean, stats.BMedian, stats.BMode, stats.BSTDev, stats.BMin, stats.BMax, stats.LLQ, stats.BUQ};
+
+        return image::Statistics(this->format, l_statistics, a_statistics, b_statistics);
     }
 
     image::Statistics Image::get_statistics(std::vector<std::vector<int>> thresholds, bool invert, std::vector<int> roi, int bins, int l_bins, int a_bins, int b_bins, image::Image *difference) {
