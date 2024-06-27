@@ -18,7 +18,7 @@ namespace maix::image
 
     /**
      * Image formats
-     * @attention for developers, update this enum will also need to update the fmt_size in maix_image.cpp
+     * @attention for MaixPy firmware developers, update this enum will also need to update the fmt_size and fmt_names too !!!
      * @maixpy maix.image.Format
      */
     enum Format
@@ -45,32 +45,8 @@ namespace maix::image
         FMT_COMPRESSED_MAX,
 
         FMT_INVALID = 0xFF  // format not valid
-    };
-    // enum Format
-    // {
-    //     FMT_RGB888    = 0,  // RGBRGB...RGB, R at the lowest address
-    //     FMT_BGR888    = 1,  // BGRBGR...BGR, B at the lowest address
-    //     FMT_RGBA8888  = 2,  // RGBARGBA...RGBA, R at the lowest address
-    //     FMT_BGRA8888  = 3,  // BGRABGRA...BGRA, B at the lowest address
-    //     FMT_RGB565    = 4,
-    //     FMT_BGR565    = 5,
-    //     FMT_YUV422SP  = 6,  // YYY...UVUVUV...UVUV
-    //     FMT_YUV422P   = 7,  // YYY...UUU...VVV
-    //     FMT_YVU420SP  = 8,  // YYY...VUVUVU...VUVU, NV21
-    //     FMT_YUV420SP  = 9,  // YYY...UVUVUV...UVUV, NV12
-    //     FMT_YVU420P   = 10, // YYY...VVV...UUU
-    //     FMT_YUV420P   = 11, // YYY...UUU...VVV
-    //     FMT_GRAYSCALE = 12, // YYY...
-    //     FMT_UNCOMPRESSED_MAX,
+    }; // !!!! update this section please update fmt_size and fmt_names too !!!!
 
-    //     // compressed format below, not compressed should define upper
-    //     FMT_COMPRESSED_MIN = 200,
-    //     FMT_JPEG           = 201,
-    //     FMT_PNG            = 202,
-    //     FMT_COMPRESSED_MAX,
-
-    //     FMT_INVALID = 0xFF  // format not valid
-    // };
     /**
      * Image format size in bytes
      * @attention It's a copy of this variable in MaixPy,
@@ -91,12 +67,13 @@ namespace maix::image
         1.5,
         1.5,
         1.5,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0
+        1, // grayscale
+        0, // uncompereed_max
+        0, // compressed_min
+        1, // jpeg
+        1, // png
+        0, // compressed_max
+        0  // invalid
         };
 
     /**
@@ -114,10 +91,16 @@ namespace maix::image
         "YUV422P",
         "YVU420SP",
         "YUV420SP",
-        "YVU420P"
+        "YVU420P",
         "YUV420P",
         "GRAYSCALE",
-        "MAX"};
+        "UNCOMPRESSED_MAX",
+        "COMPRESSED_MIN",
+        "JPEG",
+        "PNG",
+        "COMPRESSED_MAX",
+        "INVALID"
+        };
 
     /**
      * Image size type

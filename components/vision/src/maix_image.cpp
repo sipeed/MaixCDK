@@ -22,6 +22,18 @@ namespace maix::image
 
     static void _get_cv_format_color(image::Format _format, const image::Color &color_in, int *ch_format, cv::Scalar &cv_color);
 
+    static bool path_is_format(const std::string &str, const std::string ext)
+    {
+        std::string lower_path(str);
+            std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+        if (lower_path.size() >= ext.size() && lower_path.compare(lower_path.size() - ext.size(), ext.size(), ext) == 0) {
+            return true;
+        }
+        return false;
+    }
+
     static uint8_t _get_char_size(const uint8_t c)
     {
         if ((c & 0x80) == 0x00) {
@@ -42,6 +54,59 @@ namespace maix::image
         }
     }
 
+    static image::Image *_mat_to_image(const cv::Mat &mat, image::Format format, void *buff, int buff_size, bool copy_data = true)
+    {
+        image::Image *img = nullptr;
+        if(buff)
+        {
+            if(buff_size < image::fmt_size[format])
+            {
+                log::error("convert format failed, buffer size not enough, need %d, but %d\n", image::fmt_size[format], buff_size);
+                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+            }
+            img = new image::Image(mat.cols, mat.rows, format, (uint8_t*)buff, mat.cols * mat.rows * image::fmt_size[format], false);
+        }
+        else
+            img = new image::Image(mat.cols, mat.rows, format);
+        if (copy_data)
+            memcpy(img->data(), mat.data, mat.cols * mat.rows * image::fmt_size[format]);
+        return img;
+    }
+
+    static image::Image *_new_image(int w, int h, image::Format format, void *buff, int buff_size)
+    {
+        image::Image *img = nullptr;
+        if(buff)
+        {
+            if(buff_size < image::fmt_size[format])
+            {
+                log::error("convert format failed, buffer size not enough, need %d, but %d\n", image::fmt_size[format], buff_size);
+                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+            }
+            img = new image::Image(w, h, format, (uint8_t*)buff, w * h * image::fmt_size[format], false);
+        }
+        else
+            img = new image::Image(w, h, format);
+        return img;
+    }
+
+    static void _cv_rgb_nv21(const cv::Mat &rgb, cv::Mat &nv21, int width, int height, bool bgr = false)
+    {
+        cv::cvtColor(rgb, nv21, bgr ? cv::COLOR_BGR2YUV_YV12 : cv::COLOR_RGB2YUV_YV12);
+        int nv_len = width * height / 2;
+        int half_len = nv_len / 2;
+        int offset = width * height;
+        uint8_t *nv21_data = (uint8_t *)nv21.data;
+        uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
+        err::check_null_raise(uv_temp, "malloc uv_temp failed");
+        memcpy(uv_temp, nv21_data + offset, nv_len);
+        for (int i = 0; i < half_len; i ++) {
+            nv21_data[offset + i * 2] = uv_temp[i];    // V
+            nv21_data[offset + i * 2 + 1] = uv_temp[half_len + i];           // U
+        }
+        if (uv_temp)
+            free(uv_temp);
+    }
 
     image::Image *load(const char *path, image::Format format)
     {
@@ -368,7 +433,7 @@ namespace maix::image
     std::string Image::__str__()
     {
         char buf[128];
-        sprintf(buf, "Image(%d, %d, %s), data size: %d", _width, _height, fmt_names[_format].c_str(), (int)(_width * _height * fmt_size[_format]));
+        sprintf(buf, "Image(%d, %d, %s), data size: %d", _width, _height, fmt_names[_format].c_str(), _data_size);
         return std::string(buf);
     }
 
@@ -413,9 +478,10 @@ namespace maix::image
             log::error("convert format failed, already the format %d\n", format);
             throw err::Exception(err::ERR_ARGS, "convert format failed, already the format");
         }
-
-        cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
+        cv::Mat src(_format > FMT_COMPRESSED_MIN ? 1 : _height, _format > FMT_COMPRESSED_MIN ? _data_size :  _width, CV_8UC((int)image::fmt_size[_format]), _data);
         cv::ColorConversionCodes cvt_code;
+
+        // special for convert to jpeg and png
         if(format == image::FMT_JPEG) // compress
         {
             switch (_format) {
@@ -427,10 +493,20 @@ namespace maix::image
                     uint8_t *data;
                     int data_size;
                     if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        img = new image::Image(_width, _height, format, data, data_size, true);
+                        if(buff)
+                        {
+                            if(buff_size < (size_t)data_size)
+                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+                            memcpy(buff, data, data_size);
+                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                        }
+                        else
+                            img = new image::Image(_width, _height, format, data, data_size, true);
                         mmf_enc_jpg_free(0);
                     }
                 }
+                if(!img)
+                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
                 break;
                 }
@@ -441,10 +517,20 @@ namespace maix::image
                     uint8_t *data;
                     int data_size;
                     if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        img = new image::Image(_width, _height, format, data, data_size, true);
+                        if(buff)
+                        {
+                            if(buff_size < (size_t)data_size)
+                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+                            memcpy(buff, data, data_size);
+                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                        }
+                        else
+                            img = new image::Image(_width, _height, format, data, data_size, true);
                         mmf_enc_jpg_free(0);
                     }
                 }
+                if(!img)
+                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
                 break;
                 }
@@ -467,17 +553,30 @@ namespace maix::image
                     uint8_t *data;
                     int data_size;
                     if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        img = new image::Image(_width, _height, format, data, data_size, true);
+                        if(buff)
+                        {
+                            if(buff_size < (size_t)data_size)
+                            {
+                                if (src_alloc)
+                                    delete p_img;
+                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+                            }
+                            memcpy(buff, data, data_size);
+                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                        }
+                        else
+                            img = new image::Image(_width, _height, format, data, data_size, true);
                         mmf_enc_jpg_free(0);
                     }
                 }
 
                 if (src_alloc)
-                {
                     delete p_img;
-                }
+                if(!img)
+                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
 #else
+                // soft convert, slower
                 image::Image *p_img = nullptr;
                 cv::Mat *p_src = &src;
                 bool src_alloc = false;
@@ -498,7 +597,11 @@ namespace maix::image
                 {
                     if(buff_size < jpeg_buff.size())
                     {
-                        log::error("convert format failed, buffer size not enough\n");
+                        if(src_alloc)
+                        {
+                            delete p_img;
+                            delete p_src;
+                        }
                         throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                     }
                     memcpy(buff, jpeg_buff.data(), jpeg_buff.size());
@@ -540,7 +643,11 @@ namespace maix::image
             {
                 if(buff_size < png_buff.size())
                 {
-                    log::error("convert format failed, buffer size not enough\n");
+                    if(src_alloc)
+                    {
+                        delete p_img;
+                        delete p_src;
+                    }
                     throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                 }
                 memcpy(buff, png_buff.data(), png_buff.size());
@@ -555,6 +662,78 @@ namespace maix::image
             }
             return img;
         }
+
+        // jpeg/png to other format
+        if(_format == image::FMT_JPEG || _format == image::FMT_PNG)
+        {
+            switch (format)
+            {
+            case image::FMT_GRAYSCALE:
+            {
+                cv::Mat dst = cv::imdecode(src, cv::IMREAD_GRAYSCALE);
+                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                return _mat_to_image(dst, format, buff, buff_size);
+            }
+            case image::FMT_BGR888:
+            {
+                cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
+                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                return _mat_to_image(dst, format, buff, buff_size);
+            }
+            case image::FMT_RGB888:
+            {
+                cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
+                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
+                return _mat_to_image(dst, format, buff, buff_size);
+            }
+            case image::FMT_RGBA8888:
+            {
+                if(_format == FMT_PNG)
+                {
+                    cv::Mat dst = cv::imdecode(src, cv::IMREAD_UNCHANGED);
+                    if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                    cv::cvtColor(dst, dst, cv::COLOR_BGRA2RGBA);
+                    return _mat_to_image(dst, format, buff, buff_size);
+                }
+                cv::Mat bgr = cv::imdecode(src, cv::IMREAD_COLOR);
+                if(bgr.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                image::Image *img = _new_image(bgr.cols, bgr.rows, format, buff, buff_size);
+                cv::Mat dst(bgr.rows, bgr.cols, CV_8UC4, img->data());
+                cv::cvtColor(bgr, dst, cv::COLOR_BGR2RGBA);
+                return img;
+            }
+            case image::FMT_BGRA8888:
+            {
+                if(_format == FMT_PNG)
+                {
+                    cv::Mat dst = cv::imdecode(src, cv::IMREAD_UNCHANGED);
+                    if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                    return _mat_to_image(dst, format, buff, buff_size);
+                }
+                cv::Mat bgr = cv::imdecode(src, cv::IMREAD_COLOR);
+                if(bgr.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                image::Image *img = _new_image(bgr.cols, bgr.rows, format, buff, buff_size);
+                cv::Mat dst(bgr.rows, bgr.cols, CV_8UC4, img->data());
+                cv::cvtColor(bgr, dst, cv::COLOR_BGR2BGRA);
+                return img;
+            }
+            case image::FMT_YVU420SP:
+            {
+                cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
+                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                image::Image *img = _mat_to_image(dst, format, buff, buff_size, false);
+                cv::Mat dst_nv21(img->height() + img->height() / 2, img->width(), CV_8UC1, img->data());
+                _cv_rgb_nv21(dst, dst_nv21, img->width(), img->height(), true);
+                return _mat_to_image(dst, format, buff, buff_size);
+            }
+            default:
+                throw err::Exception(err::ERR_NOT_IMPL, "not support format");
+            }
+            throw err::Exception(err::ERR_ARGS, "not wupport format");
+        }
+
+        // RGB BGR BGRA RGBA GRAYSCALE YUV transform
         switch (_format)
         {
         case image::FMT_RGB888:
@@ -733,6 +912,10 @@ namespace maix::image
     image::Image *Image::to_jpeg(int quality)
     {
         image::Format format = image::Format::FMT_JPEG;
+        if(quality <= 50)
+        {
+            throw err::Exception(err::ERR_ARGS, "quality only support (50, 100]");
+        }
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
         switch (_format) {
         case image::FMT_YVU420SP:
@@ -1124,24 +1307,6 @@ namespace maix::image
         return this;
     }
 
-    static void _cv_rgb_nv21(const cv::Mat &rgb, cv::Mat &nv21, int width, int height)
-    {
-        cv::cvtColor(rgb, nv21, cv::COLOR_RGB2YUV_YV12);
-        int nv_len = width * height / 2;
-        int half_len = nv_len / 2;
-        int offset = width * height;
-        uint8_t *nv21_data = (uint8_t *)nv21.data;
-        uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
-        err::check_null_raise(uv_temp, "malloc uv_temp failed");
-        memcpy(uv_temp, nv21_data + offset, nv_len);
-        for (int i = 0; i < half_len; i ++) {
-            nv21_data[offset + i * 2] = uv_temp[i];    // V
-            nv21_data[offset + i * 2 + 1] = uv_temp[half_len + i];           // U
-        }
-        if (uv_temp)
-            free(uv_temp);
-    }
-
     image::Image *Image::resize(int width, int height, image::Fit object_fit, image::ResizeMethod method)
     {
         int pixel_num = 0;
@@ -1397,24 +1562,84 @@ namespace maix::image
                 }
             }
         }
-        // save, img may RGB format
-        if (_format == image::FMT_RGB888)
+        bool ok = false;
+        switch (_format)
         {
+        case FMT_BGR888:
+        case FMT_BGRA8888:
+            ok = cv::imwrite(path, img, params);
+            if(!ok)
+                return err::ERR_RUNTIME;
+            break;
+        case FMT_RGB888:
             cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
-        }
-        else if (_format == image::FMT_RGBA8888)
-        {
-            cv::cvtColor(img, img, cv::COLOR_RGBA2BGRA);
-        }
-        cv::imwrite(path, img, params);
-        // convert back
-        if (_format == image::FMT_RGB888)
-        {
+            ok = cv::imwrite(path, img, params);
             cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
-        }
-        else if (_format == image::FMT_RGBA8888)
-        {
+            if(!ok)
+                return err::ERR_RUNTIME;
+            break;
+        case FMT_RGBA8888:
             cv::cvtColor(img, img, cv::COLOR_RGBA2BGRA);
+            ok = cv::imwrite(path, img, params);
+            cv::cvtColor(img, img, cv::COLOR_RGBA2BGRA);
+            if(!ok)
+                return err::ERR_RUNTIME;
+            break;
+        case FMT_JPEG:
+        {
+            std::string lower_path(path);
+            std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+            if(path_is_format(path, ".jpeg") || path_is_format(path, ".jpg"))
+            {
+                fs::File *f = fs::open(path, "wb");
+                if(!f)
+                    return err::ERR_IO;
+                f->write(_data, _data_size);
+                f->close();
+                delete f;
+            }
+            else
+            {
+                Image *tmp = to_format(FMT_BGR888);
+                if(!tmp)
+                    return err::ERR_ARGS;
+                cv::Mat img2(_height, _width, CV_8UC3, tmp->data());
+                ok = cv::imwrite(path, img2, params);
+                delete tmp;
+                if(!ok)
+                    return err::ERR_RUNTIME;
+            }
+            break;
+        }
+        case FMT_PNG:
+        {
+            if(path_is_format(path, ".png"))
+            {
+                fs::File *f = fs::open(path, "wb");
+                if(!f)
+                    return err::ERR_IO;
+                f->write(_data, _data_size);
+                f->close();
+                delete f;
+            }
+            else
+            {
+                Image *tmp = to_format(FMT_BGR888);
+                if(!tmp)
+                    return err::ERR_ARGS;
+                cv::Mat img2(_height, _width, CV_8UC3, tmp->data());
+                ok = cv::imwrite(path, img2, params);
+                delete tmp;
+                if(!ok)
+                    return err::ERR_RUNTIME;
+            }
+            break;
+        }
+        default:
+            log::error("format %s not support", fmt_names[_format].c_str());
+            return err::ERR_NOT_IMPL;
+            break;
         }
         return err::ERR_NONE;
     }
