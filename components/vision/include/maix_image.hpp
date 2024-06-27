@@ -1065,7 +1065,7 @@ namespace maix::image
         image::Image *rotation_corr(double x_rotation = 0.0, double y_rotation = 0.0, double z_rotation = 0.0, double x_translation = 0.0, double y_translation = 0.0, double zoom = 1.0, double fov = 60.0, std::vector<float> corners = std::vector<float>());
 
         /**
-         * @brief Gets the histogram of the image.
+         * @brief Computes the normalized histogram on all color channels and returns a image::Histogram object.
          * @note For GRAYSCALE format, Lmin and Lmax range is [0, 255]. For RGB888 format, Lmin and Lmax range is [0, 100].
          * @param thresholds You can define multiple thresholds.
          * For GRAYSCALE format, you can use {{Lmin, Lmax}, ...} to define one or more thresholds.
@@ -1076,7 +1076,7 @@ namespace maix::image
          * default is None, means whole image.
          * @param bins The number of bins to use for the histogram.
          * In GRAYSCALE format, setting range is [2, 256], default is 100.
-         * In rgb888 format, setting range is [2, 100], default is 100.
+         * In RGB888 format, setting range is [2, 100], default is 100.
          * @param l_bins The number of bins to use for the l channel of the histogram. Only valid in RGB888 format.
          * If an invalid value is set, bins will be used instead. The setting range is [2, 100], default is 100.
          * @param a_bins The number of bins to use for the a channel of the histogram.
@@ -1085,10 +1085,10 @@ namespace maix::image
          * Only valid in RGB888 format. The setting range is [2, 256], default is 256.
          * @param difference difference may be set to an image object to cause this method to operate on the difference image between the current image and the difference image object.
          * default is None.
-         * @return Returns the histogram of the image
+         * @return Returns image::Histogram object
          * @maixpy maix.image.Image.get_histogram
         */
-        std::map<std::string, std::vector<float>> get_histogram(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), bool invert = false, std::vector<int> roi = std::vector<int>(), int bins = -1, int l_bins = 100, int a_bins = 256, int b_bins = 256, image::Image *difference = nullptr);
+        image::Histogram get_histogram(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), bool invert = false, std::vector<int> roi = std::vector<int>(), int bins = -1, int l_bins = 100, int a_bins = 256, int b_bins = 256, image::Image *difference = nullptr);
 
         /**
          * @brief Gets the statistics of the image. TODO: support in the feature
