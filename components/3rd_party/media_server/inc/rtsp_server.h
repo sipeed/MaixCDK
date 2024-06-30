@@ -14,7 +14,7 @@ char *rtsp_get_server_ip(void);
 int rtsp_get_server_port(void);
 int rtsp_server_start(void);
 int rtsp_server_stop(void);
-void rtsp_send_h265_data(uint8_t *asddata, size_t data_len);
+void rtsp_send_h265_data(uint64_t time, uint8_t *asddata, size_t data_len);
 #ifdef __cplusplus
 }
 #endif

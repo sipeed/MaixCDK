@@ -1,19 +1,18 @@
-#ifndef _h265_camera_source_h_
-#define _h265_camera_source_h_
+#ifndef _rtsp_camera_source_h_
+#define _rtsp_camera_source_h_
 
+#include "rtsp-camera-reader.h"
 #include "media-source.h"
 #include "sys/process.h"
 #include "time64.h"
 #include "rtp.h"
 #include <string>
-#include "pthread.h"
-#include <list>
 
-class H265CameraSource : public IMediaSource
+class RtspCameraSource : public IMediaSource
 {
 public:
-	H265CameraSource(const char *file);
-	virtual ~H265CameraSource();
+	RtspCameraSource(const char *file);
+	virtual ~RtspCameraSource();
 
 public:
 	virtual int Play();
@@ -24,12 +23,9 @@ public:
 	virtual int GetSDPMedia(std::string& sdp) const;
 	virtual int GetRTPInfo(const char* uri, char *rtpinfo, size_t bytes) const;
 	virtual int SetTransport(const char* track, std::shared_ptr<IRTPTransport> transport);
-	int SetNextFrame(const uint8_t* ptr, size_t bytes);
-
+	int Push(int64_t time, const uint8_t* nalu, size_t bytes);
+	int SetPspFromFrame(const uint8_t* nalu, size_t bytes);
 private:
-	int GetNextFrame(int64_t &dts, const uint8_t* &ptr, size_t &bytes);
-	int FreeNextFrame();
-
 	static void OnRTCPEvent(void* param, const struct rtcp_msg_t* msg);
 	void OnRTCPEvent(const struct rtcp_msg_t* msg);
 	int SendRTCP();
@@ -43,27 +39,8 @@ private:
 	uint32_t m_timestamp;
 	time64_t m_rtp_clock;
 	time64_t m_rtcp_clock;
-    // H265CameraReader m_reader;
+    RtspCameraReader m_reader;
 	std::shared_ptr<IRTPTransport> m_transport;
-
-	struct vframe_t
-	{
-		const uint8_t* nalu;
-		int64_t time;
-		long bytes;
-		bool idr; // IDR frame
-
-		bool operator < (const struct vframe_t &v) const
-		{
-			return time < v.time;
-		}
-	};
-	typedef std::list<vframe_t> lframes_t;
-	lframes_t m_videos_list;
-	lframes_t::iterator m_video;
-	pthread_mutex_t m_lock;
-
-	std::list<std::pair<const uint8_t*, size_t> > m_sps;
 
 	int m_status;
 	int64_t m_pos;
@@ -73,4 +50,4 @@ private:
 	unsigned char m_packet[MAX_UDP_PACKET+14];
 };
 
-#endif /* !_h265_camera_source_h_ */
+#endif /* !_rtsp_camera_source_h_ */
