@@ -184,6 +184,21 @@ namespace maix::rtsp
             return this->_region_list;
         }
 
+        /**
+         * @brief Get timestamp
+        */
+       uint64_t get_timestamp() {
+            return _timestamp;
+       }
+
+        /**
+         * @brief Update timestamp
+        */
+       void update_timestamp() {
+            uint64_t ms = time::ticks_ms();
+            this->_timestamp += (ms - this->_last_ms);
+            this->_last_ms = ms;
+       }
     private:
         std::string _ip;
         int _port;
@@ -195,6 +210,8 @@ namespace maix::rtsp
         thread::Thread *_thread;
         std::vector<rtsp::Region *> _region_list;
         std::vector<bool> _region_update_flag;
+        uint64_t _timestamp;
+        uint64_t _last_ms;
     };
 } // namespace maix::rtsp
 

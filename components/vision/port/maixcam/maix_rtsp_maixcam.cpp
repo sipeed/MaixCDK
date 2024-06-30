@@ -137,7 +137,8 @@ namespace maix::rtsp
         if (this->_ip.size() != 0) {
             new_ip = (char *)this->_ip.c_str();
         }
-
+        this->_timestamp = 0;
+        this->_last_ms = 0;
         err::check_bool_raise(!rtsp_server_init(new_ip, this->_port), "Rtsp init failed!");
     }
 
@@ -161,6 +162,9 @@ namespace maix::rtsp
         int data_size, width, height, format;
         int vi_ch = 0, enc_ch = 1;
         while (rtsp->rtsp_is_start()) {
+            rtsp->update_timestamp();
+            uint64_t timestamp = rtsp->get_timestamp();
+
             mmf_h265_stream_t stream;
             if (!mmf_enc_h265_pop(enc_ch, &stream)) {
                 int stream_size = 0;
@@ -177,13 +181,13 @@ namespace maix::rtsp
                             memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
                             copy_length += stream.data_size[i];
                         }
-                        rtsp_send_h265_data(stream_buffer, copy_length);
+                        rtsp_send_h265_data(timestamp, stream_buffer, copy_length);
                         free(stream_buffer);
                     } else {
                         log::warn("malloc failed!\r\n");
                     }
                 } else if (stream.count == 1) {
-                    rtsp_send_h265_data((uint8_t *)stream.data[0], stream.data_size[0]);
+                    rtsp_send_h265_data(timestamp, (uint8_t *)stream.data[0], stream.data_size[0]);
                 }
 
                 if (mmf_enc_h265_free(enc_ch)) {
@@ -271,7 +275,9 @@ namespace maix::rtsp
             return err::ERR_NONE;
         }
 
-        rtsp_send_h265_data((uint8_t *)data, data_len);
+        this->update_timestamp();
+        uint64_t timestamp = this->get_timestamp();
+        rtsp_send_h265_data(timestamp, (uint8_t *)data, data_len);
 
         return err;
     }
