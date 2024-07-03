@@ -99,6 +99,12 @@ namespace maix::image
         }
         ~Image();
 
+        /**
+         * set image
+         * @maixcdk maix.image.Image.update
+         */
+        err::Err update(int width, int height, image::Format format, uint8_t *data = NULL, int data_size = 0, bool copy = true);
+
         void operator=(const image::Image &img);
 
         //************************** get and set basic info **************************//

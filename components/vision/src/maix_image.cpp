@@ -419,6 +419,18 @@ namespace maix::image
         }
     }
 
+    err::Err Image::update(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy)
+    {
+        if (_actual_data && _is_malloc)
+        {
+            // log::debug("free image data\n");
+            free(_actual_data);
+            _actual_data = NULL;
+            _data = NULL;
+        }
+        _create_image(width, height, format, data, data_size, copy);
+    }
+
     void Image::operator=(const image::Image &img)
     {
         _format = img._format;
