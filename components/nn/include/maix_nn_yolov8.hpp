@@ -14,6 +14,13 @@
 
 namespace maix::nn
 {
+    enum YOLOv8_Type
+    {
+        TYPE_DETECT = 0,
+        TYPE_POSE = 1,
+        TYPE_SEG = 2
+    };
+
     class _KpInfo
     {
     public:
@@ -45,8 +52,7 @@ namespace maix::nn
         YOLOv8(const string &model = "")
         {
             _model = nullptr;
-            _type_pose = false;
-            _type = "detector";
+            _type = TYPE_DETECT;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -64,6 +70,11 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
+        }
+
+        std::string type()
+        {
+            return _extra_info["type"];
         }
 
         /**
@@ -205,20 +216,23 @@ namespace maix::nn
             }
             if (_extra_info.find("type") != _extra_info.end())
             {
-                _type = _extra_info["type"];
-                if (_type == "pose")
+                if (_extra_info["type"] == "pose")
                 {
-                    _type_pose = true;
+                    _type = TYPE_POSE;
                 }
-                else if (_type != "detector")
+                else if (_extra_info["type"] == "seg")
                 {
-                    log::error("type [%s] not support, suport detector and pose", _type.c_str());
+                    _type = TYPE_SEG;
+                }
+                else if (_extra_info["type"] != "detector")
+                {
+                    log::error("type [%s] not support, suport detector and pose", _extra_info["type"].c_str());
                     return err::ERR_ARGS;
                 }
             }
             else
             {
-                _type = "detector";
+                _type = TYPE_DETECT;
             }
             std::vector<nn::LayerInfo> inputs = _model->inputs_info();
             _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
@@ -261,7 +275,7 @@ namespace maix::nn
          *         If model is yolov8-pose, object's points have value, and if points' value < 0 means that point is invalid(conf < keypoint_th).
          * @maixpy maix.nn.YOLOv8.detect
          */
-        std::vector<nn::Object> *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5)
+        nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5)
         {
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
@@ -276,7 +290,7 @@ namespace maix::nn
             {
                 throw err::Exception("forward image failed");
             }
-            std::vector<nn::Object> *res = _post_process(outputs, img.width(), img.height(), fit);
+            nn::Objects *res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;
             return res;
         }
@@ -330,14 +344,14 @@ namespace maix::nn
          * @param body true, if points' length is 17*2 and body is ture, will draw lines as human body, if set to false won't draw lines, default true.
          * @maixpy maix.nn.YOLOv8.draw_pose
          */
-        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, bool body=true)
+        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, bool body = true)
         {
             if (points.size() < 2 || points.size() % 2 != 0)
             {
                 throw std::runtime_error("keypoints size must >= 2 and multiple of 2");
                 return;
             }
-            if(points.size() == 17 * 2 && body)
+            if (points.size() == 17 * 2 && body)
             {
                 int pos[] = {9, 7, 7, 5, 6, 8, 8, 10, 5, 11, 6, 12, 5, 6, 11, 12, 11, 13, 15, 13, 14, 12, 14, 16};
                 for (int i = 0; i < 12; ++i)
@@ -362,6 +376,43 @@ namespace maix::nn
                 if (x < 0 || y < 0)
                     continue;
                 img.draw_circle(x, y, radius, color, -1);
+            }
+        }
+
+        /**
+         * Draw segmentation on image
+         * @param img image object, maix.image.Image type.
+         * @param seg_mask segmentation mask image by detect method, a grayscale image
+         * @param threshold only mask's value > threshold will be draw on image, value from 0 to 255.
+         * @maixpy maix.nn.YOLOv8.draw_seg_mask
+         */
+        void draw_seg_mask(image::Image &img, int x, int y, image::Image &seg_mask, int threshold = 127)
+        {
+            if (seg_mask.format() != image::FMT_GRAYSCALE)
+            {
+                throw err::Exception(err::ERR_ARGS, "seg_mask only support grascale");
+            }
+            if (img.format() != image::FMT_RGB888 &&
+                img.format() != image::FMT_BGR888 &&
+                img.format() != image::FMT_RGBA8888 &&
+                img.format() != image::FMT_BGRA8888 &&
+                img.format() != image::FMT_GRAYSCALE)
+            {
+                throw err::Exception(err::ERR_ARGS, "img not support");
+            }
+            int fmt_size = image::fmt_size[img.format()];
+            uint8_t *to = (uint8_t*)img.data();
+            uint8_t *from = (uint8_t*)seg_mask.data();
+            for (int i = 0; i < seg_mask.height(); ++i)
+            {
+                for (int j = 0; j < seg_mask.width(); ++j)
+                {
+                    uint8_t data = from[i * seg_mask.width() + j];
+                    if(data > threshold)
+                    {
+                        to[((y + i) * img.width() + x + j) * fmt_size] = data;
+                    }
+                }
             }
         }
 
@@ -398,52 +449,65 @@ namespace maix::nn
         float _conf_th = 0.5;
         float _iou_th = 0.45;
         float _keypoint_th = 0.5;
-        std::string _type;
-        bool _type_pose;
+        YOLOv8_Type _type;
 
     private:
-        std::vector<nn::Object> *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
+        nn::Objects *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
         {
-            std::vector<nn::Object> *objects = new std::vector<nn::Object>();
-            tensor::Tensor *kp_out = _decode_objs(*objects, outputs, _conf_th, _input_size.width(), _input_size.height());
+            nn::Objects *objects = new nn::Objects();
+            tensor::Tensor *kp_out = NULL;
+            tensor::Tensor *mask_out = NULL;
+            float scale_w = 1;
+            float scale_h = 1;
+
+            _decode_objs(*objects, outputs, _conf_th, _input_size.width(), _input_size.height(), &kp_out, &mask_out);
             if (objects->size() > 0)
             {
-                std::vector<nn::Object> *objects_total = objects;
+                nn::Objects *objects_total = objects;
                 objects = _nms(*objects);
                 delete objects_total;
             }
             // decode keypoints
-            if (_type_pose)
+            if (_type == TYPE_POSE)
             {
                 _decode_keypoints(*objects, kp_out);
             }
+            else if (_type == TYPE_SEG)
+            {
+                _decode_seg_points(*objects, kp_out, mask_out);
+            }
             if (objects->size() > 0)
-                _correct_bbox(*objects, img_w, img_h, fit);
+            {
+                _correct_bbox(*objects, img_w, img_h, fit, &scale_w, &scale_h);
+            }
             return objects;
         }
 
-        tensor::Tensor *_decode_objs(std::vector<nn::Object> &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h)
+        void _decode_objs(nn::Objects &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h, tensor::Tensor **kp_out, tensor::Tensor **mask_out)
         {
             float stride[3] = {8, 16, 32};
             tensor::Tensor *score_out = NULL; // shape 1, 80, 8400, 1
             tensor::Tensor *box_out = NULL;   // shape 1,  1,    4, 8400
-            tensor::Tensor *kp_out = NULL;    // shape 1, 51, 8400, 1
             for (auto i : *outputs)
             {
                 if (i.second->shape()[2] == 4)
                 {
                     box_out = i.second;
                 }
-                else if(strstr(i.first.c_str(), "Sigmoid") != NULL)
+                else if (strstr(i.first.c_str(), "Sigmoid") != NULL)
                 {
                     score_out = i.second;
                 }
+                else if (strstr(i.first.c_str(), "output1") != NULL)
+                {
+                    *mask_out = i.second;
+                }
                 else
                 {
-                    kp_out = i.second;
+                    *kp_out = i.second;
                 }
             }
-            if(!score_out || !kp_out)
+            if (!score_out || !kp_out)
             {
                 throw err::Exception(err::ERR_ARGS, "model output not valid");
             }
@@ -477,57 +541,76 @@ namespace maix::nn
                         float bbox_y = (ay + 0.5 - dets_ptr[offset + total_box_num]) * stride[i];
                         float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
                         float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
-                        Object obj(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
                         _KpInfo *kp_info = new _KpInfo(offset, ax, ay, stride[i]);
-                        obj.temp = (void *)kp_info;
-                        objs.push_back(obj);
+                        Object *obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
+                        obj->temp = (void *)kp_info;
                     }
                 }
             }
-            return kp_out;
         }
 
-        std::vector<nn::Object> *_nms(std::vector<nn::Object> &objs)
+        nn::Objects *_nms(nn::Objects &objs)
         {
-            std::vector<nn::Object> *result = new std::vector<nn::Object>();
-            std::sort(objs.begin(), objs.end(), [](const nn::Object &a, const nn::Object &b)
-                      { return a.score < b.score; });
+            nn::Objects *result = new nn::Objects();
+            std::sort(objs.begin(), objs.end(), [](const nn::Object *a, const nn::Object *b)
+                      { return a->score < b->score; });
             for (size_t i = 0; i < objs.size(); ++i)
             {
-                nn::Object &a = objs.at(i);
-                if (a.score == 0)
+                nn::Object *a = objs.at(i);
+                if (a->score == 0)
                     continue;
                 for (size_t j = i + 1; j < objs.size(); ++j)
                 {
-                    nn::Object &b = objs.at(j);
-                    if (b.score != 0 && a.class_id == b.class_id && _calc_iou(a, b) > this->_iou_th)
+                    nn::Object *b = objs.at(j);
                     {
-                        b.score = 0;
+                        if (b->score != 0 && a->class_id == b->class_id && _calc_iou(*a, *b) > this->_iou_th)
+                            b->score = 0;
                     }
                 }
             }
-            for (nn::Object &a : objs)
+            for (nn::Object *a : objs)
             {
-                if (a.score != 0)
-                    result->push_back(a);
+                if (a->score != 0)
+                {
+                    Object *obj = result->add(a->x, a->y, a->w, a->h, a->class_id, a->score, a->points);
+                    if (obj->x < 0)
+                    {
+                        obj->w += obj->x;
+                        obj->x = 0;
+                    }
+                    if (obj->y < 0)
+                    {
+                        obj->h += obj->y;
+                        obj->y = 0;
+                    }
+                    if (obj->x + obj->w > _input_size.width())
+                    {
+                        obj->w = _input_size.width() - obj->x;
+                    }
+                    if (obj->y + obj->h > _input_size.height())
+                    {
+                        obj->h = _input_size.height() - obj->y;
+                    }
+                    obj->temp = a->temp;
+                }
                 else
                 {
-                    delete (_KpInfo *)a.temp;
-                    a.temp = NULL;
+                    delete (_KpInfo *)a->temp;
+                    a->temp = NULL;
                 }
             }
             return result;
         }
 
-        void _decode_keypoints(std::vector<nn::Object> &objs, tensor::Tensor *kp_out)
+        void _decode_keypoints(nn::Objects &objs, tensor::Tensor *kp_out)
         {
             float *data = (float *)kp_out->data();
             int keypoint_num = kp_out->shape()[1] / 3; // 1, 51, 8400, 1
-            int total_box_num = kp_out->shape()[2]; // 1, 51, 8400, 1
+            int total_box_num = kp_out->shape()[2];    // 1, 51, 8400, 1
             for (size_t i = 0; i < objs.size(); ++i)
             {
-                nn::Object &o = objs.at(i);
-                _KpInfo *kp_info = (_KpInfo *)o.temp;
+                nn::Object *o = objs.at(i);
+                _KpInfo *kp_info = (_KpInfo *)o->temp;
                 float *p = data + kp_info->idx;
                 for (int k = 0; k < keypoint_num; ++k)
                 {
@@ -539,74 +622,207 @@ namespace maix::nn
                         x = (p[(k * 3) * total_box_num] * 2.0 + kp_info->anchor_x) * kp_info->stride;
                         y = (p[(k * 3 + 1) * total_box_num] * 2.0 + kp_info->anchor_y) * kp_info->stride;
                     }
-                    o.points.push_back(x);
-                    o.points.push_back(y);
+                    o->points.push_back(x);
+                    o->points.push_back(y);
                 }
-                delete (_KpInfo *)o.temp;
-                o.temp = NULL;
+                delete (_KpInfo *)o->temp;
+                o->temp = NULL;
             }
         }
 
-        void _correct_bbox(std::vector<nn::Object> &objs, int img_w, int img_h, maix::image::Fit fit)
+        void _decode_seg_points(nn::Objects &objs, tensor::Tensor *kp_out, tensor::Tensor *mask_out)
         {
+            float *data = (float *)kp_out->data();
+            float *mask_data = (float *)mask_out->data(); // 1, 32, 160, 160
+            int mask_h = mask_out->shape()[2];
+            int mask_w = mask_out->shape()[3];
+            int mask_squre = mask_h * mask_w;
+            int mask_num = kp_out->shape()[1];      // 1, 32, 8400, 1
+            int total_box_num = kp_out->shape()[2]; // 1, 32, 8400, 1
+            float mask_weights[mask_num];
+            for (size_t i = 0; i < objs.size(); ++i)
+            {
+                nn::Object *o = objs.at(i);
+                int mask_x = o->x * mask_w / _input_size.width();
+                int mask_y = o->y * mask_h / _input_size.height();
+                int mask_x2 = (o->x + o->w) * mask_w / _input_size.width();
+                int mask_y2 = (o->y + o->h) * mask_h / _input_size.height();
+                _KpInfo *kp_info = (_KpInfo *)o->temp;
+                float *p = data + kp_info->idx;
+                for (int k = 0; k < mask_num; ++k)
+                {
+                    mask_weights[k] = p[k * total_box_num];
+                }
+                o->seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
+                uint8_t *p_img_data = (uint8_t *)o->seg_mask->data();
+                for (int j = mask_y; j < mask_y2; ++j)
+                {
+                    for (int k = mask_x; k < mask_x2; ++k)
+                    {
+                        mask_data[j * mask_w + k] *= mask_weights[0];
+                    }
+                }
+                for (int n = 1; n < mask_num; ++n)
+                {
+                    for (int j = mask_y; j < mask_y2; ++j)
+                    {
+                        for (int k = mask_x; k < mask_x2; ++k)
+                        {
+                            mask_data[j * mask_w + k] += mask_weights[n] * mask_data[n * mask_squre + j * mask_w + k];
+                        }
+                    }
+                }
+                for (int j = mask_y; j < mask_y2; ++j)
+                {
+                    for (int k = mask_x; k < mask_x2; ++k)
+                    {
+                        *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
+                    }
+                }
+                delete (_KpInfo *)o->temp;
+                o->temp = NULL;
+            }
+        }
+
+        void _correct_bbox(nn::Objects &objs, int img_w, int img_h, maix::image::Fit fit, float *scale_w, float *scale_h)
+        {
+#define CORRECT_BBOX_RANGE(obj)      \
+    do                               \
+    {                                \
+        if (obj->x < 0)              \
+        {                            \
+            obj->w += obj->x;        \
+            obj->x = 0;              \
+        }                            \
+        if (obj->y < 0)              \
+        {                            \
+            obj->h += obj->y;        \
+            obj->y = 0;              \
+        }                            \
+        if (obj->x + obj->w > img_w) \
+        {                            \
+            obj->w = img_w - obj->x; \
+        }                            \
+        if (obj->y + obj->h > img_h) \
+        {                            \
+            obj->h = img_h - obj->y; \
+        }                            \
+    } while (0)
+
+            for (nn::Object *obj : objs)
+            {
+                if (obj->temp)
+                {
+                    delete (_KpInfo *)obj->temp;
+                    obj->temp = NULL;
+                }
+            }
             if (img_w == _input_size.width() && img_h == _input_size.height())
+            {
+                if (_type == TYPE_SEG)
+                {
+                    for (nn::Object *obj : objs)
+                    {
+                        if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
+                        {
+                            image::Image *old = obj->seg_mask;
+                            obj->seg_mask = old->resize(obj->w, obj->h, image::FIT_FILL);
+                            delete old;
+                        }
+                    }
+                }
                 return;
+            }
             if (fit == maix::image::FIT_FILL)
             {
-                float scale_x = (float)img_w / _input_size.width();
-                float scale_y = (float)img_h / _input_size.height();
-                for (nn::Object &obj : objs)
+                *scale_w = (float)img_w / _input_size.width();
+                *scale_h = (float)img_h / _input_size.height();
+                for (nn::Object *obj : objs)
                 {
-                    obj.x *= scale_x;
-                    obj.y *= scale_y;
-                    obj.w *= scale_x;
-                    obj.h *= scale_y;
-                    for (size_t i = 0; i < obj.points.size() / 2; ++i)
+                    obj->x *= *scale_w;
+                    obj->y *= *scale_h;
+                    obj->w *= *scale_w;
+                    obj->h *= *scale_h;
+                    for (size_t i = 0; i < obj->points.size() / 2; ++i)
                     {
-                        obj.points.at(i * 2) *= scale_x;
-                        obj.points.at(i * 2 + 1) *= scale_y;
+                        obj->points.at(i * 2) *= *scale_w;
+                        obj->points.at(i * 2 + 1) *= *scale_h;
+                    }
+                    CORRECT_BBOX_RANGE(obj);
+                    if (_type == TYPE_SEG)
+                    {
+                        if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
+                        {
+                            image::Image *old = obj->seg_mask;
+                            obj->seg_mask = old->resize(obj->w, obj->h, image::FIT_FILL);
+                            delete old;
+                        }
                     }
                 }
             }
             else if (fit == maix::image::FIT_CONTAIN)
             {
-                float scale_x = ((float)_input_size.width()) / img_w;
-                float scale_y = ((float)_input_size.height()) / img_h;
-                float scale = std::min(scale_x, scale_y);
+                *scale_w = ((float)_input_size.width()) / img_w;
+                *scale_h = ((float)_input_size.height()) / img_h;
+                float scale = std::min(*scale_w, *scale_h);
                 float scale_reverse = 1.0 / scale;
+                *scale_w = scale_reverse;
+                *scale_h = scale_reverse;
                 float pad_w = (_input_size.width() - img_w * scale) / 2.0;
                 float pad_h = (_input_size.height() - img_h * scale) / 2.0;
-                for (nn::Object &obj : objs)
+                for (nn::Object *obj : objs)
                 {
-                    obj.x = (obj.x - pad_w) * scale_reverse;
-                    obj.y = (obj.y - pad_h) * scale_reverse;
-                    obj.w *= scale_reverse;
-                    obj.h *= scale_reverse;
-                    for (size_t i = 0; i < obj.points.size() / 2; ++i)
+                    obj->x = (obj->x - pad_w) * scale_reverse;
+                    obj->y = (obj->y - pad_h) * scale_reverse;
+                    obj->w *= scale_reverse;
+                    obj->h *= scale_reverse;
+                    for (size_t i = 0; i < obj->points.size() / 2; ++i)
                     {
-                        obj.points.at(i * 2) = (obj.points.at(i * 2) - pad_w) * scale_reverse;
-                        obj.points.at(i * 2 + 1) = (obj.points.at(i * 2 + 1) - pad_h) * scale_reverse;
+                        obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
+                        obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
+                    }
+                    CORRECT_BBOX_RANGE(obj);
+                    if (_type == TYPE_SEG)
+                    {
+                        if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
+                        {
+                            image::Image *old = obj->seg_mask;
+                            obj->seg_mask = old->resize(obj->w, obj->h, image::FIT_FILL);
+                            delete old;
+                        }
                     }
                 }
             }
             else if (fit == maix::image::FIT_COVER)
             {
-                float scale_x = ((float)_input_size.width()) / img_w;
-                float scale_y = ((float)_input_size.height()) / img_h;
-                float scale = std::max(scale_x, scale_y);
+                *scale_w = ((float)_input_size.width()) / img_w;
+                *scale_h = ((float)_input_size.height()) / img_h;
+                float scale = std::max(*scale_w, *scale_h);
                 float scale_reverse = 1.0 / scale;
+                *scale_w = scale_reverse;
+                *scale_h = scale_reverse;
                 float pad_w = (img_w * scale - _input_size.width()) / 2.0;
                 float pad_h = (img_h * scale - _input_size.height()) / 2.0;
-                for (nn::Object &obj : objs)
+                for (nn::Object *obj : objs)
                 {
-                    obj.x = (obj.x + pad_w) * scale_reverse;
-                    obj.y = (obj.y + pad_h) * scale_reverse;
-                    obj.w *= scale_reverse;
-                    obj.h *= scale_reverse;
-                    for (size_t i = 0; i < obj.points.size() / 2; ++i)
+                    obj->x = (obj->x + pad_w) * scale_reverse;
+                    obj->y = (obj->y + pad_h) * scale_reverse;
+                    obj->w *= scale_reverse;
+                    obj->h *= scale_reverse;
+                    for (size_t i = 0; i < obj->points.size() / 2; ++i)
                     {
-                        obj.points.at(i * 2) = (obj.points.at(i * 2) - pad_w) * scale_reverse;
-                        obj.points.at(i * 2 + 1) = (obj.points.at(i * 2 + 1) - pad_h) * scale_reverse;
+                        obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
+                        obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
+                    }
+                    CORRECT_BBOX_RANGE(obj);
+                    if (_type == TYPE_SEG)
+                    {
+                        if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
+                        {
+                            image::Image *old = obj->seg_mask;
+                            obj->seg_mask = old->resize(obj->w, obj->h, image::FIT_FILL);
+                            delete old;
+                        }
                     }
                 }
             }
