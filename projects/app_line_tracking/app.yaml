@@ -1,0 +1,13 @@
+id: line_tracking
+name: Line tracking
+name[zh]: 巡线
+version: 1.0.0
+icon: assets/line_tracking.json
+author: Sipeed Ltd
+desc: Trace the line in camera and send the coord and theta from the communication module.
+desc[zh]: 巡线，用于小车机器人巡线，通过串口发送坐标和角度。
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+
