@@ -1,0 +1,13 @@
+id: find_blobs
+name: Find blobs
+name[zh]: 寻找色块
+version: 1.0.1
+icon: assets/ball.json
+author: Sipeed Ltd
+desc: Find the position of the color block in camera and send the coord of the block from the communication module(Default is uart).
+desc[zh]: 寻找摄像头画面中的色块位置，并用通信模块(默认是uart)发送的色块的坐标
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+

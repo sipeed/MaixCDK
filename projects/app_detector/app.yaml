@@ -1,0 +1,13 @@
+id: detector
+name: AI Detector
+name[zh]: AI 检测器
+version: 1.0.0
+icon: assets/detector.png
+author: Sipeed Ltd
+desc: AI object detection
+desc[zh]: AI 物体检测
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+

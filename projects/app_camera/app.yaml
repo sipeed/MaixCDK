@@ -1,0 +1,13 @@
+id: camera
+name: Camera
+name[zh]: 相机
+version: 1.0.0
+icon: assets/camera.json
+author: Sipeed Ltd
+desc: Camera APP, take photos and record videos
+desc[zh]: 照相机应用，照相或者录制视频
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+

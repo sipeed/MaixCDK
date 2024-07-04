@@ -1,0 +1,13 @@
+id: classifier
+name: AI Classifier
+name[zh]: AI 分类器
+version: 1.0.0
+icon: assets/classifier.png
+author: Sipeed Ltd
+desc: AI object classification
+desc[zh]: AI 物体分类识别
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+
