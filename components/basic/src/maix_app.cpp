@@ -37,14 +37,14 @@ namespace maix::app
         fs::File *fp = fs::open(app_yaml, "r");
         string line;
         string id;
-        while(1)
+        while (1)
         {
             int read = fp->readline(line);
-            if(read <= 0)
+            if (read <= 0)
             {
                 break;
             }
-            if(line.find("id:") == 0)
+            if (line.find("id:") == 0)
             {
                 id = line.substr(3);
                 break;
@@ -65,10 +65,10 @@ namespace maix::app
 
     string app_id()
     {
-        if((_app_id.empty() || _app_id == "maixpy") && !_app_id_searched)
+        if ((_app_id.empty() || _app_id == "maixpy") && !_app_id_searched)
         {
             // if have app.yaml, read id from app.yaml
-            if(fs::exists("app.yaml"))
+            if (fs::exists("app.yaml"))
             {
                 _app_id = _read_id("app.yaml");
             }
@@ -172,12 +172,12 @@ namespace maix::app
                 printf("get app %s icon failed: %d\n", app_id.c_str(), ret);
                 continue;
             }
-            if(fs::isabs(app_icon) == false)
+            if (fs::isabs(app_icon) == false)
             {
                 app_icon = get_app_path(app_id) + "/" + app_icon;
             }
             // check icon file exists, not exists, use default icon
-            if(fs::exists(app_icon) == false)
+            if (fs::exists(app_icon) == false)
             {
                 app_icon = "/maixapp/share/icon/icon.json";
             }
@@ -220,6 +220,18 @@ namespace maix::app
             apps_info.push_back(app_info);
         }
         return apps_info;
+    }
+
+    app::APP_Info get_app_info(const std::string &app_id)
+    {
+        vector<APP_Info> info = get_apps_info();
+        for(auto i : info)
+        {
+            if (i.id == app_id)
+            {
+                return i;
+            }
+        }
     }
 
     string get_app_data_path()
@@ -463,7 +475,7 @@ namespace maix::app
 
     err::Err set_exit_msg(err::Err code, const string &msg)
     {
-        if(code == err::ERR_NONE)
+        if (code == err::ERR_NONE)
         {
             return err::ERR_NONE;
         }
@@ -488,7 +500,7 @@ namespace maix::app
         {
             return make_tuple(app_id(), exit_code, exit_msg);
         }
-        if(fs::exists(get_exit_msg_path()) == false)
+        if (fs::exists(get_exit_msg_path()) == false)
         {
             return make_tuple("", err::ERR_NONE, "");
         }
@@ -506,8 +518,8 @@ namespace maix::app
         (void)!fscanf(fp, "%s\n%d\n", app_id, &code);
         (void)!fgets(msg, sizeof(msg), fp);
         fclose(fp);
-        if(code == 0)
-        {// remove exit msg file
+        if (code == 0)
+        { // remove exit msg file
             fs::remove(path.c_str());
         }
         return make_tuple(app_id, (err::Err)code, msg);
@@ -548,11 +560,19 @@ namespace maix::app
 
     static string get_app_start_info_path()
     {
-        string path = string(APP_ROOT_PATH "/app_start_info.txt");
+        string path = string("/tmp/run_app.txt");
         return path;
     }
 
-    void switch_app(const string &app_id, int idx)
+    /**
+     * 要启动程序，退出时写入 `/tmp/run_app.txt`
+     * 第一行： app 可执行文件路径，如果是 python 文件，则 `/xx/xx/main.py`
+     * 第二行： app_id
+     * 第三行： 传给 app 的参数，字符串类型
+     * 程序可以调用 `maix.app.switch_app()` 函数切换应用，以上行为封装在里面了。
+     * 被启动的程序可以通过`maix.app.get_start_param()`函数获得传参。
+     */
+    void switch_app(const string &app_id, int idx, const std::string &start_param)
     {
         if (idx < 0 && app_id == "")
         {
@@ -561,31 +581,57 @@ namespace maix::app
         }
         // inform this app to exit, code should check this flag by app::need_exit()
         set_exit_flag(true);
+        vector<APP_Info> &apps_info = get_apps_info();
 
         // write app_id to file, launcher will read this file and start the app
         string path = get_app_start_info_path();
         FILE *fp = fopen(path.c_str(), "w");
         if (fp == NULL)
         {
-            log::error("open app start info file failed: %s\n", path.c_str());
+            log::error("open app start info file failed: %s", path.c_str());
             return;
         }
-        if (idx < 0)
-            fprintf(fp, "%s\n", app_id.c_str());
-        else
+        std::string final_app_id = app_id;
+        std::string final_app_path = "";
+        if (idx >= 0)
         {
-            // get app id by idx
-            vector<APP_Info> &apps_info = get_apps_info();
             if ((size_t)idx >= apps_info.size())
             {
-                log::error("switch app failed, idx %d is invalid\n", idx);
-                return;
+                log::error("idx error, should < %lld, but %d", apps_info.size(), idx);
+                fclose(fp);
+                throw err::Exception(err::ERR_ARGS, "idx error");
             }
-            fprintf(fp, "%s\n", apps_info[idx].id.c_str());
+            final_app_id = apps_info[idx].id;
+            final_app_path = get_app_path(final_app_id) + "/" + apps_info[idx].exec;
         }
+        else
+        {
+            final_app_id = app_id;
+            for (auto i : apps_info)
+            {
+                if (final_app_id == i.id)
+                {
+                    final_app_path = get_app_path(final_app_id) + "/" + i.exec;
+                    break;
+                }
+            }
+        }
+        fprintf(fp, "%s\n%s\n%s\n", final_app_path.c_str(), final_app_id.c_str(), start_param.c_str());
         fclose(fp);
         // when this app exit, the launcher will check this file and start the app
     }
 
+    const std::string get_start_param()
+    {
+        const char *env_p = std::getenv("APP_START_PARAM");
+        if (env_p != nullptr)
+        {
+            return std::string(env_p);
+        }
+        else
+        {
+            return std::string(); // Return an empty string if the environment variable is not found
+        }
+    }
 
 } // namespace maix::app

@@ -168,6 +168,13 @@ namespace maix::app
     vector<app::APP_Info> &get_apps_info(bool ignore_launcher = false, bool ignore_app_store = false);
 
     /**
+     * Get app info by app id.
+     * @return app.APP_Info type.
+     * @maixpy maix.app.get_app_info
+    */
+    app::APP_Info get_app_info(const std::string &app_id);
+
+    /**
      * Get APP info, APP can store private data in this directory.
      * @return APP data path "./data", just return the data folder in current path because APP executed in app install path or project path.
      *         So, you must execute your program in you project path to use the project/data folder when you debug your APP.
@@ -325,9 +332,17 @@ namespace maix::app
      * And exit this APP if app::need_exit() return true.
      * @param app_id APP ID which will be started. app_id and idx must have one is valid.
      * @param idx APP index. app_id and idx must have one is valid.
+     * @param start_param string type, will send to app, app can get this param by `app.get_start_param()`
      * @maixpy maix.app.switch_app
     */
-    void switch_app(const string &app_id, int idx = -1);
+    void switch_app(const string &app_id, int idx = -1, const std::string &start_param = "");
+
+    /**
+     * Get start param set by caller
+     * @return param, string type
+     * @maixpy maix.app.get_start_param
+    */
+    const std::string get_start_param();
 
     /**
      * Shoule this APP exit?
