@@ -4,7 +4,7 @@ title: Use LVGL in MaixCDK
 
 ## run gui_lvgl demo
 
-* Go to `projects/gui_lvgl` in MaixCDK.
+* Go to `examples/gui_lvgl` in MaixCDK.
 * Execute `maixcdk build` to build the project for PC.
 * Execute `maixcdk run` to run the project on PC.
 
@@ -16,6 +16,6 @@ You can also excute `maixcdk menuconfig` to change platform to build for other p
 * Create a new UI project in squareline.
 * Edit your UI.
 * Export UI files, then you will get a `ui` folder.
-* Copy all ui files to `projects/gui_lvgl/ui` folder.
+* Copy all ui files to `examples/gui_lvgl/ui` folder.
 * Run `maixcdk build` to build.
 
