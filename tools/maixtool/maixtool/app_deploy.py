@@ -58,6 +58,7 @@ def serve(pkg_path, port = 8888):
             ips.append(ip)
     final_ip = None
     final_img = None
+    os.makedirs("dist", exist_ok=True)
     for local_ip in ips:
         # show qr code
         url = "http://{}:{}".format(local_ip, local_port)
