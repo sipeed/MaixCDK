@@ -276,6 +276,10 @@ namespace maix::nn
             }
             std::vector<nn::Object> * res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;
+            if(res == NULL)
+            {
+                throw err::Exception("post process failed, please see log before");
+            }
             return res;
         }
 
@@ -366,6 +370,16 @@ namespace maix::nn
             int i = 0;
             for (auto it = outputs->begin(); it != outputs->end(); it++)
             {
+                if(i == 0)
+                {
+                    std::vector<int> shape = it->second->shape();
+                    if(shape[1] != (labels.size() + 5) * anchors.size() / 2 / layer_num)
+                    {
+                        log::error("mud labels or anchors not match model's");
+                        delete objects;
+                        return NULL;
+                    }
+                }
                 // log::info("output: %s, tensor: %s", it->first.c_str(), it->second->to_str().c_str());
                 _get_layer_objs(*objects, *it->second, i++, layer_num);
             }

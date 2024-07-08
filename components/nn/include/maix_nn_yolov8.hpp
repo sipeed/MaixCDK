@@ -292,6 +292,10 @@ namespace maix::nn
             }
             nn::Objects *res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;
+            if(!res)
+            {
+                throw err::Exception("post process failed, please see log before");
+            }
             return res;
         }
 
@@ -460,7 +464,11 @@ namespace maix::nn
             float scale_w = 1;
             float scale_h = 1;
 
-            _decode_objs(*objects, outputs, _conf_th, _input_size.width(), _input_size.height(), &kp_out, &mask_out);
+            if(!_decode_objs(*objects, outputs, _conf_th, _input_size.width(), _input_size.height(), &kp_out, &mask_out))
+            {
+                delete objects;
+                return NULL;
+            }
             if (objects->size() > 0)
             {
                 nn::Objects *objects_total = objects;
@@ -483,7 +491,7 @@ namespace maix::nn
             return objects;
         }
 
-        void _decode_objs(nn::Objects &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h, tensor::Tensor **kp_out, tensor::Tensor **mask_out)
+        bool _decode_objs(nn::Objects &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h, tensor::Tensor **kp_out, tensor::Tensor **mask_out)
         {
             float stride[3] = {8, 16, 32};
             tensor::Tensor *score_out = NULL; // shape 1, 80, 8400, 1
@@ -497,6 +505,11 @@ namespace maix::nn
                 else if (strstr(i.first.c_str(), "Sigmoid") != NULL)
                 {
                     score_out = i.second;
+                    if(score_out->shape()[1] != labels.size())
+                    {
+                        log::error("MUD labels(%d) must equal model's(%d)", score_out->shape()[1], labels.size());
+                        return false;
+                    }
                 }
                 else if (strstr(i.first.c_str(), "output1") != NULL)
                 {
@@ -547,6 +560,7 @@ namespace maix::nn
                     }
                 }
             }
+            return true;
         }
 
         nn::Objects *_nms(nn::Objects &objs)
