@@ -27,7 +27,7 @@ update:
 
 **Maix 设备端开发**：
 
-用提供的`maix.comm.CommProtocol`类可以很方便实现命令响应，具体参考例程 [comm_protocol](../../../examples/protocol_demo)（C++）或者 [comm_protocol.py](../../../projects/MaixPy/examples/protocol_demo.py)（MaixPy）。
+用提供的`maix.comm.CommProtocol`类可以很方便实现命令响应，具体参考例程 [comm_protocol](../../../examples/protocol_demo)（C++）或者 [comm_protocol.py](https://github.com/sipeed/MaixPy/blob/main/examples/protocol)（MaixPy）。
 
 
 **主控端开发**：
