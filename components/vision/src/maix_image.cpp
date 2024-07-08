@@ -429,6 +429,7 @@ namespace maix::image
             _data = NULL;
         }
         _create_image(width, height, format, data, data_size, copy);
+        return err::ERR_NONE;
     }
 
     void Image::operator=(const image::Image &img)
