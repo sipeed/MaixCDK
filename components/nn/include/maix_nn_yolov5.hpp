@@ -373,7 +373,7 @@ namespace maix::nn
                 if(i == 0)
                 {
                     std::vector<int> shape = it->second->shape();
-                    if(shape[1] != (labels.size() + 5) * anchors.size() / 2 / layer_num)
+                    if((size_t)shape[1] != (labels.size() + 5) * anchors.size() / 2 / layer_num)
                     {
                         log::error("mud labels or anchors not match model's");
                         delete objects;
