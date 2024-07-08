@@ -505,7 +505,7 @@ namespace maix::nn
                 else if (strstr(i.first.c_str(), "Sigmoid") != NULL)
                 {
                     score_out = i.second;
-                    if(score_out->shape()[1] != labels.size())
+                    if((size_t)score_out->shape()[1] != labels.size())
                     {
                         log::error("MUD labels(%d) must equal model's(%d)", score_out->shape()[1], labels.size());
                         return false;
