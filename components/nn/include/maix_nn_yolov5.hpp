@@ -461,13 +461,56 @@ namespace maix::nn
             for(nn::Object &a :objs)
             {
                 if(a.score != 0)
+                {
+                    if (a.x < 0)
+                    {
+                        a.w += a.x;
+                        a.x = 0;
+                    }
+                    if (a.y < 0)
+                    {
+                        a.h += a.y;
+                        a.y = 0;
+                    }
+                    if (a.x + a.w > _input_size.width())
+                    {
+                        a.w = _input_size.width() - a.x;
+                    }
+                    if (a.y + a.h > _input_size.height())
+                    {
+                        a.h = _input_size.height() - a.y;
+                    }
                     result->push_back(a);
+                }
             }
             return result;
         }
 
         void _correct_bbox(std::vector<nn::Object> &objs, int img_w, int img_h, maix::image::Fit fit)
         {
+#define CORRECT_BBOX_RANGE(obj)      \
+    do                               \
+    {                                \
+        if (obj->x < 0)              \
+        {                            \
+            obj->w += obj->x;        \
+            obj->x = 0;              \
+        }                            \
+        if (obj->y < 0)              \
+        {                            \
+            obj->h += obj->y;        \
+            obj->y = 0;              \
+        }                            \
+        if (obj->x + obj->w > img_w) \
+        {                            \
+            obj->w = img_w - obj->x; \
+        }                            \
+        if (obj->y + obj->h > img_h) \
+        {                            \
+            obj->h = img_h - obj->y; \
+        }                            \
+    } while (0)
+
             if(img_w == _input_size.width() && img_h == _input_size.height())
                 return;
             if (fit == maix::image::FIT_FILL)
@@ -480,6 +523,7 @@ namespace maix::nn
                     obj.y *= scale_y;
                     obj.w *= scale_x;
                     obj.h *= scale_y;
+                    CORRECT_BBOX_RANGE(obj);
                 }
             }
             else if(fit == maix::image::FIT_CONTAIN)
@@ -496,6 +540,7 @@ namespace maix::nn
                     obj.y = (obj.y - pad_h) * scale_reverse;
                     obj.w *= scale_reverse;
                     obj.h *= scale_reverse;
+                    CORRECT_BBOX_RANGE(obj);
                 }
             }
             else if(fit == maix::image::FIT_COVER)
@@ -512,6 +557,7 @@ namespace maix::nn
                     obj.y = (obj.y + pad_h) * scale_reverse;
                     obj.w *= scale_reverse;
                     obj.h *= scale_reverse;
+                    CORRECT_BBOX_RANGE(obj);
                 }
             }
             else
