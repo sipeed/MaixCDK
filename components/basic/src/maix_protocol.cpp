@@ -12,6 +12,7 @@
 
 namespace maix::protocol
 {
+    uint32_t HEADER = 0xBBACCAAA;
     uint16_t crc16_IBM(uint8_t *ptr, size_t len)
     {
         unsigned int i;
@@ -322,6 +323,7 @@ namespace maix::protocol
         _buff = new uint8_t[buff_size];
         _data_len = 0;
         _header = header;
+        HEADER = header;
     }
 
     Protocol::~Protocol()

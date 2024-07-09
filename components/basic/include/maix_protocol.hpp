@@ -28,7 +28,7 @@ namespace maix
          * @brief protocol header
          * @maixpy maix.protocol.HEADER
         */
-        const uint32_t HEADER = 0xBBACCAAA;
+        extern uint32_t HEADER;
 
         /**
          * @brief protocol cmd, more doc see MaixCDK document's convention doc

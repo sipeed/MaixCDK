@@ -124,7 +124,7 @@ namespace maix::comm
     {
         log::info("[%s:%d] Start...", __PRETTY_FUNCTION__, __LINE__);
         switch (msg->cmd) {
-        case CMD_APP_LIST:{
+        case maix::protocol::CMD_APP_LIST:{
             auto apps_info = app::get_apps_info();
             uint32_t size = 1;
             for (const auto& app_info : apps_info) {
@@ -142,7 +142,7 @@ namespace maix::comm
                 buff[index++] = '\0';
             }
             // debug_show_strings((char*)buff+1, size-1);
-            auto resp_ret = this->resp_ok(CMD_APP_LIST, buff, size);
+            auto resp_ret = this->resp_ok(maix::protocol::CMD_APP_LIST, buff, size);
             if (resp_ret != err::Err::ERR_NONE) {
                 log::error("[%s:%d] resp_ok failed, code = %u",
                     __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -151,12 +151,12 @@ namespace maix::comm
             delete[] buff;
             break;
         }
-        case CMD_START_APP: {
+        case maix::protocol::CMD_START_APP: {
             uint8_t idx = msg->body[0];
             std::vector<std::string> res = find_string((char*)msg->body+1, msg->body_len-1, 2);
             if (res.size() <= 0 || res.size() > 2) {
                 log::error("Unsupport CMD body");
-                auto resp_ret = this->resp_err(CMD_START_APP, err::Err::ERR_ARGS, "Unsupport CMD body");
+                auto resp_ret = this->resp_err(maix::protocol::CMD_START_APP, err::Err::ERR_ARGS, "Unsupport CMD body");
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -186,7 +186,7 @@ namespace maix::comm
                 /* NO ARG */
                 log::info("[%s:%d] START APP {%s}<%u> without arg", __PRETTY_FUNCTION__, __LINE__, res[0].c_str(), res[0].size());
                 app::switch_app(res[0]);
-                auto resp_ret = this->resp_ok(CMD_START_APP, nullptr, 0);
+                auto resp_ret = this->resp_ok(maix::protocol::CMD_START_APP, nullptr, 0);
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -197,7 +197,7 @@ namespace maix::comm
                 log::info("[%s:%d] START APP idx {%u} with arg {%s}", __PRETTY_FUNCTION__, __LINE__, idx, res[0].c_str());
                 auto app_list = app::get_apps_info();
                 if (idx >= app_list.size()) {
-                    auto resp_ret = this->resp_err(CMD_START_APP,
+                    auto resp_ret = this->resp_err(maix::protocol::CMD_START_APP,
                                                     err::Err::ERR_NOT_FOUND, "app not found with this idx");
                     if (resp_ret != err::Err::ERR_NONE) {
                         log::error("[%s:%d] resp_ok failed, code = %u",
@@ -206,7 +206,7 @@ namespace maix::comm
                     msg->has_been_replied = true;
                 }
                 app::switch_app("", idx, res[0].c_str());
-                auto resp_ret = this->resp_ok(CMD_START_APP, nullptr, 0);
+                auto resp_ret = this->resp_ok(maix::protocol::CMD_START_APP, nullptr, 0);
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -216,7 +216,7 @@ namespace maix::comm
                 /* WITH ARG */
                 log::info("[CommProtocol] START APP {%s} with arg {%s}", res[0].c_str(), res[1].c_str());
                 app::switch_app(res[0], -1, res[1]);
-                auto resp_ret = this->resp_ok(CMD_START_APP, nullptr, 0);
+                auto resp_ret = this->resp_ok(maix::protocol::CMD_START_APP, nullptr, 0);
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -224,7 +224,7 @@ namespace maix::comm
                 msg->has_been_replied = true;
             } else {
                 log::error("[%s:%d] Unsupport body...", __PRETTY_FUNCTION__, __LINE__);
-                auto resp_ret = this->resp_err(CMD_START_APP, err::Err::ERR_ARGS, "Unsupport body!");
+                auto resp_ret = this->resp_err(maix::protocol::CMD_START_APP, err::Err::ERR_ARGS, "Unsupport body!");
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -233,18 +233,18 @@ namespace maix::comm
             }
             break;
         }
-        case CMD_EXIT_APP: {
+        case maix::protocol::CMD_EXIT_APP: {
             log::info("[%s:%d] Need to EXIT...", __PRETTY_FUNCTION__, __LINE__);
             auto err_code = app::set_exit_msg(err::Err::ERR_NONE, "exited by CommProtocol");
             if (err_code != err::Err::ERR_NONE) {
-                auto resp_ret = this->resp_err(CMD_EXIT_APP, err_code, "Exit app failed!");
+                auto resp_ret = this->resp_err(maix::protocol::CMD_EXIT_APP, err_code, "Exit app failed!");
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
                 }
                 break;
             }
-            auto resp_ret = this->resp_ok(CMD_EXIT_APP, nullptr, 0);
+            auto resp_ret = this->resp_ok(maix::protocol::CMD_EXIT_APP, nullptr, 0);
             if (resp_ret != err::Err::ERR_NONE) {
                 log::error("[%s:%d] resp_ok failed, code = %u",
                     __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -253,7 +253,7 @@ namespace maix::comm
             app::set_exit_flag(true);
             break;
         }
-        case CMD_CUR_APP_INFO: {
+        case maix::protocol::CMD_CUR_APP_INFO: {
             auto res = app::app_id();
             auto idx = find_idx(res);
             int len = static_cast<int>(res.size()+2);
@@ -265,7 +265,7 @@ namespace maix::comm
             std::copy(res.begin(), res.end(), buff+1);
             buff[len-1] = '\0';
             debug_show_strings((char*)buff+1, len-1);
-            auto resp_ret = this->resp_ok(CMD_CUR_APP_INFO, buff, len);
+            auto resp_ret = this->resp_ok(maix::protocol::CMD_CUR_APP_INFO, buff, len);
             if (resp_ret != err::Err::ERR_NONE) {
                 log::error("[%s:%d] resp_ok failed, code = %u",
                     __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -274,11 +274,11 @@ namespace maix::comm
             delete[] buff;
             break;
         }
-        case CMD_APP_INFO: {
+        case maix::protocol::CMD_APP_INFO: {
             uint8_t idx = msg->body[0];
             auto res = find_string((char*)msg->body+1, msg->body_len-1, 1);
             if (res.size() != 1 && idx == 0xFF) {
-                auto resp_ret = this->resp_err(CMD_APP_INFO, err::Err::ERR_ARGS, "ERROR ARGS");
+                auto resp_ret = this->resp_err(maix::protocol::CMD_APP_INFO, err::Err::ERR_ARGS, "ERROR ARGS");
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -288,7 +288,7 @@ namespace maix::comm
             }
             auto apps_info = app::get_apps_info();
             if (idx != 0xFF && idx >= apps_info.size()) {
-                auto resp_ret = this->resp_err(CMD_APP_INFO, err::Err::ERR_ARGS, "ERROR ARGS");
+                auto resp_ret = this->resp_err(maix::protocol::CMD_APP_INFO, err::Err::ERR_ARGS, "ERROR ARGS");
                 if (resp_ret != err::Err::ERR_NONE) {
                     log::error("[%s:%d] resp_ok failed, code = %u",
                         __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -315,7 +315,7 @@ namespace maix::comm
             std::copy(app_info.desc.begin(), app_info.desc.end(), buff+index);
             index += app_info.desc.size();
             buff[index++] = '\0';
-            auto resp_ret = this->resp_ok(CMD_APP_INFO, buff, size);
+            auto resp_ret = this->resp_ok(maix::protocol::CMD_APP_INFO, buff, size);
             if (resp_ret != err::Err::ERR_NONE) {
                 log::error("[%s:%d] resp_ok failed, code = %u",
                     __PRETTY_FUNCTION__, __LINE__, (uint8_t)resp_ret);
@@ -324,9 +324,9 @@ namespace maix::comm
             delete[] buff;
             break;
         }
-        case CMD_KEY:
-        case CMD_TOUCH:
-        case CMD_SET_REPORT:
+        case maix::protocol::CMD_KEY:
+        case maix::protocol::CMD_TOUCH:
+        case maix::protocol::CMD_SET_REPORT:
             msg->has_been_replied = false;
             log::warn("[%s] Not impl...", __PRETTY_FUNCTION__);
             break;
