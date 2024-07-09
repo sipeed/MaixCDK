@@ -92,6 +92,12 @@ namespace maix
             uint8_t resp_ok;
 
             /**
+             * @brief Whether or not it has been replied to.
+             * @maixpy maix.protocol.MSG.has_been_replied
+             */
+            bool has_been_replied{false};
+
+            /**
              * @brief CMD value
              * @maixpy maix.protocol.MSG.cmd
             */
@@ -241,7 +247,7 @@ namespace maix
              * @maixpy maix.protocol.Protocol.__init__
              * @maixcdk maix.protocol.Protocol.Protocol
             */
-            Protocol(int buff_size = 1024);
+            Protocol(int buff_size = 1024, uint32_t header=HEADER);
             ~Protocol();
 
             /**
@@ -372,6 +378,7 @@ namespace maix
             int _buff_size;
             uint8_t *_buff;
             int _data_len;
+            uint32_t _header;
         };
 
         /**
