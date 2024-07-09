@@ -24,6 +24,21 @@ namespace maix
     namespace comm
     {
         /**
+         * Comm cmd
+         * @maixpy maix.comm.CommCMD
+         */
+        enum CommCMD {
+            CMD_APP_MAX = 0xC8,
+            CMD_SET_REPORT = 0xF8,
+            CMD_APP_LIST = 0xF9,
+            CMD_START_APP = 0xFA,
+            CMD_EXIT_APP = 0xFB,
+            CMD_CUR_APP_INFO = 0xFC,
+            CMD_APP_INFO = 0xFD,
+            CMD_KEY = 0xFE,
+            CMD_TOUCH = 0xFF
+        };
+        /**
          * Class for communication protocol
          * @maixpy maix.comm.CommProtocol
          */
@@ -36,7 +51,7 @@ namespace maix
              * @maixpy maix.comm.CommProtocol.__init__
              * @maixcdk maix.comm.CommProtocol.CommProtocol
              */
-            CommProtocol(int buff_size = 1024);
+            CommProtocol(int buff_size = 1024, uint32_t header=protocol::HEADER);
             ~CommProtocol();
 
             /**
@@ -135,6 +150,9 @@ namespace maix
              * @maixpy maix.comm.CommProtocol.resp_err
              */
             err::Err resp_err(uint8_t cmd, err::Err code, const std::string &msg);
+
+        private:
+            void execute_cmd(protocol::MSG* msg);
 
         private:
             protocol::Protocol *_p;
