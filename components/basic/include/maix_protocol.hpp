@@ -247,7 +247,7 @@ namespace maix
              * @maixpy maix.protocol.Protocol.__init__
              * @maixcdk maix.protocol.Protocol.Protocol
             */
-            Protocol(int buff_size = 1024, uint32_t header=HEADER);
+            Protocol(int buff_size = 1024, uint32_t header=maix::protocol::HEADER);
             ~Protocol();
 
             /**

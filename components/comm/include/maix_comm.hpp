@@ -51,7 +51,7 @@ namespace maix
              * @maixpy maix.comm.CommProtocol.__init__
              * @maixcdk maix.comm.CommProtocol.CommProtocol
              */
-            CommProtocol(int buff_size = 1024, uint32_t header=protocol::HEADER);
+            CommProtocol(int buff_size = 1024, uint32_t header=maix::protocol::HEADER);
             ~CommProtocol();
 
             /**
