@@ -36,7 +36,7 @@ namespace maix
              * @maixpy maix.comm.CommProtocol.__init__
              * @maixcdk maix.comm.CommProtocol.CommProtocol
              */
-            CommProtocol(int buff_size = 1024);
+            CommProtocol(int buff_size = 1024, uint32_t header=maix::protocol::HEADER);
             ~CommProtocol();
 
             /**
@@ -135,6 +135,9 @@ namespace maix
              * @maixpy maix.comm.CommProtocol.resp_err
              */
             err::Err resp_err(uint8_t cmd, err::Err code, const std::string &msg);
+
+        private:
+            void execute_cmd(protocol::MSG* msg);
 
         private:
             protocol::Protocol *_p;

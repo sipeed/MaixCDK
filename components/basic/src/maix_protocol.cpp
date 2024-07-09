@@ -12,6 +12,7 @@
 
 namespace maix::protocol
 {
+    uint32_t HEADER = 0xBBACCAAA;
     uint16_t crc16_IBM(uint8_t *ptr, size_t len)
     {
         unsigned int i;
@@ -110,7 +111,7 @@ namespace maix::protocol
         return encode(buff, buff_len, cmd, FLAG_RESP | FLAG_RESP_ERR, (uint8_t *)msg.c_str(), msg.length(), code);
     }
 
-    bool get_msg(uint8_t *data, int len, MSG *frame, int *idx)
+    bool get_msg(uint8_t *data, int len, MSG *frame, int *idx, const uint32_t header=HEADER)
     {
         size_t data_len = 0;
 
@@ -122,10 +123,10 @@ namespace maix::protocol
         bool found = false;
         for (; i < (uint32_t)len - 4; i++)
         {
-            if (data[i] == (HEADER & 0xFF) &&
-                data[i + 1] == ((HEADER >> 8) & 0xFF) &&
-                data[i + 2] == ((HEADER >> 16) & 0xFF) &&
-                data[i + 3] == ((HEADER >> 24) & 0xFF))
+            if (data[i] == (header & 0xFF) &&
+                data[i + 1] == ((header >> 8) & 0xFF) &&
+                data[i + 2] == ((header >> 16) & 0xFF) &&
+                data[i + 3] == ((header >> 24) & 0xFF))
             {
                 found = true;
                 break;
@@ -316,11 +317,13 @@ namespace maix::protocol
         return protocol::encode_resp_err(cmd, code, msg);
     }
 
-    Protocol::Protocol(int buff_size)
+    Protocol::Protocol(int buff_size, uint32_t header)
     {
         _buff_size = buff_size;
         _buff = new uint8_t[buff_size];
         _data_len = 0;
+        _header = header;
+        HEADER = header;
     }
 
     Protocol::~Protocol()
@@ -350,7 +353,7 @@ namespace maix::protocol
         }
         MSG *frame = new MSG();
         int idx = 0;
-        if (get_msg(_buff, _data_len, frame, &idx))
+        if (get_msg(_buff, _data_len, frame, &idx, _header))
         {
             memmove(_buff, _buff + idx, _data_len - idx);
             _data_len -= idx;
