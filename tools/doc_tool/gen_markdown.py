@@ -245,6 +245,12 @@ module doc
 
 '''
 
+def multilines_add_prefix(content, prefix):
+    lines = content.split("\n")
+    new_lines = []
+    for line in lines:
+        new_lines.append(prefix + line)
+    return "\n".join(new_lines)
 
 def module_to_md(pre_modules, module_name, module, start_comment, module_join_char = "."):
     pre_modules_str = module_join_char.join(pre_modules)
@@ -252,10 +258,20 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
     content = '---\ntitle: {}{}{}\n---\n\n{}\n\n'.format(
         pre_modules_str, module_join_char, module_name, m_doc)
     content += start_comment
+    skip_keys = ["maixpy", "maixcdk", "py_doc", "brief"]
+    def have_doc_kv(doc_comment):
+        keys = list(doc_comment.keys())
+        valid_keys = []
+        for k in keys:
+            if k in skip_keys:
+                continue
+            valid_keys.append(k)
+        return len(valid_keys) > 0
+
     def gen_md_doc_from_comment(doc_comment):
         content = ''
         for doc_k, v in doc_comment.items():
-            if doc_k in ["maixpy", "maixcdk", "py_doc"]:
+            if doc_k in skip_keys:
                 continue
             _content = ''
             if type(v) == list:
@@ -294,13 +310,14 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
         if item["type"] != "enum":
             continue
         content += '### {}\n\n'.format(key.replace("_", "\_"))
+        content += item["doc"].get("brief", "") + "\n\n"
         content += '| item | doc |\n'
         content += '| --- | --- |\n'
         content += gen_md_doc_from_comment(item["doc"])
         content += '| **values** | '
         for value in item["values"]:
             content += '**{}**: {}<br>'.format(value[0], value[2].replace('\n', '<br>'))
-        content += '\n**C++ defination code**:\n```cpp\n{}\n```\n'.format(item["def"])
+        content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
     content += "\n\n"
 
     # Variable
@@ -309,12 +326,13 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
         if item["type"] != "var":
             continue
         content += '### {}\n\n'.format(key.replace("_", "\_"))
+        content += item["doc"].get("brief", "") + "\n\n"
         content += '| item | doc |\n'
         content += '| --- | --- |\n'
         content += gen_md_doc_from_comment(item["doc"])
         content += '| **value** | **{}** |\n'.format(item["value"].replace('\n', '<br>')) if item["value"] else ""
         content += '| **readonly**| {} |\n'.format(item["readonly"])
-        content += '\n**C++ defination code**:\n```cpp\n{}\n```\n'.format(item["def"])
+        content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
     content += "\n\n"
 
     # Function
@@ -325,10 +343,12 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
         content = '### {}\n\n'.format(key.replace("_", "\_"))
         if "py_def" in item:
             content += f'```python\n{item["py_def"]}\n```\n'
-        content += '| item | doc |\n'
-        content += '| --- | --- |\n'
-        content += gen_md_doc_from_comment(item["doc"])
-        content += '\n**C++ defination code**:\n```cpp\n{}\n```\n'.format(item["def"])
+        content += item["doc"].get("brief", "") + "\n\n"
+        if have_doc_kv(item["doc"]):
+            content += '| item | doc |\n'
+            content += '| --- | --- |\n'
+            content += gen_md_doc_from_comment(item["doc"])
+        content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
         return content
     for key, item in module["members"].items():
         if item["type"] != "func":
@@ -346,10 +366,12 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
         if item["type"] != "class":
             continue
         content += '### {}\n\n'.format(key.replace("_", "\_"))
-        content += '| item | doc |\n'
-        content += '| --- | --- |\n'
-        content += gen_md_doc_from_comment(item["doc"])
-        content += '\n**C++ defination code**:\n```cpp\n{}\n```\n'.format(item["def"])
+        content += item["doc"].get("brief", "") + "\n\n"
+        if have_doc_kv(item["doc"]):
+            content += '| item | doc |\n'
+            content += '| --- | --- |\n'
+            content += gen_md_doc_from_comment(item["doc"])
+        content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
         content += '\n'
         def gen_class_func_info(key, item, overload_count = -1):
             supported_types = ["func", "var"]
@@ -360,6 +382,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             content = '#### {}\n\n'.format(key.replace("_", "\_"))
             if "py_def" in item:
                 content += f'```python\n{item["py_def"]}\n```\n'
+            content += item["doc"].get("brief", "") + "\n\n"
             content += '| item | doc |\n'
             content += '| --- | --- |\n'
             content += '| **type** | {} |\n'.format(item["type"])
@@ -367,7 +390,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             content += '| **static** | {} |\n'.format(item["static"])
             if item["type"] == "var":
                 content += '| **readonly** | {} |\n'.format(item["readonly"])
-            content += '\n**C++ defination code**:\n```cpp\n{}\n```\n'.format(item["def"])
+            content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
             return content
 
         for key, item in item["members"].items():

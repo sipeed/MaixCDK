@@ -51,6 +51,8 @@ static struct {
     unsigned int wb_auto_flag : 1;
     unsigned int photo_delay_anim_start_flag : 1;
     unsigned int photo_delay_anim_stop_flag : 1;
+
+    unsigned int resolution_setting_idx;
 } priv;
 
 void event_touch_exit_cb(lv_event_t * e)
@@ -611,6 +613,7 @@ void event_touch_select_resolution_cb(lv_event_t * e)
             LV_UNUSED(text);
             DEBUG_PRT("select resolution: %s\n", text);
 
+            priv.resolution_setting_idx = lv_obj_get_index(obj);
             priv.resolution_setting_flag = 1;
         } else {
             lv_obj_add_state(obj, LV_STATE_CHECKED);
@@ -672,6 +675,11 @@ bool ui_get_resolution_setting_flag(void)
     bool ret = priv.resolution_setting_flag;
     priv.resolution_setting_flag = 0;
     return ret;
+}
+
+int ui_get_resolution_setting_idx(void)
+{
+    return priv.resolution_setting_idx;
 }
 
 bool ui_get_shutter_setting_flag(void)
@@ -821,7 +829,7 @@ void ui_set_shutter_value(double val)
         if (val == -1)
             lv_label_set_text_fmt(label2, "auto");
         else if (val == 0)
-            lv_label_set_text_fmt(label2, "0s");
+            lv_label_set_text_fmt(label2, "1/2s");
         else if (val < 1)
             lv_label_set_text_fmt(label2, "1/%ds", (int)(1 / val));
         else
@@ -834,7 +842,7 @@ void ui_set_shutter_value(double val)
         if (val == -1)
             lv_label_set_text(label, "auto");
         else if (val == 0)
-            lv_label_set_text_fmt(label, "0s");
+            lv_label_set_text_fmt(label, "1/2s");
         else if (val < 1)
             lv_label_set_text_fmt(label, "1/%ds", (int)(1 / val));
         else

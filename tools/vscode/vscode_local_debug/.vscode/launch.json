@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "rebuild",
             "target": "build/demo1",
-            "cwd": "${workspaceRoot}/projects/demo1",
+            "cwd": "${workspaceRoot}/examples/demo1",
             "valuesFormatting": "parseText"
         }
     ]

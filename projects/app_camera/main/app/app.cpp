@@ -35,8 +35,12 @@ static struct {
     bool camera_resolution_update_flag;
     int camera_resolution_w;
     int camera_resolution_h;
+    int resolution_index;
+    camera::Camera *camera;
+    display::Display *disp;
+    display::Display *other_disp;
+    touchscreen::TouchScreen *touchscreen;
 } priv;
-
 
 static int save_buff_to_file(char *filename, uint8_t *filebuf, uint32_t filebuf_len)
 {
@@ -60,6 +64,9 @@ static int save_buff_to_file(char *filename, uint8_t *filebuf, uint32_t filebuf_
 
 int app_pre_init(void)
 {
+    priv.camera_resolution_w = 640;
+    priv.camera_resolution_h = 480;
+    priv.resolution_index = 3;  // 0: 2560x1440; 1: 1920x1080; 2: 1280x720; 3: 640x480
     return 0;
 }
 
@@ -93,8 +100,72 @@ static void _ui_update_new_image_from_maix_path(void)
 {
     std::string pic_path = maix::app::get_picture_path();
     printf("pic_path: %s\n", pic_path.c_str());
+}
 
+int app_base_init(void)
+{
+    // init camera
+    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP);
+    err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
+    // init display
+    priv.disp = new display::Display();
+    priv.other_disp = priv.disp->add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
+    err::check_bool_raise(priv.disp->is_opened(), "display open failed");
+
+    // touch screen
+    priv.touchscreen = new touchscreen::TouchScreen();
+    err::check_bool_raise(priv.touchscreen->is_opened(), "touchscreen open failed");
+
+    // init gui
+    maix::lvgl_init(priv.other_disp, priv.touchscreen);
+    app_init();
+    return 0;
+}
+
+int app_base_deinit(void)
+{
+    maix::lvgl_destroy();
+
+    if (priv.touchscreen) {
+        delete priv.touchscreen;
+        priv.touchscreen = NULL;
+    }
+
+    if (priv.other_disp) {
+        delete priv.other_disp;
+        priv.other_disp = NULL;
+    }
+
+    if (priv.disp) {
+        delete priv.disp;
+        priv.disp = NULL;
+    }
+
+    if (priv.camera) {
+        delete priv.camera;
+        priv.camera = NULL;
+    }
+
+    app_deinit();
+    return 0;
+}
+
+int app_base_loop(void)
+{
+    maix::image::Image *img = priv.camera->read();
+    err::check_null_raise(img, "camera read failed");
+
+    priv.disp->show(*img, image::Fit::FIT_FILL);
+
+    // Must run after disp.show
+    lv_timer_handler();
+
+    // app loop
+    app_loop(*priv.camera, img, *priv.disp, priv.other_disp);
+
+    delete img;
+    return 0;
 }
 
 int app_init(void)
@@ -111,6 +182,7 @@ int app_init(void)
     priv.sensor_ae_mode = mmf_get_exp_mode(0);
     ui_set_shutter_value((double)exposure_time / 1000000);
     ui_set_iso_value(iso_num);
+    ui_set_select_option(priv.resolution_index);
     return 0;
 }
 
@@ -168,6 +240,7 @@ static int app_config_param(void)
     if (ui_get_resolution_setting_flag()) {
         int w, h;
         ui_get_resulution(&w, &h);
+        priv.resolution_index = ui_get_resolution_setting_idx();
         printf("Resolution setting: %d x %d\n", w, h);
 
         priv.camera_resolution_update_flag = 1;
@@ -195,7 +268,9 @@ static int app_config_param(void)
             uint64_t shutter_value;
             ui_get_shutter_value(&shutter_value);
             printf("Shutter setting: %ld us\n", shutter_value);
-            mmf_set_exptime_and_iso(0, shutter_value, priv.sensor_iso_value);
+            if (shutter_value != 0) {
+                mmf_set_exptime_and_iso(0, shutter_value, priv.sensor_iso_value);
+            }
             priv.sensor_shutter_value = shutter_value;
         }
     }
@@ -269,7 +344,6 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
                 string picture_save_path = picture_path + "/" + std::to_string(file_list->size()) +".jpg";
 
                 printf("picture_path path:%s  picture_save_path:%s\n", picture_path.c_str(), picture_save_path.c_str());
-
                 maix::image::Image *jpg_img = img->to_format(maix::image::FMT_JPEG);
                 if (jpg_img) {
                     save_buff_to_file((char *)picture_save_path.c_str(), (uint8_t *)jpg_img->data(), jpg_img->data_size());
@@ -313,7 +387,8 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
 
     if (priv.camera_resolution_update_flag) {
         priv.camera_resolution_update_flag = false;
-        camera.set_resolution(priv.camera_resolution_w, priv.camera_resolution_h);
+        app_base_deinit();
+        app_base_init();
     }
 
     return 0;

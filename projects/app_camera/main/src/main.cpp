@@ -28,52 +28,16 @@ using namespace maix;
 
 int _main(int argc, char **argv)
 {
-    // app pre init
     app_pre_init();
-
-    // init camera
-    camera::Camera camera = camera::Camera(576, 368, image::Format::FMT_YVU420SP);
-    err::check_bool_raise(camera.is_opened(), "camera open failed");
-
-    // init display
-    display::Display disp = display::Display();
-    display::Display *other_disp = disp.add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
-    err::check_bool_raise(disp.is_opened(), "camera open failed");
-
-    // touch screen
-    touchscreen::TouchScreen touchscreen = touchscreen::TouchScreen();
-    err::check_bool_raise(touchscreen.is_opened(), "touchscreen open failed");
-
-    // init gui
-    maix::lvgl_init(other_disp, &touchscreen);
-    app_init();
+    app_base_init();
 
     // main ui loop
     while (!app::need_exit())
     {
-        maix::image::Image *img = camera.read();
-        err::check_null_raise(img, "camera read failed");
-
-        if(!disp.is_opened())
-        {
-            log::info("disp closed\n");
-            break;
-        }
-
-        disp.show(*img, image::Fit::FIT_FILL);
-
-        // app loop
-        app_loop(camera, img, disp, other_disp);
-
-        delete img;
-
-        // Must run after disp.show
-        lv_timer_handler();
+        app_base_loop();
     }
 
-    app_deinit();
-    delete other_disp;
-
+    app_base_deinit();
     return 0;
 }
 

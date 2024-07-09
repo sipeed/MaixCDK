@@ -11,11 +11,17 @@
 #include "maix_image.hpp"
 #include "maix_camera.hpp"
 #include "maix_display.hpp"
+#include "maix_touchscreen.hpp"
+#include "maix_lvgl.hpp"
 
 int app_pre_init(void);
 int app_init(void);
 int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::display::Display &disp, maix::display::Display *disp2);
 int app_deinit(void);
+
+int app_base_init(void);
+int app_base_deinit(void);
+int app_base_loop(void);
 
 // #ifdef __cplusplus
 // }

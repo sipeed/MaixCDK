@@ -8,7 +8,7 @@
                 "rebuild"
             ],
             "options": {
-                "cwd": "${workspaceRoot}/projects/demo1"
+                "cwd": "${workspaceRoot}/examples/demo1"
             },
             "problemMatcher": [
                 "$gcc"
