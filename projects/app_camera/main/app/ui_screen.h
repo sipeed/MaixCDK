@@ -11,6 +11,8 @@ void ui_set_iso_value(int val);
 void ui_set_ev_value(int val);
 void ui_set_wb_value(int val);
 void ui_update_small_img(void *data, int data_size);
+void ui_refresh(void);
+void ui_set_select_option(int idx);
 
 #ifdef __cplusplus
 } /*extern "C"*/

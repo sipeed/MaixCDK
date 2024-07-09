@@ -153,9 +153,9 @@ static void left_screen_init(void)
         lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
         lv_obj_set_style_radius(obj, 0, 0);
         lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_set_style_opa(obj, LV_OPA_0, 0);
-        // lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
-        // lv_obj_add_event_cb(obj, event_touch_resolution_cb, LV_EVENT_CLICKED, NULL);
+        // lv_obj_set_style_opa(obj, LV_OPA_0, 0);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_event_cb(obj, event_touch_resolution_cb, LV_EVENT_CLICKED, NULL);
         g_resolution_button = obj;
 
         img = lv_image_create(obj);
@@ -933,6 +933,20 @@ static void screen_big_image(void)
     lv_obj_center(img);
 }
 
+void ui_set_select_option(int idx)
+{
+    if (!g_resolution_setting) return;
+    lv_obj_t *parent = g_resolution_setting;
+    for (size_t i = 0; i < lv_obj_get_child_count(parent); i++) {
+        lv_obj_t *child = lv_obj_get_child(parent, i);
+        if (i == idx) {
+            lv_obj_add_state(child, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(child, LV_STATE_CHECKED);
+        }
+    }
+}
+
 static void screen_video_running(void)
 {
     lv_obj_t *scr = lv_obj_create(lv_scr_act());
@@ -955,6 +969,14 @@ static void screen_video_running(void)
     lv_obj_align(label, LV_ALIGN_RIGHT_MID, -1, 0);
     lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     lv_label_set_text(label, "00:00:00");
+}
+
+void ui_refresh(void)
+{
+    lv_obj_invalidate(lv_scr_act());
+    lv_obj_invalidate(lv_layer_top());
+    lv_obj_invalidate(lv_layer_bottom());
+    lv_refr_now(NULL);
 }
 
 void ui_all_screen_init(void)

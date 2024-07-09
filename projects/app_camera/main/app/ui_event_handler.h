@@ -40,6 +40,7 @@ bool ui_get_view_photo_flag(void);
 bool ui_get_exit_flag(void);
 bool ui_get_delay_setting_flag(void);
 bool ui_get_resolution_setting_flag(void);
+int ui_get_resolution_setting_idx(void);
 bool ui_get_shutter_setting_flag(void);
 bool ui_get_iso_setting_flag(void);
 bool ui_get_ev_setting_flag(void);

@@ -23,22 +23,22 @@ MaixCDK 开发准则和指导
 对于普通应用开发者， 必要知识：
 
 * 主要由`MaixCDK` 和 `project`两大部分组成，前者是`库`存放的地方，后者是应用代码存放的地方。
-官方的例程和`APP`都直接放在`MaixCDK/projects`目录下，你也可以直接在`MaixCDK/projects`创建你的应用项目。
+官方的例程和`APP`都直接放在`MaixCDK/examples` 和 `MaixCDK/projects`目录下，你也可以直接在`MaixCDK/projects`创建你的应用项目。
 
 另外也可以两者分开放，在系统环境变量中加一个变量`MAIXCDK_PATH`，值为`MaixCDK`目录比如`/home/xxx/MaixCDK`，比如编辑`~/.bashrc`添加`export MAIXCDK_PATH=/home/xxx/MaixCDK`。
 这样项目就可以放其它位置了比如`/home/xxx/projects`
 
 * 组件：每个功能模块可以封装成一个组件，方便不同应用选择性地使用。
-  * 可以看到[projects/hello_world](./projects/hello_world)中有个`main`组件，[components](./components)中有很多组件，还可以自己添加组件，比如`hello_world/component1`或者`hello_world/compoents/component2`。
+  * 可以看到[examples/hello_world](./examples/hello_world)中有个`main`组件，[components](./components)中有很多组件，还可以自己添加组件，比如`hello_world/component1`或者`hello_world/compoents/component2`。
   * 也可以设置环境变量`MAIXCDK_EXTRA_COMPONENTS_PATH`来指定其它额外的组件库。
   * 每个组件包含一个`CMakeLists.txt`来描述组件内容，比如`list(APPEND ADD_INCLUDE "include")`来指定包含的头文件路径，`list(APPEND ADD_SRCS "src/hello.c")`来包含源文件，`list(APPEND ADD_REQUIREMENTS basic)`来依赖其它组件等。
-  * 另外，默认也会到 python `site-packages` 目录寻找，也就是说，如果你了解 python 库打包，你的组件包可以直接发布到 [pypi.org](https://pypi.org), 这样用户通过`pip install maixcdk-xxx` 就可以快速安装你的组件包了！ 可以参考[projects/maixcdk-example](./projects/maixcdk-example)组件。
+  * 另外，默认也会到 python `site-packages` 目录寻找，也就是说，如果你了解 python 库打包，你的组件包可以直接发布到 [pypi.org](https://pypi.org), 这样用户通过`pip install maixcdk-xxx` 就可以快速安装你的组件包了！ 可以参考[examples/maixcdk-example](./examples/maixcdk-example)组件。
 
 * Kconfig: 带终端界面的可配置项。每个组件下面都可以有一个`Kconfig`文件，里面可以设置一些配置项，在执行`maixcdk menuconfig`时就可以看到选项了，保存后会在`build/config`目录下生成`global_config.cmake`,`global_config.h`文件，可以直接在组件的`CMakeLists.txt`和`c/cpp`文件中使用。`Kconfig`的语法可以参考其它组件，活话则自行搜索、参考[这里](https://github.com/ulfalizer/Kconfiglib/tree/master/tests)等。
 
 * 依赖的第三方库： 两种方式，开发者可以自行选择，推荐集成到`MaixCDK`中的使用方式一，个人开发者发布的组件可以使用方式二。
   * 方式一：依赖的第三方库在编译时会自动被下载到`dl`文件夹，都在组件`CMakeLists.txt`中指定需要下载的文件，编译时会将所有需要下载的文件列表写入到`dl/pkgs_info.json`，这样的好处是遇到网络问题可以手动下载放到对应位置。
-  * 方式二：使用 python package 的方式将源码和资源文件都打包发布到 [pypi.org](https://pypi.org)，取名为`maixcdk-xxx`方便大家搜索到，这样用户通过`pip install maixcdk-xxx` 就可以快速安装你的组件包了，而且用户也可以在安装时通过`-i`参数来设置镜像源。可以参考[projects/maixcdk-example](./projects/maixcdk-example)组件。
+  * 方式二：使用 python package 的方式将源码和资源文件都打包发布到 [pypi.org](https://pypi.org)，取名为`maixcdk-xxx`方便大家搜索到，这样用户通过`pip install maixcdk-xxx` 就可以快速安装你的组件包了，而且用户也可以在安装时通过`-i`参数来设置镜像源。可以参考[examples/maixcdk-example](./examples/maixcdk-example)组件。
 
 * 文档：在[docs](./docs/)目录下包含了应用文档和 API 文档， API 文档是从代码自动生成的，不要手动修改，应用文档是具体功能的入门指导文档。
 
