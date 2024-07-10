@@ -491,23 +491,23 @@ namespace maix::nn
 #define CORRECT_BBOX_RANGE(obj)      \
     do                               \
     {                                \
-        if (obj->x < 0)              \
+        if (obj.x < 0)              \
         {                            \
-            obj->w += obj->x;        \
-            obj->x = 0;              \
+            obj.w += obj.x;        \
+            obj.x = 0;              \
         }                            \
-        if (obj->y < 0)              \
+        if (obj.y < 0)              \
         {                            \
-            obj->h += obj->y;        \
-            obj->y = 0;              \
+            obj.h += obj.y;        \
+            obj.y = 0;              \
         }                            \
-        if (obj->x + obj->w > img_w) \
+        if (obj.x + obj.w > img_w) \
         {                            \
-            obj->w = img_w - obj->x; \
+            obj.w = img_w - obj.x; \
         }                            \
-        if (obj->y + obj->h > img_h) \
+        if (obj.y + obj.h > img_h) \
         {                            \
-            obj->h = img_h - obj->y; \
+            obj.h = img_h - obj.y; \
         }                            \
     } while (0)
 
