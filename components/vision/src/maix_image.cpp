@@ -927,7 +927,7 @@ namespace maix::image
         image::Format format = image::Format::FMT_JPEG;
         if(quality <= 50)
         {
-            throw err::Exception(err::ERR_ARGS, "quality only support (50, 100]");
+            quality = 51;
         }
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
         switch (_format) {
