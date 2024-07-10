@@ -700,7 +700,7 @@ namespace maix::nn
 
         void _correct_bbox(nn::Objects &objs, int img_w, int img_h, maix::image::Fit fit, float *scale_w, float *scale_h)
         {
-#define CORRECT_BBOX_RANGE(obj)      \
+#define CORRECT_BBOX_RANGE_YOLOV8(obj)      \
     do                               \
     {                                \
         if (obj->x < 0)              \
@@ -762,7 +762,7 @@ namespace maix::nn
                         obj->points.at(i * 2) *= *scale_w;
                         obj->points.at(i * 2 + 1) *= *scale_h;
                     }
-                    CORRECT_BBOX_RANGE(obj);
+                    CORRECT_BBOX_RANGE_YOLOV8(obj);
                     if (_type == TYPE_SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
@@ -795,7 +795,7 @@ namespace maix::nn
                         obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
                         obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
                     }
-                    CORRECT_BBOX_RANGE(obj);
+                    CORRECT_BBOX_RANGE_YOLOV8(obj);
                     if (_type == TYPE_SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
@@ -828,7 +828,7 @@ namespace maix::nn
                         obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
                         obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
                     }
-                    CORRECT_BBOX_RANGE(obj);
+                    CORRECT_BBOX_RANGE_YOLOV8(obj);
                     if (_type == TYPE_SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())

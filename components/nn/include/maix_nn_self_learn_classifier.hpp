@@ -7,6 +7,7 @@
 #pragma once
 
 #include "maix_basic.hpp"
+#include "maix_nn.hpp"
 
 namespace maix::nn
 {
