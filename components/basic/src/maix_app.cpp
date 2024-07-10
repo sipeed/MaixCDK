@@ -232,6 +232,7 @@ namespace maix::app
                 return i;
             }
         }
+        throw err::Exception(err::ERR_ARGS, "app_id not found");
     }
 
     string get_app_data_path()
