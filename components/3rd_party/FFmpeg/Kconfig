@@ -1,0 +1,18 @@
+
+
+menu "ffmpeg component configuration"
+    menu "FFMPEG version"
+        config FFMPEG_VERSION_MAJOR
+            int "FFMPEG version major"
+            default 4
+        config FFMPEG_VERSION_MINOR
+            int "FFMPEG version minor"
+            default 4
+        config FFMPEG_VERSION_PATCH
+            int "FFMPEG version patch"
+            default 4
+        config FFMPEG_COMPILED_VERSION
+            int "FFMPEG compiled version"
+            default 1
+    endmenu
+endmenu
