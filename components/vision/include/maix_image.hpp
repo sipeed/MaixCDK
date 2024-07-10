@@ -349,7 +349,7 @@ namespace maix::image
 
         /**
          * Convert image to jpeg
-         * @param quality the quality of jpg, default is 95. range is (50, 100].
+         * @param quality the quality of jpg, default is 95. For MaixCAM supported range is (50, 100], if <= 50 will be fixed to 51.
          * @return new image object. Need be delete by caller in C++.
          * @throw err.Exception, if two images' format not support, **or already the format**, will raise exception
          * @maixpy maix.image.Image.to_jpeg
