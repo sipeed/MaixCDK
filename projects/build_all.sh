@@ -22,6 +22,7 @@ function build_start()
     cd ..
 }
 
+rm -rf apps/
 
 for dir in */; do
   if [ -d "$dir" ]; then
