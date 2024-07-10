@@ -70,6 +70,7 @@ dist
 !tools/vscode/vscode_*_debug/.vscode
 out/
 
-docs/api/
+docs/api/*
+!docs/api/config.json
 projects/MaixPy/docs/api/
 projects/apps/
