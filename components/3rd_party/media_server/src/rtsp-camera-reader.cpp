@@ -67,13 +67,33 @@ int RtspCameraReader::SetPspFromFrame(const uint8_t* nalu, size_t bytes)
 		if (0 > nal_unit_type) {
 			return -1;
 		}
-		if(NAL_VPS == nal_unit_type || NAL_SPS == nal_unit_type || NAL_PPS == nal_unit_type)
+
+		const uint8_t *nalu2 = (uint8_t *)nalu;
+		const uint8_t* end = nalu2 + bytes;
+		const uint8_t* p = nalu2;
+		while (p < end)
 		{
-			size_t n = 0x01 == nalu[2] ? 3 : 4;
-			std::pair<const uint8_t*, size_t> pr;
-			pr.first = nalu + n;
-			pr.second = bytes;
-			m_sps.push_back(pr);
+			const unsigned char* pn = search_start_code(p + 4, end);
+			size_t size = pn - nalu2;
+
+			int nal_unit_type = h265_nal_type(p);
+			if (nal_unit_type < 0) {
+				return -1;
+			}
+
+			if(NAL_SPS == nal_unit_type)
+			{
+				memcpy(m_sps_nalu, nalu2, size);
+				size_t n = 0x01 == nalu2[2] ? 3 : 4;
+				std::pair<const uint8_t*, size_t> pr;
+				pr.first = m_sps_nalu + n;
+				pr.second = size;
+				m_sps.push_back(pr);
+				break;
+			}
+
+			nalu2 = pn;
+			p = pn;
 		}
 
 		PushNextFrame(0, nalu, bytes);
@@ -134,21 +154,37 @@ int RtspCameraReader::PushNextFrame(int64_t time, const uint8_t* nalu, size_t by
 		return -1;
 	}
 
-	if(NAL_VPS == nal_unit_type || NAL_SPS == nal_unit_type || NAL_PPS == nal_unit_type)
-	{
-		if(m_sps.size() == 0)
+	if(m_sps.size() == 0) {
+		const uint8_t *nalu2 = (uint8_t *)nalu;
+		const uint8_t* end = nalu2 + bytes;
+		const uint8_t* p = nalu2;
+		while (p < end)
 		{
-			size_t n = 0x01 == nalu[2] ? 3 : 4;
-			std::pair<const uint8_t*, size_t> pr;
-			pr.first = nalu + n;
-			pr.second = bytes;
-			m_sps.push_back(pr);
-		}
-	}
+			const unsigned char* pn = search_start_code(p + 4, end);
+			size_t size = pn - nalu2;
 
-	if (m_sps.size() == 0) {
+			int nal_unit_type = h265_nal_type(p);
+			if (nal_unit_type < 0) {
+				return -1;
+			}
+
+			if(NAL_SPS == nal_unit_type)
+			{
+				memcpy(m_sps_nalu, nalu2, size);
+				size_t n = 0x01 == nalu2[2] ? 3 : 4;
+				std::pair<const uint8_t*, size_t> pr;
+				pr.first = m_sps_nalu + n;
+				pr.second = size;
+				m_sps.push_back(pr);
+				break;
+			}
+
+			nalu2 = pn;
+			p = pn;
+		}
 		m_first_time = time;
 	}
+
 	vframe_t frame;
 	frame.nalu = (const uint8_t*)malloc(bytes);
 	memcpy((uint8_t *)frame.nalu, nalu, bytes);
