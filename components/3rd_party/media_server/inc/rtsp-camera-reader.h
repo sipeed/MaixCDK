@@ -52,6 +52,7 @@ private:
     uint8_t *m_ptr;
     size_t m_capacity;
 	uint8_t m_first_pop;
+	uint64_t m_first_time;
 };
 
 #endif /* !_rtsp_camera_reader_h_ */

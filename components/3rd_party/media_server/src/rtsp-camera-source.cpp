@@ -70,15 +70,8 @@ int RtspCameraSource::Play()
 		const uint8_t* ptr;
 		if(0 == m_reader.GetNextFrame(m_pos, ptr, bytes))
 		{
-			// for(int i=0;i<bytes;i++)
-			// 	printf("%02x ",ptr[i]);
-			// printf("nalu over\n\n\n");
-
+			m_timestamp = m_pos;
 			rtp_payload_encode_input(m_rtppacker, ptr, bytes, m_timestamp * 90 /*kHz*/);
-			m_rtp_clock += 10;
-			m_timestamp += (m_pos - last_m_pos);
-			last_m_pos = m_pos;
-
 			SendRTCP();
 			m_reader.FreeNextFrame();
 			return 1;
