@@ -11,7 +11,7 @@
 enum { NAL_IDR_W_RADL = 19, NAL_IDR_N_LP= 20, NAL_VPS = 32, NAL_SPS = 33, NAL_PPS = 34, NAL_SEI = 39};
 
 RtspCameraReader::RtspCameraReader(const char* file)
-:m_ptr(NULL), m_capacity(0)
+:m_ptr(NULL), m_capacity(0), m_first_time(0)
 {
 	pthread_mutex_init(&m_lock, NULL);
 	pthread_mutex_unlock(&m_lock);
@@ -146,11 +146,14 @@ int RtspCameraReader::PushNextFrame(int64_t time, const uint8_t* nalu, size_t by
 		}
 	}
 
+	if (m_sps.size() == 0) {
+		m_first_time = time;
+	}
 	vframe_t frame;
 	frame.nalu = (const uint8_t*)malloc(bytes);
 	memcpy((uint8_t *)frame.nalu, nalu, bytes);
 	frame.bytes = bytes;
-	frame.time = time;
+	frame.time = (time == 0) ? 0 : time - m_first_time;
 	frame.idr = (NAL_IDR_N_LP == nal_unit_type || NAL_IDR_W_RADL == nal_unit_type); // IDR-frame
 	m_videos.push_back(frame);
 	pthread_mutex_unlock(&m_lock);
