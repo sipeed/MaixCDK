@@ -61,7 +61,7 @@ def serve(pkg_path, port = 8888):
     os.makedirs("dist", exist_ok=True)
     for local_ip in ips:
         # show qr code
-        url = "http://{}:{}".format(local_ip, local_port)
+        url = "http://{}:{}/?".format(local_ip, local_port)
         print("Scan the QR code to download the program:")
         # generate qr code
         img = qrcode.make(url)
