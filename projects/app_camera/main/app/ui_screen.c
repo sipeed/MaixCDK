@@ -50,10 +50,10 @@ LV_IMG_DECLARE(img_resolution);
 LV_IMG_DECLARE(img_photo);
 LV_IMG_DECLARE(img_camera);
 LV_IMG_DECLARE(img_video);
-LV_IMG_DECLARE(img_video_clicked);
 LV_IMG_DECLARE(img_photo_release);
 LV_IMG_DECLARE(img_photo_clicked);
-LV_IMG_DECLARE(img_record_ready);
+LV_IMG_DECLARE(img_video_ready);
+LV_IMG_DECLARE(img_video_stop);
 LV_IMG_DECLARE(img_small_recording);
 
 extern void event_touch_exit_cb(lv_event_t * e);
@@ -212,7 +212,7 @@ static void right_screen_init(void)
         lv_obj_t *obj = lv_obj_create(scr);
         lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 37);
         lv_obj_set_size(obj, img_camera.header.w, img_camera.header.h);
-        // lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
         lv_obj_add_event_cb(obj, event_touch_video_camera_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_style(obj, &click_style, LV_STATE_CHECKED);
         lv_obj_add_style(obj, &release_style, LV_STATE_DEFAULT);
@@ -224,7 +224,7 @@ static void right_screen_init(void)
         static lv_style_t click_style, release_style, check_style, video_ready_style;
         lv_style_init(&click_style);
         lv_style_set_bg_image_src(&click_style, &img_photo_clicked);
-        lv_style_set_bg_image_opa(&click_style, LV_OPA_100);
+        lv_style_set_bg_image_opa(&click_style, LV_OPA_0);
         lv_style_set_bg_color(&click_style, lv_color_hex(0x0));
 
         lv_style_init(&release_style);
@@ -234,13 +234,13 @@ static void right_screen_init(void)
         lv_style_set_bg_color(&release_style, lv_color_hex(0x0));
 
         lv_style_init(&check_style);
-        lv_style_set_bg_image_src(&check_style, &img_video_clicked);
+        lv_style_set_bg_image_src(&check_style, &img_video_ready);
         lv_style_set_bg_image_opa(&check_style, LV_OPA_100);
         lv_style_set_border_side(&check_style, LV_BORDER_SIDE_NONE);
         lv_style_set_bg_color(&check_style, lv_color_hex(0x0));
 
         lv_style_init(&video_ready_style);
-        lv_style_set_bg_image_src(&video_ready_style, &img_record_ready);
+        lv_style_set_bg_image_src(&video_ready_style, &img_video_stop);
         lv_style_set_bg_image_opa(&video_ready_style, LV_OPA_100);
         lv_style_set_border_side(&video_ready_style, LV_BORDER_SIDE_NONE);
         lv_style_set_bg_color(&video_ready_style, lv_color_hex(0x0));
@@ -574,6 +574,13 @@ static void screen_resolution_init(void)
         lv_label_set_text(label, "3.7MP(16:9)");    // 2560x1440
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+
+        label = lv_label_create(obj);
+        lv_obj_set_pos(label, 0, 20);
+        lv_obj_set_align(label, LV_ALIGN_CENTER);
+        lv_label_set_text(label, "2560x1440");    // 2560x1440
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
     }
 
     {
@@ -595,6 +602,13 @@ static void screen_resolution_init(void)
         lv_label_set_text(label, "2MP(16:9)");      // 1920x1080
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+
+        label = lv_label_create(obj);
+        lv_obj_set_pos(label, 0, 20);
+        lv_obj_set_align(label, LV_ALIGN_CENTER);
+        lv_label_set_text(label, "1920x1080");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
     }
 
     {
@@ -616,6 +630,13 @@ static void screen_resolution_init(void)
         lv_label_set_text(label, "0.9MP(16:9)");    // 1280x720
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+
+        label = lv_label_create(obj);
+        lv_obj_set_pos(label, 0, 20);
+        lv_obj_set_align(label, LV_ALIGN_CENTER);
+        lv_label_set_text(label, "1280x720");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
     }
 
     {
@@ -638,6 +659,13 @@ static void screen_resolution_init(void)
         lv_label_set_text(label, "0.3MP(4:3)");
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+
+        label = lv_label_create(obj);
+        lv_obj_set_pos(label, 0, 20);
+        lv_obj_set_align(label, LV_ALIGN_CENTER);
+        lv_label_set_text(label, "640x480");
+        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
     }
 }
 
@@ -1041,5 +1069,5 @@ void ui_all_screen_init(void)
     //     free(img_data);
     // }
 
-    ui_set_record_time(20000 * 1000);
+    ui_set_record_time(2000 * 1000);
 }

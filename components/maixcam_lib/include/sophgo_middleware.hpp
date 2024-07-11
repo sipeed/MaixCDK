@@ -36,6 +36,14 @@ typedef struct {
     int buffer_num;
 } mmf_vdec_cfg_t;
 
+typedef struct {
+    void *data;
+    int len;
+    int w;
+	int h;
+	int fmt;
+} mmf_frame_info_t;
+
 // init sys
 int mmf_init(void);
 int mmf_deinit(void);
@@ -61,6 +69,8 @@ void mmf_get_vi_vflip(int ch, bool *en);
 // get vi frame
 int mmf_vi_frame_pop(int ch, void **data, int *len, int *width, int *height, int *format);
 void mmf_vi_frame_free(int ch);
+int mmf_vi_frame_pop2(int ch, void **frame_info,  mmf_frame_info_t *frame_info_mmap);
+void mmf_vi_frame_free2(int ch, void **frame_info);
 
 // manage vo channels
 int mmf_get_vo_unused_channel(int layer);
@@ -77,6 +87,7 @@ void mmf_get_vo_video_flip(int ch, bool *en);
 // flush vo
 int mmf_vo_frame_push_with_fit(int layer, int ch, void *data, int len, int width, int height, int format, int fit);
 int mmf_vo_frame_push(int layer, int ch, void *data, int len, int width, int height, int format);
+int mmf_vo_frame_push2(int layer, int ch, int fit, void *frame_info);
 
 // rgn
 int mmf_get_region_unused_channel(void);
@@ -100,6 +111,7 @@ int mmf_enc_jpg_free(int ch);
 int mmf_enc_h265_init(int ch, int w, int h);
 int mmf_enc_h265_deinit(int ch);
 int mmf_enc_h265_push(int ch, uint8_t *data, int w, int h, int format);
+int mmf_enc_h265_push2(int ch, void *frame_info);
 int mmf_enc_h265_pop(int ch, mmf_h265_stream_t *stream);
 int mmf_enc_h265_pop(int ch, mmf_stream_t *stream);
 int mmf_enc_h265_free(int ch);
@@ -107,6 +119,7 @@ int mmf_enc_h265_free(int ch);
 // invert format
 int mmf_invert_format_to_maix(int mmf_format);
 int mmf_invert_format_to_mmf(int maix_format);
+int mmf_invert_frame_info(void *mmf_frame_info, mmf_frame_info_t *frame_info);
 
 // config vb
 int mmf_vb_config_of_vi(uint32_t size, uint32_t count);     // must be run before mmf_init()
@@ -146,6 +159,7 @@ int mmf_add_venc_channel(int ch, mmf_venc_cfg_t *cfg);
 int mmf_del_venc_channel(int ch);
 int mmf_del_venc_channel_all();
 int mmf_venc_push(int ch, uint8_t *data, int w, int h, int format);
+int mmf_venc_push2(int ch, void *frame_info);
 int mmf_venc_pop(int ch, mmf_stream_t *stream);
 int mmf_venc_free(int ch);
 int mmf_venc_get_cfg(int ch, mmf_venc_cfg_t *cfg);

@@ -7,6 +7,7 @@
 #include "maix_image.hpp"
 #include "maix_app.hpp"
 #include "maix_fs.hpp"
+#include "maix_vision.hpp"
 #include "sophgo_middleware.hpp"
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -15,10 +16,10 @@
 #include <unistd.h>
 
 using namespace maix;
-
+#define MMF_VENC_CHN            (1)
 static struct {
     uint32_t cam_start_snap_flag : 1;
-    uint32_t video_start_prepare_flag : 1;
+    uint32_t video_prepare_is_ok : 1;
     uint32_t video_start_flag : 1;
     uint32_t video_stop_flag : 1;
 
@@ -31,6 +32,11 @@ static struct {
 
     uint8_t cam_snap_delay_s;
     int video_start_ms;
+    std::string video_save_path;
+    std::string video_mp4_path;
+    int video_save_fd;
+
+    uint64_t loop_last_ms;
 
     bool camera_resolution_update_flag;
     int camera_resolution_w;
@@ -40,6 +46,7 @@ static struct {
     display::Display *disp;
     display::Display *other_disp;
     touchscreen::TouchScreen *touchscreen;
+    video::Encoder *encoder;
 } priv;
 
 static int save_buff_to_file(char *filename, uint8_t *filebuf, uint32_t filebuf_len)
@@ -113,6 +120,9 @@ int app_base_init(void)
     priv.other_disp = priv.disp->add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
+    // init h265 encoder
+    priv.encoder = new video::Encoder(priv.camera_resolution_w, priv.camera_resolution_h);
+
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
     err::check_bool_raise(priv.touchscreen->is_opened(), "touchscreen open failed");
@@ -120,6 +130,8 @@ int app_base_init(void)
     // init gui
     maix::lvgl_init(priv.other_disp, priv.touchscreen);
     app_init();
+
+    priv.loop_last_ms = time::ticks_ms();
     return 0;
 }
 
@@ -130,6 +142,11 @@ int app_base_deinit(void)
     if (priv.touchscreen) {
         delete priv.touchscreen;
         priv.touchscreen = NULL;
+    }
+
+    if (priv.encoder) {
+        delete priv.encoder;
+        priv.encoder = NULL;
     }
 
     if (priv.other_disp) {
@@ -153,11 +170,9 @@ int app_base_deinit(void)
 
 int app_base_loop(void)
 {
+#if 0
     maix::image::Image *img = priv.camera->read();
-    err::check_null_raise(img, "camera read failed");
-
-    priv.disp->show(*img, image::Fit::FIT_FILL);
-
+    priv.disp->show(*img, image::Fit::FIT_COVER);
     // Must run after disp.show
     lv_timer_handler();
 
@@ -165,6 +180,78 @@ int app_base_loop(void)
     app_loop(*priv.camera, img, *priv.disp, priv.other_disp);
 
     delete img;
+#else
+    void *frame;
+    mmf_frame_info_t f;
+    if (priv.camera->width() % 64 != 0) {
+        printf("camera width must be multiple of 64!\r\n");
+        return -1;
+    }
+
+    if (priv.camera->format() != image::Format::FMT_YVU420SP) {
+        printf("camera format must be YVU420SP!\r\n");
+        return -1;
+    }
+
+    int ch = priv.camera->get_channel();
+    if (0 != mmf_vi_frame_pop2(ch, &frame, &f) || frame == NULL) {
+        printf("mmf vi frame pop failed!\r\n");
+        return -1;
+    }
+
+    image::Format fmt = image::Format::FMT_YVU420SP;
+    image::Image *img = new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, false);
+    if (!img) {
+        printf("create image failed!\r\n");
+        mmf_vi_frame_free2(ch, &frame);
+        return -1;
+    }
+
+    // Push frame to encoder
+    int enc_h265_ch = 1;
+
+    if (priv.video_start_flag && priv.video_prepare_is_ok) {
+        uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
+        mmf_enc_h265_push2(enc_h265_ch, frame);
+        ui_set_record_time(record_time);
+    }
+
+    // Push frame to vo
+    mmf_vo_frame_push2(0, 0, 2, frame);
+
+    // Run ui rocess, must run after disp.show
+    lv_timer_handler();
+    app_loop(*priv.camera, img, *priv.disp, priv.other_disp);
+    delete img;
+
+    // Free the vi frame
+    mmf_vi_frame_free2(ch, &frame);
+
+    // Pop stream from encoder
+    mmf_stream_t stream = {0};
+    if (0 == mmf_enc_h265_pop(enc_h265_ch, &stream)) {
+        for (int i = 0; i < stream.count; i++) {
+            printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
+
+            if (priv.video_save_fd > 0) {
+                int size = write(priv.video_save_fd, stream.data[i], stream.data_size[i]);
+                if (size != stream.data_size[i]) {
+                    printf("write file failed! need %d bytes, write %d bytes\r\n", stream.data_size[i], size);
+                }
+            }
+        }
+        mmf_enc_h265_free(enc_h265_ch);
+    }
+#endif
+
+    if (priv.camera_resolution_update_flag) {
+        priv.camera_resolution_update_flag = false;
+        app_base_deinit();
+        app_base_init();
+    }
+
+    printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
+    priv.loop_last_ms = time::ticks_ms();
     return 0;
 }
 
@@ -199,15 +286,17 @@ static int app_config_param(void)
 
     if (ui_get_cam_video_start_flag()) {
         printf("Start video\n");
-        priv.video_start_prepare_flag = true;
+        priv.video_prepare_is_ok = false;
         priv.video_start_flag = true;
-        priv.video_start_ms = time::ticks_us();
+        priv.video_stop_flag = false;
+        priv.video_start_ms = time::ticks_ms();
         ui_set_record_time(0);
     }
 
     if (ui_get_cam_video_stop_flag()) {
         printf("Stop video\n");
-        priv.video_start_prepare_flag = true;
+        priv.video_prepare_is_ok = false;
+        priv.video_start_flag = false;
         priv.video_stop_flag = true;
         priv.video_start_ms = 0;
         ui_set_record_time(0);
@@ -215,7 +304,8 @@ static int app_config_param(void)
 
     if (ui_get_cam_video_try_stop_flag()) {
         printf("Try to stop video\n");
-        priv.video_start_prepare_flag = true;
+        priv.video_prepare_is_ok = false;
+        priv.video_start_flag = false;
         priv.video_stop_flag = true;
         priv.video_start_ms = 0;
         ui_set_record_time(0);
@@ -366,31 +456,64 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
         }
     }
 
-    if (priv.video_start_flag && !priv.video_start_prepare_flag) {
+    if (priv.video_start_flag && !priv.video_prepare_is_ok) {
         printf("Prepare record video\n");
-        priv.video_start_prepare_flag = true;
-    }
+        char *date = ui_get_sys_date();
+        printf("video_save_path:%s\n", priv.video_save_path.c_str());
+        if (date) {
+            string video_root_path = maix::app::get_video_path();
+            string video_date(date);
+            string video_path = video_root_path + "/" + video_date;
+            printf("video_path path:%s\n", video_path.c_str());
+            if (!fs::exists(video_path)) {
+                fs::mkdir(video_path);
+            }
+            std::vector<std::string> *file_list = fs::listdir(video_path);
+            printf("file_list_cnt:%ld\n", file_list->size());
+            string video_save_path = video_path + "/" + std::to_string(file_list->size()) +".h265";
+            string video_mp4_path = video_path + "/" + std::to_string(file_list->size()) +".mp4";
+            printf("video_path path:%s  video_save_path:%s\n", video_path.c_str(), video_save_path.c_str());
+            free(file_list);
+            free(date);
 
-    if (priv.video_start_flag && priv.video_start_prepare_flag) {
-        printf("Start video\n");
-        uint64_t record_time = time::ticks_us() - priv.video_start_ms;
-        ui_set_record_time(record_time);
+            priv.video_save_path = video_save_path;
+            priv.video_mp4_path = video_mp4_path;
+            priv.video_save_fd = open(video_save_path.c_str(), O_RDWR | O_CREAT, 0666);
+            if (priv.video_save_fd > 0) {
+                printf("open video file success\n");
+            }
+        } else {
+            printf("get date failed!\n");
+            priv.video_save_path = "";
+            priv.video_mp4_path = "";
+            priv.video_save_fd = -1;
+        }
+
+        priv.video_prepare_is_ok = true;
     }
 
     if (priv.video_stop_flag) {
         printf("Stop video\n");
+        if (priv.video_save_fd > 0) {
+            close(priv.video_save_fd);
+            priv.video_save_fd = -1;
+        }
+
+        if (priv.video_mp4_path != "" && priv.video_save_path != "") {
+            char cmd[128];
+            snprintf(cmd, sizeof(cmd), "ffmpeg -loglevel quiet -i %s -c:v copy -c:a copy %s -y",
+                        priv.video_save_path.c_str(),
+                        priv.video_mp4_path.c_str());
+            system(cmd);
+            snprintf(cmd, sizeof(cmd), "rm %s", priv.video_save_path.c_str());
+            system(cmd);
+        }
+
         priv.video_stop_flag = false;
-        priv.video_start_prepare_flag = false;
+        priv.video_prepare_is_ok = false;
         priv.video_start_flag = false;
         priv.video_start_ms = 0;
     }
-
-    if (priv.camera_resolution_update_flag) {
-        priv.camera_resolution_update_flag = false;
-        app_base_deinit();
-        app_base_init();
-    }
-
     return 0;
 }
 
