@@ -140,8 +140,13 @@ void event_touch_video_camera_cb(lv_event_t * e)
                 priv.camera_video_try_stop_flag = 1;
             }
             lv_obj_remove_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
+            lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
+            DEBUG_PRT("ready to snap photo!\n");
         } else {
             lv_obj_add_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
+            lv_obj_add_state(g_start_snap_button, LV_STATE_CHECKED);
+            DEBUG_PRT("ready to record video!\n");
+
         }
     }
 }
@@ -151,16 +156,25 @@ void event_touch_start_cb(lv_event_t * e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_get_state(g_camera_video_button) == LV_STATE_CHECKED) {
+            DEBUG_PRT("[video]\n");
             if (lv_obj_get_state(g_start_snap_button) == LV_STATE_FOCUSED) {
-                lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
-                DEBUG_PRT("video stop\n");
-                priv.camera_video_stop_flag = 1;
-            } else {
                 lv_obj_remove_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
+                lv_obj_add_state(g_start_snap_button, LV_STATE_USER_1);
                 DEBUG_PRT("video start\n");
                 priv.camera_video_start_flag = 1;
+            } else {
+                lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+                // lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
+                lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
+                if (lv_obj_has_state(g_start_snap_button, LV_STATE_PRESSED)) {
+                    printf("press\n");
+                }
+                DEBUG_PRT("video stop\n");
+                priv.camera_video_stop_flag = 1;
             }
         } else {
+            DEBUG_PRT("[photo]\n");
             DEBUG_PRT("camera snap start\n");
             priv.camera_snap_start_flag = 1;
         }
@@ -607,7 +621,7 @@ void event_touch_select_resolution_cb(lv_event_t * e)
                 }
             }
 
-            lv_obj_t *label = lv_obj_get_child(obj, -1);
+            lv_obj_t *label = lv_obj_get_child(obj, -2);
             char *text = lv_label_get_text(label);
             lv_obj_set_user_data(parent, text);
             LV_UNUSED(text);
