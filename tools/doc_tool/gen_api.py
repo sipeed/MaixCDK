@@ -305,7 +305,10 @@ def find_comments(code, add_py_doc = True):
             if key.startswith("param"):
                 key = key.split("[")
                 key, dir = key[0], key[1][:-1] if len(key) > 1 else None
+                value0 = value.split("\n", 1)
                 value = value.split(" ", 1)
+                if len(value0[0]) < len(value[0]):
+                    value = value0
                 if len(value) <= 1:
                     raise Exception("param must have detail description, DO NOT lazy!!")
                 value_key, value = value
