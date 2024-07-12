@@ -25,12 +25,15 @@ if(${BUILD_TYPE} STREQUAL "Release")
     endif()
 endif()
 
+set(cp_assets_cmd COMMAND python ${SDK_PATH}/tools/cmake/copy_assets.py ${PROJECT_PATH} ${PROJECT_DIST_DIR}/${PROJECT_ID}_${build_type})
+
 add_custom_command(TARGET ${PROJECT_ID} POST_BUILD
     ${strip_cmd}
     COMMAND mkdir -p ${CMAKE_BINARY_DIR}/dl_lib
     ${cp_command}
     ${cp_dist_cmd}
     ${cp_dl_to_dist_cmd}
+    ${cp_assets_cmd}
     DEPENDS ${PROJECT_ID}
     COMMENT "-- copy dynamic libs to build/dl_lib dir ...")
 

@@ -29,7 +29,7 @@ endif()
 
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS pthread stdc++fs ini)
+list(APPEND ADD_REQUIREMENTS pthread stdc++fs ini yaml)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

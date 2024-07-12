@@ -168,10 +168,10 @@ namespace maix::fs
     /**
      * Get file extension
      * @param path path to get extension
-     * @return extension if success, empty string if failed
+     * @return prefix_path and extension list if success, empty string if failed
      * @maixpy maix.fs.splitext
     */
-    std::string splitext(const std::string &path);
+    std::vector<std::string> splitext(const std::string &path);
 
     /**
      * List files in directory
