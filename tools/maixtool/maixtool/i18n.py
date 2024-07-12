@@ -34,7 +34,7 @@ def get_i18n_strs(file, keywords):
                     if idx == -1:
                         break
                     flag = True
-                if not (idx == 0 or content[idx - 1] in [".", ",", " ", ">"]): # maybe like str etc.
+                if not (idx == 0 or content[idx - 1] in [".", ",", " ", ">", "(", "[", "{"]): # maybe like str etc.
                     idx += 1
                     continue
                 idx += len(key) + 2
@@ -54,7 +54,7 @@ def main(search_dir, keywords, exts, out, recursive, locales):
     print("extentions:", exts)
     print("out dir:   ", out)
     print("")
-    files = get_files(search_dir, recursive)
+    files = get_files(search_dir, recursive, exts)
     print(f"{len(files)} files found")
     keys_list = []
     for f in files:
@@ -89,7 +89,7 @@ if __name__ == "__main__":
     paser.add_argument("-k", "--keywords", nargs="+", type=str, default=["_", "tr"], help="translate function keywords to search")
     paser.add_argument("-r", action="store_true", help="recursive search dir")
     paser.add_argument("-e", "--exts", nargs="+", type=str, default=[".c", ".cpp", ".h", ".hpp", ".py"], help="file extention to search")
-    paser.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc.")
+    paser.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc. the locale name can be found in [here](https://www.science.co.il/language/Locale-codes.php) or [wikipedia](https://en.wikipedia.org/wiki/Language_localisation), all letters use lower case.")
     paser.add_argument("-o", "--out", type=str, default="locales", help="translation files output directory")
     paser.add_argument("-d", "--dir", type=str, help="where to search", required=True)
     args = paser.parse_args()

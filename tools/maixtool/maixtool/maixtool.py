@@ -30,7 +30,7 @@ def main():
     parser_i18n.add_argument("-k", "--keywords", nargs="+", type=str, default=["_", "tr"], help="translate function keywords to search")
     parser_i18n.add_argument("-r", action="store_true", help="recursive search dir")
     parser_i18n.add_argument("-e", "--exts", nargs="+", type=str, default=[".c", ".cpp", ".h", ".hpp", ".py"], help="file extention to search")
-    parser_i18n.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc.")
+    parser_i18n.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc. the locale name can be found in [here](https://www.science.co.il/language/Locale-codes.php) or [wikipedia](https://en.wikipedia.org/wiki/Language_localisation), all letters use lower case.")
     parser_i18n.add_argument("-o", "--out", type=str, default="locales", help="translation files output directory")
     parser_i18n.add_argument("-d", "--dir", type=str, help="where to search", required=True)
 

@@ -509,7 +509,7 @@ namespace maix::rtmp {
 		}
 
 		if (path.size() > 0) {
-			if (fs::splitext(path) != ".flv") {
+			if (fs::splitext(path)[1] != ".flv") {
 				log::error("check file path failed!\r\n");
 				unlock();
 				return err::ERR_RUNTIME;

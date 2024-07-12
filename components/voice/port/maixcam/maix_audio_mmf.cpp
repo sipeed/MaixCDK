@@ -406,8 +406,8 @@ namespace maix::audio
         _channel = channel;
 
         if (path.size() > 0) {
-            if (fs::splitext(_path) != ".wav"
-                && fs::splitext(_path) != ".pcm") {
+            if (fs::splitext(_path)[1] != ".wav"
+                && fs::splitext(_path)[1] != ".pcm") {
                 err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
             }
         }
@@ -515,7 +515,7 @@ namespace maix::audio
             _file = fopen(_path.c_str(), "w+");
             err::check_null_raise(_file, "Open file failed!");
 
-            if (fs::splitext(_path) == ".wav") {
+            if (fs::splitext(_path)[1] == ".wav") {
                 wav_header_t header = {
                     .file_size = 44,
                     .channel = _channel,
@@ -592,7 +592,7 @@ namespace maix::audio
 
     err::Err Recorder::finish() {
         if (_file) {
-            if (fs::splitext(_path) == ".wav") {
+            if (fs::splitext(_path)[1] == ".wav") {
                 int file_size = ftell(_file);
                 int pcm_size = file_size - 44;
                 char buffer[4];
@@ -637,8 +637,8 @@ namespace maix::audio
         _file = NULL;
 
         if (path.size() > 0) {
-            if (fs::splitext(_path) != ".wav"
-                && fs::splitext(_path) != ".pcm") {
+            if (fs::splitext(_path)[1] != ".wav"
+                && fs::splitext(_path)[1] != ".pcm") {
                 err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
             }
         }
@@ -647,7 +647,7 @@ namespace maix::audio
             _file = fopen(_path.c_str(), "rb+");
             err::check_null_raise(_file, "Open file failed!");
 
-            if (fs::splitext(_path) == ".wav") {
+            if (fs::splitext(_path)[1] == ".wav") {
                 uint8_t buffer[44];
                 wav_header_t header = {0};
                 if (sizeof(buffer) != fread(buffer, 1, sizeof(buffer), _file)) {
@@ -716,7 +716,7 @@ namespace maix::audio
                 err::check_null_raise(_file, "Open file failed!");
             }
 
-            if (fs::splitext(_path) == ".wav") {
+            if (fs::splitext(_path)[1] == ".wav") {
                 fseek(_file, 44, SEEK_SET);
             }
 

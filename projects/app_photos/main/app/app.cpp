@@ -256,7 +256,7 @@ static void ui_set_big_image(char *dir_name, char *path)
             big_photo_info.dir_name = dir_name;
             big_photo_info.path = path;
 
-            std::string type_string = fs::splitext(path_string);
+            std::string type_string = fs::splitext(path_string)[1];
             big_photo_info.type = (char *)((char *)type_string.c_str() + 1);
             big_photo_info.src_width = src_w;
             big_photo_info.src_height = src_h;
