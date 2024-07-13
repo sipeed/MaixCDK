@@ -1,5 +1,5 @@
-id: Sound_recorder
-name: Sound recorder
+id: sound_recorder
+name: sound recorder
 name[zh]:
 version: 1.0.0
 icon: assets/audio.png
