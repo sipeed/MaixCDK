@@ -1,0 +1,12 @@
+id: sound_recorder
+name: sound recorder
+name[zh]:
+version: 1.0.0
+icon: assets/audio.png
+author: dragonforward
+desc: 
+desc[zh]:
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md

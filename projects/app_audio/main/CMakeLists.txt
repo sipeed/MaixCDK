@@ -1,0 +1,88 @@
+############### Add include ###################
+
+set(src_path "/home/wxw/MaixCDK/dl/extracted/lvgl_srcs/lvgl-9.1.0/lvgl") # MaixCDK/dl/extracted/lvgl_srcs/lvgl-9.0.0/lvgl
+
+################# Add include #################
+list(APPEND ADD_INCLUDE "include"
+                        "."
+                        "${src_path}"
+                        "${src_path}/src/"
+                        "${src_path}/src/core"
+                        "${src_path}/src/display"
+                        "${src_path}/src/draw"
+                        "${src_path}/src/drivers"
+                        "${src_path}/src/font"
+                        "${src_path}/src/indev"
+                        "${src_path}/src/layouts"
+                        "${src_path}/src/libs"
+                        "${src_path}/src/misc"
+                        "${src_path}/src/osal"
+                        "${src_path}/src/others"
+                        "${src_path}/src/stdlib"
+                        "${src_path}/src/themes"
+                        "${src_path}/src/tick"
+                        "${src_path}/src/widgets"
+                        "${src_path}/src"
+                        "ui/screens"
+                        "ui/components"
+                        "ui/fonts"
+                        "ui/imgbtn_ui"
+                        "ui"
+    )
+# list(APPEND ADD_INCLUDE "include"
+#                         "ui/screens"
+#                         "ui/components"
+#                         "ui/fonts"
+#                         "ui"
+#     )
+# list(APPEND ADD_PRIVATE_INCLUDE "")
+###############################################
+
+############ Add source files #################
+# list(APPEND ADD_SRCS  "src/main.c"
+#                       "src/test.c"
+#     )
+# aux_source_directory(src ADD_SRCS)  # collect all source file in src dir, will set var ADD_SRCS
+append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD_SRCS
+append_srcs_dir(ADD_SRCS "ui")
+append_srcs_dir(ADD_SRCS "ui/screens")
+append_srcs_dir(ADD_SRCS "ui/components")
+append_srcs_dir(ADD_SRCS "ui/fonts")
+append_srcs_dir(ADD_SRCS "ui/imgbtn_ui")
+# list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
+###############################################
+
+###### Add required/dependent components ######
+list(APPEND ADD_REQUIREMENTS basic lvgl peripheral voice)
+###############################################
+
+###### Add link search path for requirements/libs ######
+# list(APPEND ADD_LINK_SEARCH_PATH "${CONFIG_TOOLCHAIN_PATH}/lib")
+list(APPEND ADD_REQUIREMENTS pthread m)  # add system libs, pthread and math lib for example here
+###############################################
+
+############ Add static libs ##################
+# list(APPEND ADD_STATIC_LIB "lib/libtest.a")
+###############################################
+
+#### Add compile option for this component ####
+#### Just for this component, won't affect other 
+#### modules, including component that depend 
+#### on this component
+# list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
+
+#### Add compile option for this component
+#### and components denpend on this component
+# list(APPEND ADD_DEFINITIONS -DAAAAA222=1
+#                             -DAAAAA333=1)
+###############################################
+
+############ Add static libs ##################
+#### Update parent's variables like CMAKE_C_LINK_FLAGS
+# set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
+###############################################
+
+
+
+register_component()
+
