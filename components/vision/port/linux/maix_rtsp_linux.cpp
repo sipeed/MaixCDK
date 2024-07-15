@@ -87,4 +87,13 @@ namespace maix::rtsp
     err::Err Rtsp::update_region(rtsp::Region &region) {
         return region.update_canvas();
     }
+
+    err::Err Rtsp::draw_rect(int id, int x, int y, int width, int height, image::Color color, int thickness) {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err Rtsp::draw_string(int id, int x, int y, const char *str, image::Color color, int size, int thickness)
+    {
+        return err::ERR_NOT_IMPL;
+    }
 }

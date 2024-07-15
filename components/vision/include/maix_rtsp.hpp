@@ -176,6 +176,13 @@ namespace maix::rtsp
         err::Err update_region(rtsp::Region &region);
 
         /**
+         * @brief del region
+         * @return error code
+         * @maixpy maix.rtsp.Rtsp.del_region
+        */
+        err::Err del_region(rtsp::Region *region);
+
+        /**
          * @brief return region list
          * @attention DO NOT ADD THIS FUNC TO MAIXPY
          * @return return a list of region
@@ -183,6 +190,34 @@ namespace maix::rtsp
         std::vector<rtsp::Region *> get_regions() {
             return this->_region_list;
         }
+
+        /**
+         * @brief Draw a rectangle on the canvas
+         * @param id region id
+         * @param x rectangle coordinate x
+         * @param y rectangle coordinate y
+         * @param width rectangle width
+         * @param height rectangle height
+         * @param color rectangle color
+         * @param thickness rectangle thickness. If you set it to -1, the rectangle will be filled.
+         * @return error code
+         * @maixpy maix.rtsp.Rtsp.draw_rect
+        */
+        err::Err draw_rect(int id, int x, int y, int width, int height, image::Color color, int thickness = 1);
+
+        /**
+         * @brief Draw a string on the canvas
+         * @param id region id
+         * @param x string coordinate x
+         * @param y string coordinate y
+         * @param str string
+         * @param color string color
+         * @param size string size
+         * @param thickness string thickness
+         * @return error code
+         * @maixpy maix.rtsp.Rtsp.draw_string
+        */
+        err::Err draw_string(int id, int x, int y, const char *str, image::Color color, int size = 16, int thickness = 1);
 
         /**
          * @brief Get timestamp
@@ -199,6 +234,8 @@ namespace maix::rtsp
             this->_timestamp += (ms - this->_last_ms);
             this->_last_ms = ms;
        }
+
+
     private:
         std::string _ip;
         int _port;
@@ -209,9 +246,12 @@ namespace maix::rtsp
         camera::Camera *_camera;
         thread::Thread *_thread;
         std::vector<rtsp::Region *> _region_list;
+        std::vector<bool> _region_used_list;
+        std::vector<int> _region_type_list;     // 0, normal; 1, string; 2, rect
         std::vector<bool> _region_update_flag;
         uint64_t _timestamp;
         uint64_t _last_ms;
+        int _region_max_number;
     };
 } // namespace maix::rtsp
 
