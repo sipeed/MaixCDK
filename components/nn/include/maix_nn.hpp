@@ -174,7 +174,6 @@ namespace maix::nn
         /**
          * Enable dual buff or disable dual buff
          * @param enable true to enable, false to disable
-         * @maixpy maix.nn.NN.set_dual_buff
          */
         virtual void set_dual_buff(bool enable) = 0;
 
@@ -197,7 +196,7 @@ namespace maix::nn
          *                    In C++, value can be allocated by caller, if outputs size is zero, forward will allocate memory, so you should delete it after use.
          * @return error code, if forward success, return err::ERR_NONE
          */
-        virtual err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs) = 0;
+        virtual err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result = true, bool dual_buff_wait = false) = 0;
 
         /**
          * forward run model, get output of model,
@@ -206,7 +205,7 @@ namespace maix::nn
          * @return output tensor, dict type. key is layer name, value is tensor.
          *        In C++, value can be allocated by caller, if outputs size is zero, forward will allocate memory, so you should delete it after use.
          */
-        virtual tensor::Tensors *forward(tensor::Tensors &inputs) = 0;
+        virtual tensor::Tensors *forward(tensor::Tensors &inputs, bool copy_result = true, bool dual_buff_wait = false) = 0;
 
         /**
          * forward model, param is image
@@ -215,7 +214,7 @@ namespace maix::nn
          *           default is image.Fit.FIT_FILL for easy coordinate calculation, but for more accurate result, use image.Fit.FIT_CONTAIN is better.
          * @return output tensor
          */
-        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = {}, std::vector<float> scale = {}, image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true) = 0;
+        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = {}, std::vector<float> scale = {}, image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool dual_buff_wait = false) = 0;
     };
 
     /**
@@ -291,18 +290,27 @@ namespace maix::nn
          * forward run model, get output of model
          * @param[in] input input tensor
          * @param[out] output output tensor
-         * @return error code, if forward success, return err::ERR_NONE
+         * @param copy_result If set true, will copy result to a new variable; else will use a internal memory, you can only use it until to the next forward.
+         *                    Default true to avoid problems, you can set it to false manually to make speed faster.
+         * @param dual_buff_wait bool type, only for dual_buff mode, if true, will inference this image and wait for result, default false.
+         * @return output tensor. In C++, you should manually delete tensors in return value and return value.
+         *         If dual_buff mode, it can be err.Err.ERR_NOT_READY means not ready.
          */
-        err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs);
+        err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result = true, bool dual_buff_wait = false);
 
         /**
          * forward run model, get output of model,
          * this is specially for MaixPy, not efficient, but easy to use in MaixPy
          * @param[in] input input tensor
+         * @param copy_result If set true, will copy result to a new variable; else will use a internal memory, you can only use it until to the next forward.
+         *                    Default true to avoid problems, you can set it to false manually to make speed faster.
+         * @param dual_buff_wait bool type, only for dual_buff mode, if true, will inference this image and wait for result, default false.
          * @return output tensor. In C++, you should manually delete tensors in return value and return value.
+         *         If dual_buff mode, it can be NULL(None in MaixPy) means not ready.
+         * @throw if error ocurrs like no memory or arg error, will raise err.Exception.
          * @maixpy maix.nn.NN.forward
          */
-        tensor::Tensors *forward(tensor::Tensors &inputs);
+        tensor::Tensors *forward(tensor::Tensors &inputs, bool copy_result = true, bool dual_buff_wait = false);
 
         /**
          * forward model, param is image
@@ -313,10 +321,13 @@ namespace maix::nn
          *           default is image.Fit.FIT_FILL for easy coordinate calculation, but for more accurate result, use image.Fit.FIT_CONTAIN is better.
          * @param copy_result If set true, will copy result to a new variable; else will use a internal memory, you can only use it until to the next forward.
          *                    Default true to avoid problems, you can set it to false manually to make speed faster.
+         * @param dual_buff_wait bool type, only for dual_buff mode, if true, will inference this image and wait for result, default false.
          * @return output tensor. In C++, you should manually delete tensors in return value and return value.
+         *         If dual_buff mode, it can be NULL(None in MaixPy) means not ready.
+         * @throw If error occurs, like arg error or alloc memory failed, will raise err.Exception.
          * @maixpy maix.nn.NN.forward_image
          */
-        tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_FILL, bool copy_result = true);
+        tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_FILL, bool copy_result = true, bool dual_buff_wait = false);
 
     private:
         MUD _mud;

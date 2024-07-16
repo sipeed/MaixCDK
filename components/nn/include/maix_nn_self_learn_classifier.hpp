@@ -23,13 +23,17 @@ namespace maix::nn
          * Construct a new SelfLearnClassifier object
          * @param model MUD model path, if empty, will not load model, you can call load_model() later.
          *                  if not empty, will load model and will raise err::Exception if load failed.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @maixpy maix.nn.SelfLearnClassifier.__init__
          * @maixcdk maix.nn.SelfLearnClassifier.SelfLearnClassifier
          */
-        SelfLearnClassifier(const std::string &model = "")
+        SelfLearnClassifier(const std::string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
             _feature_num = 0;
+            _dual_buff = dual_buff;
             if (!model.empty())
             {
                 err::Err e = load_model(model);
@@ -75,7 +79,7 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
-            _model = new nn::NN(model);
+            _model = new nn::NN(model, _dual_buff);
             if (!_model)
             {
                 return err::ERR_NO_MEM;
@@ -522,6 +526,7 @@ namespace maix::nn
         std::map<string, string> _extra_info;
         image::Size _input_size;
         int _feature_num;
+        bool _dual_buff;
         std::vector<nn::LayerInfo> _inputs;
         std::vector<float *> _features;
         std::vector<float *> _features_sample;
@@ -558,8 +563,8 @@ namespace maix::nn
             {
                 throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
             }
-            tensor::Tensors *outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
-            if (!outputs)
+            tensor::Tensors *outputs = _model->forward_image(img, this->mean, this->scale, fit, false, true);
+            if (!outputs) // can be here!
             {
                 throw err::Exception("forward image failed");
             }

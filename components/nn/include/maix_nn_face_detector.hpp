@@ -26,13 +26,17 @@ namespace maix::nn
         /**
          * Constructor of FaceDetector class
          * @param model model path, default empty, you can load model later by load function.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @throw If model arg is not empty and load failed, will throw err::Exception.
          * @maixpy maix.nn.FaceDetector.__init__
          * @maixcdk maix.nn.FaceDetector.FaceDetector
          */
-        FaceDetector(const string &model = "")
+        FaceDetector(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
+            _dual_buff = dual_buff;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -65,7 +69,7 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
-            _model = new nn::NN(model);
+            _model = new nn::NN(model, _dual_buff);
             if (!_model)
             {
                 return err::ERR_NO_MEM;
@@ -222,7 +226,7 @@ namespace maix::nn
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
             if (!outputs)
             {
-                throw err::Exception("forward image failed");
+                return new std::vector<nn::Object>();
             }
             std::vector<nn::Object> *res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;
@@ -289,6 +293,7 @@ namespace maix::nn
         std::map<string, string> _extra_info;
         float _conf_th = 0.5;
         float _iou_th = 0.45;
+        bool _dual_buff;
         std::vector<std::vector<float>> _anchor; // [[dense_cx, dense_cy, s_kx, s_ky],]
         std::vector<float> _variance;
 

@@ -221,7 +221,7 @@ namespace maix::nn
          * @param softmax if true, will do softmax to result, or will return raw value
          * @param fit image resize fit mode, default Fit.FIT_COVER, see image.Fit.
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
-         * @return result, a list of (label, score). In C++, you need to delete it after use.
+         * @return result, a list of (label, score). If in dual_buff mode, value can be one element list and score is zero when not ready. In C++, you need to delete it after use.
          * @maixpy maix.nn.Classifier.classify
          */
         std::vector<std::pair<int, float>> *classify(image::Image &img, bool softmax = true, image::Fit fit = image::FIT_COVER)
@@ -234,7 +234,10 @@ namespace maix::nn
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
             if (!outputs)
             {
-                throw err::Exception("forward image failed");
+                std::vector<std::pair<int, float>> *res = new std::vector<std::pair<int, float>>(1);
+                res->at(0).first = 0;
+                res->at(0).second = 0;
+                return res;
             }
             tensor::Tensor *tensor = outputs->begin()->second;
             if (tensor->dtype() != tensor::DType::FLOAT32)

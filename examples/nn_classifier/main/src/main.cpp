@@ -19,9 +19,10 @@ int _main(int argc, char* argv[])
     }
 
     const char *model_path = argv[1];
+    bool dual_buff = true;
 
     log::info("model path: %s", model_path);
-    nn::Classifier classifier(model_path);
+    nn::Classifier classifier(model_path, dual_buff);
     log::info("load classifier model %s success", model_path);
 
     if(argc >= 3)

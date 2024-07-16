@@ -28,10 +28,10 @@ int _main(int argc, char *argv[])
     const char *model_path = argv[1];
     float conf_threshold = 0.5;
     float iou_threshold = 0.45;
+    bool dual_buff = true;
 
 
-
-    nn::YOLOv8 detector;
+    nn::YOLOv8 detector("", dual_buff);
     e = detector.load(model_path);
     err::check_raise(e, "load model failed");
     log::info("load yolov8 model %s success", model_path);

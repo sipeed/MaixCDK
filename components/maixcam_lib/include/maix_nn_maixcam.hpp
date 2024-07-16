@@ -55,7 +55,7 @@ namespace maix::nn
          * @param[out] output output tensor
          * @return error code, if forward success, return err::ERR_NONE
          */
-        virtual err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs) final;
+        virtual err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result = true, bool dual_buff_wait = false) final;
 
         /**
          * forward run model, get output of model,
@@ -63,14 +63,14 @@ namespace maix::nn
          * @param[in] input input tensor
          * @return output tensor
          */
-        virtual tensor::Tensors *forward(tensor::Tensors &inputs) final;
+        virtual tensor::Tensors *forward(tensor::Tensors &inputs, bool copy_result = true, bool dual_buff_wait = false) final;
 
         /**
          * forward model, param is image
          * @param[in] img input image
          * @return output tensor
          */
-        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true) final;
+        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool clear_buff = false) final;
 
     private:
         bool _loaded;

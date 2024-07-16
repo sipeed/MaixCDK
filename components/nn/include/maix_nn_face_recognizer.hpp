@@ -120,15 +120,19 @@ namespace maix::nn
          * Constructor of FaceRecognizer class
          * @param detect_model face detect model path, default empty, you can load model later by load function.
          * @param feature_model feature extract model
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @throw If model arg is not empty and load failed, will throw err::Exception.
          * @maixpy maix.nn.FaceRecognizer.__init__
          * @maixcdk maix.nn.FaceRecognizer.FaceRecognizer
          */
-        FaceRecognizer(const string &detect_model = "", const string &feature_model = "")
+        FaceRecognizer(const string &detect_model = "", const string &feature_model = "", bool dual_buff = true)
         {
             _model_feature = nullptr;
             labels.push_back("unknown");
             _facedetector = nullptr;
+            _dual_buff = dual_buff;
             if (!detect_model.empty() && !feature_model.empty())
             {
                 err::Err e = load(detect_model, feature_model);
@@ -162,7 +166,7 @@ namespace maix::nn
          */
         err::Err load(const string &detect_model, const string &feature_model)
         {
-            _facedetector = new Retinaface();
+            _facedetector = new Retinaface("", _dual_buff);
             err::Err e = _facedetector->load(detect_model);
             if (e != err::ERR_NONE)
             {
@@ -177,7 +181,7 @@ namespace maix::nn
                 delete _model_feature;
                 _model_feature = nullptr;
             }
-            _model_feature = new nn::NN(feature_model);
+            _model_feature = new nn::NN(feature_model, _dual_buff);
             if (!_model_feature)
             {
                 delete _facedetector;
@@ -316,10 +320,10 @@ namespace maix::nn
                 // img.save("/root/test0.jpg");
                 // std_img->save("/root/test.jpg");
                 tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false);
-                if (!outputs)
+                if (!outputs) // not ready for dual_buff mode
                 {
                     delete std_img;
-                    throw err::Exception("forward image failed");
+                    return new std::vector<nn::FaceObject>();
                 }
                 tensor::Tensor *out = outputs->tensors[outputs->get_names()[0]];
                 int fea_len = out->size_int();
@@ -592,6 +596,7 @@ namespace maix::nn
         std::vector<float> _variance;
         Retinaface *_facedetector;
         int _feature_input_size;
+        bool _dual_buff;
         std::vector<int> _std_points;
 
     private:

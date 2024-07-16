@@ -188,19 +188,19 @@ namespace maix::nn
         return _mud.items["extra"];
     }
 
-    err::Err NN::forward(tensor::Tensors &inputs, tensor::Tensors &outputs)
+    err::Err NN::forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result, bool dual_buff_wait)
     {
-        return _impl->forward(inputs, outputs);
+        return _impl->forward(inputs, outputs, copy_result, dual_buff_wait);
     }
 
-    tensor::Tensors *NN::forward(tensor::Tensors &inputs)
+    tensor::Tensors *NN::forward(tensor::Tensors &inputs, bool copy_result, bool dual_buff_wait)
     {
-        return _impl->forward(inputs);
+        return _impl->forward(inputs, copy_result, dual_buff_wait);
     }
 
-    tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result)
+    tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result, bool dual_buff_wait)
     {
-        return _impl->forward_image(img, mean, scale, fit, copy_result);
+        return _impl->forward_image(img, mean, scale, fit, copy_result, dual_buff_wait);
     }
 
     int SelfLearnClassifier::learn()

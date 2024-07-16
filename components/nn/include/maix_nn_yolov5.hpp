@@ -274,9 +274,9 @@ namespace maix::nn
             }
             tensor::Tensors *outputs;
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
-            if (!outputs)
+            if (!outputs) // not ready, return empty result.
             {
-                throw err::Exception("forward image failed");
+                return new std::vector<nn::Object>();
             }
             std::vector<nn::Object> * res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;

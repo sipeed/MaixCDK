@@ -27,14 +27,18 @@ namespace maix::nn
         /**
          * Constructor of Retinaface class
          * @param model model path, default empty, you can load model later by load function.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @throw If model arg is not empty and load failed, will throw err::Exception.
          * @maixpy maix.nn.Retinaface.__init__
          * @maixcdk maix.nn.Retinaface.Retinaface
          */
-        Retinaface(const string &model = "")
+        Retinaface(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
             _priorboxes = nullptr;
+            _dual_buff = dual_buff;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -71,7 +75,7 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
-            _model = new nn::NN(model);
+            _model = new nn::NN(model, _dual_buff);
             if (!_model)
             {
                 return err::ERR_NO_MEM;
@@ -212,9 +216,9 @@ namespace maix::nn
             }
             tensor::Tensors *outputs;
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
-            if (!outputs)
+            if (!outputs) // not ready for dual_buff mode.
             {
-                throw err::Exception("forward image failed");
+                return new std::vector<nn::Object>();
             }
             std::vector<nn::Object> *res = _post_process(outputs, img.width(), img.height(), fit);
             delete outputs;
@@ -284,6 +288,7 @@ namespace maix::nn
         libmaix_nn_decoder_retinaface_config_t _config;
         nn::ObjectFloat *_priorboxes;
         int _channel_num;
+        bool _dual_buff;
 
     private:
         std::vector<nn::Object> *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
