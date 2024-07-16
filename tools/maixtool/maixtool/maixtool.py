@@ -13,6 +13,7 @@ def deploy(port, pkg_path):
         raise Exception(f"pakcage path {pkg_path} not exists")
     else:
         print(f"-- package path: {pkg_path}")
+    pkg_path = os.path.abspath(pkg_path)
     serve(pkg_path, port)
 
 def main():
