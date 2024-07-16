@@ -319,7 +319,7 @@ namespace maix::nn
                 image::Image *std_img = img.affine(objs->at(i).points, _std_points, _feature_input_size, _feature_input_size);
                 // img.save("/root/test0.jpg");
                 // std_img->save("/root/test.jpg");
-                tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false);
+                tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false, get_feature || get_face);
                 if (!outputs) // not ready for dual_buff mode
                 {
                     delete std_img;
