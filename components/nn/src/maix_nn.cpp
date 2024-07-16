@@ -104,11 +104,11 @@ namespace maix::nn
         return err::ERR_NONE;
     }
 
-    NN::NN(const std::string &model_path)
+    NN::NN(const std::string &model_path, bool dual_buff)
     {
         _impl = nullptr;
 #if PLATFORM_MAIXCAM
-        _impl = new NN_MaixCam();
+        _impl = new NN_MaixCam(dual_buff);
 #endif
         if(!_impl)
         {
@@ -166,6 +166,11 @@ namespace maix::nn
     bool NN::loaded()
     {
         return _impl->loaded();
+    }
+
+    void NN::set_dual_buff(bool enable)
+    {
+        _impl->set_dual_buff(enable);
     }
 
     std::vector<nn::LayerInfo> NN::inputs_info()

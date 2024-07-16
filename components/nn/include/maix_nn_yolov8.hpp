@@ -45,14 +45,18 @@ namespace maix::nn
         /**
          * Constructor of YOLOv8 class
          * @param model model path, default empty, you can load model later by load function.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @throw If model arg is not empty and load failed, will throw err::Exception.
          * @maixpy maix.nn.YOLOv8.__init__
          * @maixcdk maix.nn.YOLOv8.YOLOv8
          */
-        YOLOv8(const string &model = "")
+        YOLOv8(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
             _type = TYPE_DETECT;
+            _dual_buff = dual_buff;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -90,7 +94,7 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
-            _model = new nn::NN(model);
+            _model = new nn::NN(model, _dual_buff);
             if (!_model)
             {
                 return err::ERR_NO_MEM;
@@ -454,6 +458,7 @@ namespace maix::nn
         float _iou_th = 0.45;
         float _keypoint_th = 0.5;
         YOLOv8_Type _type;
+        bool _dual_buff;
 
     private:
         nn::Objects *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)

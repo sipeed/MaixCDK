@@ -35,8 +35,12 @@ def copy_assets(project_path, dist_path):
         for src_key, dest_value in assets.items():
             src = os.path.join(project_path, src_key)
             dest = os.path.join(dist_path, dest_value)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
             if os.path.exists(src):
-                shutil.copytree(src, dest, dirs_exist_ok=True)
+                if os.path.isdir(src):
+                    shutil.copytree(src, dest, dirs_exist_ok=True)
+                else:
+                    shutil.copyfile(src, dest)
                 print(f"Copied {src} to {dest}")
             else:
                 raise Exception(f"{src} does not exist.")

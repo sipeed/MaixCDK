@@ -9,7 +9,7 @@ namespace maix::nn
     class NN_MaixCam : public NNBase
     {
     public:
-        NN_MaixCam();
+        NN_MaixCam(bool dual_buff);
         ~NN_MaixCam();
 
         /**
@@ -30,6 +30,12 @@ namespace maix::nn
          * @return error code, if unload success, return err::ERR_NONE
          */
         virtual bool loaded() final;
+
+        /**
+         * Enable dual buff or disable dual buff
+         * @param enable true to enable, false to disable
+         */
+        virtual void set_dual_buff(bool enable);
 
         /**
          * Get model input layer info
@@ -69,6 +75,7 @@ namespace maix::nn
     private:
         bool _loaded;
         void *_data;
+        bool _enable_dual_buff;
     };
 
 } // namespace maix::nn

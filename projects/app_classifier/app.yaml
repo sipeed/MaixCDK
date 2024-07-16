@@ -1,7 +1,7 @@
 id: classifier
 name: AI Classifier
 name[zh]: AI 分类器
-version: 1.0.0
+version: 1.0.1
 icon: assets/classifier.png
 author: Sipeed Ltd
 desc: AI object classification

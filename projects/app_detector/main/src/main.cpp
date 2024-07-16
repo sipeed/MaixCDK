@@ -13,10 +13,9 @@ int _main(int argc, char *argv[])
     std::string model_type = "unknown";
     int ret = 0;
     err::Err e;
-    maix::image::Format img_fmt = maix::image::FMT_RGB888;
     std::vector<float> mean = {};
     std::vector<float> scale = {};
-    char tmp_chars[64] = {0};
+    char tmp_chars[128] = {0};
 
     touchscreen::TouchScreen ts;
     int ts_x = 0, ts_y = 0;
@@ -41,6 +40,7 @@ int _main(int argc, char *argv[])
     camera::Camera cam = camera::Camera(input_size.width(), input_size.height(), detector.input_format());
     log::info("open camera success");
     display::Display disp = display::Display();
+    uint64_t t, t2, t3, t_show, t_all = 0;
     while (!app::need_exit())
     {
         ts.read(ts_x, ts_y, ts_pressed);
@@ -48,21 +48,25 @@ int _main(int argc, char *argv[])
         {
             break;
         }
-        uint64_t t = time::ticks_us();
+        t = time::ticks_ms();
         maix::image::Image *img = cam.read();
         err::check_null_raise(img, "read camera failed");
-        std::vector<nn::Object> *result = detector.detect(*img);
+        t2 = time::ticks_ms();
+        std::vector<nn::Object> *result = detector.detect(*img, conf_threshold, iou_threshold);
+        t3 = time::ticks_ms();
         for (auto &r : *result)
         {
-            log::info("result: %s", r.to_str().c_str());
             img->draw_rect(r.x, r.y, r.w, r.h, maix::image::Color::from_rgb(255, 0, 0));
             img->draw_string(r.x, r.y, detector.labels[r.class_id], maix::image::Color::from_rgb(255, 0, 0));
         }
         img->draw_image(0, 0, *ret_img);
+        snprintf(tmp_chars, sizeof(tmp_chars), "All: %ldms, cam: %ldms\ndetect: %ldms, show: %ldms", t_all, t2 - t, t3 - t2, t_show);
+        img->draw_string(ret_img->width() + 2, 2, tmp_chars, image::COLOR_RED);
         disp.show(*img);
+        t_show = time::ticks_ms() - t3;
+        t_all = time::ticks_ms() - t;
         delete result;
         delete img;
-        log::info("time: %d ms", time::ticks_us() - t);
     }
     log::info("Program exit");
 

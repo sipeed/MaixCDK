@@ -86,9 +86,10 @@ int _main(int argc, char *argv[])
                 img->draw_string(r.x, r.y, detector.labels[r.class_id], maix::image::Color::from_rgb(255, 0, 0));
             }
             disp.show(*img);
+            uint64_t t4 = time::ticks_ms();
             delete result;
             delete img;
-            log::info("time: all %d ms, detect %d ms", time::ticks_ms() - t, t3 - t2);
+            log::info("time: all %d ms, read %d ms, detect %d ms, show %d ms", time::ticks_ms() - t, t2 - t, t3 - t2, t4 - t3);
         }
     }
 

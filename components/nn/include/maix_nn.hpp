@@ -172,6 +172,13 @@ namespace maix::nn
         virtual bool loaded() = 0;
 
         /**
+         * Enable dual buff or disable dual buff
+         * @param enable true to enable, false to disable
+         * @maixpy maix.nn.NN.set_dual_buff
+         */
+        virtual void set_dual_buff(bool enable) = 0;
+
+        /**
          * Get model input layer info
          * @return input layer info
          */
@@ -223,9 +230,12 @@ namespace maix::nn
          * @param[in] model model file path, model format can be MUD(model universal describe file) file.
          *                       If model_path set, will load model from file, load failed will raise err.Exception.
          *                       If model_path not set, you can load model later by load function.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @maixpy maix.nn.NN.__init__
          */
-        NN(const std::string &model = "");
+        NN(const std::string &model = "", bool dual_buff = true);
         ~NN();
 
         /**
@@ -248,6 +258,13 @@ namespace maix::nn
          * @maixpy maix.nn.NN.loaded
          */
         bool loaded();
+
+        /**
+         * Enable dual buff or disable dual buff
+         * @param enable true to enable, false to disable
+         * @maixpy maix.nn.NN.set_dual_buff
+         */
+        void set_dual_buff(bool enable);
 
         /**
          * Get model input layer info

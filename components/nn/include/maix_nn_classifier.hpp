@@ -24,12 +24,16 @@ namespace maix::nn
          * Construct a new Classifier object
          * @param model MUD model path, if empty, will not load model, you can call load() later.
          *                  if not empty, will load model and will raise err::Exception if load failed.
+         * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
+         *                      If you want to ensure every time forward output the input's result, set this arg to false please.
+         *                      Default true to ensure speed.
          * @maixpy maix.nn.Classifier.__init__
          * @maixcdk maix.nn.Classifier.Classifier
          */
-        Classifier(const string &model = "")
+        Classifier(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
+            _dual_buff = dual_buff;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -68,7 +72,7 @@ namespace maix::nn
                 delete _model;
                 _model = nullptr;
             }
-            _model = new nn::NN(model);
+            _model = new nn::NN(model, _dual_buff);
             if (!_model)
             {
                 return err::ERR_NO_MEM;
@@ -345,6 +349,7 @@ namespace maix::nn
     private:
         image::Format _input_img_fmt;
         bool _input_is_img;
+        bool _dual_buff;
         nn::NN *_model;
         std::map<string, string> _extra_info;
         image::Size _input_size;
