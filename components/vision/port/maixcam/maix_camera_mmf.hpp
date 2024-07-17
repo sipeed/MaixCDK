@@ -65,7 +65,7 @@ namespace maix::camera
     class CameraCviMmf final : public CameraBase
     {
     public:
-        CameraCviMmf(const std::string device, int width, int height, image::Format format, int buff_num)
+        CameraCviMmf(const std::string device, int width, int height, image::Format format, int buff_num, int fps)
         {
             this->device = device;
             this->format = format;
@@ -74,11 +74,31 @@ namespace maix::camera
             this->buffer_num = buff_num;
             this->ch = -1;
 
+            mmf_sys_cfg_t sys_cfg = {0};
+            if (width <= 1280 && height <= 720 && fps == 60) {
+                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 5;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            } else {
+                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 4;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            }
+            mmf_pre_config_sys(&sys_cfg);
+
             if (0 != mmf_init()) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
 
-            if (0 != mmf_vi_init()) {
+            mmf_vi_cfg_t cfg = {0};
+            cfg.w = width;
+            cfg.h = height;
+            cfg.fmt = mmf_invert_format_to_mmf(format);
+            cfg.depth = buff_num;
+            cfg.fps = fps;
+            if (0 != mmf_vi_init2(&cfg)) {
                 err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
             }
         }

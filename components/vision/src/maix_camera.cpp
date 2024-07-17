@@ -116,12 +116,27 @@ namespace maix::camera
         _width = (width == -1) ? 640 : width;
         _height = (height == -1) ? 480 : height;
         _format = format;
-        _fps = (fps == -1) ? 30 : fps;
-        _buff_num = buff_num;
 
+        _buff_num = buff_num;
         _show_colorbar = false;
         _open_set_regs = set_regs_flag;
         _impl = NULL;
+
+        if (fps == -1 && _width <= 1280 && _height <= 720) {
+            _fps = 60;
+        } else if (fps == -1 && (_width > 1280 || _height > 720)) {
+            _fps = 30;
+        } else {
+            _fps = fps;
+        }
+
+        if ((_width > 1280 || _height > 720) && _fps > 30) {
+            log::warn("Current fps is too high, will be be updated to 30fps! Currently only supported up to 720p 60fps or 1440p 30fps.\r\n");
+            _fps = 30;
+        } else if (_width <= 1280 && _height <= 720 && _fps > 30 && _fps != 60) {
+            log::warn("Currently only supports fixed 30fps and 60fps in 720p configuration, current configuration will be updated to 60fps.\r\n");
+            _fps = 60;
+        }
 
 #ifdef PLATFORM_LINUX
         _device = _get_device(device);
@@ -130,7 +145,7 @@ namespace maix::camera
 
 #ifdef PLATFORM_MAIXCAM
         _device = "";
-        _impl = new CameraCviMmf(_device, _width, _height, _format, _buff_num);
+        _impl = new CameraCviMmf(_device, _width, _height, _format, _buff_num, _fps);
 #endif
 
         if (open) {

@@ -44,15 +44,41 @@ typedef struct {
 	int fmt;
 } mmf_frame_info_t;
 
+typedef struct {
+    int chn;
+    int w;
+    int h;
+    int fmt;
+    int fps;
+    int depth;
+} mmf_vi_cfg_t;
+
+typedef struct {
+    struct {
+        int size;
+        int count;
+        /*
+            VB_REMAP_MODE_NONE = 0,
+            VB_REMAP_MODE_NOCACHE = 1,
+            VB_REMAP_MODE_CACHED = 2,
+            VB_REMAP_MODE_BUTT
+        */
+        int map;
+    } vb_pool[16];
+    int max_pool_cnt;
+} mmf_sys_cfg_t;
+
 // init sys
 int mmf_init(void);
 int mmf_deinit(void);
 int mmf_try_deinit(bool force);
 bool mmf_is_init(void);
+void mmf_pre_config_sys(mmf_sys_cfg_t *cfg);
 
 // manage vi channels(vi->vpssgroup->vpss->frame)
 int mmf_get_vi_unused_channel(void);
 int mmf_vi_init(void);
+int mmf_vi_init2(mmf_vi_cfg_t *vi_info);
 int mmf_vi_deinit(void);
 int mmf_add_vi_channel_with_enc(int ch, int width, int height, int format);
 int mmf_add_vi_channel(int ch, int width, int height, int format);

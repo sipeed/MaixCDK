@@ -45,86 +45,41 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
         list(APPEND ADD_STATIC_LIB ${middleware_static_lib_file})
     set_property(SOURCE ${middleware_static_lib_file} PROPERTY GENERATED 1)
 
-    if(${middleware_version_str} VERSION_EQUAL "0.0.4")
-        set(mmf_lib_dir ${middleware_src_path}/v2/lib)
-    else()
-        set(mmf_lib_dir ${middleware_src_path}/v2/${CONFIG_SOPHGO_MIDDLEWARE_CHIP}/lib_${CONFIG_SOPHGO_MIDDLEWARE_C_LIBRARY}_riscv64)
-    endif()
+    set(mmf_lib_dir ${middleware_src_path}/v2/lib)
     if(CONFIG_SOPHGO_MIDDLEWARE_C_LIBRARY STREQUAL "musl")
-        if(${middleware_version_str} VERSION_EQUAL "0.0.4")
-            set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_ive.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libaaccomm2.so
-                                                ${mmf_lib_dir}/libaacdec2.so
-                                                ${mmf_lib_dir}/libaacenc2.so
-                                                ${mmf_lib_dir}/libaacsbrdec2.so
-                                                ${mmf_lib_dir}/libaacsbrenc2.so
-                                                ${mmf_lib_dir}/libae.so
-                                                ${mmf_lib_dir}/libaf.so
-                                                ${mmf_lib_dir}/libawb.so
-                                                ${mmf_lib_dir}/libcvi_audio.so
-                                                ${mmf_lib_dir}/libcvi_bin_isp.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libcvi_ispd2.so
-                                                ${mmf_lib_dir}/libcvi_RES1.so
-                                                ${mmf_lib_dir}/libcvi_ssp.so
-                                                ${mmf_lib_dir}/libcvi_VoiceEngine.so
-                                                ${mmf_lib_dir}/libcvi_vqe.so
-                                                ${mmf_lib_dir}/libdnvqe.so
-                                                ${mmf_lib_dir}/libisp_algo.so
-                                                ${mmf_lib_dir}/libisp.so
-                                                ${mmf_lib_dir}/libmipi_tx.so
-                                                ${mmf_lib_dir}/libmisc.so
-                                                ${mmf_lib_dir}/libosdc.so
-                                                ${mmf_lib_dir}/libraw_dump.so
-                                                ${mmf_lib_dir}/libsys.so
-                                                ${mmf_lib_dir}/libvdec.so
-                                                ${mmf_lib_dir}/libvenc.so
-                                                ${mmf_lib_dir}/libvpu.so
-                                                ${mmf_lib_dir}/libjson-c.so.5
-                                                ${mmf_lib_dir}/libtinyalsa.so
-                                                ${mmf_lib_dir}/3rd/libcli.so
-                                                ${mmf_lib_dir}/3rd/libini.so)
-        else()
-            set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_ive.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libaaccomm2.so
-                                                ${mmf_lib_dir}/libaacdec2.so
-                                                ${mmf_lib_dir}/libaacenc2.so
-                                                ${mmf_lib_dir}/libaacsbrdec2.so
-                                                ${mmf_lib_dir}/libaacsbrenc2.so
-                                                ${mmf_lib_dir}/libae.so
-                                                ${mmf_lib_dir}/libaf.so
-                                                ${mmf_lib_dir}/libawb.so
-                                                ${mmf_lib_dir}/libcipher.so
-                                                ${mmf_lib_dir}/libcvi_audio.so
-                                                ${mmf_lib_dir}/libcvi_bin_isp.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libcvi_ispd2.so
-                                                ${mmf_lib_dir}/libcvi_RES1.so
-                                                ${mmf_lib_dir}/libcvi_ssp.so
-                                                ${mmf_lib_dir}/libcvi_VoiceEngine.so
-                                                ${mmf_lib_dir}/libcvi_vqe.so
-                                                ${mmf_lib_dir}/libdnvqe.so
-                                                ${mmf_lib_dir}/libisp_algo.so
-                                                ${mmf_lib_dir}/libisp.so
-                                                ${mmf_lib_dir}/libmipi_tx.so
-                                                ${mmf_lib_dir}/libmisc.so
-                                                ${mmf_lib_dir}/libosdc.so
-                                                ${mmf_lib_dir}/libraw_dump.so
-                                                # ${mmf_lib_dir}/libraw_replay.so
-                                                # ${mmf_lib_dir}/libsns_full.so
-                                                # ${mmf_lib_dir}/libsns_gc4653.so
-                                                ${mmf_lib_dir}/libsys.so
-                                                ${mmf_lib_dir}/libvdec.so
-                                                ${mmf_lib_dir}/libvenc.so
-                                                ${mmf_lib_dir}/libvpu.so
-                                                ${mmf_lib_dir}/libz.so
-                                                ${mmf_lib_dir}/libtinyalsa.so
-                                                ${mmf_lib_dir}/3rd/libcli.so
-                                                ${mmf_lib_dir}/3rd/libini.so
-                                                ${mmf_lib_dir}/3rd/libjson-c.so.5)
-        endif()
+        set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_ive.so
+                                            ${mmf_lib_dir}/libcvi_bin.so
+                                            ${mmf_lib_dir}/libaaccomm2.so
+                                            ${mmf_lib_dir}/libaacdec2.so
+                                            ${mmf_lib_dir}/libaacenc2.so
+                                            ${mmf_lib_dir}/libaacsbrdec2.so
+                                            ${mmf_lib_dir}/libaacsbrenc2.so
+                                            ${mmf_lib_dir}/libae.so
+                                            ${mmf_lib_dir}/libaf.so
+                                            ${mmf_lib_dir}/libawb.so
+                                            ${mmf_lib_dir}/libcvi_audio.so
+                                            ${mmf_lib_dir}/libcvi_bin_isp.so
+                                            ${mmf_lib_dir}/libcvi_bin.so
+                                            ${mmf_lib_dir}/libcvi_ispd2.so
+                                            ${mmf_lib_dir}/libcvi_RES1.so
+                                            ${mmf_lib_dir}/libcvi_ssp.so
+                                            ${mmf_lib_dir}/libcvi_VoiceEngine.so
+                                            ${mmf_lib_dir}/libcvi_vqe.so
+                                            ${mmf_lib_dir}/libdnvqe.so
+                                            ${mmf_lib_dir}/libisp_algo.so
+                                            ${mmf_lib_dir}/libisp.so
+                                            ${mmf_lib_dir}/libmipi_tx.so
+                                            ${mmf_lib_dir}/libmisc.so
+                                            ${mmf_lib_dir}/libosdc.so
+                                            ${mmf_lib_dir}/libraw_dump.so
+                                            ${mmf_lib_dir}/libsys.so
+                                            ${mmf_lib_dir}/libvdec.so
+                                            ${mmf_lib_dir}/libvenc.so
+                                            ${mmf_lib_dir}/libvpu.so
+                                            ${mmf_lib_dir}/libjson-c.so.5
+                                            ${mmf_lib_dir}/libtinyalsa.so
+                                            ${mmf_lib_dir}/3rd/libcli.so
+                                            ${mmf_lib_dir}/3rd/libini.so)
     elseif(CONFIG_SOPHGO_MIDDLEWARE_C_LIBRARY STREQUAL "glibc")
         set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_vb.so
                                             ${mmf_lib_dir}/libcvi_sys.so
@@ -146,47 +101,43 @@ else()
     list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam_lib.so")
     list(APPEND ADD_DIST_LIB_IGNORE "lib/libmaixcam_lib.so")
     if(CONFIG_SOPHGO_MIDDLEWARE_C_LIBRARY STREQUAL "musl")
-        if(${middleware_version_str} VERSION_EQUAL "0.0.4")
-            set(mmf_lib_dir ${middleware_src_path}/v2/lib)
-            set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_ive.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libaaccomm2.so
-                                                ${mmf_lib_dir}/libaacdec2.so
-                                                ${mmf_lib_dir}/libaacenc2.so
-                                                ${mmf_lib_dir}/libaacsbrdec2.so
-                                                ${mmf_lib_dir}/libaacsbrenc2.so
-                                                ${mmf_lib_dir}/libae.so
-                                                ${mmf_lib_dir}/libaf.so
-                                                ${mmf_lib_dir}/libawb.so
-                                                ${mmf_lib_dir}/libcvi_audio.so
-                                                ${mmf_lib_dir}/libcvi_bin_isp.so
-                                                ${mmf_lib_dir}/libcvi_bin.so
-                                                ${mmf_lib_dir}/libcvi_ispd2.so
-                                                ${mmf_lib_dir}/libcvi_RES1.so
-                                                ${mmf_lib_dir}/libcvi_ssp.so
-                                                ${mmf_lib_dir}/libcvi_VoiceEngine.so
-                                                ${mmf_lib_dir}/libcvi_vqe.so
-                                                ${mmf_lib_dir}/libdnvqe.so
-                                                ${mmf_lib_dir}/libisp_algo.so
-                                                ${mmf_lib_dir}/libisp.so
-                                                ${mmf_lib_dir}/libmipi_tx.so
-                                                ${mmf_lib_dir}/libmisc.so
-                                                ${mmf_lib_dir}/libosdc.so
-                                                ${mmf_lib_dir}/libraw_dump.so
-                                                ${mmf_lib_dir}/libsys.so
-                                                ${mmf_lib_dir}/libvdec.so
-                                                ${mmf_lib_dir}/libvenc.so
-                                                ${mmf_lib_dir}/libvpu.so
-                                                ${mmf_lib_dir}/libjson-c.so.5
-                                                ${mmf_lib_dir}/libtinyalsa.so
-                                                ${mmf_lib_dir}/3rd/libcli.so
-                                                ${mmf_lib_dir}/3rd/libini.so
-                                            )
-            list(APPEND ADD_DYNAMIC_LIB ${middleware_dynamic_lib_file})
-            set_property(SOURCE ${ADD_DYNAMIC_LIB} PROPERTY GENERATED 1)
-        else()
-            message(FATAL_ERROR "not suppor yet")
-        endif()
+        set(mmf_lib_dir ${middleware_src_path}/v2/lib)
+        set(middleware_dynamic_lib_file     ${mmf_lib_dir}/libcvi_ive.so
+                                            ${mmf_lib_dir}/libcvi_bin.so
+                                            ${mmf_lib_dir}/libaaccomm2.so
+                                            ${mmf_lib_dir}/libaacdec2.so
+                                            ${mmf_lib_dir}/libaacenc2.so
+                                            ${mmf_lib_dir}/libaacsbrdec2.so
+                                            ${mmf_lib_dir}/libaacsbrenc2.so
+                                            ${mmf_lib_dir}/libae.so
+                                            ${mmf_lib_dir}/libaf.so
+                                            ${mmf_lib_dir}/libawb.so
+                                            ${mmf_lib_dir}/libcvi_audio.so
+                                            ${mmf_lib_dir}/libcvi_bin_isp.so
+                                            ${mmf_lib_dir}/libcvi_bin.so
+                                            ${mmf_lib_dir}/libcvi_ispd2.so
+                                            ${mmf_lib_dir}/libcvi_RES1.so
+                                            ${mmf_lib_dir}/libcvi_ssp.so
+                                            ${mmf_lib_dir}/libcvi_VoiceEngine.so
+                                            ${mmf_lib_dir}/libcvi_vqe.so
+                                            ${mmf_lib_dir}/libdnvqe.so
+                                            ${mmf_lib_dir}/libisp_algo.so
+                                            ${mmf_lib_dir}/libisp.so
+                                            ${mmf_lib_dir}/libmipi_tx.so
+                                            ${mmf_lib_dir}/libmisc.so
+                                            ${mmf_lib_dir}/libosdc.so
+                                            ${mmf_lib_dir}/libraw_dump.so
+                                            ${mmf_lib_dir}/libsys.so
+                                            ${mmf_lib_dir}/libvdec.so
+                                            ${mmf_lib_dir}/libvenc.so
+                                            ${mmf_lib_dir}/libvpu.so
+                                            ${mmf_lib_dir}/libjson-c.so.5
+                                            ${mmf_lib_dir}/libtinyalsa.so
+                                            ${mmf_lib_dir}/3rd/libcli.so
+                                            ${mmf_lib_dir}/3rd/libini.so
+                                        )
+        list(APPEND ADD_DYNAMIC_LIB ${middleware_dynamic_lib_file})
+        set_property(SOURCE ${ADD_DYNAMIC_LIB} PROPERTY GENERATED 1)
     else()
         message(FATAL_ERROR "not suppor yet")
     endif()

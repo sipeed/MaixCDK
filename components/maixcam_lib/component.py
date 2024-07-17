@@ -8,6 +8,9 @@ def add_file_downloads(confs : dict) -> list:
     if version == "0.0.4":
         url = "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/sophgo-middleware-0.0.4.tar.xz"
         sha256sum = "e239b4be072c3835962a8f73d24dcc88f9258ae9d90edae94419b39823dc4c14"
+    elif version == "0.0.5":
+        url = "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/sophgo-middleware-0.0.5.tar.xz"
+        sha256sum = "484dd9199f7d8d5d2af34bf76fd2b9e5feb3d47691308e491c68270844adffb9"
     else:
         raise Exception(f"version {version} not support")
     filename = f"sophgo-middleware-${version}.tar.xz"
