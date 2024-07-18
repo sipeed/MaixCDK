@@ -10,6 +10,7 @@ namespace maix::nn
     {
     public:
         NN_MaixCam(bool dual_buff);
+        NN_MaixCam();
         ~NN_MaixCam();
 
         /**
@@ -76,6 +77,7 @@ namespace maix::nn
         bool _loaded;
         void *_data;
         bool _enable_dual_buff;
+        void _init(bool dual_buff = true);
     };
 
 } // namespace maix::nn
