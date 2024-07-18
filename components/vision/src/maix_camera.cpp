@@ -116,18 +116,26 @@ namespace maix::camera
         _width = (width == -1) ? 640 : width;
         _height = (height == -1) ? 480 : height;
         _format = format;
-        _fps = (fps == -1) ? 30 : fps;
         _buff_num = buff_num;
         _show_colorbar = false;
         _open_set_regs = set_regs_flag;
         _impl = NULL;
 
 #ifdef PLATFORM_LINUX
+        _fps = (fps == -1) ? 30 : fps;
         _device = _get_device(device);
         _impl = new CameraV4L2(_device, _width, _height, _format, _buff_num);
 #endif
 
 #ifdef PLATFORM_MAIXCAM
+        if (fps == -1 && _width <= 1280 && _height <= 720) {
+            _fps = 60;
+        } else if (fps == -1) {
+            _fps = 30;
+        } else {
+            _fps = fps;
+        }
+
         if ((_width > 1280 || _height > 720) && _fps > 30) {
             log::warn("Current fps is too high, will be be updated to 30fps! Currently only supported up to 720p 60fps or 1440p 30fps.\r\n");
             _fps = 30;
