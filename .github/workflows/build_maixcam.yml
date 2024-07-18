@@ -51,3 +51,9 @@ jobs:
           cd test/test_examples
           chmod +x test_cases.sh
           ./test_cases.sh maixcam 0
+          echo "------------------------------------"
+          echo "-- Build Projects for MaixCAM now --"
+          echo "------------------------------------"
+          cd projects
+          chmod +x build_all.sh
+          ./build_all.sh
