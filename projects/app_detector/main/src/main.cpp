@@ -60,8 +60,8 @@ int _main(int argc, char *argv[])
             img->draw_string(r.x, r.y, detector.labels[r.class_id], maix::image::Color::from_rgb(255, 0, 0));
         }
         img->draw_image(0, 0, *ret_img);
-        snprintf(tmp_chars, sizeof(tmp_chars), "All: %ldms, cam: %ldms\ndetect: %ldms, show: %ldms", t_all, t2 - t, t3 - t2, t_show);
-        img->draw_string(ret_img->width() + 2, 2, tmp_chars, image::COLOR_RED);
+        snprintf(tmp_chars, sizeof(tmp_chars), "All: %ldms, fps: %ld\ncam: %ldms, detect: %ldms, show: %ldms", t_all, 1000 / t_all, t2 - t, t3 - t2, t_show);
+        img->draw_string(2, img->height() - 40, tmp_chars, image::COLOR_RED);
         disp.show(*img);
         t_show = time::ticks_ms() - t3;
         t_all = time::ticks_ms() - t;

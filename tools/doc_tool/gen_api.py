@@ -382,7 +382,7 @@ def parse_api_item_info(item):
                 raise Exception("parse_api_info key {} value error: {} => {}".format(api, item, kv_str))
     return api, info
 
-def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None):
+def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, module_name = "maix"):
 
     # if not header_name.endswith("api_example.hpp"):
         # return apis, "", False, []
@@ -492,7 +492,7 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None):
     apis_default = {
         "type": "top_module",
         "members": {
-            "maix": {
+            module_name: {
                 "type": "module",
                 "doc": {"breif": "MaixPy C/C++ API from MaixCDK"},
                 "members":{
@@ -544,12 +544,12 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None):
         # parse api name
         names = api.split(".")
         # to limit only have maix module
-        if names[0] != "maix":
-            return None, "API name must start with maix, api: {} ".format(api), False, []
+        if names[0] != module_name:
+            return None, "API name must start with {}, api: {} ".format(module_name, api), False, []
         for i in range(len(names)):
             key = ".".join(names[:i+1])
             if key not in items:
-                if key != "maix":
+                if key != module_name:
                     print("-- Auto add module {}, < {} >".format(key, header_name))
                 items[key] = {"type": "module", "doc": {"brief": "{} module".format(key)}, "members": {}, "auto_add": True}
                 final_keys.append(key)
@@ -649,14 +649,11 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None):
 
     return apis, "", len(final_keys) > 0, keys
 
-def parse_api_from_header(header_path, api_tree = {}, for_sdk = "maixpy"):
+def parse_api_from_header(header_path, api_tree = {}, sdks = ["maixpy"], module_name = "maix"):
     with open(header_path, "r", encoding="utf-8") as f:
         code = f.read()
-    sdks = ["maixpy"]
-    if for_sdk == "maixcdk":
-        sdks.append("maixcdk")
     try:
-        api_tree, msg, updated, keys = parse_api(code, api_tree, sdks, os.path.basename(header_path))
+        api_tree, msg, updated, keys = parse_api(code, api_tree, sdks, os.path.basename(header_path), module_name)
         if api_tree is None:
             raise Exception("parse_api_from_header {} error: {}".format(header_path, msg))
     except Exception as e:
@@ -670,6 +667,7 @@ if __name__ == "__main__":
     parser.add_argument('--vars', type=str, default="", help="CMake global variables file, a json file in build/config dir")
     parser.add_argument('--doc', type=str, default="", help="API documentation output file")
     parser.add_argument("--sdk_path", type=str, default="", help="MaixCDK SDK path")
+    parser.add_argument("--module_name", type=str, default="maix", help="module name")
     args = parser.parse_args()
 
     t = time.time()
@@ -701,7 +699,7 @@ if __name__ == "__main__":
     rm = []
     all_keys = {}
     for header in headers:
-        api_tree, updated, keys = parse_api_from_header(header, api_tree, for_sdk = "maixcdk")
+        api_tree, updated, keys = parse_api_from_header(header, api_tree, sdks = ["maixpy", "maixcdk"], module_name=args.module_name)
         if not updated:
             rm.append(header)
         for h, ks in all_keys.items():
@@ -733,7 +731,7 @@ if __name__ == "__main__":
         json.dump(api_tree, f, indent=4)
 
     doc_maix_sidebar = {
-        "label": "maix",
+        "label": args.module_name,
         "collapsed": False,
         "items": [
             # {
@@ -749,8 +747,8 @@ if __name__ == "__main__":
 >
 > For MaixCDK developer: DO NOT edit this doc file manually, this doc is auto generated!
 \n'''
-    top_api_keys = ["maix"]
-    module_members = api_tree["members"]["maix"]["members"]
+    top_api_keys = [args.module_name]
+    module_members = api_tree["members"][args.module_name]["members"]
     def gen_modules_doc(module_members, parents):
         sidebar_items = []
         for m, v in module_members.items():
@@ -794,7 +792,7 @@ MaixCDK API documentation, modules:
     readme += "| --- | --- |\n"
     for m, v in module_members.items():
         # add link to module api doc
-        readme += "|[maix::{}](./maix/{}.md) | {} |\n".format(m, m, v["doc"]["brief"].replace("\n", "<br>")
+        readme += "|[{}::{}](./{}/{}.md) | {} |\n".format(args.module_name, m, m, args.module_name, v["doc"]["brief"].replace("\n", "<br>")
                     )
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme)

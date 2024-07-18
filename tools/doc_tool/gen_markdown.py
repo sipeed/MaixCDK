@@ -311,7 +311,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             continue
         content += '### {}\n\n'.format(key.replace("_", "\_"))
         content += item["doc"].get("brief", "") + "\n\n"
-        content += '| item | doc |\n'
+        content += '| item | describe |\n'
         content += '| --- | --- |\n'
         content += gen_md_doc_from_comment(item["doc"])
         content += '| **values** | '
@@ -327,7 +327,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             continue
         content += '### {}\n\n'.format(key.replace("_", "\_"))
         content += item["doc"].get("brief", "") + "\n\n"
-        content += '| item | doc |\n'
+        content += '| item | description |\n'
         content += '| --- | --- |\n'
         content += gen_md_doc_from_comment(item["doc"])
         content += '| **value** | **{}** |\n'.format(item["value"].replace('\n', '<br>')) if item["value"] else ""
@@ -345,7 +345,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             content += f'```python\n{item["py_def"]}\n```\n'
         content += item["doc"].get("brief", "") + "\n\n"
         if have_doc_kv(item["doc"]):
-            content += '| item | doc |\n'
+            content += '| item | description |\n'
             content += '| --- | --- |\n'
             content += gen_md_doc_from_comment(item["doc"])
         content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
@@ -368,7 +368,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
         content += '### {}\n\n'.format(key.replace("_", "\_"))
         content += item["doc"].get("brief", "") + "\n\n"
         if have_doc_kv(item["doc"]):
-            content += '| item | doc |\n'
+            content += '| item | description |\n'
             content += '| --- | --- |\n'
             content += gen_md_doc_from_comment(item["doc"])
         content += '\n> C++ defination code:\n> ```cpp\n{}\n> ```\n'.format(multilines_add_prefix(item["def"], "> "))
@@ -383,7 +383,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             if "py_def" in item:
                 content += f'```python\n{item["py_def"]}\n```\n'
             content += item["doc"].get("brief", "") + "\n\n"
-            content += '| item | doc |\n'
+            content += '| item | description |\n'
             content += '| --- | --- |\n'
             content += '| **type** | {} |\n'.format(item["type"])
             content += gen_md_doc_from_comment(item["doc"])
