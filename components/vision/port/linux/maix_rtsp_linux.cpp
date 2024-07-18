@@ -88,6 +88,12 @@ namespace maix::rtsp
         return region.update_canvas();
     }
 
+    err::Err Rtsp::del_region(rtsp::Region *region) {
+        err::check_null_raise(region, "The region object is NULL");
+
+        return err::ERR_NOT_IMPL;
+    }
+
     err::Err Rtsp::draw_rect(int id, int x, int y, int width, int height, image::Color color, int thickness) {
         return err::ERR_NOT_IMPL;
     }

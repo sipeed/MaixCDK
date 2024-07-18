@@ -255,6 +255,8 @@ namespace maix::display
             float max_duty = 50;
             _bl_pwm->duty(value * max_duty / 100.0);
             _bl_pwm->disable();
+            if(value == 0)
+                return;
             _bl_pwm->enable();
         }
 
