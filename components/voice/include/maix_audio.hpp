@@ -190,5 +190,172 @@ namespace maix::audio
             return _channel;
         }
     };
+
+     /**
+     * Recorder class
+     * @maixpy maix.audio.RecorderPause
+     */
+    class RecorderPause
+    {
+        std::string _path;
+        int _sample_rate;
+        int _channel;
+        audio::Format _format;
+
+        void *_handle;
+        void *_buffer;
+        size_t _buffer_size;
+        FILE *_file;
+    public:
+        /**
+         * @brief Create a recording class that allows recording to pause and continue
+         * @param path record path. keep  null or "" path
+         * @param sample_rate record sample rate, default is 48000(48KHz), means 48000 samples per second.
+         * @param format record sample format, default is audio::Format::FMT_S16_LE, means sampling 16 bits at a time and save as signed 16 bits, little endian. see @audio::Format
+         * @param channel record sample channel, default is 1, means 1 channel sampling at the same time
+         * @maixpy maix.audio.RecorderPause.__init__
+         * @maixcdk maix.audio.RecorderPause.RecorderPause
+         */
+        RecorderPause(std::string path = std::string(), int sample_rate = 48000, audio::Format format = audio::Format::FMT_S16_LE, int channel = 1);
+        ~RecorderPause();
+
+        /**
+         * Set/Get record volume
+         * @param value volume value, If you use this parameter, audio will set the value to volume,
+         * if you don't, it will return the current volume.
+         * @return the current volume
+         * @maixpy maix.audio.RecorderPause.volume
+        */
+        int volume(int value = -1);
+        /**
+         * Record, Read all cached data in buffer and return.
+         * @param record_pcm_to_file_keep_pause record wav to file  With pause and end functions
+         * @param flag_record Start and over flag bits for recording
+         * @param flag_record_pause Pause and continue flag bits for recording
+         * @return wav data. datatype @see Bytes. If you pass in record_ms parameter, the return value is an empty Bytes object.
+         * @maixpy maix.audio.RecorderPause.record_pcm_to_file_keep_pause
+        */
+        maix::Bytes * record_pcm_to_file_keep_pause(std::string path_record_pcm_file,std::atomic<bool>& flag_record,std::atomic<bool>& flag_record_pause); 
+
+        /**
+         * Get sample rate
+         * @return returns sample rate
+         * @maixpy maix.audio.RecorderPause.sample_rate
+         */
+        int sample_rate() {
+            return _sample_rate;
+        }
+
+        /**
+         * Get sample format
+         * @return returns sample format
+         * @maixpy maix.audio.RecorderPause.format
+         */
+        audio::Format format() {
+            return _format;
+        }
+
+        /**
+         * Get sample channel
+         * @return returns sample channel
+         * @maixpy maix.audio.RecorderPause.channel
+         */
+        int channel() {
+            return _channel;
+        }
+    };
+
+    /**
+     * PlayerBlock class
+     * @maixpy maix.audio.PlayerBlock
+     */
+    class PlayerBlock
+    {
+        std::string _path;
+        int _sample_rate;
+        int _channel;
+        audio::Format _format;
+
+        void *_handle;
+        void *_buffer;
+        size_t _buffer_size;
+        FILE *_file;
+    public:
+        static maix::Bytes *NoneBytes;
+
+        /**
+         * @brief Create a blocking playback class with a buffer size of 1024
+         * @param path player path. null or ""(current only byte data can be played).
+         * @param sample_rate player sample rate, default is 48000(48KHz), means 48000 samples per second.
+         * @param format player sample format, default is audio::Format::FMT_S16_LE, means sampling 16 bits at a time and save as signed 16 bits, little endian. see @audio::Format
+         * @param channel player sample channel, default is 1, means 1 channel sampling at the same time
+         * @maixpy maix.audio.PlayerBlock.__init__
+         * @maixcdk maix.audio.PlayerBlock.PlayerBlock
+         */
+        PlayerBlock(std::string path = std::string(), int sample_rate = 48000, audio::Format format = audio::Format::FMT_S16_LE, int channel = 1);
+        ~PlayerBlock();
+
+        /**
+         * Set/Get player volume(It's inverted, the gear is 0-32, you set the number to be 32- the gear you set)
+         * @param value volume value, If you use this parameter, audio will set the value to volume,
+         * if you don't, it will return the current volume.
+         * @return the current volume
+         * @maixpy maix.audio.PlayerBlock.volume
+        */
+        int volume(int value = -1);
+        /**
+         * Simply drop the buffer and stop the device
+         * @maixpy maix.audio.PlayerBlock.audio_drop
+        */
+        void audio_drop();
+        /**
+         * Wait for buffer data to finish playing before stopping the device
+         * @maixpy maix.audio.PlayerBlock.audio_drain
+        */
+        void audio_drain();
+        /**
+         * Make the device ready
+         * @maixpy maix.audio.PlayerBlock.audio_prepare
+        */
+        void audio_prepare();
+        /**
+         * Device stop and continue (currently not supported)
+         * @maixpy maix.audio.PlayerBlock.audio_pause
+        */
+        int audio_pause(int enable=1);
+        /**
+         * play_data
+         * @param data audio data, must be raw data
+         * @return error code, err::ERR_NONE means success, others means failed
+         * @maixpy maix.audio.PlayerBlock.play_data
+        */
+        err::Err play_data(maix::Bytes *data = maix::audio::Player::NoneBytes);
+        /**
+         * Get sample rate
+         * @return returns sample rate
+         * @maixpy maix.audio.PlayerBlock.sample_rate
+         */
+        int sample_rate() {
+            return _sample_rate;
+        }
+
+        /**
+         * Get sample format
+         * @return returns sample format
+         * @maixpy maix.audio.PlayerBlock.format
+         */
+        audio::Format format() {
+            return _format;
+        }
+
+        /**
+         * Get sample channel
+         * @return returns sample channel
+         * @maixpy maix.audio.PlayerBlock.channel
+         */
+        int channel() {
+            return _channel;
+        }
+    };
 }
 
