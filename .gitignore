@@ -74,3 +74,11 @@ docs/api/*
 !docs/api/config.json
 projects/MaixPy/docs/api/
 projects/apps/
+examples/*/CMakeLists.txt
+projects/*/CMakeLists.txt
+examples/*/build/
+projects/*/build/
+examples/*/dist/
+projects/*/dist/
+examples/*/data/
+projects/*/data/
