@@ -129,7 +129,7 @@ namespace maix::camera
 
 #ifdef PLATFORM_MAIXCAM
         if (fps == -1 && _width <= 1280 && _height <= 720) {
-            _fps = 60;
+            _fps = 80;
         } else if (fps == -1) {
             _fps = 30;
         } else {
@@ -139,8 +139,11 @@ namespace maix::camera
         if ((_width > 1280 || _height > 720) && _fps > 30) {
             log::warn("Current fps is too high, will be be updated to 30fps! Currently only supported up to 720p 60fps or 1440p 30fps.\r\n");
             _fps = 30;
-        } else if (_width <= 1280 && _height <= 720 && _fps > 30 && _fps != 60) {
-            log::warn("Currently only supports fixed 30fps and 60fps in 720p configuration, current configuration will be updated to 60fps.\r\n");
+        } else if (_width <= 1280 && _height <= 720 && _fps > 60 && _fps != 80)  {
+            log::warn("Currently only supports fixed 30,60 and 80fps in 720p configuration, current configuration will be updated to 80fps.\r\n");
+            _fps = 80;
+        } else if (_width <= 1280 && _height <= 720 && _fps < 80 && _fps > 30 && _fps != 60) {
+            log::warn("Currently only supports fixed 30,60 and 80fps in 720p configuration, current configuration will be updated to 60fps.\r\n");
             _fps = 60;
         }
         _device = "";

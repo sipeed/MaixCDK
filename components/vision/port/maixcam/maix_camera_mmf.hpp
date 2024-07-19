@@ -60,6 +60,7 @@ static __attribute__((constructor)) void maix_vision_register_signal(void)
     maix::util::register_exit_function(try_deinit_mmf);
 }
 
+#define MAIX_SENSOR_FPS                  "MAIX_SENSOR_FPS"
 namespace maix::camera
 {
     class CameraCviMmf final : public CameraBase
@@ -75,16 +76,23 @@ namespace maix::camera
             this->ch = -1;
 
             mmf_sys_cfg_t sys_cfg = {0};
-            if (width <= 1280 && height <= 720 && fps == 60) {
+            if (width <= 1280 && height <= 720 && fps > 30) {
                 sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
                 sys_cfg.vb_pool[0].count = 5;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
+
+                if (fps > 30 && fps <= 60) {
+                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "60", 1), "setenv MAIX_SENSOR_FPS failed");
+                } else {
+                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "80", 1), "setenv MAIX_SENSOR_FPS failed");
+                }
             } else {
                 sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
                 sys_cfg.vb_pool[0].count = 4;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
+                err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "30", 1), "setenv MAIX_SENSOR_FPS failed");
             }
             mmf_pre_config_sys(&sys_cfg);
 
