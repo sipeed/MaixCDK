@@ -3,7 +3,7 @@ MaixCDK FAQ
 
 ## Downloading ippicv_2021.8_lnx_intel64_20230330_general.tgz takes a long time or fail
 
-Mannually download according to the log's url, and put it into:
+Manually download according to the log's url, and put it into:
 `MaixCDK -> components -> opencv -> opencv4 -> .cache -> ippicv`
 The file name is `43219bdc7e3805adcbe3a1e2f1f3ef3b-ippicv_2021.8_lnx_intel64_20230330_general.tgz`,
 File name and url can also be found in `MaixCDK/components/3rd_party/opencv/opencv4/3rdparty/ippicv/ippicv.cmake`

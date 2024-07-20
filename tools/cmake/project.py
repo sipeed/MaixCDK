@@ -16,7 +16,7 @@ from multiprocessing import cpu_count
 try:
     curr_dir = os.path.abspath(os.path.dirname(__file__))
 except Exception:
-    print("-- [ERROR] Please upgrate maixtool by pip install -U maixtool")
+    print("-- [ERROR] Please upgrade maixtool by pip install -U maixtool")
     sys.exit(1)
 
 sys.path.insert(0, curr_dir)

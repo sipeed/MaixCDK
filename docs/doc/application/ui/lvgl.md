@@ -8,7 +8,7 @@ title: Use LVGL in MaixCDK
 * Execute `maixcdk build` to build the project for PC.
 * Execute `maixcdk run` to run the project on PC.
 
-You can also excute `maixcdk menuconfig` to change platform to build for other platform.
+You can also execute `maixcdk menuconfig` to change platform to build for other platform.
 
 ## Custom your own UI
 

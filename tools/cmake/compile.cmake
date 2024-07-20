@@ -429,7 +429,7 @@ macro(project name)
     #     message(FATAL_ERROR "Check Kconfig content")
     # endif()
 
-    # Include confiurations
+    # Include configurations
     set(global_config_dir "${PROJECT_BINARY_DIR}/config")
     include(${global_config_dir}/global_config.cmake)
     if(WIN32)
@@ -502,7 +502,7 @@ macro(project name)
 
     # set(CMAKE_SYSTEM_NAME Generic) # set this flag may leads to dymamic(/shared) lib compile fail
 
-    # Declare project # This function will cler flags!
+    # Declare project # This function will clear flags!
     _project(${name} ASM C CXX)
 
     if(CMAKE_EXECUTABLE_SUFFIX STREQUAL ".js") # generate js ang html file for WASM

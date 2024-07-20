@@ -73,7 +73,7 @@ docker attach maixcdk-env
 ```
 
 
-## Execute command though host shell
+## Execute command through host shell
 
 ```shell
 docker exec -it --user $USER maixcdk-env "cd /MaixCDK/examples/hello_world && maixcdk build && maixcdk run"

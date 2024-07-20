@@ -8,7 +8,7 @@ set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -Wall -fPIC)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall -fPIC)
 ################################
 
-# set(LINK_FLAGS -Wl,-EL) # (default little edian)
+# set(LINK_FLAGS -Wl,-EL) # (default little endian)
 set(CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}
                         ${LINK_FLAGS}
                         -Wl,-rpath=$ORIGIN/dl_lib
