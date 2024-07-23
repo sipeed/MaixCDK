@@ -12,6 +12,8 @@ def add_file_downloads(confs : dict) -> list:
         sha256sum = "484dd9199f7d8d5d2af34bf76fd2b9e5feb3d47691308e491c68270844adffb9"
     elif version == "0.0.6":
         sha256sum = "e7a9f4fb6e3eeb791c8ebf0a19bbf660151deeffa977e99e1835fe1cbeb2aa0b"
+    elif version == "0.0.7":
+        sha256sum = "990401337cc0108046f89d873708c316f40b67704045695fc245404d377ab3fc"
     else:
         raise Exception(f"version {version} not support")
     filename = f"sophgo-middleware-{version}.tar.xz"

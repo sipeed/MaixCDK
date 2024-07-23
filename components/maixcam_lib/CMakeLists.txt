@@ -36,6 +36,7 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
 
     append_srcs_dir(middleware_src_dir  ${middleware_src_path}/v2/sample/common
                                         ${middleware_src_path}/v2/component/isp/sensor/cv181x/gcore_gc4653
+                                        ${middleware_src_path}/v2/component/isp/sensor/sg200x/sms_sc035gs
                                         )
     list(APPEND ADD_SRCS        ${middleware_src_dir}
                                 "${source_dir}/middleware/sophgo_middleware.cpp")
@@ -95,7 +96,8 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
                                     -DSENSOR0_TYPE=SONY_IMX327_MIPI_2M_30FPS_12BIT
                                     -DSENSOR1_TYPE=SONY_IMX327_MIPI_2M_30FPS_12BIT)
 
-
+    list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_SMS_SC035GS
+                                    -DSENSOR2_TYPE=SMS_SC035GS_MIPI_480P_120FPS_12BIT)
     register_component(DYNAMIC)
 else()
     list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam_lib.so")

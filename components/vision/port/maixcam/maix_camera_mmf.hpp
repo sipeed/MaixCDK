@@ -14,6 +14,7 @@
 #include "maix_log.hpp"
 #include "maix_image.hpp"
 #include "maix_time.hpp"
+#include "maix_i2c.hpp"
 #include "maix_camera_base.hpp"
 #include "sophgo_middleware.hpp"
 #include <signal.h>
@@ -63,6 +64,31 @@ static __attribute__((constructor)) void maix_vision_register_signal(void)
 #define MAIX_SENSOR_FPS                  "MAIX_SENSOR_FPS"
 namespace maix::camera
 {
+    static void config_sensor(void)
+    {
+        #define MMF_SENSOR_NAME "MMF_SENSOR_NAME"
+        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+        std::vector<int> addr_list = i2c_obj.scan();
+        for (size_t i = 0; i < addr_list.size(); i++) {
+            printf("i2c addr: 0x%02x\n", addr_list[i]);
+            switch (addr_list[i]) {
+                case 0x30:
+                    printf("found sms_sc035gs, addr 0x30\n" );
+                    setenv(MMF_SENSOR_NAME, "sms_sc035gs", 0);
+                    return;
+                case 0x29: // fall through
+                default:
+                    printf("found gcore_gc4653, addr 0x29\n" );
+                    setenv(MMF_SENSOR_NAME, "gcore_gc4653", 0);
+                    return;
+            }
+        }
+
+        printf("Found not sensor address, use gcore_gc4653\n" );
+        setenv(MMF_SENSOR_NAME, "gcore_gc4653", 0);
+        return;
+    }
+
     class CameraCviMmf final : public CameraBase
     {
     public:
@@ -75,6 +101,8 @@ namespace maix::camera
             this->buffer_num = buff_num;
             this->ch = -1;
 
+            config_sensor();
+
             mmf_sys_cfg_t sys_cfg = {0};
             if (width <= 1280 && height <= 720 && fps > 30) {
                 sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
@@ -83,16 +111,16 @@ namespace maix::camera
                 sys_cfg.max_pool_cnt = 1;
 
                 if (fps > 30 && fps <= 60) {
-                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "60", 1), "setenv MAIX_SENSOR_FPS failed");
+                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "60", 0), "setenv MAIX_SENSOR_FPS failed");
                 } else {
-                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "80", 1), "setenv MAIX_SENSOR_FPS failed");
+                    err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "80", 0), "setenv MAIX_SENSOR_FPS failed");
                 }
             } else {
                 sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
                 sys_cfg.vb_pool[0].count = 2;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
-                err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "30", 1), "setenv MAIX_SENSOR_FPS failed");
+                err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "30", 0), "setenv MAIX_SENSOR_FPS failed");
             }
             mmf_pre_config_sys(&sys_cfg);
 
