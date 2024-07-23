@@ -78,7 +78,7 @@ namespace maix::camera
             mmf_sys_cfg_t sys_cfg = {0};
             if (width <= 1280 && height <= 720 && fps > 30) {
                 sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 5;
+                sys_cfg.vb_pool[0].count = 2;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
 
@@ -89,7 +89,7 @@ namespace maix::camera
                 }
             } else {
                 sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 4;
+                sys_cfg.vb_pool[0].count = 2;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
                 err::check_bool_raise(!setenv(MAIX_SENSOR_FPS, "30", 1), "setenv MAIX_SENSOR_FPS failed");
