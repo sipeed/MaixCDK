@@ -49,9 +49,9 @@ def get_i18n_strs(file, keywords):
     return strs
 
 def main(search_dir, keywords, exts, out, recursive, locales):
-    print("seach dir: ", dir)
+    print("search dir:", dir)
     print("keywords:  ", keywords)
-    print("extentions:", exts)
+    print("extensions:", exts)
     print("out dir:   ", out)
     print("")
     files = get_files(search_dir, recursive, exts)
@@ -85,14 +85,14 @@ def main(search_dir, keywords, exts, out, recursive, locales):
 
 if __name__ == "__main__":
     import argparse
-    paser = argparse.ArgumentParser()
-    paser.add_argument("-k", "--keywords", nargs="+", type=str, default=["_", "tr"], help="translate function keywords to search")
-    paser.add_argument("-r", action="store_true", help="recursive search dir")
-    paser.add_argument("-e", "--exts", nargs="+", type=str, default=[".c", ".cpp", ".h", ".hpp", ".py"], help="file extention to search")
-    paser.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc. the locale name can be found in [here](https://www.science.co.il/language/Locale-codes.php) or [wikipedia](https://en.wikipedia.org/wiki/Language_localisation), all letters use lower case.")
-    paser.add_argument("-o", "--out", type=str, default="locales", help="translation files output directory")
-    paser.add_argument("-d", "--dir", type=str, help="where to search", required=True)
-    args = paser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-k", "--keywords", nargs="+", type=str, default=["_", "tr"], help="translate function keywords to search")
+    parser.add_argument("-r", action="store_true", help="recursive search dir")
+    parser.add_argument("-e", "--exts", nargs="+", type=str, default=[".c", ".cpp", ".h", ".hpp", ".py"], help="file extension to search")
+    parser.add_argument("-l", "--locales", nargs="+", type=str, default=["en", "zh"], help="locals of region, like en zh ja etc. the locale name can be found in [here](https://www.science.co.il/language/Locale-codes.php) or [wikipedia](https://en.wikipedia.org/wiki/Language_localisation), all letters use lower case.")
+    parser.add_argument("-o", "--out", type=str, default="locales", help="translation files output directory")
+    parser.add_argument("-d", "--dir", type=str, help="where to search", required=True)
+    args = parser.parse_args()
     main(args.dir, args.keywords, args.exts, args.out, args.r, args.locales)
 
 

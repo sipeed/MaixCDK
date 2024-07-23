@@ -1,6 +1,6 @@
 
 # add prefix for all list members
-# uage: prepend(out_var prefix in_var)
+# usage: prepend(out_var prefix in_var)
 function(prepend out prefix)
     set(listVar "")
     foreach(f ${ARGN})

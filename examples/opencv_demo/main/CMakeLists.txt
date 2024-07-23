@@ -44,7 +44,7 @@ list(APPEND ADD_REQUIREMENTS basic opencv opencv_freetype)
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
-#### and components denpend on this component
+#### and components depend on this component
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1
 #                             -DAAAAA333=1)
 ###############################################

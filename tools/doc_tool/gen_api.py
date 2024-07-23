@@ -711,7 +711,7 @@ if __name__ == "__main__":
     for r in rm:
         headers.remove(r)
 
-    # generate API documenation according to api_tree
+    # generate API documentation according to api_tree
     print("-- Generating MaixCDK API documentation")
     doc_out_dir = args.doc
     if not os.path.exists(doc_out_dir):

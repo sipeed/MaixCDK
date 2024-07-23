@@ -220,7 +220,7 @@ def check_download_items(items):
         if not item["filename"]:
             item["filename"] = os.path.basename(item["url"])
         if not item["path"]:
-            print("-- Error: path not found in download item: {}, for example, toolchanin can be 'toolchains/board_name'".format(item))
+            print("-- Error: path not found in download item: {}, for example, toolchain can be 'toolchains/board_name'".format(item))
             sys.exit(1)
         if not "urls" in item:
             item["urls"] = []
@@ -283,7 +283,7 @@ def download_extract_files(items):
             if "sha256sum" in item and item["sha256sum"]:
                 ok, sha256sum = check_sha256sum(pkg_path, item["sha256sum"])
                 if not ok:
-                    print("-- Error: sha256sum check failed, shoule be {}, but files's sha256sum is {}.\n   Please download this file manually".format(item["sha256sum"], sha256sum))
+                    print("-- Error: sha256sum check failed, should be {}, but files's sha256sum is {}.\n   Please download this file manually".format(item["sha256sum"], sha256sum))
                     sys.exit(1)
         # extract_dir not empty means already extracted, continue
         need_extract = False
