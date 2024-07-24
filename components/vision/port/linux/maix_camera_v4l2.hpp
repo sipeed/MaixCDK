@@ -1031,6 +1031,11 @@ namespace maix::camera
             return -1;
         }
 
+        int set_awb(int value)
+        {
+            return -1;
+        }
+
         int exp_mode(int value)
         {
             return -1;

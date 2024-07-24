@@ -456,6 +456,23 @@ namespace maix::camera
         return _impl->awb_mode(value);
     }
 
+    int Camera::set_awb(int value) {
+        if (_impl == NULL)
+            return err::ERR_NOT_INIT;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        if (value == 0) {
+            value = 1;
+        } else if (value > 0) {
+            value = 0;
+        }
+
+        return _impl->awb_mode(value) == 0 ? 1 : 0;
+    }
+
     int Camera::exp_mode(int value) {
         if (_impl == NULL)
             return err::ERR_NOT_INIT;

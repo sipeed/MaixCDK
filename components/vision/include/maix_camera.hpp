@@ -338,8 +338,9 @@ namespace maix::camera
         int saturation(int value = -1);
 
         /**
-         * Set/Get white balance mode
+         * Set/Get white balance mode (deprecated interface)
          * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * This interface may be deprecated in the future, and there may be incompatibilities in the definition of the parameters of the new interface
          * @param value value = 0, means set white balance to auto mode, value = 1, means set white balance to manual mode, default is auto mode.
          * @return returns awb mode
          * @maixpy maix.camera.Camera.awb_mode
@@ -347,8 +348,18 @@ namespace maix::camera
         int awb_mode(int value = -1);
 
         /**
-         * Set/Get exposure mode
+         * Set/Get white balance mode
          * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value value = 0, means set white balance to manual mode, value = 1, means set white balance to auto mode, default is auto mode.
+         * @return returns awb mode
+         * @maixpy maix.camera.Camera.set_awb
+        */
+        int set_awb(int mode = -1);
+
+        /**
+         * Set/Get exposure mode (deprecated interface)
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * This interface may be deprecated in the future, and there may be incompatibilities in the definition of the parameters of the new interface
          * @param value value = 0, means set exposure to auto mode, value = 1, means set exposure to manual mode, default is auto mode.
          * @return returns exposure mode
          * @maixpy maix.camera.Camera.exp_mode
