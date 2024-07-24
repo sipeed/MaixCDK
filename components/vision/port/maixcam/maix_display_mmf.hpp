@@ -139,7 +139,6 @@ namespace maix::display
                 new_width = this->_width;
             } else {
                 new_width = width > this->_width ? this->_width : width;
-
             }
             if (height == -1) {
                 new_height = this->_height;
@@ -148,7 +147,7 @@ namespace maix::display
             }
 
             new_format = image::Format::FMT_BGRA8888;
-
+            _format = new_format;
             DisplayCviMmf *disp = new DisplayCviMmf(1, new_width, new_height, new_format);
             return disp;
         }
@@ -160,6 +159,7 @@ namespace maix::display
 
         err::Err show(image::Image &img, image::Fit fit)
         {
+            err::check_bool_raise((img.width() % 2 == 0 && img.height() % 2 == 0), "Image width and height must be a multiple of 2.");
             int format = img.format();
 
             int mmf_fit = 0;
@@ -234,13 +234,23 @@ namespace maix::display
                     return err::ERR_ARGS;
                 }
             } else if (this->_layer == 1) {
+                image::Image *new_img = &img;
                 if (format != image::FMT_BGRA8888) {
-                    log::error("display layer 1 not support format: %d\n", format);
-                    return err::ERR_ARGS;
+                    new_img = img.to_format(image::FMT_BGRA8888);
+                    err::check_null_raise(new_img, "This image format is not supported, try image::Format::FMT_BGRA8888");
                 }
-                if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, img.data(), img.data_size(), img.width(), img.height(), mmf_invert_format_to_mmf(img.format()), mmf_fit)) {
+
+                if (img.width() != _width || img.height() != _height) {
+                    log::error("image size not match, you must pass in an image of size %dx%d", _width, _height);
+                    err::check_raise(err::ERR_RUNTIME, "image size not match");
+                }
+                if (0 != mmf_vo_frame_push_with_fit(this->_layer, this->_ch, new_img->data(), new_img->data_size(), new_img->width(), new_img->height(), mmf_invert_format_to_mmf(new_img->format()), mmf_fit)) {
                     log::error("mmf_vo_frame_push failed\n");
                     return err::ERR_RUNTIME;
+                }
+
+                if (format != image::FMT_BGRA8888) {
+                    delete new_img;
                 }
             } else {
                 log::error("not support layer: %d\n", this->_layer);

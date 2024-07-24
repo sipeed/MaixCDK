@@ -53,6 +53,7 @@ namespace maix::video
             }
 
             if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
+                mmf_deinit();
                 err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
             }
             break;
@@ -76,6 +77,7 @@ namespace maix::video
             }
 
             if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
+                mmf_deinit();
                 err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
             }
             break;

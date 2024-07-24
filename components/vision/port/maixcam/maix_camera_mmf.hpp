@@ -135,6 +135,7 @@ namespace maix::camera
             cfg.depth = buff_num;
             cfg.fps = fps;
             if (0 != mmf_vi_init2(&cfg)) {
+                mmf_deinit();
                 err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
             }
         }
@@ -153,6 +154,7 @@ namespace maix::camera
             }
 
             if (0 != mmf_vi_init()) {
+                mmf_deinit();
                 err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
             }
         }
