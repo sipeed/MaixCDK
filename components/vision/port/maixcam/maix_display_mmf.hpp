@@ -12,6 +12,7 @@
 #include "maix_thread.hpp"
 #include "maix_image.hpp"
 #include "maix_time.hpp"
+#include <unistd.h>
 #include "sophgo_middleware.hpp"
 #include "maix_pwm.hpp"
 
@@ -19,13 +20,55 @@ using namespace maix::peripheral;
 
 namespace maix::display
 {
+    __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
+    {
+        int w = 0, h = 0;
+        const char *fb_path = "/dev/fb0";
+        uint8_t need_rmmod = 0;
+        if (access(fb_path, F_OK) == -1) {
+            system("insmod /mnt/system/ko/soph_fb.ko");
+            need_rmmod = 1;
+        }
+
+        FILE *fp;
+        char buffer[4096];
+        fp = popen("fbset", "r");
+        if (fp == NULL) {
+            perror("popen failed");
+            return 1;
+        }
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            char *mode_line = strstr(buffer, "mode");
+            if (mode_line) {
+                sscanf(mode_line, "mode \"%dx%d", &w, &h);
+                break;
+            }
+        }
+        pclose(fp);
+
+        if (need_rmmod) {
+            system("rmmod soph_fb");
+        }
+
+        if (rotate) {
+            *width = h;
+            *height = w;
+        } else {
+            *width = w;
+            *height = h;
+        }
+        return 0;
+    }
     class DisplayCviMmf final : public DisplayBase
     {
     public:
         DisplayCviMmf(const char *device, int width, int height, image::Format format)
         {
-            this->_width = width > 552 ? 552 : width;
-            this->_height = height > 368 ? 368 : height;
+            err::check_bool_raise(!_get_vo_max_size(&_max_width, &_max_height, 1), "get vo max size failed");
+            width = width <= 0 ? _max_width : width;
+            height = height <= 0 ? _max_height : height;
+            this->_width = width > _max_width ? _max_width : width;
+            this->_height = height > _max_height ? _max_height : height;
             this->_format = format;
             this->_opened = false;
             this->_format = format;
@@ -43,8 +86,11 @@ namespace maix::display
 
         DisplayCviMmf(int layer, int width, int height, image::Format format)
         {
-            this->_width = width > 552 ? 552 : width;
-            this->_height = height > 368 ? 368 : height;
+            err::check_bool_raise(!_get_vo_max_size(&_max_width, &_max_height, 1), "get vo max size failed");
+            width = width <= 0 ? _max_width : width;
+            height = height <= 0 ? _max_height : height;
+            this->_width = width > _max_width ? _max_width : width;
+            this->_height = height > _max_height ? _max_height : height;
             this->_format = format;
             this->_opened = false;
             this->_format = format;
@@ -91,9 +137,8 @@ namespace maix::display
 
         err::Err open(int width, int height, image::Format format)
         {
-            width = width > 552 ? 552 : width;
-            height = height > 368 ? 368 : height;
-
+            width = width > _max_width ? _max_width : width;
+            height = height > _max_height ? _max_height : height;
             if(this->_opened)
             {
                 return err::ERR_NONE;
@@ -322,6 +367,8 @@ namespace maix::display
     private:
         int _width;
         int _height;
+        int _max_width;
+        int _max_height;
         image::Format _format;
         int _layer;
         int _ch;

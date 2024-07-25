@@ -149,6 +149,14 @@ namespace maix::camera
          * @return returns exposure mode
         */
         virtual int exp_mode(int value = -1) = 0;
+
+        /**
+         * Set window size of camera
+         * @param roi Support two input formats, [x,y,w,h] set the coordinates and size of the window;
+         * [w,h] set the size of the window, when the window is centred.
+         * @return error code
+        */
+        virtual int set_windowing(std::vector<int> roi) = 0;
     };
 
 }

@@ -434,6 +434,42 @@ namespace maix::camera
             err::check_bool_raise(out >= 0, "set exposure failed");
             return out;
         }
+
+        int set_windowing(std::vector<int> roi)
+        {
+            int max_height, max_width;
+            char log_msg[100];
+            int x = 0, y = 0, w = 0, h = 0;
+
+            err::check_bool_raise(!mmf_vi_get_max_size(&max_width, &max_height), "get max size of camera failed");
+
+            if (roi.size() == 4) {
+                x = roi[0], y = roi[1], w = roi[2], h = roi[3];
+            } else if (roi.size() == 2) {
+                w = roi[0], h = roi[1];
+                x = (max_width - w) / 2;
+                y = (max_height - h) / 2;
+            } else {
+                err::check_raise(err::ERR_RUNTIME, "roi size must be 4 or 2");
+            }
+
+            snprintf(log_msg, sizeof(log_msg), "Width must be a multiple of 64.");
+            err::check_bool_raise(w % 64 == 0, std::string(log_msg));
+            snprintf(log_msg, sizeof(log_msg), "the coordinate x range needs to be [0,%d].", max_width - 1);
+            err::check_bool_raise(x >= 0 || x < max_width, std::string(log_msg));
+            snprintf(log_msg, sizeof(log_msg), "the coordinate y range needs to be [0,%d].", max_height - 1);
+            err::check_bool_raise(y >= 0 || y < max_height, std::string(log_msg));
+            snprintf(log_msg, sizeof(log_msg), "the row of the window is larger than the maximum, try x=%d, w=%d.", x, max_width - x);
+            err::check_bool_raise(x + w <= max_width, std::string(log_msg));
+            snprintf(log_msg, sizeof(log_msg), "the column of the window is larger than the maximum, try y=%d, h=%d.", y, max_height - y);
+            err::check_bool_raise(y + h <= max_height, std::string(log_msg));
+
+            this->width = w;
+            this->height = h;
+            err::check_bool_raise(!mmf_vi_channel_set_windowing(ch,  x, y, w, h), "set windowing failed.");
+
+            return 0;
+        }
     private:
         std::string device;
         image::Format format;

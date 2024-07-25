@@ -29,9 +29,6 @@ namespace maix::display
 
     Display::Display(int width, int height, image::Format format, const char *device, bool open)
     {
-        // TODO: Get actual device max size
-        width = (width == -1) ? 640 : width;
-        height = (height == -1) ? 480 : height;
         _impl = NULL;
 
         // Select implementation by platform

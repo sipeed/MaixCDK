@@ -1040,6 +1040,11 @@ namespace maix::camera
         {
             return -1;
         }
+
+        int set_windowing(std::vector<int> roi)
+        {
+            return -1;
+        }
     private:
         std::string device;
         image::Format format;
