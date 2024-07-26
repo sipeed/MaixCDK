@@ -7,6 +7,7 @@
 
 
 #include "maix_camera.hpp"
+#include "maix_basic.hpp"
 #include <dirent.h>
 #ifdef PLATFORM_LINUX
     #include "maix_camera_v4l2.hpp"
