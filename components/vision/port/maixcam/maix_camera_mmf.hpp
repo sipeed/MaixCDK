@@ -464,8 +464,8 @@ namespace maix::camera
             snprintf(log_msg, sizeof(log_msg), "the column of the window is larger than the maximum, try y=%d, h=%d.", y, max_height - y);
             err::check_bool_raise(y + h <= max_height, std::string(log_msg));
 
-            this->width = w;
-            this->height = h;
+            // this->width = w;
+            // this->height = h;
             err::check_bool_raise(!mmf_vi_channel_set_windowing(ch,  x, y, w, h), "set windowing failed.");
 
             return 0;

@@ -493,15 +493,6 @@ namespace maix::camera
         }
 
         err::check_bool_raise(!_impl->set_windowing(roi), "set_windowing failed");
-        if (roi.size() == 4) {
-            this->_width = roi[2];
-            this->_height = roi[3];
-        } else if (roi.size() == 2) {
-            this->_width = roi[0];
-            this->_height = roi[1];
-        } else {
-            err::check_raise(err::ERR_RUNTIME, "roi size must be 2 or 4");
-        }
         return err::ERR_NONE;
     }
 }
