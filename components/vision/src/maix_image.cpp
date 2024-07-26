@@ -1007,6 +1007,14 @@ namespace maix::image
         return nullptr;
     }
 
+    static cv::Rect _adjustRectToFit(const cv::Rect& rect, const cv::Size& dstSize) {
+        int newX = std::max(rect.x, 0);
+        int newY = std::max(rect.y, 0);
+        int newWidth = std::min(rect.width - (newX - rect.x), dstSize.width - newX);
+        int newHeight = std::min(rect.height - (newY - rect.y), dstSize.height - newY);
+        return cv::Rect(newX, newY, newWidth, newHeight);
+    }
+
     image::Image *Image::draw_image(int x, int y, image::Image &img)
     {
         image::Format fmt = img.format();
@@ -1019,9 +1027,16 @@ namespace maix::image
         cv::Mat src(img.height(), img.width(), CV_8UC((int)image::fmt_size[img.format()]), img.data());
         cv::Mat dst(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
         cv::Rect rect(x, y, img.width(), img.height());
+        cv::Rect adjustedRect = _adjustRectToFit(rect, dst.size());
+        int srcX = std::max(0, -x);
+        int srcY = std::max(0, -y);
+        cv::Rect srcRect(srcX, srcY, adjustedRect.width, adjustedRect.height);
+        if (adjustedRect.width <= 0 || adjustedRect.height <= 0) {
+            throw err::Exception(err::ERR_ARGS, "range error");
+        }
         if (_format == fmt && image::fmt_size[fmt] < 4)
         {
-            src.copyTo(dst(rect));
+            src(srcRect).copyTo(dst(adjustedRect));
         }
         else
         {
@@ -1042,39 +1057,37 @@ namespace maix::image
             cv::Mat src_new(img_new->height(), img_new->width(), CV_8UC((int)image::fmt_size[_format]), img_new->data());
             if (image::fmt_size[_format] < 4)
             {
-                src_new.copyTo(dst(rect));
+                src_new(srcRect).copyTo(dst(adjustedRect));
             }
             else // merge two BGRA images
             {
-                for (int y = 0; y < src_new.rows; y++)
+                uint8_t *data = (uint8_t*)_data;
+                for (int y = 0; y < adjustedRect.height; y++)
                 {
-                    if(y + rect.y >= dst.rows)
-                        break;
-                    for (int x = 0; x < src_new.cols; x++)
+                    for (int x = 0; x < adjustedRect.width; x++)
                     {
-                        if(x + rect.x >= dst.cols)
-                            break;
-                        cv::Vec4b &pixel = src_new.at<cv::Vec4b>(y, x);
+                        cv::Vec4b &pixel = src_new.at<cv::Vec4b>(y + srcY, x + srcX);
                         // ignore transparent pixel
                         if (pixel[3] == 0)
                             continue;
-                        cv::Vec4b &pixel_dst = dst.at<cv::Vec4b>(y + rect.y, x + rect.x);
+                        // cv::Vec4b &pixel_dst = dst.at<cv::Vec4b>(y + adjustedRect.y, x + adjustedRect.x);
                         // alpha is 255, just copy
+                        uint8_t *p = data + (_width * (y + adjustedRect.y) + (x + adjustedRect.x)) * 4;
                         if (pixel[3] == 255)
                         {
-                            pixel_dst[0] = pixel[0];
-                            pixel_dst[1] = pixel[1];
-                            pixel_dst[2] = pixel[2];
-                            pixel_dst[3] = pixel[3];
+                            p[0] = pixel[0];
+                            p[1] = pixel[1];
+                            p[2] = pixel[2];
+                            p[3] = pixel[3];
                         }
                         // alpha > 0 and < 255, blend
                         else
                         {
                             // TODO: optimize blend algorithm
-                            pixel_dst[0] = (uint32_t)((pixel[0] * pixel[3] + pixel_dst[0] * (255 - pixel[3]))) >> 8;
-                            pixel_dst[1] = (uint32_t)((pixel[1] * pixel[3] + pixel_dst[1] * (255 - pixel[3]))) >> 8;
-                            pixel_dst[2] = (uint32_t)((pixel[2] * pixel[3] + pixel_dst[2] * (255 - pixel[3]))) >> 8;
-                            pixel_dst[3] = 255 - (255 - pixel[3]) * (255 - pixel_dst[3]);
+                            p[0] = (uint32_t)((pixel[0] * pixel[3] + p[0] * (255 - pixel[3]))) >> 8;
+                            p[1] = (uint32_t)((pixel[1] * pixel[3] + p[1] * (255 - pixel[3]))) >> 8;
+                            p[2] = (uint32_t)((pixel[2] * pixel[3] + p[2] * (255 - pixel[3]))) >> 8;
+                            p[3] = 255 - (255 - pixel[3]) * (255 - p[3]);
                         }
                     }
                 }
