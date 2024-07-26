@@ -128,6 +128,7 @@ namespace maix::camera
 #endif
 
 #ifdef PLATFORM_MAIXCAM
+        _last_read_ms = time::ticks_ms();
         if (fps == -1 && _width <= 1280 && _height <= 720) {
             _fps = 80;
         } else if (fps == -1) {
@@ -151,7 +152,7 @@ namespace maix::camera
 #endif
 
         if (open) {
-            e = this->open(_width, _height, _format, _buff_num);
+            e = this->open(_width, _height, _format, _fps, _buff_num);
             err::check_raise(e, "camera open failed");
         }
     }
@@ -320,6 +321,12 @@ namespace maix::camera
             {
                 image::Image *img = _impl->read(buff, buff_size);
                 err::check_null_raise(img, "camera read failed");
+
+                uint64_t wait_ms = 1000 / _fps;
+                while (time::ticks_ms() - _last_read_ms <= wait_ms) {
+                    time::sleep_ms(1);
+                }
+                _last_read_ms = time::ticks_ms();
                 return img;
             }
             else
@@ -328,6 +335,12 @@ namespace maix::camera
                 image::Image *img2 = img->to_format(_format, buff, buff_size);
                 delete img;
                 err::check_null_raise(img2, "camera read failed");
+
+                uint64_t wait_ms = 1000 / _fps;
+                while (time::ticks_ms() - _last_read_ms <= wait_ms) {
+                    time::sleep_ms(1);
+                }
+                _last_read_ms = time::ticks_ms();
                 return img2;
             }
         }

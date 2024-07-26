@@ -391,5 +391,6 @@ namespace maix::camera
         bool _open_set_regs;
         CameraBase *_impl; // used by implement code
         bool _check_format(image::Format format);
+        uint64_t _last_read_ms;
     };
 }
