@@ -11,7 +11,7 @@ import json
 try:
     curr_dir = os.path.abspath(os.path.dirname(__file__))
 except Exception:
-    print("-- [ERROR] Please upgrate maixtool by pip install -U maixtool")
+    print("-- [ERROR] Please upgrade maixtool by pip install -U maixtool")
     sys.exit(1)
 
 if curr_dir not in sys.path:
@@ -182,7 +182,7 @@ def rebuild(build_path, configs, toolchain_info, verbose):
                 print("\n\n---- ERROR -----")
                 traceback.print_exc()
                 print("----------------")
-                print(f"[ERROR] download for compoent [{name}] failed, please check its component.py")
+                print(f"[ERROR] download for component [{name}] failed, please check its component.py")
                 sys.exit(1)
 
     # cmake
@@ -300,7 +300,7 @@ if __name__ == "__main__":
         find_dirs = sys.argv[2:]
         for dir in find_dirs:
             if " " in dir:
-                raise Exception("Path can not contain space or special charactors")
+                raise Exception("Path can not contain space or special characters")
         components = get_components_dirs(find_dirs)
         valid_components = find_valid_components(components)
         print(";".join(valid_components), end="")
