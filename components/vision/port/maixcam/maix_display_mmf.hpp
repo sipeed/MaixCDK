@@ -46,7 +46,6 @@ namespace maix::display
                 if (strncmp(line, "panel=", 6) == 0) {
                     strcpy(panel_value, line + 6);
                     panel_value[strcspn(panel_value, "\n")] = '\0';
-                    printf("line:%s  panel_value:%s\r\n", line, panel_value);
                     break;
                 }
             }
