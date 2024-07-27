@@ -15,7 +15,11 @@
 #include <unistd.h>
 #include "sophgo_middleware.hpp"
 #include "maix_pwm.hpp"
-
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/fb.h>
+#include <sys/mman.h>
 using namespace maix::peripheral;
 
 namespace maix::display
@@ -23,31 +27,60 @@ namespace maix::display
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
-        const char *fb_path = "/dev/fb0";
-        uint8_t need_rmmod = 0;
-        if (access(fb_path, F_OK) == -1) {
-            system("insmod /mnt/system/ko/soph_fb.ko");
-            need_rmmod = 1;
-        }
 
-        FILE *fp;
-        char buffer[4096];
-        fp = popen("fbset", "r");
-        if (fp == NULL) {
-            perror("popen failed");
-            return 1;
-        }
-        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-            char *mode_line = strstr(buffer, "mode");
-            if (mode_line) {
-                sscanf(mode_line, "mode \"%dx%d", &w, &h);
-                break;
+        char line[1024];
+        char panel_value[256];
+
+        char *panel_env = getenv("MMF_PANEL_NAME");
+        if (panel_env) {
+            log::info("Found panel env MMF_PANEL_NAME=%s\r\n", panel_env);
+            strncpy(panel_value, panel_env, sizeof(panel_value));
+        } else {
+            FILE *file = fopen("/boot/uEnv.txt", "r");
+            if (file == NULL) {
+                perror("Error opening file");
+                return 1;
             }
-        }
-        pclose(fp);
 
-        if (need_rmmod) {
-            system("rmmod soph_fb");
+            while (fgets(line, sizeof(line), file)) {
+                if (strncmp(line, "panel=", 6) == 0) {
+                    strcpy(panel_value, line + 6);
+                    panel_value[strcspn(panel_value, "\n")] = '\0';
+                    printf("line:%s  panel_value:%s\r\n", line, panel_value);
+                    break;
+                }
+            }
+
+            fclose(file);
+        }
+
+        if (strlen(panel_value) > 0) {
+            printf("panel= %s\n", panel_value);
+        } else {
+            printf("panel value not found\n");
+        }
+
+        if (!strcmp(panel_value, "zct2133v1")) {
+            w = 800;
+            h = 1280;
+        } else if (!strcmp(panel_value, "mtd700920b")) {
+            w = 800;
+            h = 1280;
+        } else if (!strcmp(panel_value, "st7701_dxq5d0019_V0")) {
+            w = 480;
+            h = 854;
+        } else if (!strcmp(panel_value, "st7701_dxq5d0019b480854")) {
+            w = 480;
+            h = 854;
+        } else if (!strcmp(panel_value, "st7701_d300fpc9307a")) {
+            w = 480;
+            h = 854;
+        } else if (!strcmp(panel_value, "st7701_hd228001c31")) {
+            w = 368;
+            h = 552;
+        } else {
+            w = 368;
+            h = 552;
         }
 
         if (rotate) {
@@ -59,6 +92,7 @@ namespace maix::display
         }
         return 0;
     }
+
     class DisplayCviMmf final : public DisplayBase
     {
     public:
