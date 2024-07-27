@@ -422,9 +422,9 @@ namespace maix::peripheral::uart
 		}
 		if (recv_len > 0)
 		{
-			do
+			while(1)
 			{
-				if (available(timeout - (time::ticks_ms() - t)))
+				if (available(timeout > 0 ? timeout - (time::ticks_ms() - t) : timeout))
 				{
 					int len = _uart_read(_fd, buff + read_len, recv_len - read_len);
 					if (len < 0)
@@ -434,7 +434,15 @@ namespace maix::peripheral::uart
 					}
 					read_len += len;
 				}
-			} while (read_len < recv_len && (timeout < 0 || (timeout > 0 && (time::ticks_ms() - t) < (uint64_t)timeout)));
+				if(read_len >= recv_len || (timeout > 0 && (time::ticks_ms() - t) > (uint64_t)timeout))
+					break;
+				int wait_time = _one_byte_time_us * 30; // system maybe use some time
+				time::sleep_us(wait_time > 50000 ? 50000: wait_time);
+				if(available(0) > 0)
+					continue;
+				if(timeout == 0)
+					break;
+			}
 			return read_len;
 		}
 		throw err::Exception(err::ERR_ARGS, "recv_len must be -1 or > 0");
@@ -458,6 +466,10 @@ namespace maix::peripheral::uart
 				read_len = 0;
 			received += read_len;
 			data->data_len = received;
+			if(len > 0 && received == len)
+			{
+				break;
+			}
 			if(timeout > 0 && (int)(time::ticks_ms() - t) >= timeout)
 				break;
 			else if(received == buff_len)
