@@ -131,7 +131,7 @@ namespace maix::camera
 #ifdef PLATFORM_MAIXCAM
         _last_read_us = time::ticks_us();
         if (fps == -1 && _width <= 1280 && _height <= 720) {
-            _fps = 80;
+            _fps = 60;
         } else if (fps == -1) {
             _fps = 30;
         } else {
