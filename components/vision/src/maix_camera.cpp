@@ -174,7 +174,7 @@ namespace maix::camera
         _impl = base;
 
         if (open) {
-            e = this->open(_width, _height, _format, _buff_num);
+            e = this->open(_width, _height, _format, _fps, _buff_num);
             err::check_raise(e, "camera open failed");
         }
     }
@@ -379,7 +379,7 @@ namespace maix::camera
 
         _width = width;
         _height = height;
-        e = this->open(_width, _height, _format, _buff_num);
+        e = this->open(_width, _height, _format, _fps, _buff_num);
         err::check_raise(e, "camera open failed");
         return err::ERR_NONE;
     }
