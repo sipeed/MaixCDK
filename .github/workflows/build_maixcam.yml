@@ -54,6 +54,6 @@ jobs:
           echo "------------------------------------"
           echo "-- Build Projects for MaixCAM now --"
           echo "------------------------------------"
-          cd projects
+          cd ../../projects
           chmod +x build_all.sh
           ./build_all.sh
