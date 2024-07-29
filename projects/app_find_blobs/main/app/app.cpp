@@ -165,7 +165,6 @@ int app_loop(maix::image::Image *img)
         int area_threshold = 500;
         int pixels_threshold = 500;
         std::vector<int> roi = {1, 1, img->width()- 1, img->height() - 1};
-        maix::image::Image *resize_img = img->resize(320, 240);
         blobs = img->find_blobs(priv.thresholds, invert, roi, x_stride, y_stride, area_threshold, pixels_threshold);
         for (auto &a : blobs) {
             std::vector<std::vector<int>> mini_corners = a.mini_corners();
@@ -184,7 +183,6 @@ int app_loop(maix::image::Image *img)
             maix::Bytes bytes(data, sizeof(data));
             priv.ptl->report(APP_CMD_REPORT_FIND_BLOBS, &bytes);
         }
-        delete(resize_img);
     }
 
     return 0;
