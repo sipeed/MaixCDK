@@ -11,7 +11,6 @@
 #include "maix_log.hpp"
 #include "maix_image.hpp"
 #include "maix_err.hpp"
-#include "maix_camera_base.hpp"
 #include <stdlib.h>
 #include <map>
 #include <stdexcept>
@@ -60,23 +59,6 @@ namespace maix::camera
          * @maixcdk maix.camera.Camera.Camera
          */
         Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, int fps = -1, int buff_num = 3, bool open = true);
-
-        /**
-         * @brief Construct a new Camera object.
-         * @attention CameraBase * parameter need to be set manually, otherwise the operation of this object will be invalid.
-         * @param device camera device path, you can get devices by list_devices method, by default(value is NULL(None in MaixPy)) means the first device
-         * @param base basic operation objects.
-         * @param width camera width, default is -1, means auto, mostly means max width of camera support
-         * @param height camera height, default is -1, means auto, mostly means max height of camera support
-         * @param format camera output format, default is image.Format.FMT_RGB888
-         * @param fps camera fps, default is -1, means auto, mostly means max fps of camera support
-         * @param buff_num camera buffer number, default is 3, means 3 buffer, one used by user, one used for cache the next frame,
-         *                 more than one buffer will accelerate image read speed, but will cost more memory.
-         * @param open If true, camera will automatically call open() after creation. default is true.
-         * @maixcdk maix.camera.Camera.Camera
-         */
-        Camera(const char *device, CameraBase *base, int width = -1, int height = -1, image::Format format = image::FMT_RGB888, int fps = -1, int buff_num = -1, bool open = true);
-
         ~Camera();
 
         /**
@@ -389,8 +371,8 @@ namespace maix::camera
         float _gain;
         bool _show_colorbar;
         bool _open_set_regs;
-        CameraBase *_impl; // used by implement code
         bool _check_format(image::Format format);
         uint64_t _last_read_us;
+        bool _is_opened;
     };
 }

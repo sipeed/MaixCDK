@@ -16,19 +16,42 @@ using namespace maix;
 static int cmd_init(void);
 static int cmd_loop(camera::Camera *cam);
 
+static bool camera2_enable = false;
+
 int _main(int argc, char* argv[])
 {
     uint64_t t1, t2, t3;
     float fps = 0;
     char buf[128] = {0};
 
-    camera::Camera cam = camera::Camera();
-    display::Display screen = display::Display();
-    log::info("camera and display open success\n");
-    log::info("camera size: %dx%d\n", cam.width(), cam.height());
-    log::info("screen size: %dx%d\n", screen.width(), screen.height());
+    int cam_w = -1;
+    int cam_h = -1;
+    image::Format cam_fmt = image::Format::FMT_RGB888;
+    int cam_fps = -1;
+    int cam_buffer_num = 3;
+    if (argc > 1) {
+        if (!strcmp(argv[1], "-h")) {
+            log::info("./camera_display <width> <height> <format> <fps> <buff_num>");
+            log::info("example: ./camera_display 640 480 0 60 2");
+            exit(0);
+        } else {
+            cam_w = atoi(argv[1]);
+        }
+    }
+    if (argc > 2) cam_h = atoi(argv[2]);
+    if (argc > 3) cam_fmt = (image::Format)atoi(argv[3]);
+    if (argc > 4) cam_fps = atoi(argv[4]);
+    if (argc > 5) cam_buffer_num = atoi(argv[5]);
+    log::info("Camera width:%d height:%d format:%s fps:%d buffer_num:%d", cam_w, cam_h, image::fmt_names[cam_fmt].c_str(), cam_fps, cam_buffer_num);
 
-    err::check_bool_raise(!cmd_init(), "cmd init failed!\r\n");
+    camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num);
+    camera::Camera *cam2 = NULL;
+    display::Display screen = display::Display();
+    log::info("camera and display open success");
+    log::info("camera size: %dx%d", cam.width(), cam.height());
+    log::info("screen size: %dx%d", screen.width(), screen.height());
+    cam.skip_frames(5);
+    err::check_bool_raise(!cmd_init(), "cmd init failed!");
 
     while(!app::need_exit())
     {
@@ -40,20 +63,32 @@ int _main(int argc, char* argv[])
 
         // read image from camera
         image::Image *img = cam.read();
-        err::check_null_raise(img, "camera read failed");
+
+        if (camera2_enable) {
+            if (!cam2) {
+                cam2 = cam.add_channel(cam.width(), cam.height());
+                err::check_null_raise(cam2, "camera add channel failed!");
+            }
+            image::Image *img2 = cam2->read();
+            if (img2->format() == image::Format::FMT_RGB888) {
+                image::Image *resize_img2 = img2->resize(img->width()/2, img->height()/2);
+                img->draw_image(0, 0, *resize_img2);
+                delete resize_img2;
+            }
+            delete img2;
+        } else {
+            if (cam2) {
+                delete cam2;
+                cam2 = NULL;
+            }
+        }
+
+        if (img->format() == image::Format::FMT_RGB888) {
+            img->draw_string(0, 10, buf, image::COLOR_GREEN, 1.5);
+        }
 
         // time when read image finished
         t2 = time::ticks_ms();
-
-        // draw fps on image
-        img->draw_string(0, 10, buf, image::Color::from_rgb(255, 0, 0), 1.5);
-
-        // check if screen is closed by user(mostly for PC), and show image on screen
-        if(!screen.is_opened())
-        {
-            log::info("screen closed\n");
-            break;
-        }
         screen.show(*img);
 
         // free image data, important!
@@ -65,6 +100,10 @@ int _main(int argc, char* argv[])
         snprintf(buf, sizeof(buf), "cam: %ld, disp: %ld, all: %ld (ms), fps: %.2f", t2-t1, t3-t2, t3-t1, fps);
     }
 
+    if (cam2) {
+        delete cam2;
+        cam2 = NULL;
+    }
     return 0;
 }
 
@@ -85,13 +124,19 @@ static int cmd_init(void)
 
     printf( "========================\r\n"
             "Intput param:\r\n"
-            "0 <value> : set exposure\r\n"
+            "0 <value> : set exposure, unit:us\r\n"
             "1 <value> : set gain\r\n"
             "2 <value> : set luma\r\n"
             "3 <value> : set constrast\r\n"
             "4 <value> : set saturation\r\n"
             "5 <value> : set white balance mode\r\n"
             "6 <value> : set exposure mode\r\n"
+            "7 <value> : show colorbar, 1:enable 0:disable\r\n"
+            "8 <width> <height>: set new resolution\r\n"
+            "9 <enable>: set hmirror, 1:enable;0:disable\r\n"
+            "10 <enable>: set vflip, 1:enable;0:disable\r\n"
+            "11 <x> <y> <w> <h>: set windowing\r\n"
+            "12 <enable>: use a new channel of camera, 1:use 0:unuse\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -100,7 +145,7 @@ static int cmd_init(void)
 static int cmd_loop(camera::Camera *cam)
 {
     uint64_t t1;
-    uint64_t value = -1;
+    uint64_t value = -1, value2 = -1, value3 = -1, value4 = -1;
     int cmd = -1;
 
     if (!cam) {
@@ -108,8 +153,10 @@ static int cmd_loop(camera::Camera *cam)
         return -1;
     }
 
-    if (scanf("%d  %ld\r\n", &cmd, &value) > 0) {
-        log::info("cmd:%d %ld\r\n", cmd, value);
+    int len = scanf("%d %ld %ld %ld %ld\r\n", &cmd, &value, &value2, &value3, &value4);
+    if (len > 0) {
+        log::info("len:%d cmd:%d value:%ld %ld %ld %ld", len, cmd, value, value2, value3, value4);
+        fflush(stdin);
         t1 = time::ticks_ms();
         switch (cmd) {
         case 0:
@@ -165,10 +212,10 @@ static int cmd_loop(camera::Camera *cam)
         case 5:
         {
             uint32_t out = 0;
-            out = cam->awb_mode(value);
+            out = cam->set_awb(value);
             err::check_bool_raise(out == value, "set error");
             log::info("set white balance mode: %ld\r\n", value);
-            out = cam->awb_mode();
+            out = cam->set_awb();
             log::info("get white balance mode: %d\r\n", out);
         }
         break;
@@ -180,10 +227,46 @@ static int cmd_loop(camera::Camera *cam)
             log::info("set exposure mode: %ld\r\n", value);
             out = cam->exp_mode();
             log::info("get exposure mode: %d\r\n", out);
+            break;
         }
-        break;
+        case 7:
+        {
+            err::check_raise(cam->show_colorbar(value), "set error");
+            break;
+        }
+        case 8:
+        {
+            err::check_raise(cam->set_resolution(value, value2), "set error");
+            break;
+        }
+        case 9:
+        {
+            cam->hmirror(value);
+            log::info("set hmirror: %d", value);
+            log::info("get hmirror: %d", cam->hmirror());
+            break;
+        }
+        case 10:
+        {
+            cam->vflip(value);
+            log::info("set vflip: %d", value);
+            log::info("get vflip: %d", cam->vflip());
+            break;
+        }
+        case 11:
+        {
+            std::vector<int> roi = {(int)value, (int)value2, (int)value3, (int)value4};
+            err::check_raise(cam->set_windowing(roi), "set error");
+            break;
+        }
+        case 12:
+        {
+            camera2_enable = value;
+            break;
+        }
         default:printf("Find not cmd!\r\n"); break;
         }
+
         log::info("cmd use %ld ms\r\n", time::ticks_ms() - t1);
         fflush(stdin);
     }
