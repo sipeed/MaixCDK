@@ -9,6 +9,8 @@
 #include "maix_log.hpp"
 #include "maix_time.hpp"
 #include "maix_fs.hpp"
+#include "maix_thread.hpp"
+#include "maix_app.hpp"
 #include <linux/types.h>
 #include <linux/stat.h>
 #include <termios.h>
@@ -206,7 +208,18 @@ namespace maix::peripheral::uart
 
 	static int _uart_write(int fd, const void *buff, int len)
 	{
-		return write(fd, buff, len);
+		ssize_t bytes_written = write(fd, buff, len);
+		if (bytes_written < 0) {
+			log::error("uart write failed: %d", bytes_written);
+			return bytes_written;
+		}
+
+		// wait for data transmit completion
+		// if (tcdrain(fd) != 0) {
+		// 	log::error("uart wait write failed: %d", bytes_written);
+		// 	return -1;
+		// }
+		return bytes_written;
 	}
 
 	UART::UART(const std::string &port, int baudrate, uart::BITS databits,
@@ -220,6 +233,7 @@ namespace maix::peripheral::uart
 		_parity = parity;
 		_stopbits = stopbits;
 		_flow_ctrl = flow_ctrl;
+		_read_thread = nullptr;
 		if (!port.empty())
 		{
 			err::Err e = this->open();
@@ -267,12 +281,65 @@ namespace maix::peripheral::uart
 	{
 		if (_fd <= 0)
 			return err::ERR_NONE;
-		if (0 < _uart_deinit(_fd))
+		int ret = _uart_deinit(_fd);
+		_fd = -1;
+		if(_read_thread)
+		{
+			_read_thread_need_exit = true;
+			uint64_t t = time::ticks_ms();
+			while(!_read_thread_exit)
+			{
+				time::sleep_ms(10);
+				if(time::ticks_ms() - t > 5000)
+				{
+					log::error("waiting uart read thread exit");
+					t = time::ticks_ms();
+				}
+			}
+			delete _read_thread;
+			_read_thread = nullptr;
+		}
+		if (ret != 0)
 		{
 			log::error("uart close failed\r\n");
 			return err::ERR_IO;
 		}
 		return err::ERR_NONE;
+	}
+
+	void UART::set_received_callback(std::function<void(uart::UART&, Bytes&)> callback)
+	{
+		if(!_read_thread)
+		{
+			_read_thread_need_exit = false;
+			_read_thread_exit = false;
+			_read_thread = new thread::Thread([callback](void *args){
+				UART *uart = (UART*)args;
+				while(!app::need_exit() && !uart->_read_thread_need_exit)
+				{
+					Bytes *data = NULL;
+					try
+					{
+						data = uart->read(-1, -1);
+					}
+					catch(err::Exception)
+					{
+						log::error("read file failed");
+						break;
+					}
+					if(!data)
+					{
+						log::error("uart read data is null");
+						break;
+					}
+					callback(*uart, *data);
+					delete data;
+				}
+				uart->_read_thread_exit = true;
+			}, this);
+			_read_thread->detach();
+		}
+		this->callback = callback;
 	}
 
 	int UART::write(const uint8_t *buff, int len)
@@ -413,7 +480,7 @@ namespace maix::peripheral::uart
 				{
 					int wait_time = _one_byte_time_us * 30; // system maybe use some time
 					time::sleep_us(wait_time > 50000 ? 50000: wait_time);
-					if (available(0) > 0)
+					if (available(0) > 0 || (timeout < 0 && read_len == 0))
 						continue;
 					break;
 				}
@@ -463,7 +530,10 @@ namespace maix::peripheral::uart
 				break;
 			read_len = read(data->data + received, buff_len - received, len > 0 ? len - received : len, timeout > 0 ? t2 : timeout);
 			if (read_len < 0)
-				read_len = 0;
+			{
+				delete data;
+				throw err::Exception(err::Err(-read_len), "read failed");
+			}
 			received += read_len;
 			data->data_len = received;
 			if(len > 0 && received == len)

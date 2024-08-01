@@ -10,6 +10,8 @@
 #include "stdint.h"
 #include "maix_comm_base.hpp"
 #include "maix_type.hpp"
+#include "maix_thread.hpp"
+#include <functional>
 
 /**
  * @brief maix uart peripheral driver
@@ -151,6 +153,13 @@ namespace maix::peripheral::uart
         err::Err close();
 
         /**
+         * Set received callback function
+         * @param callback function to call when received data
+         * @maixpy maix.peripheral.uart.UART.set_received_callback
+         */
+        void set_received_callback(std::function<void(uart::UART&, Bytes&)> callback);
+
+        /**
          * Send data to device
          * @param buff data buffer
          * @param len  data length need to send
@@ -233,6 +242,7 @@ namespace maix::peripheral::uart
          *                >0 means block until read len data or timeout.
          * @return received data, bytes type.
          *         Attention, you need to delete the returned object yourself in C++.
+         * @throw Read failed will raise err.Exception error.
          * @maixpy maix.peripheral.uart.UART.read
          */
         Bytes *read(int len = -1, int timeout = 0);
@@ -256,6 +266,10 @@ namespace maix::peripheral::uart
         uart::STOP  _stopbits;
         uart::FLOW_CTRL  _flow_ctrl;
         int         _one_byte_time_us;
+        std::function<void(uart::UART&, Bytes&)> callback;
+        thread::Thread *_read_thread;
+        bool        _read_thread_need_exit;
+        bool        _read_thread_exit;
     };
 
 }; // namespace maix.peripheral.uart
