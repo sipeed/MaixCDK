@@ -19,7 +19,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
-
+#include <sys/mman.h>
 
 namespace maix::peripheral::uart
 {
@@ -249,6 +249,47 @@ namespace maix::peripheral::uart
 		this->close();
 	}
 
+    static int set_pinmux(uint64_t addr, uint32_t value)
+    {
+// 假设我们的系统页大小为4KB
+#define PAGE_SIZE 4096
+#define PAGE_MASK (PAGE_SIZE - 1)
+        int fd;
+        void *map_base, *virt_addr;
+
+        /* 打开 /dev/mem 文件 */
+        if ((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1)
+        {
+            perror("Error opening /dev/mem");
+            return -1;
+        }
+
+        /* 映射需要访问的物理内存页到进程空间 */
+        map_base = mmap(0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, addr & ~PAGE_MASK);
+        if (map_base == (void *)-1)
+        {
+            perror("Error mapping memory");
+            close(fd);
+            return -1;
+        }
+
+        /* 计算目标寄存器的虚拟地址 */
+        virt_addr = (char *)map_base + (addr & PAGE_MASK);
+
+        /* 写入值到目标寄存器 */
+        *((uint32_t *)virt_addr) = value;
+
+        /* 取消映射并关闭文件描述符 */
+        if (munmap(map_base, PAGE_SIZE) == -1)
+        {
+            perror("Error unmapping memory");
+        }
+
+        close(fd);
+
+        return 0;
+    }
+
 	err::Err UART::open()
 	{
 		if (_fd > 0)
@@ -266,6 +307,12 @@ namespace maix::peripheral::uart
 			log::error("open uart %s failed\r\n", _uart_port.c_str());
 			return err::ERR_IO;
 		}
+
+		// FIXME: Check the pins of tx
+		if (_uart_port == "/dev/ttyS0" || _uart_port == "/dev/serial0") {
+			set_pinmux(0x0300190c, 0x84);		// set A16 drive capability
+		}
+
 		// self.oneByteTime = 1 / (self.com.baudrate / (self.com.bytesize + 2 + self.com.stopbits)) # 1 byte use time
 		_one_byte_time_us = 1000000.0 / (_baudrate / (_databits + 2 + (_stopbits == STOP_1_5 ? 1.5 : _stopbits)));
 		log::debug("one byte time: %d", _one_byte_time_us);
