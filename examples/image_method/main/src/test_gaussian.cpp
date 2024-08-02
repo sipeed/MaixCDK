@@ -1,6 +1,4 @@
-#include "maix_vision.hpp"
-
-using namespace maix;
+#include "test_image.hpp"
 
 int test_gaussion(image::Image *img) {
     img->gaussian(2);

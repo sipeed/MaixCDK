@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "test_image.hpp"
+
 using namespace maix;
 
 typedef struct {
@@ -30,7 +32,6 @@ typedef struct {
 
 static priv_t priv;
 static int cmd_init(int argc, char* argv[]);
-int test_gaussion(image::Image *img);
 
 int _main(int argc, char* argv[])
 {
@@ -77,11 +78,12 @@ int main(int argc, char* argv[])
 
 static void cmd_helper(void)
 {
+    log::info("Image method index:");
     for (size_t i = 0; i < priv.method_list.size(); i ++) {
-        log::info("[%d] %s\r\n", i, priv.method_list[i].name);
+        log::info("\t[%d] %s", i, priv.method_list[i].name);
     }
 
-    log::info("Input <image method> <camera width> <camera height> <camera format> <camera fps> <camera buffnum>");
+    log::info("Input <image method index> <camera width> <camera height> <camera format> <camera fps> <camera buffnum>");
     log::info("<camera format> = 0, measn image::FMT_RGB888");
     log::info("<camera format> = 12, measn image::FMT_GRAYSCALE");
     log::info("Example: ./image_method 0 320 240 0 60 2 // test gaussion");
@@ -96,8 +98,9 @@ static int cmd_init(int argc, char* argv[])
     priv.cam_buffnum = 2;
 
     // Config image method
-    priv.method_list.push_back(image_method_t{"no method", NULL});
+    priv.method_list.push_back(image_method_t{"no method(default)", NULL});
     priv.method_list.push_back(image_method_t{"gaussian", test_gaussion});
+    priv.method_list.push_back(image_method_t{"find_blobs", test_find_blobs});
 
     // Get init param
     if (argc > 1) {
@@ -139,6 +142,6 @@ static int cmd_init(int argc, char* argv[])
     } else {
         log::info("Use method: %d %s", priv.image_method_idx, priv.method_list[priv.image_method_idx].name);
     }
-    log::info("Use width:%d hieght:%d format:%d fps:%d buffer number:%d\r\n", priv.cam_w, priv.cam_h, priv.cam_fmt, priv.cam_fps, priv.cam_buffnum);
+    log::info("Use width:%d hieght:%d format:%d fps:%d buffer number:%d", priv.cam_w, priv.cam_h, priv.cam_fmt, priv.cam_fps, priv.cam_buffnum);
     return 0;
 }
