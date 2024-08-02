@@ -368,7 +368,7 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x0300190c, 0x44);
             } else if (func == "UART0_TX") {
                 set_pinmux(0x03001040, 0);
-                set_pinmux(0x0300190c, 0x44);
+                set_pinmux(0x0300190c, 0x84);
             } else if (func == "PWM4") {
                 set_pinmux(0x03001040, 2);
                 set_pinmux(0x0300190c, 0x84);
