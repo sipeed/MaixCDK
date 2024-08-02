@@ -1,6 +1,4 @@
-set(omv_version_str "${CONFIG_OMV_VERSION_MAJOR}.${CONFIG_OMV_VERSION_MINOR}.${CONFIG_OMV_VERSION_PATCH}")
-set(omv_unzip_path "${DL_EXTRACTED_PATH}/omv")
-set(src_path "${omv_unzip_path}/omv-${omv_version_str}")
+set(src_path "${CMAKE_CURRENT_SOURCE_DIR}/omv")
 
 ############### Add include ###################
 set(omv_include_dir "."

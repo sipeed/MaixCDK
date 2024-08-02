@@ -806,7 +806,7 @@ namespace maix::image {
             }
         }
 
-        if (unsharp == false) {
+        if (unsharp) {
             kernel[((n / 2) * n) + (n / 2)] -= m * 2;
             m = -m;
         }
@@ -853,7 +853,7 @@ namespace maix::image {
         kernel[((n / 2) * n) + (n / 2)] += m;
         m = kernel[((n / 2) * n) + (n / 2)];
 
-        if (sharpen == false) {
+        if (sharpen) {
             kernel[((n / 2) * n) + (n / 2)] += m;
         }
 
