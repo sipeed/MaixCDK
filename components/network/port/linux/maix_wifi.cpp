@@ -20,6 +20,22 @@
 namespace maix::network::wifi
 {
 
+    static std::string split_ip3(const std::string &ip)
+    {
+        // Find the last dot in the string
+        size_t lastDot = ip.rfind('.');
+
+        // Check if a dot was found
+        if (lastDot != std::string::npos)
+        {
+            // Return the substring from the beginning to the last dot
+            return ip.substr(0, lastDot);
+        }
+
+        // If no dot is found, return the original string (or handle it as an error)
+        return ip;
+    }
+
     static int wifi_freq_to_channel(int freq)
     {
         if (freq >= 2412 && freq <= 2484)
@@ -368,13 +384,13 @@ bssid / frequency / signal level / flags / ssid
      * Get current WiFi SSID
      * @return SSID, string type.
      * @maixpy maix.network.wifi.Wifi.get_ssid
-    */
+     */
     std::string Wifi::get_ssid(bool from_cache)
     {
-        if((!from_cache) || !_ssid_cached)
+        if ((!from_cache) || !_ssid_cached)
         {
             fs::File *f = fs::open("/boot/wifi.ssid", "r");
-            if(f)
+            if (f)
             {
                 std::string *ssid = f->readline();
                 _ssid = *ssid;
@@ -391,10 +407,26 @@ bssid / frequency / signal level / flags / ssid
         return _ssid;
     }
 
-
     std::string Wifi::get_gateway()
     {
         // get gateway ip
+        if (is_ap_mode())
+        {
+            std::string cmd = "ip route | grep " + _iface + " | grep src | awk '{print $NF}'";
+            FILE *fp = popen(cmd.c_str(), "r");
+            if (fp == NULL)
+            {
+                return "";
+            }
+            char buf[1024];
+            if (fgets(buf, sizeof(buf), fp) == NULL)
+            {
+                pclose(fp);
+                return "";
+            }
+            pclose(fp);
+            return buf;
+        }
         std::string cmd = "ip route | grep default | grep " + _iface + " | awk '{print $3}'";
         FILE *fp = popen(cmd.c_str(), "r");
         if (fp == NULL)
@@ -417,7 +449,17 @@ bssid / frequency / signal level / flags / ssid
         _ssid_cached = true;
 #if PLATFORM_MAIXCAM
         // write ssid to /boot/wifi.ssid and password to /boot/wifi.pass
+        // write wifi.sta remove wifi.ap
         // then opoen /etc/init.d/S30wifi restart
+
+        // ensure wifi.sta
+        if (fs::exists("/boot/wifi.ap"))
+        {
+            fs::remove("/boot/wifi.ap");
+        }
+        fs::File *f = fs::open("/boot/wifi.sta", "w");
+        f->close();
+        delete f;
 
         // write ssid to /boot/wifi.ssid
         FILE *fp = fopen("/boot/wifi.ssid", "w");
@@ -456,11 +498,27 @@ bssid / frequency / signal level / flags / ssid
 #else
         throw err::Exception(err::ERR_NOT_IMPL, "connect wifi not implemented in this platform");
 #endif
-        while (wait && !is_connected() && time::ticks_s() - t < timeout)
+        uint64_t last_t = time::ticks_s();
+        while (wait && !is_connected() && time::ticks_s() - t < timeout && !app::need_exit())
         {
+            if (time::ticks_s() - last_t > 8)
+            {
+                log::info("wait connect %d/%d s", time::ticks_s() - t, timeout);
+                last_t = time::ticks_s();
+            }
             time::sleep_ms(50);
         }
-        if(wait && !is_connected())
+        last_t = time::ticks_s();
+        while (wait && get_ip().empty() && time::ticks_s() - t < timeout && !app::need_exit())
+        {
+            if (time::ticks_s() - last_t > 8)
+            {
+                log::info("wait get ip %d/%d s", time::ticks_s() - t, timeout);
+                last_t = time::ticks_s();
+            }
+            time::sleep_ms(50);
+        }
+        if (wait && !is_connected())
         {
             log::error("Connect failed, wait get ip timeout");
             return err::Err::ERR_TIMEOUT;
@@ -498,21 +556,140 @@ bssid / frequency / signal level / flags / ssid
 
     // AP mode
     err::Err Wifi::start_ap(const std::string &ssid, const std::string &password,
+                            std::string mode, int channel,
                             const std::string &ip, const std::string &netmask,
-                            int channel, bool hidden,
-                            const std::string &ssid_5g, const std::string &password_5g,
-                            int channel_5g, bool hidden_5g,
-                            int bandwidth, int bandwidth_5g)
+                            bool hidden)
     {
+        _ssid = ssid;
+        _ssid_cached = true;
+#if PLATFORM_MAIXCAM
+        // write ssid to /boot/wifi.ssid and password to /boot/wifi.pass
+        // write wifi.ap remove wifi.sta
+        // write /boot/hostapd.conf
+        // then opoen /etc/init.d/S30wifi restart
+
+        if (channel <= 0)
+            channel = 1;
+
+        // ensure wifi.ap
+        if (fs::exists("/boot/wifi.sta"))
+        {
+            fs::remove("/boot/wifi.sta");
+        }
+        fs::File *f = fs::open("/boot/wifi.ap", "w");
+        f->close();
+        delete f;
+
+        // write ssid to /boot/hostapd.conf
+        FILE *fp = fopen("/boot/hostapd.conf", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/hostapd.conf failed");
+            return err::Err::ERR_IO;
+        }
+        // see https://w1.fi/cgit/hostap/plain/hostapd/hostapd.conf
+        std::string conf = "ctrl_interface=/var/run/hostapd\n\
+ctrl_interface_group=0\n\
+beacon_int=100\n\
+dtim_period=2\n\
+max_num_sta=255\n\
+rts_threshold=-1\n\
+fragm_threshold=-1\n\
+macaddr_acl=0\n\
+auth_algs=3\n\
+wpa=2\n\
+ieee80211n=1\n";
+        conf += "ssid=" + ssid + "\n";
+        conf += "hw_mode=" + mode + "\n";
+        conf += "wpa_passphrase=" + password + "\n";
+        conf += "channel=" + std::to_string(channel) + "\n";
+        fwrite(conf.c_str(), 1, conf.size(), fp);
+        fclose(fp);
+
+        // write dhcp config
+        fp = fopen("/etc/udhcpd.wlan0.conf", "w");
+        if (fp == NULL)
+        {
+            log::error("open /etc/udhcpd.wlan0.conf failed");
+            return err::Err::ERR_IO;
+        }
+        // see https://w1.fi/cgit/hostap/plain/hostapd/hostapd.conf
+        std::string ip_prefix = split_ip3(ip);
+        conf = "start " + ip_prefix + ".100\n" +
+               "end " + ip_prefix + ".200\n" +
+               "interface " + _iface + "\n\
+pidfile /var/run/udhcpd." +
+               _iface + ".pid\n\
+lease_file /var/lib/misc/udhcpd." +
+               _iface + ".leases\n\
+option subnet " +
+               netmask + "\n\
+option lease 864000\n";
+        fwrite(conf.c_str(), 1, conf.size(), fp);
+        fclose(fp);
+
+        // write ssid to /boot/wifi.ssid
+        fp = fopen("/boot/wifi.ssid", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.ssid failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(ssid.c_str(), 1, ssid.size(), fp);
+        fclose(fp);
+
+        // write ssid to /boot/wifi.ssid
+        fp = fopen("/boot/wifi.ipv4_prefix", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.ipv4_prefix failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(ip_prefix.c_str(), 1, ip_prefix.size(), fp);
+        fclose(fp);
+
+        sync();
+
+        // restart wifi
+        if (access("/etc/init.d/S30wifi", F_OK) == -1)
+        {
+            log::error("/etc/init.d/S30wifi not found");
+            return err::Err::ERR_NOT_FOUND;
+        }
+        int ret = system("/etc/init.d/S30wifi restart");
+        if (ret != 0)
+        {
+            log::error("restart wifi failed: %d", ret);
+            return err::Err::ERR_RUNTIME;
+        }
+#else
         return err::Err::ERR_NOT_IMPL;
+#endif
+        return err::ERR_NONE;
     }
     err::Err Wifi::stop_ap()
     {
-        return err::Err::ERR_NOT_IMPL;
+#if PLATFORM_MAIXCAM
+        // opoen /etc/init.d/S30wifi stop
+        if (access("/etc/init.d/S30wifi", F_OK) == -1)
+        {
+            log::error("/etc/init.d/S30wifi not found");
+            return err::Err::ERR_NOT_FOUND;
+        }
+        int ret = system("/etc/init.d/S30wifi stop");
+        if (ret != 0)
+        {
+            log::error("stop wifi failed: %d", ret);
+            return err::Err::ERR_RUNTIME;
+        }
+        return err::Err::ERR_NONE;
+#else
+        throw err::Exception(err::ERR_NOT_IMPL, "stop_ap wifi not implemented in this platform");
+#endif
     }
     bool Wifi::is_ap_mode()
     {
-        return false;
+        return fs::exists("/boot/wifi.ap");
     }
 
 } // namespace maix::wifi
