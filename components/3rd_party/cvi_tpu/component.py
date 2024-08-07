@@ -9,11 +9,11 @@ def add_file_downloads(confs : dict) -> list:
     if "musl" not in confs["CONFIG_TOOLCHAIN_PATH"] and "glibc" not in confs["CONFIG_TOOLCHAIN_PATH"]:
         return []
     version = f"{confs['CONFIG_BROTLI_VERSION_MAJOR']}.{confs['CONFIG_BROTLI_VERSION_MINOR']}.{confs['CONFIG_BROTLI_VERSION_PATCH']}"
-    url = "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/cvi_tpu_lib_v4.1.0-23-gb920beb.tar.xz"
+    url = "https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/cvi_tpu_lib_v4.1.0-23_2024.8.7.tar.xz"
     sha256sum = "8177ce35a05565a4fdc6cf1ac6bef0dc18809a31fff332321e17d01d2b85421a"
-    filename = "cvi_tpu_lib_v4.1.0-23-gb920beb.tar.xz"
+    filename = "cvi_tpu_lib_v4.1.0-23_2024.8.7.tar.xz"
     path = "cvi_tpu"
-    check_file = 'cvi_tpu_lib_v4.1.0-23-gb920beb'
+    check_file = 'cvi_tpu_lib_v4.1.0-23_2024.8.7'
     sites = [
         'https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0'
     ]
