@@ -278,6 +278,8 @@ namespace maix::camera
                 log::error("mmf del vi channel failed");
             }
         }
+
+        mmf_deinit();
     }
 
     camera::Camera *Camera::add_channel(int width, int height, image::Format format, int fps, int buff_num, bool open)
