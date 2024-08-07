@@ -491,6 +491,10 @@ namespace maix
             */
             void rm_tensor(const std::string &key)
             {
+                if(_auto_delete[key])
+                {
+                    delete tensors[key];
+                }
                 tensors.erase(key);
             }
 
