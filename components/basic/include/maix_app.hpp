@@ -333,6 +333,7 @@ namespace maix::app
      * @param app_id APP ID which will be started. app_id and idx must have one is valid.
      * @param idx APP index. app_id and idx must have one is valid.
      * @param start_param string type, will send to app, app can get this param by `app.get_start_param()`
+     * @attention If app id or idx the same as current app, do nothing.
      * @maixpy maix.app.switch_app
     */
     void switch_app(const string &app_id, int idx = -1, const std::string &start_param = "");

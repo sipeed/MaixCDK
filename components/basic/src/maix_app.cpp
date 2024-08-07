@@ -580,18 +580,7 @@ namespace maix::app
             log::error("switch app failed, app_id and idx must have one is valid\n");
             return;
         }
-        // inform this app to exit, code should check this flag by app::need_exit()
-        set_exit_flag(true);
         vector<APP_Info> &apps_info = get_apps_info();
-
-        // write app_id to file, launcher will read this file and start the app
-        string path = get_app_start_info_path();
-        FILE *fp = fopen(path.c_str(), "w");
-        if (fp == NULL)
-        {
-            log::error("open app start info file failed: %s", path.c_str());
-            return;
-        }
         std::string final_app_id = app_id;
         std::string final_app_path = "";
         if (idx >= 0)
@@ -599,7 +588,6 @@ namespace maix::app
             if ((size_t)idx >= apps_info.size())
             {
                 log::error("idx error, should < %lld, but %d", apps_info.size(), idx);
-                fclose(fp);
                 throw err::Exception(err::ERR_ARGS, "idx error");
             }
             final_app_id = apps_info[idx].id;
@@ -616,6 +604,23 @@ namespace maix::app
                     break;
                 }
             }
+        }
+        // if switch to current app, just return.
+        if(final_app_id == app::app_id())
+        {
+            return;
+        }
+
+        // inform this app to exit, code should check this flag by app::need_exit()
+        set_exit_flag(true);
+
+        // write app_id to file, launcher will read this file and start the app
+        string path = get_app_start_info_path();
+        FILE *fp = fopen(path.c_str(), "w");
+        if (fp == NULL)
+        {
+            log::error("open app start info file failed: %s", path.c_str());
+            return;
         }
         fprintf(fp, "%s\n%s\n%s\n", final_app_path.c_str(), final_app_id.c_str(), start_param.c_str());
         fclose(fp);
