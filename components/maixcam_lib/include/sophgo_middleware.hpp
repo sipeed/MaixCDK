@@ -2,6 +2,23 @@
 #define __SOPHGO_MIDDLEWARE_HPP__
 
 #include "stdint.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "cvi_buffer.h"
+#include "cvi_ae_comm.h"
+#include "cvi_awb_comm.h"
+#include "cvi_comm_isp.h"
+#include "cvi_comm_sns.h"
+#include "cvi_ae.h"
+#include "cvi_awb.h"
+#include "cvi_isp.h"
+#include "cvi_sns_ctrl.h"
+#include "cvi_ive.h"
+#include "cvi_sys.h"
+#ifdef __cplusplus
+}
+#endif
 
 typedef struct {
     uint8_t *data[8];

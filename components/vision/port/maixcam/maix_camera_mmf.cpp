@@ -12,9 +12,9 @@
 #include <dirent.h>
 #include "sophgo_middleware.hpp"
 
-#define MMF_SENSOR_NAME "MMF_SENSOR_NAME"
-#define MAIX_SENSOR_FPS "MAIX_SENSOR_FPS"
-
+#define MMF_SENSOR_NAME "MMF_SENSOR_NAME"                           // Setting the sensor name will be used to select which driver to use
+#define MAIX_SENSOR_FPS "MAIX_SENSOR_FPS"                           // Set the frame rate, whether it takes effect or not is determined by the driver
+#define MMF_INIT_DO_NOT_RELOAD_KMOD "MMF_INIT_DO_NOT_RELOAD_KMOD"   // Disable reloading of kmod on mmf_init
 namespace maix::camera
 {
     static bool set_regs_flag = false;
@@ -137,21 +137,33 @@ namespace maix::camera
 
     static char* _get_sensor_name(void)
     {
+        // TODO: supports dual sensor
+        int res = CVI_MIPI_SetSensorReset(0, 0);
+		if (res != CVI_SUCCESS) {
+			log::error("sensor 0 unreset failed!\n");
+			return NULL;
+		}
+
         static char name[30];
         peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
         std::vector<int> addr_list = i2c_obj.scan();
         for (size_t i = 0; i < addr_list.size(); i++) {
-            printf("i2c4 addr: 0x%02x\n", addr_list[i]);
+            log::info("i2c4 addr: 0x%02x", addr_list[i]);
             switch (addr_list[i]) {
-                case 0x30:
-                    printf("found sms_sc035gs, addr 0x30\n" );
-                    snprintf(name, sizeof(name), "sms_sc035gs");
-                    return name;
-                case 0x29: // fall through
-                default:
-                    printf("found gcore_gc4653, addr 0x29\n" );
+                case 0x29:
+                    log::info("found gcore_gc4653, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "gcore_gc4653");
                     return name;
+                case 0x30:
+                    log::info("found sms_sc035gs, addr %#x", addr_list[i]);
+                    snprintf(name, sizeof(name), "sms_sc035gs");
+                    return name;
+                case 0x48:// fall through
+                case 0x3c:
+                    log::info("found ov_ov2685, addr %#x", addr_list[i]);
+                    snprintf(name, sizeof(name), "ov_ov2685");
+                    return name;
+                default: break;
             }
         }
 
@@ -181,6 +193,78 @@ namespace maix::camera
         }
     }
 
+    static int _is_module_in_use(const char *module_name) {
+        FILE *fp;
+        char buffer[256];
+
+        fp = fopen("/proc/modules", "r");
+        if (fp == NULL) {
+            perror("fopen");
+            return -1;
+        }
+
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            char mod_name[256];
+            int usage_count;
+
+            sscanf(buffer, "%255s %*s %d", mod_name, &usage_count);
+
+            if (strcmp(mod_name, module_name) == 0) {
+                fclose(fp);
+                return usage_count > 0;
+            }
+        }
+
+        fclose(fp);
+        return 0;
+    }
+
+    static int reinit_soph_vb(void)
+    {
+        // if (access("/mnt/system/ko/soph_mipi_tx.ko", F_OK) != -1) {
+        // 	system("mv /mnt/system/ko/soph_mipi_tx.ko /mnt/system/ko/soph_mipi_tx.ko.bak");
+        // 	system("reboot");
+        // }
+
+        system("rmmod soph_ive soph_vc_driver soph_rgn soph_dwa soph_vo soph_vpss soph_vi soph_snsr_i2c soph_mipi_rx soph_fast_image soph_rtos_cmdqu soph_base");
+        // system("insmod /mnt/system/ko/soph_sys.ko");
+        system("insmod /mnt/system/ko/soph_base.ko");
+        system("insmod /mnt/system/ko/soph_rtos_cmdqu.ko");
+        system("insmod /mnt/system/ko/soph_fast_image.ko");
+        system("insmod /mnt/system/ko/soph_mipi_rx.ko");
+        system("insmod /mnt/system/ko/soph_snsr_i2c.ko");
+        system("insmod /mnt/system/ko/soph_vi.ko");
+        system("insmod /mnt/system/ko/soph_vpss.ko");
+        system("insmod /mnt/system/ko/soph_vo.ko");
+        system("insmod /mnt/system/ko/soph_dwa.ko");
+        system("insmod /mnt/system/ko/soph_rgn.ko");
+        system("insmod /mnt/system/ko/soph_vc_driver.ko");
+        system("insmod /mnt/system/ko/soph_ive.ko");
+
+        return 0;
+    }
+
+    static int _get_vb_pool_cnt(void)
+    {
+        FILE *file;
+        char line[1024];
+        int poolIdCount = 0;
+
+        file = fopen("/proc/cvitek/vb", "r");
+        if (file == NULL) {
+            perror("can not open /proc/cvitek/vb");
+            return 0;
+        }
+
+        while (fgets(line, sizeof(line), file)) {
+            if (strstr(line, "PoolId(") != NULL) {
+                poolIdCount++;
+            }
+        }
+
+        fclose(file);
+        return poolIdCount;
+    }
     err::Err Camera::open(int width, int height, image::Format format, int fps, int buff_num)
     {
         int width_tmp = (width == -1) ? _width : width;
@@ -191,6 +275,17 @@ namespace maix::camera
 
         // check format
         err::check_bool_raise(_check_format(format_tmp), "Format not support");
+
+        // release old pool
+        if (!mmf_is_init()) {
+            int old_pool_cnt = _get_vb_pool_cnt();
+            if (old_pool_cnt > 0) {
+                if (_is_module_in_use("soph_vi") == 0) {
+                    reinit_soph_vb();
+                }
+            }
+            setenv("MMF_INIT_DO_NOT_RELOAD_KMOD", "1", 0);
+        }
 
         // check if we need update camera params
         if (this->is_opened()) {
@@ -230,17 +325,37 @@ namespace maix::camera
 
         // mmf init
         mmf_sys_cfg_t sys_cfg = {0};
-        if (_width <= 1280 && _height <= 720 && _fps > 30) {
-            sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
+        char *sensor_name = getenv(MMF_SENSOR_NAME);
+        err::check_null_raise(sensor_name, "sensor name not found!");
+        if (!strcmp(sensor_name, "gcore_gc4653")) {
+            if (_width <= 1280 && _height <= 720 && _fps > 30) {
+                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 3;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            } else {
+                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 2;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            }
+        } else if ((!strcmp(sensor_name, "sms_sc035gs"))) {
+            sys_cfg.vb_pool[0].size = 640 * 480 * 3 / 2;
+            sys_cfg.vb_pool[0].count = 3;
+            sys_cfg.vb_pool[0].map = 2;
+            sys_cfg.max_pool_cnt = 1;
+        } else if ((!strcmp(sensor_name, "ov_ov2685"))) {
+            sys_cfg.vb_pool[0].size = 1600 * 1200 * 3 / 2;
             sys_cfg.vb_pool[0].count = 3;
             sys_cfg.vb_pool[0].map = 2;
             sys_cfg.max_pool_cnt = 1;
         } else {
-            sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
-            sys_cfg.vb_pool[0].count = 2;
-            sys_cfg.vb_pool[0].map = 3;
-            sys_cfg.max_pool_cnt = 1;
+            log::error("sensor name not found! name:%s", sensor_name);
+            err::check_raise(err::ERR_RUNTIME, "sensor name not found!");
         }
+        mmf_pre_config_sys(&sys_cfg);
+        err::check_bool_raise(!mmf_init(), "mmf init failed");
+
         mmf_pre_config_sys(&sys_cfg);
         err::check_bool_raise(!mmf_init(), "mmf init failed");
 
