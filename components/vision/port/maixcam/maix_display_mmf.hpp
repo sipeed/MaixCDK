@@ -77,6 +77,9 @@ namespace maix::display
         } else if (!strcmp(panel_value, "st7701_hd228001c31")) {
             w = 368;
             h = 552;
+        } else if (!strcmp(panel_value, "MaixCam_Pro")) {
+            w = 480;
+            h = 640;
         } else {
             w = 368;
             h = 552;
