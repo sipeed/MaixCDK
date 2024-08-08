@@ -74,6 +74,7 @@ namespace maix::camera
         _show_colorbar = false;
         _open_set_regs = set_regs_flag;
         _device =  "";
+        _is_opened = false;
         _last_read_us = time::ticks_us();
 
 
