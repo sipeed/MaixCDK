@@ -229,22 +229,20 @@ namespace maix::camera
         _config_sensor_env(_fps);
 
         // mmf init
-        if (!mmf_is_init()) {
-            mmf_sys_cfg_t sys_cfg = {0};
-            if (_width <= 1280 && _height <= 720 && _fps > 30) {
-                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 3;
-                sys_cfg.vb_pool[0].map = 2;
-                sys_cfg.max_pool_cnt = 1;
-            } else {
-                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 2;
-                sys_cfg.vb_pool[0].map = 3;
-                sys_cfg.max_pool_cnt = 1;
-            }
-            mmf_pre_config_sys(&sys_cfg);
-            err::check_bool_raise(!mmf_init(), "mmf init failed");
+        mmf_sys_cfg_t sys_cfg = {0};
+        if (_width <= 1280 && _height <= 720 && _fps > 30) {
+            sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
+            sys_cfg.vb_pool[0].count = 3;
+            sys_cfg.vb_pool[0].map = 2;
+            sys_cfg.max_pool_cnt = 1;
+        } else {
+            sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
+            sys_cfg.vb_pool[0].count = 2;
+            sys_cfg.vb_pool[0].map = 3;
+            sys_cfg.max_pool_cnt = 1;
         }
+        mmf_pre_config_sys(&sys_cfg);
+        err::check_bool_raise(!mmf_init(), "mmf init failed");
 
         mmf_vi_cfg_t cfg = {0};
         cfg.w = _width;

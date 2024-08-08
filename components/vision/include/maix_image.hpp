@@ -629,11 +629,11 @@ namespace maix::image
          * @param mask Mask is another image to use as a pixel level mask for the operation. The mask should be an image with just black or white pixels and should be the same size as the image being operated on.
          * Only pixels set in the mask are modified. default is None.
          * @param to_bitmap If true, the image will be converted to a bitmap image before thresholding. default is false. TODO: support in the feature
-         * @param copy Select whether to return a new image or modify the original image. default is true.
+         * @param copy Select whether to return a new image or modify the original image. default is false.
          * @return Returns the image after the operation is completed.
          * @maixpy maix.image.Image.binary
         */
-        image::Image *binary(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), bool invert = false, bool zero = false, image::Image *mask = nullptr, bool to_bitmap = false, bool copy = true);
+        image::Image *binary(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), bool invert = false, bool zero = false, image::Image *mask = nullptr, bool to_bitmap = false, bool copy = false);
 
         /**
          * @brief Inverts the image in place.
