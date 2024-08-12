@@ -310,6 +310,9 @@ namespace maix::rtmp {
 		uint32_t timestamp = 0;
 		uint64_t curr_ms = time::ticks_ms();
 		uint64_t last_ms = curr_ms;
+		int fps = camera->fps();
+		uint64_t cam_last_read_us = time::time_us();
+		uint64_t cam_wait_us = 1000000 / fps;
 
 		bool first_frame = 1;
 
@@ -382,6 +385,11 @@ namespace maix::rtmp {
 					rtmp->unlock();
 					break;
 				}
+
+				while (time::ticks_us() - cam_last_read_us < cam_wait_us) {
+					time::sleep_us(50);
+				}
+				cam_last_read_us = time::ticks_us();
 
 				curr_ms = time::ticks_ms();
 				timestamp = curr_ms - last_ms;

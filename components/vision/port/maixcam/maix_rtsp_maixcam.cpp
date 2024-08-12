@@ -167,6 +167,9 @@ namespace maix::rtsp
         void *data;
         int data_size, width, height, format;
         int vi_ch = 0, enc_ch = 1;
+        int fps = rtsp->to_camera()->fps();
+        uint64_t wait_us = 1000000 / fps;
+        uint64_t last_us = time::time_us();
         while (rtsp->rtsp_is_start()) {
             rtsp->update_timestamp();
             uint64_t timestamp = rtsp->get_timestamp();
@@ -205,7 +208,11 @@ namespace maix::rtsp
             if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
                 continue;
             }
+            while (time::ticks_us() - last_us < wait_us) {
+                time::sleep_us(50);
+            }
 
+            last_us = time::ticks_us();
             if (mmf_enc_h265_push(enc_ch, (uint8_t *)data, width, height, format)) {
                 log::warn("mmf_enc_h265_push failed\n");
                 continue;

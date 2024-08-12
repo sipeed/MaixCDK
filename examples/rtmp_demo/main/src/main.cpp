@@ -76,7 +76,7 @@ int _main(int argc, char* argv[])
         std::string stream = argv[5];
         int bitrate = 1000 * 1000;
         if (argc > 6) bitrate = atoi(argv[6]);
-        printf("push rtmp://%s:%d/%s/%s!\r\n", &host[0], port, &app[0], &stream[0]);
+
 
         camera::Camera cam = camera::Camera(1280, 720, image::Format::FMT_YVU420SP);
         display::Display disp = display::Display();
@@ -85,7 +85,9 @@ int _main(int argc, char* argv[])
         rtmp.bind_camera(&cam);
 
         log::info("start\r\n");
+        log::info("rtmp://%s:%d/%s/%s", &host[0], port, &app[0], &stream[0]);
         rtmp.start();
+
         while (!app::need_exit()) {
             // image::Image *img = rtmp.capture(); // not support now
 
