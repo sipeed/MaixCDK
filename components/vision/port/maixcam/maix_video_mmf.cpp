@@ -48,12 +48,12 @@ namespace maix::video
         switch (_type) {
         case VIDEO_H265_CBR:
         {
-            if (0 != mmf_init()) {
+            if (0 != mmf_init_v2(true)) {
                 err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
             }
 
             if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
-                mmf_deinit();
+                mmf_deinit_v2(false);
                 err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
             }
             break;
@@ -72,12 +72,12 @@ namespace maix::video
                 .bitrate = _bitrate / 1000,
             };
 
-            if (0 != mmf_init()) {
+            if (0 != mmf_init_v2(true)) {
                 err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
             }
 
-            if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
-                mmf_deinit();
+            if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+                mmf_deinit_v2(false);
                 err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
             }
             break;
@@ -164,7 +164,7 @@ namespace maix::video
                     cfg.w = img_w;
                     cfg.h = img_h;
                     cfg.fmt = mmf_invert_format_to_mmf(img_fmt);
-                    if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
+                    if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
                         err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
                     }
                     _width = img_w;
@@ -336,7 +336,7 @@ namespace maix::video
                         cfg.w = img_w;
                         cfg.h = img_h;
                         cfg.fmt = mmf_invert_format_to_mmf(mmf_fmt);
-                        if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
+                        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
                             err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
                         }
                         _width = img_w;

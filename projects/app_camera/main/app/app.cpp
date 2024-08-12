@@ -507,6 +507,7 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
             system(cmd);
             snprintf(cmd, sizeof(cmd), "rm %s", priv.video_save_path.c_str());
             system(cmd);
+            system("sync");
         }
 
         priv.video_stop_flag = false;

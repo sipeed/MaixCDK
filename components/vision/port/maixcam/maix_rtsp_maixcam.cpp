@@ -36,8 +36,8 @@ namespace maix::rtsp
 
         int vi_vpss = 0;
         int vi_vpss_chn = camera->get_channel();
-        if (0 != mmf_add_region_channel(rgn_id, 0, 6, vi_vpss, vi_vpss_chn, x2, y2, width, height, mmf_invert_format_to_mmf(format))) {
-            err::check_raise(err::ERR_RUNTIME, "mmf_add_region_channel failed!");
+        if (0 != mmf_add_region_channel_v2(rgn_id, 0, 6, vi_vpss, vi_vpss_chn, x2, y2, width, height, mmf_invert_format_to_mmf(format))) {
+            err::check_raise(err::ERR_RUNTIME, "mmf_add_region_channel_v2 failed!");
         }
         this->_id = rgn_id;
         this->_width = width;

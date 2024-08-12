@@ -15,6 +15,48 @@
 #define MMF_SENSOR_NAME "MMF_SENSOR_NAME"                           // Setting the sensor name will be used to select which driver to use
 #define MAIX_SENSOR_FPS "MAIX_SENSOR_FPS"                           // Set the frame rate, whether it takes effect or not is determined by the driver
 #define MMF_INIT_DO_NOT_RELOAD_KMOD "MMF_INIT_DO_NOT_RELOAD_KMOD"   // Disable reloading of kmod on mmf_init
+
+static void try_deinit_mmf()
+{
+    static uint8_t is_called = 0;
+    if (!is_called) {
+        mmf_deinit_v2(true);
+        is_called = 1;
+    }
+}
+
+static void signal_handle(int signal)
+{
+    const char *signal_msg = NULL;
+    switch (signal) {
+    case SIGILL: signal_msg = "SIGILL"; break;
+    case SIGTRAP: signal_msg = "SIGTRAP"; break;
+    case SIGABRT: signal_msg = "SIGABRT"; break;
+    case SIGBUS: signal_msg = "SIGBUS"; break;
+    case SIGFPE: signal_msg = "SIGFPE"; break;
+    case SIGKILL: signal_msg = "SIGKILL"; break;
+    case SIGSEGV: signal_msg = "SIGSEGV"; break;
+    default: signal_msg = "UNKNOWN"; break;
+    }
+
+    maix::log::error("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
+    try_deinit_mmf();
+    exit(1);
+}
+
+static __attribute__((constructor)) void maix_vision_register_signal(void)
+{
+    signal(SIGILL, signal_handle);
+    signal(SIGTRAP, signal_handle);
+    signal(SIGABRT, signal_handle);
+    signal(SIGBUS, signal_handle);
+    signal(SIGFPE, signal_handle);
+    signal(SIGKILL, signal_handle);
+    signal(SIGSEGV, signal_handle);
+
+    maix::util::register_exit_function(try_deinit_mmf);
+}
+
 namespace maix::camera
 {
     static bool set_regs_flag = false;
@@ -265,6 +307,90 @@ namespace maix::camera
         fclose(file);
         return poolIdCount;
     }
+
+    static int _mmf_vi_init(int width, int height, int fps)
+    {
+        SIZE_S stSize;
+        PIC_SIZE_E enPicSize;
+        SAMPLE_INI_CFG_S	stIniCfg;
+        SAMPLE_VI_CONFIG_S	stViConfig;
+        PIXEL_FORMAT_E vi_format;
+        PIXEL_FORMAT_E vi_vpss_format;
+        mmf_sys_cfg_t sys_cfg = {0};
+
+        // config vi param
+        char *sensor_name = getenv(MMF_SENSOR_NAME);
+        err::check_null_raise(sensor_name, "sensor name not found!");
+        err::check_bool_raise(!SAMPLE_COMM_VI_ParseIni(&stIniCfg), "sensor cfg parse complete!");
+        err::check_bool_raise(stIniCfg.devNum != 0, "Not device found! devnum = 0");
+
+        if (!strcmp(sensor_name, "sms_sc035gs")) {
+            sys_cfg.vb_pool[0].size = 640 * 480 * 3 / 2;
+            sys_cfg.vb_pool[0].count = 3;
+            sys_cfg.vb_pool[0].map = 2;
+            sys_cfg.max_pool_cnt = 1;
+
+            stIniCfg.enSnsType[0] = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
+            stIniCfg.as8PNSwap[0][0] = 0;
+            stIniCfg.as8PNSwap[0][1] = 0;
+            stIniCfg.as8PNSwap[0][2] = 0;
+            stIniCfg.as8PNSwap[0][3] = 0;
+            stIniCfg.as8PNSwap[0][4] = 0;
+            vi_format = PIXEL_FORMAT_NV21;
+            vi_vpss_format = PIXEL_FORMAT_YUV_400;
+        } else if (!strcmp(sensor_name, "ov_ov2685")) {
+            sys_cfg.vb_pool[0].size = 1600 * 1200 * 3 / 2;
+            sys_cfg.vb_pool[0].count = 3;
+            sys_cfg.vb_pool[0].map = 2;
+            sys_cfg.max_pool_cnt = 1;
+
+            stIniCfg.enSnsType[0] = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
+            stIniCfg.as8PNSwap[0][0] = 1;
+            stIniCfg.as8PNSwap[0][1] = 1;
+            stIniCfg.as8PNSwap[0][2] = 1;
+            stIniCfg.as8PNSwap[0][3] = 0;
+            stIniCfg.as8PNSwap[0][4] = 0;
+            vi_format = PIXEL_FORMAT_NV21;
+            vi_vpss_format = PIXEL_FORMAT_NV21;
+        } else { // default is gcore_gc4653
+            if (width <= 1280 && height <= 720 && fps > 30) {
+                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 3;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            } else {
+                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
+                sys_cfg.vb_pool[0].count = 2;
+                sys_cfg.vb_pool[0].map = 2;
+                sys_cfg.max_pool_cnt = 1;
+            }
+
+            if (width <= 1280 && height <= 720 && fps > 30) {
+                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
+            } else {
+                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
+            }
+            stIniCfg.as8PNSwap[0][0] = 0;
+            stIniCfg.as8PNSwap[0][1] = 0;
+            stIniCfg.as8PNSwap[0][2] = 0;
+            stIniCfg.as8PNSwap[0][3] = 0;
+            stIniCfg.as8PNSwap[0][4] = 0;
+            vi_format = PIXEL_FORMAT_NV21;
+            vi_vpss_format = PIXEL_FORMAT_NV21;
+        }
+
+        mmf_pre_config_sys(&sys_cfg);
+        err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
+        err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
+        err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
+        err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
+        if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, 3, &stViConfig)) {
+            mmf_deinit_v2(false);
+            err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
+        }
+        return  0;
+    }
+
     err::Err Camera::open(int width, int height, image::Format format, int fps, int buff_num)
     {
         int width_tmp = (width == -1) ? _width : width;
@@ -324,56 +450,11 @@ namespace maix::camera
         _config_sensor_env(_fps);
 
         // mmf init
-        mmf_sys_cfg_t sys_cfg = {0};
-        char *sensor_name = getenv(MMF_SENSOR_NAME);
-        err::check_null_raise(sensor_name, "sensor name not found!");
-        if (!strcmp(sensor_name, "gcore_gc4653")) {
-            if (_width <= 1280 && _height <= 720 && _fps > 30) {
-                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 3;
-                sys_cfg.vb_pool[0].map = 2;
-                sys_cfg.max_pool_cnt = 1;
-            } else {
-                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 2;
-                sys_cfg.vb_pool[0].map = 2;
-                sys_cfg.max_pool_cnt = 1;
-            }
-        } else if ((!strcmp(sensor_name, "sms_sc035gs"))) {
-            sys_cfg.vb_pool[0].size = 640 * 480 * 3 / 2;
-            sys_cfg.vb_pool[0].count = 3;
-            sys_cfg.vb_pool[0].map = 2;
-            sys_cfg.max_pool_cnt = 1;
-        } else if ((!strcmp(sensor_name, "ov_ov2685"))) {
-            sys_cfg.vb_pool[0].size = 1600 * 1200 * 3 / 2;
-            sys_cfg.vb_pool[0].count = 3;
-            sys_cfg.vb_pool[0].map = 2;
-            sys_cfg.max_pool_cnt = 1;
-        } else {
-            log::error("sensor name not found! name:%s", sensor_name);
-            err::check_raise(err::ERR_RUNTIME, "sensor name not found!");
-        }
-        mmf_pre_config_sys(&sys_cfg);
-        err::check_bool_raise(!mmf_init(), "mmf init failed");
-
-        mmf_pre_config_sys(&sys_cfg);
-        err::check_bool_raise(!mmf_init(), "mmf init failed");
-
-        mmf_vi_cfg_t cfg = {0};
-        cfg.w = _width;
-        cfg.h = _height;
-        cfg.fmt = mmf_invert_format_to_mmf(_format_impl);
-        cfg.depth = _buff_num;
-        cfg.fps = _fps;
-        if (0 != mmf_vi_init2(&cfg)) {
-            mmf_deinit();
-            err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
-        }
-
+        err::check_bool_raise(!_mmf_vi_init(_width, _height, _fps), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
-        if (0 != mmf_add_vi_channel(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl))) {
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
             mmf_vi_deinit();
-            mmf_deinit();
+            mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
         }
 
@@ -392,7 +473,7 @@ namespace maix::camera
             }
         }
 
-        mmf_deinit();
+        mmf_deinit_v2(false);
     }
 
     camera::Camera *Camera::add_channel(int width, int height, image::Format format, int fps, int buff_num, bool open)

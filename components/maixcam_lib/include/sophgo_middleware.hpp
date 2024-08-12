@@ -16,9 +16,14 @@ extern "C" {
 #include "cvi_sns_ctrl.h"
 #include "cvi_ive.h"
 #include "cvi_sys.h"
+#include "sample_comm.h"
 #ifdef __cplusplus
 }
 #endif
+
+#define MMF_FUNC_SET_PARAM(method, num) ((uint32_t)((((uint32_t)method) << 24) | (num & 0xff)))
+#define MMF_FUNC_GET_PARAM_METHOD(x)    ((x >> 24) & 0xffffff)
+#define MMF_FUNC_GET_PARAM_NUM(x)       ((x & 0xff))
 
 typedef struct {
     uint8_t *data[8];
@@ -100,7 +105,6 @@ int mmf_vi_deinit(void);
 int mmf_vi_get_max_size(int *width, int *height);
 int mmf_vi_chn_caculate_ldc(int ch, int x_ratio, int y_ratio, int center_x_oft, int center_y_oft, int distortion_ratio);
 int mmf_vi_chn_ldc_enable(int ch, bool en);
-int mmf_add_vi_channel_with_enc(int ch, int width, int height, int format);
 int mmf_add_vi_channel(int ch, int width, int height, int format);
 int mmf_del_vi_channel(int ch);
 int mmf_del_vi_channel_all(void);
@@ -221,4 +225,46 @@ int mmf_vdec_push(int ch, uint8_t *data, int size, uint8_t is_start, uint8_t is_
 int mmf_vdec_pop(int ch, void **data, int *len, int *width, int *height, int *format);
 int mmf_vdec_free(int ch);
 int mmf_vdec_get_cfg(int ch, mmf_vdec_cfg_t *cfg);
+
+int mmf_init0(uint32_t param, ...);
+int mmf_deinit0(uint32_t param, ...);
+int mmf_vi_init0(uint32_t param, ...);
+int mmf_add_vi_channel0(uint32_t param, ...);
+int mmf_add_vo_channel0(uint32_t param, ...);
+int mmf_add_region_channel0(uint32_t param, ...);
+int mmf_add_venc_channel0(uint32_t param, ...);
+int mmf_add_vdec_channel0(uint32_t param, ...);
+
+static inline int mmf_init_v2(int reload_kmod) {
+    return mmf_init0(MMF_FUNC_SET_PARAM(0, 1), reload_kmod);
+}
+
+static inline int mmf_deinit_v2(int force) {
+    return mmf_deinit0(MMF_FUNC_SET_PARAM(0, 1), force);
+}
+
+static inline int mmf_vi_init_v2(int width, int height, int vi_format, int vpss_format, int fps, int pool_num, SAMPLE_VI_CONFIG_S *vi_cfg) {
+    return mmf_vi_init0(MMF_FUNC_SET_PARAM(0, 8), width, height, vi_format, vpss_format, fps, pool_num, vi_cfg);
+}
+
+static inline int mmf_add_vi_channel_v2(int ch, int width, int height, int format, int fps, int depth, int mirror, int vflip, int fit, int pool_num) {
+    return mmf_add_vi_channel0(MMF_FUNC_SET_PARAM(0, 10), ch, width, height, format, fps, depth, mirror, vflip, fit, pool_num);
+}
+
+static inline int mmf_add_vo_channel_v2(int layer, int ch, int width, int height, int format_in, int format_out, int fps, int depth, int mirror, int vflip, int fit, int rotate, int pool_num_in, int pool_num_out) {
+    return mmf_add_vo_channel0(MMF_FUNC_SET_PARAM(0, 14), layer, ch, width, height, format_in, format_out, fps, depth, mirror, vflip, fit, rotate, pool_num_in, pool_num_out);
+}
+
+static inline int mmf_add_region_channel_v2(int ch, int type, int mod_id, int dev_id, int chn_id, int x, int y, int width, int height, int format) {
+    return mmf_add_region_channel0(MMF_FUNC_SET_PARAM(0, 10), ch, type, mod_id, dev_id, chn_id, x, y, width, height, format);
+}
+
+static inline int mmf_add_venc_channel_v2(int ch, void *cfg) {
+    return mmf_add_venc_channel0(MMF_FUNC_SET_PARAM(0, 2), ch, cfg);
+}
+
+static inline int mmf_add_vdec_channel_v2(int ch, void *cfg) {
+    return mmf_add_vdec_channel0(MMF_FUNC_SET_PARAM(0, 2), ch, cfg);
+}
+
 #endif // __SOPHGO_MIDDLEWARE_HPP__

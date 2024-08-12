@@ -110,7 +110,7 @@ namespace maix::display
                                 || _format == image::FMT_YVU420SP
                                 || _format == image::FMT_BGRA8888, "Format not support");
 
-            if (0 != mmf_init()) {
+            if (0 != mmf_init_v2(true)) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
             int pwm_id = 10;
@@ -131,7 +131,7 @@ namespace maix::display
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
 
-            if (0 != mmf_init()) {
+            if (0 != mmf_init_v2(true)) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
             int pwm_id = 10;
@@ -141,7 +141,7 @@ namespace maix::display
         ~DisplayCviMmf()
         {
             mmf_del_vo_channel(this->_layer, this->_ch);
-            mmf_deinit();
+            mmf_deinit_v2(false);
             if(_bl_pwm)
             {
                 delete _bl_pwm;
@@ -183,8 +183,15 @@ namespace maix::display
                 return err::ERR_RUNTIME;
             }
 
-            if (0 != mmf_add_vo_channel_with_fit(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), 2)) {
-                log::error("mmf_add_vo_channel_with_fit failed\n");
+            int mmf_format_out = PIXEL_FORMAT_NV21;
+            image::Format format_out = (image::Format)mmf_invert_format_to_maix(mmf_format_out);
+            size_t image_size = image::fmt_size[format_out];
+            int pool_num_out = 1;
+            if (width * height * image_size > 1920 * 1080 * image_size) {
+                pool_num_out = 2;
+            }
+            if (0 != mmf_add_vo_channel_v2(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), mmf_format_out, -1, 0, -1, -1, 0, 90, 2, pool_num_out)) {
+                log::error("mmf_add_vo_channel_v2 failed\n");
                 return err::ERR_RUNTIME;
             }
 

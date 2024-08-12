@@ -145,7 +145,7 @@ namespace maix::rtmp {
 			throw std::runtime_error("create lock failed!");
 		}
 
-		if (0 != mmf_init()) {
+		if (0 != mmf_init_v2(true)) {
 			err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
 		}
 
@@ -170,7 +170,7 @@ namespace maix::rtmp {
 		socket_close(_socket);
 		socket_cleanup();
 
-		mmf_deinit();
+		mmf_deinit_v2(false);
 
 		pthread_mutex_destroy(&_lock);
 	}
@@ -326,7 +326,7 @@ namespace maix::rtmp {
 		};
 
 
-		if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
+		if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
 			err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
 		}
 
@@ -453,7 +453,7 @@ namespace maix::rtmp {
 					cfg.w = img_w;
 					cfg.h = img_h;
 					cfg.fmt = mmf_invert_format_to_mmf(mmf_fmt);
-					if (0 != mmf_add_venc_channel(MMF_VENC_CHN, &cfg)) {
+					if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
 						err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
 					}
 				}
