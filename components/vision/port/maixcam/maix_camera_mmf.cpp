@@ -358,16 +358,14 @@ namespace maix::camera
                 sys_cfg.vb_pool[0].count = 3;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
+
+                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
             } else {
                 sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
                 sys_cfg.vb_pool[0].count = 2;
                 sys_cfg.vb_pool[0].map = 2;
                 sys_cfg.max_pool_cnt = 1;
-            }
 
-            if (width <= 1280 && height <= 720 && fps > 30) {
-                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
-            } else {
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
             }
             stIniCfg.as8PNSwap[0][0] = 0;
@@ -452,7 +450,7 @@ namespace maix::camera
         // mmf init
         err::check_bool_raise(!_mmf_vi_init(_width, _height, _fps), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
-        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, _buff_num, -1, -1, 2, _buff_num)) {
             mmf_vi_deinit();
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
