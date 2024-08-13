@@ -2,6 +2,9 @@
 #define __SOPHGO_MIDDLEWARE_HPP__
 
 #include "stdint.h"
+#include "signal.h"
+#include "maix_basic.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -267,4 +270,44 @@ static inline int mmf_add_vdec_channel_v2(int ch, void *cfg) {
     return mmf_add_vdec_channel0(MMF_FUNC_SET_PARAM(0, 2), ch, cfg);
 }
 
+static void try_deinit_mmf()
+{
+    static uint8_t is_called = 0;
+    if (!is_called) {
+        mmf_deinit_v2(true);
+        is_called = 1;
+    }
+}
+
+static void signal_handle(int signal)
+{
+    const char *signal_msg = NULL;
+    switch (signal) {
+    case SIGILL: signal_msg = "SIGILL"; break;
+    case SIGTRAP: signal_msg = "SIGTRAP"; break;
+    case SIGABRT: signal_msg = "SIGABRT"; break;
+    case SIGBUS: signal_msg = "SIGBUS"; break;
+    case SIGFPE: signal_msg = "SIGFPE"; break;
+    case SIGKILL: signal_msg = "SIGKILL"; break;
+    case SIGSEGV: signal_msg = "SIGSEGV"; break;
+    default: signal_msg = "UNKNOWN"; break;
+    }
+
+    printf("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
+    try_deinit_mmf();
+    exit(1);
+}
+
+static __attribute__((constructor)) void maix_vision_register_signal(void)
+{
+    signal(SIGILL, signal_handle);
+    signal(SIGTRAP, signal_handle);
+    signal(SIGABRT, signal_handle);
+    signal(SIGBUS, signal_handle);
+    signal(SIGFPE, signal_handle);
+    signal(SIGKILL, signal_handle);
+    signal(SIGSEGV, signal_handle);
+
+    maix::util::register_exit_function(try_deinit_mmf);
+}
 #endif // __SOPHGO_MIDDLEWARE_HPP__

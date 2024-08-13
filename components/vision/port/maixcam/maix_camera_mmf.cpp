@@ -16,47 +16,6 @@
 #define MAIX_SENSOR_FPS "MAIX_SENSOR_FPS"                           // Set the frame rate, whether it takes effect or not is determined by the driver
 #define MMF_INIT_DO_NOT_RELOAD_KMOD "MMF_INIT_DO_NOT_RELOAD_KMOD"   // Disable reloading of kmod on mmf_init
 
-static void try_deinit_mmf()
-{
-    static uint8_t is_called = 0;
-    if (!is_called) {
-        mmf_deinit_v2(true);
-        is_called = 1;
-    }
-}
-
-static void signal_handle(int signal)
-{
-    const char *signal_msg = NULL;
-    switch (signal) {
-    case SIGILL: signal_msg = "SIGILL"; break;
-    case SIGTRAP: signal_msg = "SIGTRAP"; break;
-    case SIGABRT: signal_msg = "SIGABRT"; break;
-    case SIGBUS: signal_msg = "SIGBUS"; break;
-    case SIGFPE: signal_msg = "SIGFPE"; break;
-    case SIGKILL: signal_msg = "SIGKILL"; break;
-    case SIGSEGV: signal_msg = "SIGSEGV"; break;
-    default: signal_msg = "UNKNOWN"; break;
-    }
-
-    maix::log::error("Trigger signal, code:%s(%d)!\r\n", signal_msg, signal);
-    try_deinit_mmf();
-    exit(1);
-}
-
-static __attribute__((constructor)) void maix_vision_register_signal(void)
-{
-    signal(SIGILL, signal_handle);
-    signal(SIGTRAP, signal_handle);
-    signal(SIGABRT, signal_handle);
-    signal(SIGBUS, signal_handle);
-    signal(SIGFPE, signal_handle);
-    signal(SIGKILL, signal_handle);
-    signal(SIGSEGV, signal_handle);
-
-    maix::util::register_exit_function(try_deinit_mmf);
-}
-
 namespace maix::camera
 {
     static bool set_regs_flag = false;
@@ -450,7 +409,7 @@ namespace maix::camera
         // mmf init
         err::check_bool_raise(!_mmf_vi_init(_width, _height, _fps), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
-        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, _buff_num, -1, -1, 2, _buff_num)) {
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
             mmf_vi_deinit();
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
