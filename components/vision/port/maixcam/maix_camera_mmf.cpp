@@ -276,7 +276,6 @@ namespace maix::camera
         SAMPLE_VI_CONFIG_S	stViConfig;
         PIXEL_FORMAT_E vi_format;
         PIXEL_FORMAT_E vi_vpss_format;
-        mmf_sys_cfg_t sys_cfg = {0};
 
         // config vi param
         char *sensor_name = getenv(MMF_SENSOR_NAME);
@@ -285,10 +284,6 @@ namespace maix::camera
         err::check_bool_raise(stIniCfg.devNum != 0, "Not device found! devnum = 0");
 
         if (!strcmp(sensor_name, "sms_sc035gs")) {
-            sys_cfg.vb_pool[0].size = 640 * 480 * 3 / 2;
-            sys_cfg.vb_pool[0].count = 3;
-            sys_cfg.vb_pool[0].map = 2;
-            sys_cfg.max_pool_cnt = 1;
 
             stIniCfg.enSnsType[0] = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
             stIniCfg.as8PNSwap[0][0] = 0;
@@ -299,10 +294,6 @@ namespace maix::camera
             vi_format = PIXEL_FORMAT_NV21;
             vi_vpss_format = PIXEL_FORMAT_YUV_400;
         } else if (!strcmp(sensor_name, "ov_ov2685")) {
-            sys_cfg.vb_pool[0].size = 1600 * 1200 * 3 / 2;
-            sys_cfg.vb_pool[0].count = 3;
-            sys_cfg.vb_pool[0].map = 2;
-            sys_cfg.max_pool_cnt = 1;
 
             stIniCfg.enSnsType[0] = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
             stIniCfg.as8PNSwap[0][0] = 1;
@@ -314,17 +305,9 @@ namespace maix::camera
             vi_vpss_format = PIXEL_FORMAT_NV21;
         } else { // default is gcore_gc4653
             if (width <= 1280 && height <= 720 && fps > 30) {
-                sys_cfg.vb_pool[0].size = 1280 * 720 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 3;
-                sys_cfg.vb_pool[0].map = 2;
-                sys_cfg.max_pool_cnt = 1;
 
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
             } else {
-                sys_cfg.vb_pool[0].size = 2560 * 1440 * 3 / 2;
-                sys_cfg.vb_pool[0].count = 2;
-                sys_cfg.vb_pool[0].map = 2;
-                sys_cfg.max_pool_cnt = 1;
 
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
             }
@@ -337,7 +320,6 @@ namespace maix::camera
             vi_vpss_format = PIXEL_FORMAT_NV21;
         }
 
-        mmf_pre_config_sys(&sys_cfg);
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
