@@ -76,6 +76,7 @@ namespace maix::camera
         _open_set_regs = set_regs_flag;
         _device =  "";
         _last_read_us = time::ticks_us();
+        _is_opened = false;
 
 
         if (format == image::Format::FMT_RGB888 && _width * _height * 3 > 640 * 640 * 3) {
