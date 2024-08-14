@@ -50,6 +50,57 @@ namespace maix::sys
         return "Unkonwn";
     }
 
+    std::string maixpy_version()
+    {
+        #if PLATFORM_MAIXCAM
+            // fast way, read /usr/lib/python3.11/site-packages/maix/version.py
+            // find key value:
+            //      version_major = 4
+            //      version_minor = 4
+            //      version_patch = 20
+            // return $version_major.$version_minor.$version_patch
+            std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
+            if (!version_file.is_open()) {
+                log::warn("Failed to open version file.");
+                return "";
+            }
+
+            std::string line;
+            int version_major = -1, version_minor = -1, version_patch = -1;
+
+            while (std::getline(version_file, line)) {
+                if (line.find("version_major") != std::string::npos) {
+                    std::string num = line.substr(line.find("=") + 1);
+                    version_major = std::stoi(num);
+                }
+                else if (line.find("version_minor") != std::string::npos) {
+                    std::string num = line.substr(line.find("=") + 1);
+                    version_minor = std::stoi(num);
+                }
+                else if (line.find("version_patch") != std::string::npos) {
+                    std::string num = line.substr(line.find("=") + 1);
+                    version_patch = std::stoi(num);
+                }
+                if(version_major >=0 && version_minor >= 0 && version_patch >=0)
+                    break;
+            }
+
+            version_file.close();
+
+            if (version_major == -1 || version_minor == -1 || version_patch == -1) {
+                log::warn("Version information incomplete or not found.");
+                return "";
+            }
+
+            std::ostringstream version_stream;
+            version_stream << version_major << "." << version_minor << "." << version_patch;
+            return version_stream.str();
+        #else
+            log::warn("maixpy_version() not implemented for this platform");
+            return "";
+        #endif
+    }
+
     std::string device_name()
     {
         FILE *file = NULL;

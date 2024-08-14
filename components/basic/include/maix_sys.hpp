@@ -15,10 +15,17 @@ namespace maix::sys
 {
     /**
      * Get system version
-     * @return version string, e.g. "2024.4.1-13af4b"
+     * @return version string, e.g. "maixcam-2024-08-13-maixpy-v4.4.20"
      * @maixpy maix.sys.os_version
      */
     std::string os_version();
+
+    /**
+     * Get MaixPy version, if get failed will return empty string.
+     * @return version  string, e.g. "4.4.21"
+     * @maixpy maix.sys.maixpy_version
+     */
+    std::string maixpy_version();
 
     /**
      * Get device name
