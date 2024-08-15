@@ -204,11 +204,11 @@ void event_touch_blue_cb(lv_event_t * e)
             priv.user_btn_is_touch_flag = 0;
 
             ui_set_lmin_value(0);
-            ui_set_lmax_value(80);
-            ui_set_amin_value(30);
-            ui_set_amax_value(100);
-            ui_set_bmin_value(-120);
-            ui_set_bmax_value(-60);
+            ui_set_lmax_value(60);
+            ui_set_amin_value(0);
+            ui_set_amax_value(127);
+            ui_set_bmin_value(-128);
+            ui_set_bmax_value(-35);
 
             lv_obj_remove_state(ui_lmin_btn, LV_STATE_CHECKED);
             lv_obj_remove_state(ui_lmax_btn, LV_STATE_CHECKED);
