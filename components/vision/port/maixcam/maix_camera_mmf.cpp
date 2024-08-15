@@ -305,10 +305,8 @@ namespace maix::camera
             vi_vpss_format = PIXEL_FORMAT_NV21;
         } else { // default is gcore_gc4653
             if (width <= 1280 && height <= 720 && fps > 30) {
-
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
             } else {
-
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
             }
             stIniCfg.as8PNSwap[0][0] = 0;
@@ -355,7 +353,10 @@ namespace maix::camera
 
         // check if we need update camera params
         if (this->is_opened()) {
-            this->close();  // Get new param, close and reopen
+            if (width == width_tmp && height == height_tmp && format == format_tmp && fps == fps_tmp && buff_num == buff_num_tmp) {
+                return err::ERR_NONE;
+            }
+            this->close();
         }
 
         _width = width_tmp;
@@ -412,6 +413,8 @@ namespace maix::camera
                 log::error("mmf del vi channel failed");
             }
         }
+
+        // mmf_vi_deinit();
 
         mmf_deinit_v2(false);
     }
@@ -633,15 +636,15 @@ _error:
 
     err::Err Camera::set_resolution(int width, int height)
     {
-        err::Err e;
-        if (this->is_opened()) {
-            this->close();
+        if (0 != mmf_del_vi_channel(this->_ch)) {
+            log::error("mmf del vi channel failed");
         }
 
         _width = width;
         _height = height;
-        e = this->open(_width, _height, _format, _fps, _buff_num);
-        err::check_raise(e, "camera open failed");
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
+            err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+        }
         return err::ERR_NONE;
     }
 
@@ -680,17 +683,22 @@ _error:
         if (value == -1) {
             mmf_get_vi_hmirror(_ch, &out);
         } else {
-            bool need_open = false;
             if (this->is_opened()) {
-                this->close();
-                need_open = true;
+                VPSS_CHN_ATTR_S chn_attr = {0};
+                int s32Ret = CVI_VPSS_GetChnAttr(0, _ch, &chn_attr);
+                if (s32Ret != CVI_SUCCESS) {
+                    SAMPLE_PRT("CVI_VPSS_GetChnAttr failed with %#x\n", s32Ret);
+                    return CVI_FAILURE;
+                }
+                chn_attr.bMirror = !value;
+                s32Ret = CVI_VPSS_SetChnAttr(0, _ch, &chn_attr);
+                if (s32Ret != CVI_SUCCESS) {
+                    SAMPLE_PRT("CVI_VPSS_SetChnAttr failed with %#x\n", s32Ret);
+                    return CVI_FAILURE;
+                }
             }
 
             mmf_set_vi_hmirror(_ch, value);
-
-            if (need_open) {
-                err::check_raise(this->open(_width, _height, _format, _fps, _buff_num), "Open failed");
-            }
             out = value;
         }
 
@@ -702,17 +710,21 @@ _error:
         if (value == -1) {
             mmf_get_vi_vflip(_ch, &out);
         } else {
-            bool need_open = false;
             if (this->is_opened()) {
-                this->close();
-                need_open = true;
+                VPSS_CHN_ATTR_S chn_attr = {0};
+                int s32Ret = CVI_VPSS_GetChnAttr(0, _ch, &chn_attr);
+                if (s32Ret != CVI_SUCCESS) {
+                    SAMPLE_PRT("CVI_VPSS_GetChnAttr failed with %#x\n", s32Ret);
+                    return CVI_FAILURE;
+                }
+                chn_attr.bFlip = !value;
+                s32Ret = CVI_VPSS_SetChnAttr(0, _ch, &chn_attr);
+                if (s32Ret != CVI_SUCCESS) {
+                    SAMPLE_PRT("CVI_VPSS_SetChnAttr failed with %#x\n", s32Ret);
+                    return CVI_FAILURE;
+                }
             }
-
             mmf_set_vi_vflip(_ch, value);
-
-            if (need_open) {
-                err::check_raise(this->open(_width, _height, _format, _fps, _buff_num), "Open failed");
-            }
             out = value;
         }
         return out;

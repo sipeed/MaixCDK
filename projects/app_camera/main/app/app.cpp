@@ -111,6 +111,9 @@ static void _ui_update_new_image_from_maix_path(void)
 
 int app_base_init(void)
 {
+    // FIXME: camera can't switch to other sensor config online.
+    mmf_deinit_v2(true);
+
     // init camera
     priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
