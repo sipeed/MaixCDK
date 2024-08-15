@@ -38,7 +38,7 @@ namespace maix
             void join();
 
             /**
-             * @brief detach thread
+             * @brief detach thread, detach will auto start thread and you can't use join anymore.
              * @maixpy maix.thread.Thread.detach
              */
             void detach();

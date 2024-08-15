@@ -6,8 +6,12 @@
  */
 
 #include "maix_time.hpp"
+#include "maix_fs.hpp"
+#include "maix_log.hpp"
 
 #include <time.h>
+#include <algorithm>
+#include <sstream>
 
 namespace maix::time
 {
@@ -190,6 +194,97 @@ namespace maix::time
         tm.tm_gmtoff = this->zone * 3600;
         tm.tm_zone = (char *)this->zone_name.c_str();
         return ::mktime(&tm);
+    }
+
+    std::string timezone(const std::string &timezone)
+    {
+        std::string res;
+        if (!timezone.empty())
+        {
+            fs::File *f = fs::open("/etc/timezone", "w");
+            if (!f)
+            {
+                log::error("write /etc/timezone failed");
+                return "";
+            }
+            f->write(timezone.c_str(), (int)timezone.size());
+            f->close();
+            delete f;
+            // rm -f /etc/localtime && ln -s /usr/share/zoneinfo/{timezone} /etc/localtime
+            fs::symlink("/usr/share/zoneinfo/" + timezone, "/etc/localtime", true);
+            fs::sync();
+        }
+        fs::File *f = fs::open("/etc/timezone", "r");
+        if (!f)
+        {
+            log::error("read /etc/timezone failed");
+            return "";
+        }
+        std::string *line = f->readline();
+        res = *line;
+        delete line;
+        f->close();
+        delete f;
+        return res;
+    }
+
+    std::vector<std::string> timezone2(const std::string &region, const std::string &city)
+    {
+        std::vector<std::string> final;
+        std::string locale_str;
+        if (!region.empty() && !city.empty())
+            locale_str = region + "/" + city;
+        std::string res = time::timezone(locale_str);
+        if (res.empty())
+            return final;
+        // Split region/city string to region and city
+        std::stringstream ss(res);
+        std::string item;
+        while (std::getline(ss, item, '/'))
+        {
+            // Remove trailing carriage return ('\r') and newline ('\n') if present
+            if(!item.empty())
+            {
+                if ((item.back() == '\r' || item.back() == '\n'))
+                {
+                    item.erase(item.find_last_not_of("\r\n") + 1);
+                }
+                final.push_back(item);
+            }
+        }
+        return final;
+    }
+
+    /**
+     * List all timezone info
+     * @return A dict with key are regions, and value are region's cities.
+     * @maixpy maix.time.list_timezones
+     */
+    std::map<std::string, std::vector<std::string>> list_timezones()
+    {
+        // get all regions from /usr/share/zoneinfo
+        std::map<std::string, std::vector<std::string>> res;
+        std::vector<std::string> *dirs = fs::listdir("/usr/share/zoneinfo");
+        if (!dirs)
+        {
+            return res;
+        }
+        std::sort(dirs->begin(), dirs->end());
+        for (std::string dir : *dirs)
+        {
+            if (fs::isdir("/usr/share/zoneinfo/" + dir))
+            {
+                std::vector<std::string> *cities = fs::listdir("/usr/share/zoneinfo/" + dir);
+                if (cities)
+                {
+                    std::sort(cities->begin(), cities->end());
+                    res[dir] = *cities;
+                    delete cities;
+                }
+            }
+        }
+        delete dirs;
+        return res;
     }
 
 } // namespace maix::time

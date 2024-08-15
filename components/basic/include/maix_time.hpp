@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 #include <string>
+#include <vector>
+#include <map>
 
 namespace maix::time
 {
@@ -258,6 +260,32 @@ namespace maix::time
      * @maixpy maix.time.gmtime
     */
     time::DateTime *gmtime(double timestamp);
+
+    /**
+     * Set or get timezone
+     * @param timezone string type, can be empty and default to empty, if empty, only return crrent timezone, a "region/city" string, e.g. Asia/Shanghai, Etc/UTC, you can get all by list_timezones function.
+     * @return string type, return current timezone setting.
+     * @attention when set new timezone, time setting not take effect in this process for some API, so you need to restart program.
+     * @maixpy maix.time.timezone
+    */
+    std::string timezone(const std::string &timezone = "");
+
+    /**
+     * Set or get timezone
+     * @param region string type, which region to set, can be empty means only get current, default empty.
+     * @param city string type, which city to set, can be empty means only get current, default empty.
+     * @return list type, return current timezone setting, first is region, second is city.
+     * @attention when set new timezone, time setting not take effect in this process for some API, so you need to restart program.
+     * @maixpy maix.time.timezone
+    */
+    std::vector<std::string> timezone2(const std::string &region = "", const std::string &city = "");
+
+    /**
+     * List all timezone info
+     * @return A dict with key are regions, and value are region's cities.
+     * @maixpy maix.time.list_timezones
+    */
+    std::map<std::string, std::vector<std::string>> list_timezones();
 
 }
 
