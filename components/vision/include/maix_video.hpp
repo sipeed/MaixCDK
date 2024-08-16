@@ -517,41 +517,71 @@ namespace maix::video
     public:
         /**
          * @brief Construct a new Decoder object
-         * @maixpy maix.video.Decoder.__init__
+         * @param path Path to the file to be decoded
+         * @param format Decoded output format
          * @maixcdk maix.video.Decoder.Decoder
          */
-        Decoder();
+        Decoder(std::string path, image::Format format = image::Format::FMT_YVU420SP);
         ~Decoder();
 
         /**
-         * Prepare data to decode
-         * @param data need decode data
-         * @param copy if false, need to ensure that data is not released in decoding.
-         * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.video.Decoder.prepare
-        */
-        err::Err prepare(Bytes *data, bool copy = true);
-
-        /**
-         * Prepare data to decode
-         * @param data need decode data
-         * @param data_size size of data to be decoded
-         * @param copy if false, need to ensure that data is not released in decoding.
-         * @return error code, err::ERR_NONE means success, others means failed
-         * @maixcdk maix.video.Decoder.prepare
-        */
-        err::Err prepare(void *data, int data_size, bool copy = true);
-
-        /**
          * Decode
-         * @param frame the frame will be decode (not used)
-         * @return decode result
-         * @maixpy maix.video.Decoder.decode
+         * @return Decoded image, in the format determined when the Decoder is created
+         * @maixcdk maix.video.Decoder.decode
         */
-        image::Image *decode(video::Frame *frame = nullptr);
+        image::Image *decode_video();
+
+        /**
+         * @brief Get width
+         * @return video width
+        */
+        int width()
+        {
+            return _width;
+        }
+
+        /**
+         * @brief Get height
+         * @return video height
+        */
+        int height()
+        {
+            return _height;
+        }
+
+        /**
+         * @brief Get bitrate
+         * @return bitrate value
+        */
+        int bitrate()
+        {
+            return _bitrate;
+        }
+
+        /**
+         * @brief Get fps
+         * @return fps value
+        */
+        int fps()
+        {
+            return _fps;
+        }
+
+        /**
+         * @brief Seek to the specified timestamp
+         * @param timestamp timestamp value, unit: ms
+         * @maixcdk maix.video.Decoder.seek
+         * @return error code
+        */
+        err::Err seek(uint64_t timestamp);
     private:
-        int _path;
-        Bytes *_prepare_data;
+        std::string _path;
+        int _width;
+        int _height;
+        int _bitrate;
+        int _fps;
+        image::Format _format_out;
+        void *_param;
     };
 
     /**

@@ -237,6 +237,7 @@ int mmf_add_vo_channel0(uint32_t param, ...);
 int mmf_add_region_channel0(uint32_t param, ...);
 int mmf_add_venc_channel0(uint32_t param, ...);
 int mmf_add_vdec_channel0(uint32_t param, ...);
+int mmf_vdec_pop0(uint32_t param, ...);
 
 static inline int mmf_init_v2(int reload_kmod) {
     return mmf_init0(MMF_FUNC_SET_PARAM(0, 1), reload_kmod);
@@ -266,8 +267,12 @@ static inline int mmf_add_venc_channel_v2(int ch, void *cfg) {
     return mmf_add_venc_channel0(MMF_FUNC_SET_PARAM(0, 2), ch, cfg);
 }
 
-static inline int mmf_add_vdec_channel_v2(int ch, void *cfg) {
-    return mmf_add_vdec_channel0(MMF_FUNC_SET_PARAM(0, 2), ch, cfg);
+static inline int mmf_add_vdec_channel_v2(int ch, int format_out, int pool_num, VDEC_CHN_ATTR_S *cfg) {
+    return mmf_add_vdec_channel0(MMF_FUNC_SET_PARAM(0, 4), ch, format_out, pool_num, cfg);
+}
+
+static inline int mmf_vdec_pop_v2(int ch, VIDEO_FRAME_INFO_S *frame) {
+    return mmf_vdec_pop0(MMF_FUNC_SET_PARAM(0, 2), ch, frame);
 }
 
 static void try_deinit_mmf()

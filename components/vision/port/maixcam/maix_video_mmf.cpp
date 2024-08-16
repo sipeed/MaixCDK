@@ -17,7 +17,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
+}
 #define MMF_VENC_CHN            (1)
 namespace maix::video
 {
@@ -536,27 +541,164 @@ _exit:
         return frame;
     }
 
-    Decoder::Decoder() {
+    typedef struct {
+        AVFormatContext *pFormatContext;
+        AVPacket *pPacket;
+        int video_stream_index;
 
+        int vdec_ch;
+    } decoder_param_t;
+
+    static PAYLOAD_TYPE_E _get_entype(const char *filename) {
+        PAYLOAD_TYPE_E enType;
+        const char *suffix = strrchr(filename, '.');
+        err::check_null_raise((void *)suffix, "Try a file format with a suffix, e.g. video.h264");
+
+        if (!strcmp(suffix, ".h264")) {
+            enType = PT_H264;
+        } else {
+            err::check_raise(err::ERR_RUNTIME, "Currently only support h264 video format!");
+        }
+        return enType;
+    }
+
+    Decoder::Decoder(std::string path, image::Format format) {
+        err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Decoder only support FMT_YVU420SP format!");
+        _path = path;
+        _format_out = format;
+        _param = (decoder_param_t *)malloc(sizeof(decoder_param_t));
+        err::check_null_raise(_param, "malloc failed!");
+        AVFormatContext *pFormatContext = avformat_alloc_context();
+        err::check_null_raise(pFormatContext, "malloc failed!");
+        err::check_bool_raise(!avformat_open_input(&pFormatContext, _path.c_str(), NULL, NULL), "Could not open file");
+        pFormatContext->max_analyze_duration = 5000;    // reduce analyze time
+        err::check_bool_raise(!avformat_find_stream_info(pFormatContext, NULL), "Could not find stream information");
+        int video_stream_index = -1;
+        for (int i = 0; i < (int)pFormatContext->nb_streams; i++) {
+            if (pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                video_stream_index = i;
+                break;
+            }
+        }
+        err::check_bool_raise(video_stream_index != -1, "Could not find video stream");
+        AVCodecParameters *codecpar = pFormatContext->streams[video_stream_index]->codecpar;
+        _width = codecpar->width;
+        _height = codecpar->height;
+        AVStream *video_stream = pFormatContext->streams[video_stream_index];
+        AVRational frame_rate = av_guess_frame_rate(pFormatContext, video_stream, NULL);
+        _fps = av_q2d(frame_rate);
+        if (_width % 32 != 0) {
+            log::error("Width need align to 32, current width: %d", _width);
+            avformat_close_input(&pFormatContext);
+            free(_param);
+            err::check_raise(err::ERR_RUNTIME, "Width need align to 32");
+        }
+        AVPacket *pPacket = av_packet_alloc();
+        err::check_null_raise(pPacket, "malloc failed!");
+
+        int ch = mmf_vdec_unused_channel();
+        err::check_bool_raise(ch >= 0, "No unused channel of vdec");
+        VDEC_CHN_ATTR_S vdec_chn_attr;
+        vdec_chn_attr.enType = _get_entype(_path.c_str());
+        vdec_chn_attr.enMode = VIDEO_MODE_FRAME;
+        vdec_chn_attr.u32PicWidth = _width;
+        vdec_chn_attr.u32PicHeight = _height;
+        vdec_chn_attr.u32FrameBufCnt = 3;
+        vdec_chn_attr.u32StreamBufSize = _width * _height;
+        err::check_bool_raise(!mmf_add_vdec_channel_v2(ch, mmf_invert_format_to_mmf(format), 4, &vdec_chn_attr), "mmf_add_vdec_channel_v2 failed");
+
+        decoder_param_t *param = (decoder_param_t *)_param;
+        param->pFormatContext = pFormatContext;
+        param->pPacket = pPacket;
+        param->video_stream_index = video_stream_index;
+        param->vdec_ch = ch;
     }
 
     Decoder::~Decoder() {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        if (param) {
+            if (param->vdec_ch >= 0) {
+                mmf_del_vdec_channel(param->vdec_ch);
+            }
 
+            av_packet_free(&param->pPacket);
+            avformat_close_input(&param->pFormatContext);
+            free(_param);
+            _param = NULL;
+        }
+        avformat_network_deinit();
     }
 
+    static image::Image *_mmf_frame_to_image(VIDEO_FRAME_INFO_S *frame, image::Format format_out)
+    {
+        int width = frame->stVFrame.u32Width;
+        int height = frame->stVFrame.u32Height;
+        image::Format format = (image::Format )mmf_invert_format_to_maix(frame->stVFrame.enPixelFormat);
+        image::Image *img = new image::Image(width, height, format_out);
+        err::check_null_raise(img, "new image failed");
+        uint8_t *buffer = (uint8_t *)img->data();
+        switch (img->format()) {
+        case image::Format::FMT_GRAYSCALE:
+            if (format != image::Format::FMT_YVU420SP) {
+                log::error("camera read: format not support, need %d, but %d", image::Format::FMT_YVU420SP, format);
+                goto _error;
+            }
+            memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
+            break;
+        case image::Format::FMT_YVU420SP:
+            if (format != img->format()) {
+                log::error("camera read: format not support, need %d, but %d", img->format(), format);
+                goto _error;
+            }
+            memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
+            memcpy(buffer + width * height, frame->stVFrame.pu8VirAddr[1], width * height / 2);
+            break;
+        default:
+            log::error("Read failed, unknown format:%d", img->format());
+            delete img;
+            err::check_raise(err::ERR_RUNTIME, "Invert frame failed, unknown format");
+        }
 
-    err::Err Decoder::prepare(Bytes *data, bool copy) {
+        return img;
+_error:
+        if (img) delete img;
+        err::check_raise(err::ERR_RUNTIME, "Invert frame failed");
+    }
+
+    image::Image *Decoder::decode_video() {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        int video_stream_index = param->video_stream_index;
+        image::Image *img = NULL;
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            if (pPacket->stream_index == video_stream_index) {
+                err::check_bool_raise(!mmf_vdec_push(param->vdec_ch, pPacket->data, pPacket->size, 0, 0));
+                VIDEO_FRAME_INFO_S frame;
+                err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
+                img = _mmf_frame_to_image(&frame, _format_out);
+                err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
+                break;
+            }
+            av_packet_unref(pPacket);
+        }
+        return img;
+    }
+
+    err::Err Decoder::seek(uint64_t timestamp) {
+        err::check_raise(err::ERR_NOT_IMPL, "seek not impl");
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        int video_stream_index = param->video_stream_index;
+        int ret = av_seek_frame(pFormatContext, video_stream_index, 0, AVSEEK_FLAG_FRAME);
+        if (ret < 0) {
+            avformat_close_input(&param->pFormatContext);
+            log::error("av_seek_frame failed, ret:%d", ret);
+            return err::ERR_RUNTIME;
+        }
+
         return err::ERR_NONE;
     }
-
-    err::Err Decoder::prepare(void *data, int data_size, bool copy) {
-        return err::ERR_NONE;
-    }
-
-    image::Image *Decoder::decode(video::Frame *frame) {
-        return NULL;
-    }
-
 
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {
