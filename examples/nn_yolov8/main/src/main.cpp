@@ -48,18 +48,18 @@ int _main(int argc, char *argv[])
             log::warn("image size not match model input size, will auto resize from %dx%d to %dx%d", img->width(), img->height(), detector.input_size().width(), detector.input_size().height());
         }
         log::info("detect now");
-        std::vector<nn::Object> *result = detector.detect(*img, conf_threshold, iou_threshold);
+        nn::Objects *result = detector.detect(*img, conf_threshold, iou_threshold);
         if(result->size() == 0)
         {
             log::info("no object detected !");
         }
         for (auto &r : *result)
         {
-            log::info("result: %s, %s", r.to_str().c_str(), detector.labels[r.class_id].c_str());
-            img->draw_rect(r.x, r.y, r.w, r.h, maix::image::Color::from_rgb(255, 0, 0));
-            snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f", detector.labels[r.class_id].c_str(), r.score);
-            img->draw_string(r.x, r.y, tmp_chars, maix::image::Color::from_rgb(255, 0, 0));
-            detector.draw_pose(*img, r.points, 4, image::COLOR_RED);
+
+            log::info("result: %s", r->to_str().c_str());
+            img->draw_rect(r->x, r->y, r->w, r->h, maix::image::Color::from_rgb(255, 0, 0));
+            snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f", detector.labels[r->class_id].c_str(), r->score);
+            img->draw_string(r->x, r->y, detector.labels[r->class_id], maix::image::Color::from_rgb(255, 0, 0));
         }
         img->save("result.jpg");
         delete result;
@@ -78,14 +78,13 @@ int _main(int argc, char *argv[])
             maix::image::Image *img = cam.read();
             err::check_null_raise(img, "read camera failed");
             uint64_t t2 = time::ticks_ms();
-            std::vector<nn::Object> *result = detector.detect(*img);
+            nn::Objects *result = detector.detect(*img);
             uint64_t t3 = time::ticks_ms();
             for (auto &r : *result)
             {
-                log::info("result: %s", r.to_str().c_str());
-                img->draw_rect(r.x, r.y, r.w, r.h, maix::image::Color::from_rgb(255, 0, 0));
-                img->draw_string(r.x, r.y, detector.labels[r.class_id], maix::image::Color::from_rgb(255, 0, 0));
-                detector.draw_pose(*img, r.points, 4, image::COLOR_RED);
+                log::info("result: %s", r->to_str().c_str());
+                img->draw_rect(r->x, r->y, r->w, r->h, maix::image::Color::from_rgb(255, 0, 0));
+                img->draw_string(r->x, r->y, detector.labels[r->class_id], maix::image::Color::from_rgb(255, 0, 0));
             }
             disp.show(*img);
             delete result;
