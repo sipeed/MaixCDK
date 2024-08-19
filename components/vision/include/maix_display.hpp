@@ -110,14 +110,16 @@ namespace maix::display
 
         /**
          * Add a new channel and return a new Display object, you can use close() to close this channel.
-         * @param width display width, default is -1, means auto, mostly means max width of display support
-         * @param height display height, default is -1, means auto, mostly means max height of display support
-         * @param format display output format, default is RGB888
+         * @attention If a new disp channel is created, it is recommended to set fit=image::FIT_COVER or fit=image::FIT_FILL when running show for the main channel,
+         * otherwise the display of the new disp channel may be abnormal.
+         * @param width display width, default is -1, means auto, mostly means max width of display support. Maximum width must not exceed the main channel.
+         * @param height display height, default is -1, means auto, mostly means max height of display support. Maximum height must not exceed the main channel.
+         * @param format display output format, default is FMT_BGRA8888
          * @param open If true, display will automatically call open() after creation. default is true.
          * @return new Display object
          * @maixpy maix.display.Display.add_channel
         */
-        display::Display *add_channel(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, bool open = true);
+        display::Display *add_channel(int width = -1, int height = -1, image::Format format = image::FMT_BGRA8888, bool open = true);
 
         /**
          * @brief check display device is opened or not
