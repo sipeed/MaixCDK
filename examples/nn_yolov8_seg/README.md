@@ -1,6 +1,6 @@
-nn_yolov8 examples based on MaixCDK
+nn_yolov8_seg examples based on MaixCDK
 ====
-## only run yolov8 model
+## only run yolov8_seg model
 
 - Use `maixcdk build` to compile binary files.
 - Move files and runtime libraries to device.
