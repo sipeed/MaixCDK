@@ -92,7 +92,13 @@ static void _ui_update_pic_img(maix::image::Image *img)
     }
 
     printf("update big img\n");
-    resize_img = img->resize(552, 368, maix::image::Fit::FIT_CONTAIN);
+    int width = 552;
+    int height = 368;
+    if (priv.disp) {
+        width = priv.disp->width();
+        height = priv.disp->height();
+    }
+    resize_img = img->resize(width, height, maix::image::Fit::FIT_CONTAIN);
     if (resize_img) {
         bgra_img = resize_img->to_format(maix::image::FMT_BGRA8888);
         if (bgra_img) {
@@ -253,8 +259,8 @@ int app_base_loop(void)
         app_base_init();
     }
 
-    printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
-    priv.loop_last_ms = time::ticks_ms();
+    // printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
+    // priv.loop_last_ms = time::ticks_ms();
     return 0;
 }
 

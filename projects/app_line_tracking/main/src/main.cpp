@@ -31,14 +31,14 @@ int _main(int argc, char **argv)
     // app pre init
     app_pre_init();
 
-    // init camera
-    camera::Camera camera = camera::Camera(552, 368);
-    err::check_bool_raise(camera.is_opened(), "camera open failed");
-
     // init display
     display::Display disp = display::Display();
     display::Display *other_disp = disp.add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
     err::check_bool_raise(disp.is_opened(), "camera open failed");
+
+    // init camera
+    camera::Camera camera = camera::Camera(disp.width(), disp.height());
+    err::check_bool_raise(camera.is_opened(), "camera open failed");
 
     // touch screen
     touchscreen::TouchScreen touchscreen = touchscreen::TouchScreen();
