@@ -16,6 +16,8 @@
 namespace maix::time
 {
 
+    static FPS fps_obj;
+
     double time()
     {
         struct timespec ts;
@@ -101,6 +103,21 @@ namespace maix::time
         ts.tv_sec = us / 1000000;
         ts.tv_nsec = (us % 1000000) * 1000;
         nanosleep(&ts, NULL);
+    }
+
+    void fps_start()
+    {
+        fps_obj.start();
+    }
+
+    float fps()
+    {
+        return fps_obj.fps();
+    }
+
+    void fps_set_buff_len(int len)
+    {
+        fps_obj.set_buff_len(len);
     }
 
     DateTime *now()

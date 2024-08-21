@@ -123,6 +123,139 @@ namespace maix::time
     void sleep_us(uint64_t us);
 
     /**
+     * Calculate FPS since last call this method.
+     * Attention, this method is not multi thread safe, only call this method in one threads.
+     * If you want to use in multi threads, please use time.FPS class.
+     * FPS is average value of recent n(buff_len) times, and you can call fps_set_buff_len(10) to change buffer length, default is 20.
+     * Multiple invoke this function will calculate fps between two invoke, and you can also call fps_start() fisrt to manually assign fps calulate start point.
+     * @return float type, current fps since last call this method
+     * @maixpy maix.time.fps
+    */
+    float fps();
+
+    /**
+     * Manually set fps calculation start point, then you can call fps() function to calculate fps between fps_start() and fps().
+     * @maixpy maix.time.fps_start
+    */
+    void fps_start();
+
+    /**
+     * Set fps method buffer length, by default the buffer length is 10.
+     * @param len Buffer length to store recent fps value.
+     * @maixpy maix.time.fps_set_buff_len
+    */
+    void fps_set_buff_len(int len);
+
+
+    /**
+     * FPS class to use average filter to calculate FPS.
+     * @maixpy maix.time.FPS
+    */
+    class FPS
+    {
+    public:
+        /**
+         * FPS class constructor
+         * @param buff_len Average buffer length, default 20, that is, fps() function will return the average fps in recent buff_len times fps.
+         * @maixpy maix.time.FPS.__init__
+         * @maixcdk maix.time.FPS.FPS
+        */
+        FPS(int buff_len = 20)
+        {
+            _fps_buff.resize(buff_len);
+            _last = 0;
+            _fps_init = false;
+            _t_last = 0;
+            _idx = 0;
+        }
+
+        ~FPS()
+        {
+        }
+
+        /**
+         * Manually set fps calculation start point, then you can call fps() function to calculate fps between start() and fps().
+         * @maixpy maix.time.FPS.start
+        */
+        void start()
+        {
+            _t_last = ticks_us();
+        }
+
+
+        /**
+         * The same as end function.
+         * @return float type, current fps since last call this method
+         * @maixpy maix.time.FPS.fps
+        */
+        float fps()
+        {
+            if(!_fps_init)
+            {
+                if(_t_last == 0)
+                {
+                    _t_last = ticks_us();
+                    return 1;
+                }
+                if(_idx == _fps_buff.size() - 1)
+                    _fps_init = true;
+                float t = ticks_us() - _t_last;
+                _t_last = ticks_us();
+                _fps_buff[_idx] = t;
+                size_t total = _idx + 1;
+                float sum = _fps_buff[0] + 0.000001;
+                for(size_t i=1; i<total; ++i)
+                {
+                    sum += _fps_buff[i];
+                }
+                _idx = (_idx + 1) % _fps_buff.size();
+                return 1000000 / sum * total;
+            }
+            float t = ticks_us() - _t_last;
+            _t_last = ticks_us();
+            _fps_buff[_idx] = t;
+            _idx = (_idx + 1) % _fps_buff.size();
+            float sum = _fps_buff[0] + 0.000001;
+            for(size_t i=1; i<_fps_buff.size(); ++i)
+            {
+                sum += _fps_buff[i];
+            }
+            return 1000000 / sum * _fps_buff.size();
+        }
+
+        /**
+         * Calculate FPS since last call this method.
+         * FPS is average value of recent n(buff_len) times, and you can call fps_set_buff_len(10) to change buffer length, default is 20.
+         * Multiple invoke this function will calculate fps between two invoke, and you can also call fps_start() fisrt to manually assign fps calulate start point.
+         * @return float type, current fps since last call this method
+         * @maixpy maix.time.FPS.fps
+        */
+        inline float end()
+        {
+            return fps();
+        }
+
+        /**
+         * Set fps method buffer length, by default the buffer length is 10.
+         * @param len Buffer length to store recent fps value.
+         * @maixpy maix.time.FPS.set_buff_len
+        */
+        void set_buff_len(int len)
+        {
+            _fps_buff.resize(len);
+            _fps_init = false;
+            _idx = 0;
+        }
+
+    private:
+        uint64_t _last;
+        bool     _fps_init;
+        float    _t_last;
+        size_t   _idx;
+        std::vector<uint64_t> _fps_buff;
+    };
+
+    /**
      * Date and time class
      * @maixpy maix.time.DateTime
     */
