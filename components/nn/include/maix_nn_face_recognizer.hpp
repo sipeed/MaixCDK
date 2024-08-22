@@ -325,7 +325,7 @@ namespace maix::nn
                     delete std_img;
                     return new std::vector<nn::FaceObject>();
                 }
-                tensor::Tensor *out = outputs->tensors[outputs->get_names()[0]];
+                tensor::Tensor *out = outputs->tensors[outputs->keys()[0]];
                 int fea_len = out->size_int();
                 float *feature = (float *)out->data();
                 // compare feature from DB

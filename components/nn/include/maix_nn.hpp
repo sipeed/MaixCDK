@@ -201,7 +201,9 @@ namespace maix::nn
         /**
          * forward run model, get output of model,
          * this is specially for MaixPy, not efficient, but easy to use in MaixPy
-         * @param[in] input input tensor
+         * @param[in] inputs input tensors, tensor.Tensors type.
+         * @param[in] copy_result If false, data will use model's output, you can only use it till next forward time. If ture, will alloc new memory to store result.
+         * @param[in] dual_buff_wait Only for dual_buff mode, wait for the result.
          * @return output tensor, dict type. key is layer name, value is tensor.
          *        In C++, value can be allocated by caller, if outputs size is zero, forward will allocate memory, so you should delete it after use.
          */

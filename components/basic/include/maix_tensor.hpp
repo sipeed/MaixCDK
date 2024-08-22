@@ -106,11 +106,37 @@ namespace maix
              * Tensor constructor
              * @param shape tensor shape, a int list
              * @param dtype tensor element data type, see DType of this module
-             * @param data pointer to data content, can be nullptr, it will automatically alloc memory
-             *             and detroy it when this object is destroyed
              * @maixpy maix.tensor.Tensor.__init__
              */
-            Tensor(std::vector<int> shape, tensor::DType dtype, void *data = nullptr)
+            Tensor(std::vector<int> shape, tensor::DType dtype)
+            {
+                _shape = shape;
+                _dtype = dtype;
+                _data = NULL;
+                _is_alloc = false;
+                int size = 1;
+                for (size_t i = 0; i < shape.size(); i++)
+                {
+                    size *= shape[i];
+                }
+                if(!_data)
+                {
+                    _data = malloc(size * dtype_size[dtype]);
+                    _is_alloc = true;
+                    log::debug("malloc tensor data\n");
+                }
+                // log::info("new tensor: %p", this);
+            }
+
+            /**
+             * Tensor constructor
+             * @param shape tensor shape, a int list
+             * @param dtype tensor element data type, see DType of this module
+             * @param data pointer to data content, can be nullptr, it will automatically alloc memory
+             *             and detroy it when this object is destroyed
+             * @maixcdk maix.tensor.Tensor.Tensor
+             */
+            Tensor(std::vector<int> shape, tensor::DType dtype, void *data)
             {
                 _shape = shape;
                 _dtype = dtype;
@@ -127,10 +153,12 @@ namespace maix
                     _is_alloc = true;
                     log::debug("malloc tensor data\n");
                 }
+                // log::info("new tensor: %p", this);
             }
 
             ~Tensor()
             {
+                // log::info("free tensor: %p", this);
                 if(_is_alloc)
                 {
                     log::debug("free tensor data\n");
@@ -260,7 +288,7 @@ namespace maix
 
             void operator=(Tensor &t)
             {
-                printf("copy tensor %d, %d\n", _is_alloc, size_int());
+                // printf("copy tensor %d, %d\n", _is_alloc, size_int());
                 if(_is_alloc && size_int() < t.size_int())
                 {
                     free(_data);
@@ -457,10 +485,12 @@ namespace maix
 
             ~Tensors()
             {
+                // log::info("free tensors: %p", this);
                 for(auto &item : tensors)
                 {
                     if(_auto_delete[item.first])
                     {
+                        // log::info("free tensor in ~Tensors: %p", item.second);
                         delete item.second;
                     }
                 }
@@ -530,9 +560,9 @@ namespace maix
              * @maixpy maix.tensor.Tensors.get_tensor
              * @maixcdk maix.tensor.Tensors.get_tensor
             */
-            tensor::Tensor *get_tensor(const std::string &key)
+            tensor::Tensor &get_tensor(const std::string &key)
             {
-                return tensors[key];
+                return *tensors[key];
             }
 
             /**
@@ -540,9 +570,9 @@ namespace maix
              * @maixpy maix.tensor.Tensors.__getitem__
              * @maixcdk maix.tensor.Tensors.[]
             */
-            tensor::Tensor *operator[](const std::string &key)
+            tensor::Tensor &operator[](const std::string &key)
             {
-                return tensors[key];
+                return *tensors[key];
             }
 
             /**
@@ -557,9 +587,9 @@ namespace maix
 
             /**
              * Get names
-             * @maixpy maix.tensor.Tensors.get_names
+             * @maixpy maix.tensor.Tensors.keys
             */
-            std::vector<std::string> get_names()
+            std::vector<std::string> keys()
             {
                 std::vector<std::string> names;
                 for(auto &item : tensors)
