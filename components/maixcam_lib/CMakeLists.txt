@@ -35,6 +35,7 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
                                         ${middleware_src_path}/v2/component/isp/sensor/cv181x/gcore_gc4653
                                         ${middleware_src_path}/v2/component/isp/sensor/sg200x/sms_sc035gs
                                         ${middleware_src_path}/v2/component/isp/sensor/sg200x/ov_ov2685
+                                        ${middleware_src_path}/v2/component/isp/sensor/sg200x/lontium_lt6911
                                         )
     list(APPEND ADD_SRCS        ${middleware_src_dir}
                                 "${source_dir}/middleware/sophgo_middleware.cpp")
@@ -85,6 +86,7 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
                                     -DSENSOR2_TYPE=SMS_SC035GS_MIPI_480P_120FPS_12BIT)
 
     list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_OV_OV2685)
+    list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_LONTIUM_LT6911)
     register_component(DYNAMIC)
 else()
     list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam_lib.so")

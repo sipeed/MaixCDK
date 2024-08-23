@@ -160,6 +160,10 @@ namespace maix::camera
                     log::info("found sms_sc035gs, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "sms_sc035gs");
                     return name;
+                case 0x2b:
+                    log::info("found lt6911, addr %#x", addr_list[i]);
+                    snprintf(name, sizeof(name), "lt6911");
+                    return name;
                 case 0x48:// fall through
                 case 0x3c:
                     log::info("found ov_ov2685, addr %#x", addr_list[i]);
@@ -294,7 +298,6 @@ namespace maix::camera
             vi_format = PIXEL_FORMAT_NV21;
             vi_vpss_format = PIXEL_FORMAT_YUV_400;
         } else if (!strcmp(sensor_name, "ov_ov2685")) {
-
             stIniCfg.enSnsType[0] = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
             stIniCfg.as8PNSwap[0][0] = 1;
             stIniCfg.as8PNSwap[0][1] = 1;
@@ -303,6 +306,20 @@ namespace maix::camera
             stIniCfg.as8PNSwap[0][4] = 0;
             vi_format = PIXEL_FORMAT_NV21;
             vi_vpss_format = PIXEL_FORMAT_NV21;
+        } else if (!strcmp(sensor_name, "lt6911")) {
+            stIniCfg.enSnsType[0] = LONTIUM_LT6911_2M_60FPS_8BIT;
+            stIniCfg.as16LaneId[0][0] = 2;
+            stIniCfg.as16LaneId[0][1] = 4;
+            stIniCfg.as16LaneId[0][2] = 3;
+            stIniCfg.as16LaneId[0][3] = 1;
+            stIniCfg.as16LaneId[0][4] = 0;
+            stIniCfg.as8PNSwap[0][0] = 0;
+            stIniCfg.as8PNSwap[0][1] = 0;
+            stIniCfg.as8PNSwap[0][2] = 0;
+            stIniCfg.as8PNSwap[0][3] = 0;
+            stIniCfg.as8PNSwap[0][4] = 0;
+            vi_format = PIXEL_FORMAT_UYVY;
+            vi_vpss_format = PIXEL_FORMAT_UYVY;
         } else { // default is gcore_gc4653
             if (width <= 1280 && height <= 720 && fps > 30) {
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
