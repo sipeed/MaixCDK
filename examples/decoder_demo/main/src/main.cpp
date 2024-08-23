@@ -36,16 +36,17 @@ int _main(int argc, char* argv[])
         display::Display disp = display::Display();
         uint64_t last_ms = time::ticks_ms();
         uint64_t wait_ms = 1000 / decoder.fps();
+        log::info("resolution:%dx%d bitrate:%d duration:%.2f s fps:%d", decoder.width(), decoder.height(), decoder.bitrate(), decoder.duration(), decoder.fps());
+        decoder.seek(0);
         while (!app::need_exit()) {
             image::Image *img = decoder.decode_video();
             if (img == nullptr) {
-                break;
-                log::info("seek video to 0");
-                err::check_raise(decoder.seek(0), "seek failed");
-                img = decoder.decode_video();
-                err::check_null_raise(img, "decode failed");
+                if (decoder.seek(0) != err::ERR_NONE) {
+                    break;
+                }
+                continue;
             }
-
+            log::info("last pts:%.2f", decoder.last_pts());
             while (time::ticks_ms() - last_ms < wait_ms) {
                 time::sleep_ms(1);
             }

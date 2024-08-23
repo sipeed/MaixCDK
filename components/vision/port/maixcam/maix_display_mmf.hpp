@@ -142,7 +142,7 @@ namespace maix::display
         {
             mmf_del_vo_channel(this->_layer, this->_ch);
             mmf_deinit_v2(false);
-            if(_bl_pwm)
+            if(_bl_pwm && this->_layer == 0)    // _layer = 0, means video layer
             {
                 delete _bl_pwm;
             }
@@ -219,7 +219,7 @@ namespace maix::display
         {
             int new_width = 0;
             int new_height = 0;
-            image::Format new_format;
+            image::Format new_format = format;
             if (width == -1) {
                 new_width = this->_width;
             } else {
@@ -231,7 +231,6 @@ namespace maix::display
                 new_height = height > this->_height ? this->_height : height;
             }
 
-            new_format = image::Format::FMT_BGRA8888;
             _format = new_format;
             DisplayCviMmf *disp = new DisplayCviMmf(1, new_width, new_height, new_format);
             return disp;

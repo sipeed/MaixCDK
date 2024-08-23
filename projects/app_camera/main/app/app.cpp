@@ -92,7 +92,13 @@ static void _ui_update_pic_img(maix::image::Image *img)
     }
 
     printf("update big img\n");
-    resize_img = img->resize(552, 368, maix::image::Fit::FIT_CONTAIN);
+    int width = 552;
+    int height = 368;
+    if (priv.disp) {
+        width = priv.disp->width();
+        height = priv.disp->height();
+    }
+    resize_img = img->resize(width, height, maix::image::Fit::FIT_CONTAIN);
     if (resize_img) {
         bgra_img = resize_img->to_format(maix::image::FMT_BGRA8888);
         if (bgra_img) {
@@ -253,8 +259,8 @@ int app_base_loop(void)
         app_base_init();
     }
 
-    printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
-    priv.loop_last_ms = time::ticks_ms();
+    // printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
+    // priv.loop_last_ms = time::ticks_ms();
     return 0;
 }
 
@@ -435,13 +441,19 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
                 std::vector<std::string> *file_list = fs::listdir(picture_path);
                 printf("file_list_cnt:%ld\n", file_list->size());
                 string picture_save_path = picture_path + "/" + std::to_string(file_list->size()) +".jpg";
-
+                std::string thumbnail_path = picture_path + "/.thumbnail/" + std::to_string(file_list->size()) +".jpg";
                 printf("picture_path path:%s  picture_save_path:%s\n", picture_path.c_str(), picture_save_path.c_str());
                 maix::image::Image *jpg_img = img->to_format(maix::image::FMT_JPEG);
                 if (jpg_img) {
                     save_buff_to_file((char *)picture_save_path.c_str(), (uint8_t *)jpg_img->data(), jpg_img->data_size());
-                    system("sync");
                     delete jpg_img;
+
+                    image::Image *load_img = image::load((char *)picture_save_path.c_str());
+                    maix::image::Image *thumbnail_img = load_img->resize(128, 128, image::Fit::FIT_COVER);
+                    thumbnail_img->save(thumbnail_path.c_str());
+                    delete(thumbnail_img);
+
+                    system("sync");
 
                     printf("update small and big img\n");
                     maix::image::Image *new_img = maix::image::load((char *)picture_save_path.c_str(), maix::image::FMT_RGB888);

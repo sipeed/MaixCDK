@@ -516,24 +516,26 @@ namespace maix::video
     {
     public:
         /**
-         * @brief Construct a new Decoder object
+         * @brief Construct a new decoder object
          * @param path Path to the file to be decoded
-         * @param format Decoded output format
+         * @param format Decoded output format, currently only support YUV420SP
+         * @maixpy maix.video.Decoder.__init__
          * @maixcdk maix.video.Decoder.Decoder
          */
         Decoder(std::string path, image::Format format = image::Format::FMT_YVU420SP);
         ~Decoder();
 
         /**
-         * Decode
+         * Decode the video stream, returning the image of the next frame each time.
          * @return Decoded image, in the format determined when the Decoder is created
-         * @maixcdk maix.video.Decoder.decode
+         * @maixpy maix.video.Decoder.decode_video
         */
         image::Image *decode_video();
 
         /**
-         * @brief Get width
+         * @brief Get the video width
          * @return video width
+         * @maixpy maix.video.Decoder.width
         */
         int width()
         {
@@ -541,8 +543,9 @@ namespace maix::video
         }
 
         /**
-         * @brief Get height
+         * @brief Get the video height
          * @return video height
+         * @maixpy maix.video.Decoder.height
         */
         int height()
         {
@@ -550,8 +553,9 @@ namespace maix::video
         }
 
         /**
-         * @brief Get bitrate
+         * @brief Get the video bitrate
          * @return bitrate value
+         * @maixpy maix.video.Decoder.bitrate
         */
         int bitrate()
         {
@@ -559,8 +563,9 @@ namespace maix::video
         }
 
         /**
-         * @brief Get fps
+         * @brief Get the video fps
          * @return fps value
+         * @maixpy maix.video.Decoder.fps
         */
         int fps()
         {
@@ -568,18 +573,33 @@ namespace maix::video
         }
 
         /**
-         * @brief Seek to the specified timestamp
-         * @param timestamp timestamp value, unit: ms
-         * @maixcdk maix.video.Decoder.seek
+         * @brief Seek to the required playback position
+         * @param time timestamp value, unit: s
          * @return error code
+         * @maixpy maix.video.Decoder.seek
         */
-        err::Err seek(uint64_t timestamp);
+        err::Err seek(double time);
+
+        /**
+         * @brief Get the maximum duration of the video. If it returns 0, it means it cannot be predicted.
+         * @return duration value, unit: s
+         * @maixpy maix.video.Decoder.duration
+        */
+        double duration();
+
+        /**
+         * @brief Get the last pts of the video. If it returns 0, it means it cannot be predicted.
+         * @return pts value, unit: s
+         * @maixpy maix.video.Decoder.last_pts
+        */
+        double last_pts();
     private:
         std::string _path;
         int _width;
         int _height;
         int _bitrate;
         int _fps;
+        int _last_pts;
         image::Format _format_out;
         void *_param;
     };

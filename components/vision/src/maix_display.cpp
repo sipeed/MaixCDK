@@ -115,6 +115,9 @@ namespace maix::display
         int width_tmp = (width == -1) ? this->width() : width;
         int height_tmp = (height == -1) ? this->height() : height;
         image::Format format_tmp = (format == image::Format::FMT_INVALID) ? this->format() : format;
+        err::check_bool_raise(format_tmp == image::FMT_BGRA8888, "image format must be BGRA8888");
+        err::check_bool_raise(width_tmp <= this->width(), "width must be less than or equal to the display width");
+        err::check_bool_raise(height_tmp <= this->height(), "height must be less than or equal to the display height");
 
         Display *disp = NULL;
         if (_impl) {

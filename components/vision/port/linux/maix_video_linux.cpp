@@ -54,11 +54,20 @@ namespace maix::video
         return NULL;
     }
 
-    err::Err Decoder::seek(uint64_t timestamp) {
+    err::Err Decoder::seek(double time) {
         throw err::Exception(err::ERR_NOT_IMPL);
         return err::ERR_NOT_IMPL;
     }
 
+    double Decoder::duration() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return 0;
+    }
+
+    double Decoder::last_pts() {
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return 0;
+    }
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
     {
         (void)path;

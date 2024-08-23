@@ -17,6 +17,7 @@ static int cmd_init(void);
 static int cmd_loop(camera::Camera *cam);
 
 static bool camera2_enable = false;
+static bool disp2_enable = false;
 
 int _main(int argc, char* argv[])
 {
@@ -46,10 +47,11 @@ int _main(int argc, char* argv[])
 
     camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num);
     camera::Camera *cam2 = NULL;
-    display::Display screen = display::Display();
+    display::Display disp = display::Display();
+    display::Display *disp2 = NULL;
     log::info("camera and display open success");
     log::info("camera size: %dx%d", cam.width(), cam.height());
-    log::info("screen size: %dx%d", screen.width(), screen.height());
+    log::info("disp size: %dx%d format:%s", disp.width(), disp.height(), image::fmt_names[disp.format()].c_str());
     cam.skip_frames(5);
     err::check_bool_raise(!cmd_init(), "cmd init failed!");
 
@@ -87,9 +89,25 @@ int _main(int argc, char* argv[])
             img->draw_string(0, 10, buf, image::COLOR_GREEN, 1.5);
         }
 
+        if (disp2_enable) {
+            if (!disp2) {
+                disp2 = disp.add_channel();
+                err::check_null_raise(disp2, "display add channel failed!");
+            }
+            image::Image disp2_img = image::Image(disp2->width(), disp2->height(), disp2->format());
+            disp2_img.draw_rect(0, 0, disp2->width(), disp2->height(), image::Color::from_bgra(0,0xff,0,0.5), -1);
+            disp2_img.draw_rect(50, 50, disp2->width()/2, disp2->height()/2, image::Color::from_bgra(0,0xff,0,0.5), -1);
+            disp2->show(disp2_img);
+        } else {
+            if (disp2) {
+                delete disp2;
+                disp2 = NULL;
+            }
+        }
+
         // time when read image finished
         t2 = time::ticks_ms();
-        screen.show(*img);
+        disp.show(*img, image::FIT_COVER);
 
         // free image data, important!
         delete img;
@@ -137,6 +155,7 @@ static int cmd_init(void)
             "10 <enable>: set vflip, 1:enable;0:disable\r\n"
             "11 <x> <y> <w> <h>: set windowing\r\n"
             "12 <enable>: use a new channel of camera, 1:use 0:unuse\r\n"
+            "13 <enable>: use a new channel of display, 1:use 0:unuse\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -262,6 +281,11 @@ static int cmd_loop(camera::Camera *cam)
         case 12:
         {
             camera2_enable = value;
+            break;
+        }
+        case 13:
+        {
+            disp2_enable = value;
             break;
         }
         default:printf("Find not cmd!\r\n"); break;
