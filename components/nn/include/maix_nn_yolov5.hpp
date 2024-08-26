@@ -447,7 +447,7 @@ namespace maix::nn
         {
             std::vector<nn::Object> *result = new std::vector<nn::Object>();
             std::sort(objs.begin(), objs.end(), [](const nn::Object &a, const nn::Object &b) {
-                return a.score < b.score;
+                return a.score > b.score;
             });
             for(size_t i=0; i < objs.size(); ++i)
             {

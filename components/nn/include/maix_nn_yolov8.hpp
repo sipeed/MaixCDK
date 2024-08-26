@@ -572,7 +572,7 @@ namespace maix::nn
         {
             nn::Objects *result = new nn::Objects();
             std::sort(objs.begin(), objs.end(), [](const nn::Object *a, const nn::Object *b)
-                      { return a->score < b->score; });
+                      { return a->score > b->score; });
             for (size_t i = 0; i < objs.size(); ++i)
             {
                 nn::Object *a = objs.at(i);
@@ -583,7 +583,9 @@ namespace maix::nn
                     nn::Object *b = objs.at(j);
                     {
                         if (b->score != 0 && a->class_id == b->class_id && _calc_iou(*a, *b) > this->_iou_th)
+                        {
                             b->score = 0;
+                        }
                     }
                 }
             }
