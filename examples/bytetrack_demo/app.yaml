@@ -1,0 +1,11 @@
+id: bytetrack_demo
+name: ByteTrack
+name[zh]: ByteTrack
+version: 1.0.0
+#icon: assets/hello.png
+author: Sipeed Ltd
+desc: ByteTrack
+desc[zh]: ByteTrack
+files:
+  # assets: assets
+
