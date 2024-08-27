@@ -1,0 +1,45 @@
+Config:
+  - retry: 3
+  - total_timeout_ms: 10000
+
+NtpServers:
+  - host: "ntp.tencent.com"
+    port: 123
+  - host: "ntp1.tencent.com"
+    port: 123
+  - host: "ntp2.tencent.com"
+    port: 123
+  - host: "ntp3.tencent.com"
+    port: 123
+  - host: "ntp4.tencent.com"
+    port: 123
+  - host: "ntp5.tencent.com"
+    port: 123
+  - host: "ntp1.aliyun.com"
+    port: 123
+  - host: "ntp2.aliyun.com"
+    port: 123
+  - host: "ntp3.aliyun.com"
+    port: 123
+  - host: "ntp4.aliyun.com"
+    port: 123
+  - host: "ntp5.aliyun.com"
+    port: 123
+  - host: "ntp6.aliyun.com"
+    port: 123
+  - host: "ntp7.aliyun.com"
+    port: 123
+  - host: "time.edu.cn"
+    port: 123
+  - host: "s2c.time.edu.cn"
+    port: 123
+  - host: "s2f.time.edu.cn"
+    port: 123
+  - host: "s2k.time.edu.cn"
+    port: 123
+  - host: "pool.ntp.org"
+    port: 123
+  - host: "time.nist.gov"
+    port: 123
+  - host: "time.windows.com"
+    port: 123
