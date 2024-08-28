@@ -536,10 +536,22 @@ namespace maix::peripheral::uart
 		}
 		if (recv_len > 0)
 		{
+			int t_last = 0;
+			bool _available = false;
 			while(1)
 			{
-				if (available(timeout > 0 ? timeout - (time::ticks_ms() - t) : timeout))
+				if(timeout > 0)
 				{
+					t_last = timeout - (time::ticks_ms() - t);
+					if(t_last < 0)
+						t_last = 0;
+					_available = available(t_last);
+				}
+				else
+					_available = available(timeout);
+				if (_available)
+				{
+					log::info("-- %d %d", _available, t_last);
 					int len = _uart_read(_fd, buff + read_len, recv_len - read_len);
 					if (len < 0)
 					{
