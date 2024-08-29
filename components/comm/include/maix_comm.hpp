@@ -23,6 +23,28 @@ namespace maix
      */
     namespace comm
     {
+
+        /**
+         * @brief Add default CommProtocol listener.
+         *
+         * When the application uses this port, the listening thread will immediately
+         * release the port resources and exit. If you need to start the default listening thread again,
+         * please release the default port resources and then call this function.
+         *
+         * @maixpy maix.comm.add_default_comm_listener
+         */
+        void add_default_comm_listener();
+
+        /**
+         * @brief Remove default CommProtocol listener.
+         *
+         * @param blocking True means blocking and false means non-blocking.
+         * @return bool type.
+         *
+         * @maixpy maix.comm.rm_default_comm_listener
+         */
+        bool rm_default_comm_listener(bool blocking=false);
+
         /**
          * Class for communication protocol
          * @maixpy maix.comm.CommProtocol
