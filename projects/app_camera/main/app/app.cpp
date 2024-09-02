@@ -130,7 +130,7 @@ int app_base_init(void)
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
     // init h265 encoder
-    priv.encoder = new video::Encoder(priv.camera_resolution_w, priv.camera_resolution_h);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();

@@ -33,6 +33,136 @@ namespace maix::video
         VIDEO_H265_CBR,
         VIDEO_H264_CBR_MP4,
         VIDEO_H265_CBR_MP4,
+
+        VIDEO_H264,
+        VIDEO_H264_MP4,
+        VIDEO_H264_FLV,
+        VIDEO_H265,
+        VIDEO_H265_MP4,
+    };
+
+    /**
+     * Video type
+     * @maixpy maix.video.MediaType
+     */
+    enum MediaType
+    {
+        MEDIA_TYPE_UNKNOWN = -1,
+        MEDIA_TYPE_VIDEO,
+        MEDIA_TYPE_AUDIO,
+        MEDIA_TYPE_DATA,
+        MEDIA_TYPE_SUBTITLE,
+        MEDIA_TYPE_ATTACHMENT,
+        MEDIA_TYPE_NB
+    };
+
+    typedef struct {
+        int num;
+        int den;
+    } time_base_t;
+
+    /**
+     * Context class
+     * @maixpy maix.video.Context
+     */
+    class Context
+    {
+    public:
+        /**
+         * @brief Construct a new Video object
+         * @param media_type enable capture, if true, you can use capture() function to get an image object
+         * @param timebase Time base, used as the unit for calculating playback time. It must be an array containing two parameters,
+         * in the format [num, den], where the first parameter is the numerator of the time base, and the second parameter is the denominator of the time base.
+         * @maixpy maix.video.Context.__init__
+         * @maixcdk maix.video.Context.Context
+         */
+        Context(video::MediaType media_type, std::vector<int> timebase) {
+            _media_type = media_type;
+
+            if (timebase.size() < 2) {
+                _timebase = {0, 0};
+            } else {
+                _timebase = timebase;
+            }
+        }
+        ~Context() {
+            if (_media_type == video::MEDIA_TYPE_VIDEO) {
+                if (_image) {
+                    delete _image;
+                    _image = NULL;
+                }
+            }
+        }
+
+        /**
+         * @brief Set image info
+         * @param image image data
+         * @param duration Duration of the current image. unit: timebase
+         * @param pts The start time of this image playback. If it is 0, it means this parameter is not supported. unit: timebase
+         * @param last_pts The start time of the previous image playback. It can be used to ensure the playback order. If it is 0, it means this parameter is not supported. unit: timebase
+         * @maixpy maix.video.Context.set_image
+         */
+        void set_image(image::Image *image, int duration = 0, uint64_t pts = 0, uint64_t last_pts = 0) {
+            _image = image;
+            _duration = duration < 0 ? 0 : duration;
+            _pts = pts < 0 ? 0 : pts;
+            _last_pts = last_pts < 0 ? 0 : last_pts;
+        }
+
+        /**
+         * @brief Retrieve the image data to be played.
+         * @maixpy maix.video.Context.image
+        */
+        image::Image *image() {
+            return _image;
+        }
+
+        /**
+         * @brief Get the media type to determine whether it is video, audio, or another media type.
+         * @maixpy maix.video.Context.media_type
+        */
+        video::MediaType media_type() {
+            return _media_type;
+        }
+
+        /**
+         * @brief Get the start time of the current playback., in units of time base.
+         * @maixpy maix.video.Context.pts
+        */
+        uint64_t pts() {
+            return _pts;
+        }
+
+        /**
+         * @brief Get the start time of the previous playback, in units of time base.
+         * @maixpy maix.video.Context.last_pts
+        */
+        uint64_t last_pts() {
+            return _last_pts;
+        }
+
+        /**
+         * @brief Get the time base.
+         * @maixpy maix.video.Context.timebase
+        */
+        std::vector<int> timebase() {
+            return _timebase;
+        }
+
+        /**
+         * @brief Duration of the current frame. unit: timebase
+         * @maixpy maix.video.Context.timebase
+        */
+        int duration() {
+            return _duration;
+        }
+        private:
+        video::MediaType _media_type;
+        image::Image *_image;
+        uint64_t _pts;
+        uint64_t _last_pts;
+        std::vector<int> _timebase; // [den, num], timebase = den / num
+        int _duration;
     };
 
     /**
@@ -359,10 +489,13 @@ namespace maix::video
          * @param bitrate for h264/h265 encoding, used to limit the bandwidth used by compressed data, default is 3000kbps
          * @param time_base frame time base. time_base default is 1000, means 1/1000 ms (not used)
          * @param capture enable capture, if true, you can use capture() function to get an image object
+         * @param block This parameter determines whether encoding should block until it is complete.
+         * If set to true, it will wait until encoding is finished before returning.
+         * If set to false, it will return the current encoding result on the next call.
          * @maixpy maix.video.Encoder.__init__
          * @maixcdk maix.video.Encoder.Encoder
          */
-        Encoder(int width = 2560, int height = 1440, image::Format format = image::Format::FMT_YVU420SP, video::VideoType type = video::VideoType::VIDEO_H265_CBR, int framerate = 30, int gop = 50, int bitrate = 3000 * 1000, int time_base = 1000, bool capture = false);
+        Encoder(std::string path = "", int width = 2560, int height = 1440, image::Format format = image::Format::FMT_YVU420SP, video::VideoType type = video::VideoType::VIDEO_H264, int framerate = 30, int gop = 50, int bitrate = 3000 * 1000, int time_base = 1000, bool capture = false, bool block = true);
         ~Encoder();
 
         /**
@@ -470,7 +603,7 @@ namespace maix::video
          * Note: The current default is to assume that there is no B-frame implementation, so pts and bts are always the same
          * @param time_ms start time from the first frame. unit: ms
          * @return time base value
-         * @maixpy maix.video.Encoder.get_pts
+         * @maixcdk maix.video.Encoder.get_pts
         */
         uint64_t get_pts(uint64_t time_ms)
         {
@@ -482,17 +615,19 @@ namespace maix::video
          * Note: The current default is to assume that there is no B-frame implementation, so pts and bts are always the same
          * @param time_ms start time from the first frame. unit: ms
          * @return time base value
-         * @maixpy maix.video.Encoder.get_dts
+         * @maixcdk maix.video.Encoder.get_dts
         */
         uint64_t get_dts(uint64_t time_ms)
         {
             return time_ms * 1000 / _time_base;
         }
     private:
+        std::string _path;
         int _width;
         int _height;
         image::Format _format;
         video::VideoType _type;
+        bool _block;
         int _framerate;
         int _gop;
         int _bitrate;
@@ -505,6 +640,7 @@ namespace maix::video
         uint64_t _dts;                        // unit: time_base
         uint64_t _start_encode_ms;
         bool _encode_started;
+        void *_param;
     };
 
 
@@ -527,10 +663,13 @@ namespace maix::video
 
         /**
          * Decode the video stream, returning the image of the next frame each time.
-         * @return Decoded image, in the format determined when the Decoder is created
+         * @param block Whether it blocks or not. If true, it will wait for the decoding to complete and return the current frame.
+         * If false, it will return the result of the previous frame's decoding. If the previous frame's decoding result is empty,
+         * it will return an unknown Context, and you can use the media_type method of the Context to determine if a valid result exists.
+         * @return Decoded context information. default is true.
          * @maixpy maix.video.Decoder.decode_video
         */
-        image::Image *decode_video();
+        video::Context * decode_video(bool block = true);
 
         /**
          * @brief Get the video width
@@ -575,10 +714,10 @@ namespace maix::video
         /**
          * @brief Seek to the required playback position
          * @param time timestamp value, unit: s
-         * @return error code
+         * @return return the current position, unit: s
          * @maixpy maix.video.Decoder.seek
         */
-        err::Err seek(double time);
+        double seek(double time = -1);
 
         /**
          * @brief Get the maximum duration of the video. If it returns 0, it means it cannot be predicted.
@@ -588,19 +727,21 @@ namespace maix::video
         double duration();
 
         /**
-         * @brief Get the last pts of the video. If it returns 0, it means it cannot be predicted.
-         * @return pts value, unit: s
-         * @maixpy maix.video.Decoder.last_pts
+         * @brief Get the time base.
+         * @maixpy maix.video.Decoder.timebase
         */
-        double last_pts();
+        std::vector<int> timebase() {
+            return _timebase;
+        }
     private:
         std::string _path;
         int _width;
         int _height;
         int _bitrate;
         int _fps;
-        int _last_pts;
+        uint64_t _last_pts;
         image::Format _format_out;
+        std::vector<int> _timebase;
         void *_param;
     };
 

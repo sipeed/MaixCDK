@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <list>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -34,8 +35,161 @@ namespace maix::video
     maix::image::Image *Video::NoneImage = NULL;
     maix::image::Image *Encoder::NoneImage = NULL;
 #endif
+    static void custom_log_callback(void* ptr, int level, const char* fmt, va_list vargs) {
+        if (level > AV_LOG_ERROR) {
+            return;
+        }
+    }
 
-    Encoder::Encoder(int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture) {
+    static video::VideoType _get_video_type(const char *filename, video::VideoType type) {
+        video::VideoType video_type = type;
+        const char *suffix = strrchr(filename, '.');
+        if (!suffix) {
+            return type;
+        }
+
+        if (!strcmp(suffix, ".h264")) {
+            video_type = video::VIDEO_H264;
+        } else if (!strcmp(suffix, ".h265")) {
+            video_type = video::VIDEO_H264;
+        } else if (!strcmp(suffix, ".mp4")) {
+            switch (type) {
+            case video::VIDEO_H264:         // fall through
+            case video::VIDEO_H264_MP4:     // fall through
+            case video::VIDEO_H264_FLV:
+                video_type = video::VIDEO_H264_MP4;
+                break;
+            case video::VIDEO_H265:         // fall through
+            case video::VIDEO_H265_MP4:
+                video_type = video::VIDEO_H265_MP4;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+                break;
+            }
+        } else if (!strcmp(suffix, ".flv")) {
+            switch (type) {
+            case video::VIDEO_H264:         // fall through
+            case video::VIDEO_H264_FLV:
+                video_type = video::VIDEO_H264_FLV;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+                break;
+            }
+        } else {
+            video_type = type;
+        }
+        return video_type;
+    }
+
+    static PAYLOAD_TYPE_E _video_type_to_mmf(VideoType video_type) {
+        PAYLOAD_TYPE_E payload_type = PT_H264;
+        switch (video_type) {
+            case VIDEO_H264:
+            case VIDEO_H264_MP4:
+            case VIDEO_H264_FLV:
+                payload_type = PT_H264;
+                break;
+            case VIDEO_H265:
+            case VIDEO_H265_MP4:
+                payload_type = PT_H265;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+        }
+        return payload_type;
+    }
+
+    static enum AVCodecID _video_type_to_ffmpeg(VideoType video_type) {
+        enum AVCodecID codec_id = AV_CODEC_ID_NONE;
+        switch (video_type) {
+            case VIDEO_H264:
+            case VIDEO_H264_MP4:
+            case VIDEO_H264_FLV:
+                codec_id = AV_CODEC_ID_H264;
+               break;
+            case VIDEO_H265:
+            case VIDEO_H265_MP4:
+                codec_id = AV_CODEC_ID_HEVC;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+        }
+        return codec_id;
+    }
+
+    static enum AVPixelFormat _image_format_to_ffmpeg(image::Format format) {
+        enum AVPixelFormat codec_fmt = AV_PIX_FMT_NONE;
+        switch (format) {
+            case image::Format::FMT_YVU420SP:
+                codec_fmt = AV_PIX_FMT_NV21;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+        }
+        return codec_fmt;
+    }
+
+    static image::Image* _image_from_mmf_vi(int ch, void *data, int width, int height, int format) {
+        image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
+        bool need_align = (width % mmf_vi_aligned_width(ch) == 0) ? false : true;   // Width need align only
+        image::Image *out = NULL;
+        switch (capture_format) {
+            case image::Format::FMT_BGR888: // fall through
+            case image::Format::FMT_RGB888:
+            {
+                out = new image::Image(width, height, capture_format);
+                err::check_null_raise(out, "Failed to create image!");
+                uint8_t * image_data = (uint8_t *)out->data();
+                if (need_align) {
+                    for (int h = 0; h < height; h++) {
+                        memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
+                    }
+                } else {
+                    memcpy(image_data, data, width * height * 3);
+                }
+            }
+                break;
+            case image::Format::FMT_YVU420SP:
+            {
+                out = new image::Image(width, height, capture_format);
+                err::check_null_raise(out, "Failed to create image!");
+                uint8_t * image_data = (uint8_t *)out->data();
+                if (need_align) {
+                    for (int h = 0; h < height * 3 / 2; h ++) {
+                        memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
+                    }
+                } else {
+                    memcpy(image_data, data, width * height * 3 / 2);
+                }
+                break;
+            }
+            default:
+            {
+                out = NULL;
+                break;
+            }
+        }
+        return out;
+    }
+
+    typedef struct {
+        AVFormatContext *outputFormatContext;
+        AVStream *outputStream;
+        AVPacket *pPacket;
+        bool find_sps_pps;
+        bool copy_sps_pps_per_iframe;
+        uint64_t frame_index;
+        uint64_t last_encode_ms;
+
+        video::VideoType video_type;
+        int venc_ch;
+        PAYLOAD_TYPE_E venc_type;
+    } encoder_param_t;
+
+    Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
+        _path = path;
         _width = width;
         _height = height;
         _format = format;
@@ -50,71 +204,126 @@ namespace maix::video
         _bind_camera = NULL;
         _start_encode_ms = 0;
         _encode_started = false;
+        _block = block;
 
-        switch (_type) {
-        case VIDEO_H265_CBR:
-        {
-            if (0 != mmf_init_v2(true)) {
-                err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
-            }
+        err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Encoder only support FMT_YVU420SP format!");
+        video::VideoType video_type = _get_video_type(path.c_str(), type);
+        PAYLOAD_TYPE_E venc_type = _video_type_to_mmf(type);
 
-            if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
-                mmf_deinit_v2(false);
-                err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
-            }
-            break;
+        // ffmpeg init
+        av_log_set_callback(custom_log_callback);
+        _param = (encoder_param_t *)malloc(sizeof(encoder_param_t));
+        err::check_null_raise(_param, "malloc failed!");
+        memset(_param, 0, sizeof(encoder_param_t));
+
+        AVFormatContext *outputFormatContext = NULL;
+        if (0 != avformat_alloc_output_context2(&outputFormatContext, NULL, NULL, _path.c_str())) {
+            log::error("Count not open file: %s", _path.c_str());
+            err::check_raise(err::ERR_RUNTIME, "Could not open file");
         }
-        case VIDEO_H264_CBR:
-        {
-            mmf_venc_cfg_t cfg = {
-                .type = 2,  //1, h265, 2, h264
-                .w = _width,
-                .h = _height,
-                .fmt = mmf_invert_format_to_mmf(_format),
-                .jpg_quality = 0,       // unused
-                .gop = _gop,
-                .intput_fps = _framerate,
-                .output_fps = _framerate,
-                .bitrate = _bitrate / 1000,
-            };
+        AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
+        err::check_null_raise(outputStream, "create new stream failed");
 
-            if (0 != mmf_init_v2(true)) {
-                err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
-            }
+        outputStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+        outputStream->codecpar->codec_id = _video_type_to_ffmpeg(video_type);
+        outputStream->codecpar->width = _width;
+        outputStream->codecpar->height = _height;
+        outputStream->codecpar->format = _image_format_to_ffmpeg(_format);
+        outputStream->time_base = (AVRational){1, _framerate};
+        outputStream->codecpar->bit_rate = _bitrate;
 
-            if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
-                mmf_deinit_v2(false);
-                err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
+        if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+            if (avio_open(&outputFormatContext->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
+                log::error("Count not open file: %s", _path.c_str());
+                err::check_raise(err::ERR_RUNTIME, "Could not open file");
             }
-            break;
         }
-        default:
-            std::string err_str = "Encoder not support type: " + std::to_string(_type);
-            err::check_raise(err::ERR_RUNTIME, err_str);
+
+        err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
+
+        AVPacket *pPacket = av_packet_alloc();
+        err::check_null_raise(pPacket, "malloc failed!");
+
+        // mmf venc init
+        mmf_venc_cfg_t cfg = {
+            .type = 2,  //1, h265, 2, h264
+            .w = _width,
+            .h = _height,
+            .fmt = mmf_invert_format_to_mmf(_format),
+            .jpg_quality = 0,       // unused
+            .gop = _gop,
+            .intput_fps = _framerate,
+            .output_fps = _framerate,
+            .bitrate = _bitrate / 1000,
+        };
+        if (venc_type == PT_H265) {
+            cfg.type = 1;
+        } else if (venc_type == PT_H264) {
+            cfg.type = 2;
+        }
+
+        if (0 != mmf_init_v2(true)) {
+            err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+        }
+
+        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+            mmf_deinit_v2(false);
+            err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
+        }
+
+        encoder_param_t *param = (encoder_param_t *)_param;
+        param->outputFormatContext = outputFormatContext;
+        param->outputStream = outputStream;
+        param->pPacket = pPacket;
+        param->video_type = video_type;
+        param->venc_ch = MMF_VENC_CHN;
+        param->venc_type = venc_type;
+        param->find_sps_pps = false;
+        param->frame_index = 0;
+        param->last_encode_ms = time::ticks_ms();
+        switch (video_type) {
+            case VIDEO_H264:
+                param->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H264_MP4:
+                param->copy_sps_pps_per_iframe = false;
+                break;
+            case VIDEO_H264_FLV:
+                param->copy_sps_pps_per_iframe = false;
+               break;
+            case VIDEO_H265:
+                param->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H265_MP4:
+                param->copy_sps_pps_per_iframe = false;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
         }
     }
 
     Encoder::~Encoder() {
-        switch (_type) {
-        case VIDEO_H265_CBR:
-        {
-            mmf_enc_h265_deinit(MMF_VENC_CHN);
-            break;
-        }
-        case VIDEO_H264_CBR:
-        {
+        encoder_param_t *param = (encoder_param_t *)_param;
+        if (param) {
             mmf_del_venc_channel(MMF_VENC_CHN);
-            break;
-        }
-        default:
-            std::string err_str = "Encoder not support type: " + std::to_string(_type);
-            err::check_raise(err::ERR_RUNTIME, err_str);
+            av_write_trailer(param->outputFormatContext);
+            avformat_close_input(&param->outputFormatContext);
+            if (param->outputFormatContext && !(param->outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+                avio_closep(&param->outputFormatContext->pb);
+            }
+            avformat_free_context(param->outputFormatContext);
+            av_packet_unref(param->pPacket);
+            av_packet_free(&param->pPacket);
+            free(_param);
+            _param = NULL;
         }
 
         if (_capture_image && _capture_image->data()) {
             delete _capture_image;
             _capture_image = nullptr;
         }
+
+        system("sync");
     }
 
     err::Err Encoder::bind_camera(camera::Camera *camera) {
@@ -130,6 +339,185 @@ namespace maix::video
     }
 
     video::Frame *Encoder::encode(image::Image *img) {
+#if 1
+        encoder_param_t *param = (encoder_param_t *)_param;
+        uint8_t *stream_buffer = NULL;
+        int stream_size = 0;
+        bool use_input_img = false;
+        video::Frame *frame = NULL;
+
+        // you need bind camera or pass in an image
+        err::check_bool_raise(_bind_camera || (img && img->data()), "You need bind a camera or pass in an image!");
+
+        // check use image or not
+        if (img && img->data() != NULL && (img->width() != _width || img->height() != _height)) {
+            log::error("image is not match!\r\n"\
+                        "the width of image need:%d input:%d\r\n"
+                        "the height of image need:%d input:%d\r\n"
+                        "the format of image need:%s input:%s",
+                        _width, img->width(), _height, img->height(),
+                        image::fmt_names[_format], image::fmt_names[img->format()]);
+            err::check_raise(err::ERR_RUNTIME, "image is not match!");
+        } else if (img && img->data() != NULL) {
+            use_input_img = true;
+        } else {
+            use_input_img = false;
+        }
+
+        switch (_type) {
+            case VIDEO_H264:
+            {
+                if (_block) {
+                    if (use_input_img) {
+                        while ((time::ticks_ms() - param->last_encode_ms) * _framerate < 1000) {
+                            time::sleep_us(500);
+                        }
+
+                        param->last_encode_ms = time::ticks_ms();
+                        if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
+                            log::error("mmf_venc_push failed\n");
+                            goto _exit;
+                        }
+                    } else {
+                        int vi_ch = _camera->get_channel();
+                        void *data;
+                        int data_size, width, height, format;
+                        if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
+                            log::error("read camera image failed!\r\n");
+                            goto _exit;
+                        }
+
+                        while ((time::ticks_ms() - param->last_encode_ms) * _framerate < 1000) {
+                            time::sleep_us(500);
+                        }
+                        param->last_encode_ms = time::ticks_ms();
+
+                        if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
+                            log::warn("mmf_venc_push failed\n");
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        if (_need_capture) {
+                            if (_capture_image && _capture_image->data()) {
+                                delete _capture_image;
+                                _capture_image = NULL;
+                            }
+                            _capture_image = _image_from_mmf_vi(vi_ch, data, width, height, format);
+                            err::check_null_raise(_capture_image, "capture image failed!");
+                        }
+
+                        mmf_vi_frame_free(vi_ch);
+                    }
+                }
+
+                mmf_stream_t stream = {0};
+                if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
+                    log::error("mmf_venc_pop failed\n");
+                    mmf_venc_free(MMF_VENC_CHN);
+                    mmf_del_venc_channel(MMF_VENC_CHN);
+                    goto _exit;
+                }
+
+                for (int i = 0; i < stream.count; i ++) {
+                    // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
+                    stream_size += stream.data_size[i];
+                }
+
+                if (stream_size != 0) {
+                    if (!param->find_sps_pps && stream.count > 2) {
+                        param->find_sps_pps = true;
+                    }
+
+                    if (param->find_sps_pps) {
+                        stream_buffer = (uint8_t *)malloc(stream_size);
+                        if (!stream_buffer) {
+                            log::error("malloc failed!\r\n");
+                            mmf_venc_free(MMF_VENC_CHN);
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        AVPacket *pPacket = param->pPacket;
+                        pPacket->stream_index = param->outputStream->index;
+                        pPacket->duration = param->outputStream->time_base.den / (param->outputStream->time_base.num * _framerate);
+                        pPacket->pts = param->frame_index * pPacket->duration;
+                        pPacket->dts = param->frame_index * pPacket->duration;
+                        param->frame_index ++;
+
+                        if (stream.count > 0) {
+                            int copy_length = 0;
+                            for (int i = 0; i < stream.count; i ++) {
+                                memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
+                                copy_length += stream.data_size[i];
+                            }
+                            pPacket->data = stream_buffer;
+                            pPacket->size = copy_length;
+                            err::check_bool_raise(av_interleaved_write_frame(param->outputFormatContext, pPacket) >= 0, "av_interleaved_write_frame failed!");
+                        }
+                    }
+                }
+                if (mmf_venc_free(MMF_VENC_CHN)) {
+                    printf("mmf_venc_free failed\n");
+                    free(stream_buffer);
+                    stream_buffer = NULL;
+                    mmf_del_venc_channel(MMF_VENC_CHN);
+                    goto _exit;
+                }
+
+                if (!_block) {
+                    if (use_input_img) {
+                        while ((time::ticks_ms() - param->last_encode_ms) * _framerate < 1000) {
+                            time::sleep_us(500);
+                        }
+
+                        param->last_encode_ms = time::ticks_ms();
+                        if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
+                            log::error("mmf_venc_push failed\n");
+                            goto _exit;
+                        }
+                    } else {
+                        int vi_ch = _camera->get_channel();
+                        void *data;
+                        int data_size, width, height, format;
+                        if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
+                            log::error("read camera image failed!\r\n");
+                            goto _exit;
+                        }
+
+                        while ((time::ticks_ms() - param->last_encode_ms) * _framerate < 1000) {
+                            time::sleep_us(500);
+                        }
+                        param->last_encode_ms = time::ticks_ms();
+
+                        if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
+                            log::warn("mmf_venc_push failed\n");
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        if (_need_capture) {
+                            if (_capture_image && _capture_image->data()) {
+                                delete _capture_image;
+                                _capture_image = NULL;
+                            }
+                            _capture_image = _image_from_mmf_vi(vi_ch, data, width, height, format);
+                            err::check_null_raise(_capture_image, "capture image failed!");
+                        }
+
+                        mmf_vi_frame_free(vi_ch);
+                    }
+                }
+                break;
+            }
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+                break;
+        }
+_exit:
+        frame = new video::Frame(stream_buffer, stream_size, 0, 0, 0, true, false);
+        return frame;
+#else
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
 
@@ -540,6 +928,7 @@ namespace maix::video
 _exit:
         video::Frame *frame = new video::Frame(stream_buffer, stream_size, pts, dts, 0, true, false);
         return frame;
+#endif
     }
 
     typedef enum {
@@ -554,11 +943,14 @@ _exit:
         AVFormatContext *pFormatContext;
         AVPacket *pPacket;
         AVBSFContext * bsfc;
+        AVCodecContext *codec_ctx;
         int video_stream_index;
         video_format_e video_format;
 
         int vdec_ch;
         PAYLOAD_TYPE_E vdec_type;
+        std::list<video::Context *> *ctx_list;
+        uint64_t next_pts;
     } decoder_param_t;
 
     static video_format_e _get_video_format(const char *filename, PAYLOAD_TYPE_E type) {
@@ -672,13 +1064,65 @@ _exit:
                                         s, s->streams[i], NULL);
         return opts;
     }
-
-    static void custom_log_callback(void* ptr, int level, const char* fmt, va_list vargs) {
-        if (level > AV_LOG_ERROR) {
-            return;
+#if 0
+    static int _mmf_vdec_push(int ch, VDEC_STREAM_S *stStream)
+    {
+        CVI_S32 s32Ret = CVI_SUCCESS;
+        s32Ret = CVI_VDEC_SendStream(ch, stStream, -1);
+        if (s32Ret != CVI_SUCCESS) {
+            printf("CVI_VDEC_SendStream chn[%d] failed with %#x!\n", ch, s32Ret);
+            return -1;
         }
+        return 0;
     }
 
+    static int _mmf_vdec_pop(int ch, VIDEO_FRAME_INFO_S *frame)
+    {
+        CVI_S32 s32Ret = CVI_SUCCESS;
+        int fd = CVI_VDEC_GetFd(ch);
+        if (fd < 0) {
+            printf("CVI_VENC_GetFd failed with %d\n", fd);
+            return -1;
+        }
+
+        fd_set readFds;
+        struct timeval timeoutVal;
+        FD_ZERO(&readFds);
+        FD_SET(fd, &readFds);
+        timeoutVal.tv_sec = 0;
+        timeoutVal.tv_usec = 80*1000;
+        s32Ret = select(fd + 1, &readFds, NULL, NULL, &timeoutVal);
+        if (s32Ret < 0) {
+            if (errno == EINTR) {
+                printf("VdecChn(%d) select failed!\n", ch);
+                return -1;
+            }
+        } else if (s32Ret == 0) {
+            printf("VdecChn(%d) select timeout!\n", ch);
+            return -1;
+        }
+
+        s32Ret = CVI_VDEC_GetFrame(ch, frame, 1000);
+        if (s32Ret != CVI_SUCCESS) {
+            printf("CVI_VDEC_GetFrame failed with %#x(%d)\n", s32Ret, s32Ret);
+            return s32Ret;
+        }
+
+        return s32Ret;
+    }
+
+    static int _mmf_vdec_free(int ch, VIDEO_FRAME_INFO_S *pstFrameInfo)
+    {
+        CVI_S32 s32Ret = CVI_SUCCESS;
+        s32Ret = CVI_VDEC_ReleaseFrame(ch, pstFrameInfo);
+        if (s32Ret != CVI_SUCCESS) {
+            printf("CVI_VDEC_ReleaseFrame failed with %#x\n", s32Ret);
+            return s32Ret;
+        }
+
+        return s32Ret;
+    }
+#endif
     Decoder::Decoder(std::string path, image::Format format) {
         av_log_set_callback(custom_log_callback);
         err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Decoder only support FMT_YVU420SP format!");
@@ -690,6 +1134,7 @@ _exit:
         PAYLOAD_TYPE_E vdec_type = PT_H264;
         video_format_e video_format = VIDEO_FORMAT_H264;
         err::check_null_raise(_param, "malloc failed!");
+        AVCodec *codec = NULL;
         AVFormatContext *pFormatContext = avformat_alloc_context();
         err::check_null_raise(pFormatContext, "malloc failed!");
         err::check_bool_raise(!avformat_open_input(&pFormatContext, _path.c_str(), NULL, NULL), "Could not open file");
@@ -711,24 +1156,31 @@ _exit:
         _bitrate = pFormatContext->bit_rate;
 
         // Find video stream
-        int video_stream_index = -1;
-        for (int i = 0; i < (int)pFormatContext->nb_streams; i++) {
-            if (pFormatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-                video_stream_index = i;
-                break;
-            }
-        }
-        err::check_bool_raise(video_stream_index != -1, "Could not find video stream");
+        int video_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
+        err::check_bool_raise(video_stream_index >= 0, "Could not find video stream");
+
+        // Find the number of b frame
+        AVCodecContext *codec_ctx = avcodec_alloc_context3(codec);
+        err::check_null_raise(codec_ctx, "Could not allocate a decoding context");
+        avcodec_parameters_to_context(codec_ctx, pFormatContext->streams[video_stream_index]->codecpar);
 
         // Check encode type
         AVCodecParameters *codec_params = pFormatContext->streams[video_stream_index]->codecpar;
         err::check_bool_raise(codec_params->codec_id == AV_CODEC_ID_H264, "Only support h264 encode video format!");
         vdec_type = PT_H264;
         video_format = _get_video_format(_path.c_str(), vdec_type);
-
+        // enum AVPixelFormat pix_fmt = (enum AVPixelFormat)codec_params->format;
+        // const char *pix_fmt_name = av_get_pix_fmt_name(pix_fmt);
+        // if (pix_fmt_name) {
+        //     log::info("Pixel format: %s\n", pix_fmt_name);
+        // } else {
+        //     log::warn("Pixel format: unknown (%d)\n", pix_fmt);
+        // }
         // Get video width/height
         _width = codec_params->width;
         _height = codec_params->height;
+        _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.den);
+        _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.num);
         AVStream *video_stream = pFormatContext->streams[video_stream_index];
         AVRational frame_rate = av_guess_frame_rate(pFormatContext, video_stream, NULL);
         _fps = av_q2d(frame_rate);
@@ -750,7 +1202,7 @@ _exit:
         vdec_chn_attr.u32PicHeight = _height;
         vdec_chn_attr.u32FrameBufCnt = 3;
         vdec_chn_attr.u32StreamBufSize = _width * _height;
-        err::check_bool_raise(!mmf_add_vdec_channel_v2(ch, mmf_invert_format_to_mmf(format), 4, &vdec_chn_attr), "mmf_add_vdec_channel_v2 failed");
+        err::check_bool_raise(!mmf_add_vdec_channel_v2(ch, mmf_invert_format_to_mmf(format), 8, &vdec_chn_attr), "mmf_add_vdec_channel_v2 failed");
 
         AVBSFContext * bsfc;
         switch (video_format) {
@@ -781,20 +1233,32 @@ _exit:
         param->pFormatContext = pFormatContext;
         param->pPacket = pPacket;
         param->bsfc = bsfc;
+        param->codec_ctx = codec_ctx;
         param->video_stream_index = video_stream_index;
         param->video_format = video_format;
         param->vdec_ch = ch;
         param->vdec_type = vdec_type;
+        param->ctx_list = new std::list<video::Context *>();
+        param->next_pts = 0;
     }
 
     Decoder::~Decoder() {
         decoder_param_t *param = (decoder_param_t *)_param;
         if (param) {
+            std::list<video::Context *>::iterator iter;
+            for(iter=param->ctx_list->begin();iter!=param->ctx_list->end();iter++) {
+                video::Context *ctx = *iter;
+                delete ctx;
+                param->ctx_list->erase(iter);
+            }
+            delete param->ctx_list;
+
             if (param->vdec_ch >= 0) {
                 mmf_del_vdec_channel(param->vdec_ch);
             }
 
             av_packet_free(&param->pPacket);
+            avcodec_free_context(&param->codec_ctx);
             avformat_close_input(&param->pFormatContext);
 
             if (param->bsfc) {
@@ -803,7 +1267,6 @@ _exit:
             free(_param);
             _param = NULL;
         }
-        avformat_network_deinit();
     }
 
     static image::Image *_mmf_frame_to_image(VIDEO_FRAME_INFO_S *frame, image::Format format_out)
@@ -842,18 +1305,22 @@ _error:
         err::check_raise(err::ERR_RUNTIME, "Invert frame failed");
     }
 
-
-    image::Image *Decoder::decode_video() {
+    video::Context *Decoder::decode_video(bool block) {
         decoder_param_t *param = (decoder_param_t *)_param;
         AVPacket *pPacket = param->pPacket;
         AVFormatContext *pFormatContext = param->pFormatContext;
         AVBSFContext * bsfc = param->bsfc;
         int video_stream_index = param->video_stream_index;
         image::Image *img = NULL;
+        video::Context *context = NULL;
+        uint64_t last_pts = 0;
+        uint64_t curr_pts = param->next_pts;
+        int frame_duration = pFormatContext->streams[video_stream_index]->time_base.den / pFormatContext->streams[video_stream_index]->time_base.num / _fps;
+_retry:
         while (av_read_frame(pFormatContext, pPacket) >= 0) {
             if (pPacket->stream_index == video_stream_index) {
+                last_pts = _last_pts;
                 _last_pts = pPacket->pts;
-
                 switch (param->video_format) {
                     case VIDEO_FORMAT_H264:
                         break;
@@ -869,36 +1336,204 @@ _error:
                         err::check_raise(err::ERR_RUNTIME, "Unknown video format");
                         break;
                 }
-                err::check_bool_raise(!mmf_vdec_push(param->vdec_ch, pPacket->data, pPacket->size, 0, 0));
-                VIDEO_FRAME_INFO_S frame;
-                err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
-                img = _mmf_frame_to_image(&frame, _format_out);
-                err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
+
+                // uint8_t nal_unit_type = pPacket->data[4] & 0x1F;
+                // static int count = 0;
+                // count ++;
+                // switch (nal_unit_type) {
+                //     case 1:
+                //         printf("NAL Unit Type: %u (P/B-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
+                //         break;
+                //     case 5:
+                //         printf("NAL Unit Type: %u (I-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
+                //         break;
+                //     case 7:
+                //         printf("NAL Unit Type: %u (SPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
+                //         // found_i_sps_frame = true;
+                //         break;
+                //     case 8:
+                //         printf("NAL Unit Type: %u (PPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
+                //         break;
+                //     default:
+                //         printf("NAL Unit Type: %u (Other) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
+                //         break;
+                // }
+
+                VDEC_STREAM_S stStream = {0};
+                stStream.pu8Addr = (CVI_U8 *)pPacket->data;
+                stStream.u32Len = pPacket->size;
+                stStream.u64PTS = pPacket->pts;
+                stStream.bEndOfFrame = CVI_TRUE;
+                stStream.bEndOfStream = CVI_FALSE;
+                stStream.bDisplay = 1;
+
+                VIDEO_FRAME_INFO_S frame = {0};
+                video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                if (block) {
+                    err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
+                    err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
+                    img = _mmf_frame_to_image(&frame, _format_out);
+                    err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
+                    media_type = MEDIA_TYPE_VIDEO;
+                } else {
+                    err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
+                    if (frame.stVFrame.u32Width) {  // if width!=0, we think this frame is valid.
+                        img = _mmf_frame_to_image(&frame, _format_out);
+                        err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
+                        media_type = MEDIA_TYPE_VIDEO;
+                    } else {
+                        media_type = MEDIA_TYPE_UNKNOWN;
+                    }
+                    err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
+                }
+
+                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.den,
+                                            (int)pFormatContext->streams[video_stream_index]->time_base.num};
+                context = new video::Context(media_type, timebase);
+                context->set_image(img, pPacket->duration, frame.stVFrame.u64PTS, last_pts);
                 av_packet_unref(pPacket);
                 break;
             }
             av_packet_unref(pPacket);
         }
-        return img;
+
+        if (param->video_format != VIDEO_FORMAT_H264) {
+            if (context && context->media_type() == video::MEDIA_TYPE_VIDEO) {
+                video::Context *ctx = context;
+                std::list<video::Context *> *ctx_list = param->ctx_list;
+                video::Context *play_ctx = NULL;
+                if (curr_pts == ctx->pts()) {
+                    play_ctx = ctx;
+                } else {
+                    ctx_list->push_back(ctx);
+                    std::list<video::Context *>::iterator iter;
+                    for(iter=ctx_list->begin();iter!=ctx_list->end();iter++) {
+                        video::Context *ctx = *iter;
+                        if (curr_pts == ctx->pts()) {
+                            play_ctx = ctx;
+                            ctx_list->erase(iter);
+                            break;
+                        }
+                    }
+                }
+                context = play_ctx;
+                if (context == NULL) {
+                    goto _retry;
+                }
+            }
+        }
+
+        param->next_pts += frame_duration;
+        return context;
     }
 
-    err::Err Decoder::seek(double time) {
+    double Decoder::seek(double time) {
+#if 0
         decoder_param_t *param = (decoder_param_t *)_param;
         AVFormatContext *pFormatContext = param->pFormatContext;
         video_format_e video_format = param->video_format;
+        AVPacket *pPacket = param->pPacket;
         int video_stream_index = param->video_stream_index;
-        int64_t seek_target = av_rescale_q(time * AV_TIME_BASE, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
-        if (video_format != VIDEO_FORMAT_H264_FLV && video_format != VIDEO_FORMAT_H264_MP4) {
-            return err::ERR_RUNTIME;
-        }
-        int ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
-        if (ret < 0) {
-            avformat_close_input(&param->pFormatContext);
-            log::error("av_seek_frame failed, ret:%d", ret);
-            return err::ERR_RUNTIME;
-        }
 
-        return err::ERR_NONE;
+        if (time >= 0) {
+            int64_t seek_target = av_rescale_q(time * AV_TIME_BASE, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
+            if (video_format != VIDEO_FORMAT_H264_FLV && video_format != VIDEO_FORMAT_H264_MP4) {
+                return 0;
+            }log::info("seek target:%d timebase:%d/%d", seek_target, pFormatContext->streams[video_stream_index]->time_base.den, pFormatContext->streams[video_stream_index]->time_base.num);
+            int ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+
+            while (av_read_frame(pFormatContext, pPacket) >= 0) {
+                if (pPacket->stream_index == video_stream_index) {
+                    param->next_pts = pPacket->pts;
+                    av_packet_unref(pPacket);
+                    break;
+                }
+                av_packet_unref(pPacket);
+            }
+
+            ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+        } else {
+            time = param->next_pts * av_q2d(pFormatContext->streams[video_stream_index]->time_base);
+        }
+        return time;
+#else
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        video_format_e video_format = param->video_format;
+        AVPacket *pPacket = param->pPacket;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+
+        if (time >= 0) {
+            int64_t seek_target = av_rescale_q(time * AV_TIME_BASE, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
+            if (video_format != VIDEO_FORMAT_H264_FLV && video_format != VIDEO_FORMAT_H264_MP4) {
+                return 0;
+            }
+            int ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+
+            bool found_i_sps_frame = false;
+            while (av_read_frame(pFormatContext, pPacket) >= 0) {
+                if (pPacket->stream_index == video_stream_index) {
+                    switch (param->video_format) {
+                        case VIDEO_FORMAT_H264:
+                            break;
+                        case VIDEO_FORMAT_H264_FLV:
+                            err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            break;
+                        case VIDEO_FORMAT_H264_MP4:
+                            err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            break;
+                        default:
+                            err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                            break;
+                    }
+
+                    param->next_pts = pPacket->pts;
+                    uint8_t nal_unit_type = pPacket->data[4] & 0x1F;
+                    if (nal_unit_type == 5 || nal_unit_type == 7) { // 1:P/B  5:I  7:SPS 8:PPS
+                        found_i_sps_frame = true;
+                    }
+                    av_packet_unref(pPacket);
+                    if (found_i_sps_frame) {
+                        break;
+                    }
+                }
+                av_packet_unref(pPacket);
+            }
+
+            if (!found_i_sps_frame) {
+                return -1;
+            }
+            seek_target = param->next_pts;
+
+            ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+        } else {
+            time = param->next_pts * av_q2d(pFormatContext->streams[video_stream_index]->time_base);
+        }
+        return time;
+#endif
     }
 
     double Decoder::duration() {
@@ -911,14 +1546,6 @@ _error:
         int64_t duration = pFormatContext->duration;
         double duration_in_seconds = (double)duration / AV_TIME_BASE;
         return duration_in_seconds;
-    }
-
-    double Decoder::last_pts() {
-        decoder_param_t *param = (decoder_param_t *)_param;
-        AVFormatContext *pFormatContext = param->pFormatContext;
-        int video_stream_index = param->video_stream_index;
-        double last_pts = _last_pts * av_q2d(pFormatContext->streams[video_stream_index]->time_base);
-        return last_pts;
     }
 
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)
