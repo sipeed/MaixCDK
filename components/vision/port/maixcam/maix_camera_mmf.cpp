@@ -164,6 +164,10 @@ namespace maix::camera
                     log::info("found lt6911, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "lt6911");
                     return name;
+                case 0x36:
+                    log::info("found ov_os04a10, addr %#x", addr_list[i]);
+                    snprintf(name, sizeof(name), "ov_os04a10");
+                    return name;
                 case 0x48:// fall through
                 case 0x3c:
                     log::info("found ov_ov2685, addr %#x", addr_list[i]);
@@ -306,6 +310,7 @@ namespace maix::camera
             stIniCfg.as8PNSwap[0][4] = 0;
             vi_format = PIXEL_FORMAT_NV21;
             vi_vpss_format = PIXEL_FORMAT_NV21;
+            err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
         } else if (!strcmp(sensor_name, "lt6911")) {
             stIniCfg.enSnsType[0] = LONTIUM_LT6911_2M_60FPS_8BIT;
             stIniCfg.as16LaneId[0][0] = 2;
@@ -320,6 +325,21 @@ namespace maix::camera
             stIniCfg.as8PNSwap[0][4] = 0;
             vi_format = PIXEL_FORMAT_UYVY;
             vi_vpss_format = PIXEL_FORMAT_UYVY;
+        } else if (!strcmp(sensor_name, "ov_os04a10")) {
+            stIniCfg.enSnsType[0] = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+            stIniCfg.as16LaneId[0][0] = 2;
+            stIniCfg.as16LaneId[0][1] = 1;
+            stIniCfg.as16LaneId[0][2] = 3;
+            stIniCfg.as16LaneId[0][3] = 0;
+            stIniCfg.as16LaneId[0][4] = 4;
+            stIniCfg.as8PNSwap[0][0] = 0;
+            stIniCfg.as8PNSwap[0][1] = 0;
+            stIniCfg.as8PNSwap[0][2] = 0;
+            stIniCfg.as8PNSwap[0][3] = 0;
+            stIniCfg.as8PNSwap[0][4] = 0;
+            vi_format = PIXEL_FORMAT_NV21;
+            vi_vpss_format = PIXEL_FORMAT_NV21;
+            err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
         } else { // default is gcore_gc4653
             if (width <= 1280 && height <= 720 && fps > 30) {
                 stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
