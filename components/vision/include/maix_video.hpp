@@ -111,10 +111,13 @@ namespace maix::video
 
         /**
          * @brief Retrieve the image data to be played.
+         * @attention Note that if you call this interface, you are responsible for releasing the memory of the image, and this interface cannot be called again.
          * @maixpy maix.video.Context.image
         */
         image::Image *image() {
-            return _image;
+            image::Image *out = _image;
+            _image = NULL;
+            return out;
         }
 
         /**
@@ -151,7 +154,7 @@ namespace maix::video
 
         /**
          * @brief Duration of the current frame. unit: timebase
-         * @maixpy maix.video.Context.timebase
+         * @maixpy maix.video.Context.duration
         */
         int duration() {
             return _duration;

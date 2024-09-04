@@ -22,7 +22,7 @@ namespace maix::video
     maix::image::Image *Encoder::NoneImage = NULL;
 #endif
 
-    Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture) {
+    Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
         throw err::Exception(err::ERR_NOT_IMPL);
     }
 

@@ -59,6 +59,7 @@ int _main(int argc, char* argv[])
                 }
                 last_ms = time::ticks_ms();
 
+                delete img;
                 delete ctx;
             }
             log::info("loop time:%.2d ms", (time::ticks_ms() - loop_ms));
