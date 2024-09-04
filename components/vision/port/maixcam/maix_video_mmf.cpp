@@ -210,120 +210,190 @@ namespace maix::video
         video::VideoType video_type = _get_video_type(path.c_str(), type);
         PAYLOAD_TYPE_E venc_type = _video_type_to_mmf(type);
 
-        // ffmpeg init
-        av_log_set_callback(custom_log_callback);
-        _param = (encoder_param_t *)malloc(sizeof(encoder_param_t));
-        err::check_null_raise(_param, "malloc failed!");
-        memset(_param, 0, sizeof(encoder_param_t));
+        if (_path.size() == 0) {
+            switch (_type) {
+            case VIDEO_H264:
+            {
+                mmf_venc_cfg_t cfg = {
+                    .type = 2,  //1, h265, 2, h264
+                    .w = _width,
+                    .h = _height,
+                    .fmt = mmf_invert_format_to_mmf(_format),
+                    .jpg_quality = 0,       // unused
+                    .gop = _gop,
+                    .intput_fps = _framerate,
+                    .output_fps = _framerate,
+                    .bitrate = _bitrate / 1000,
+                };
 
-        AVFormatContext *outputFormatContext = NULL;
-        if (0 != avformat_alloc_output_context2(&outputFormatContext, NULL, NULL, _path.c_str())) {
-            log::error("Count not open file: %s", _path.c_str());
-            err::check_raise(err::ERR_RUNTIME, "Could not open file");
-        }
-        AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
-        err::check_null_raise(outputStream, "create new stream failed");
+                if (0 != mmf_init_v2(true)) {
+                    err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+                }
 
-        outputStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
-        outputStream->codecpar->codec_id = _video_type_to_ffmpeg(video_type);
-        outputStream->codecpar->width = _width;
-        outputStream->codecpar->height = _height;
-        outputStream->codecpar->format = _image_format_to_ffmpeg(_format);
-        outputStream->time_base = (AVRational){1, _framerate};
-        outputStream->codecpar->bit_rate = _bitrate;
+                if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+                    mmf_deinit_v2(false);
+                    err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
+                }
+                break;
+            }
+            case VIDEO_H265:
+            {
+                if (0 != mmf_init_v2(true)) {
+                    err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+                }
 
-        if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
-            if (avio_open(&outputFormatContext->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
+                if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
+                    mmf_deinit_v2(false);
+                    err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
+                }
+                break;
+            }
+            default:
+                std::string err_str = "Encoder not support type: " + std::to_string(_type);
+                err::check_raise(err::ERR_RUNTIME, err_str);
+            }
+        } else {
+            // ffmpeg init
+            av_log_set_callback(custom_log_callback);
+            _param = (encoder_param_t *)malloc(sizeof(encoder_param_t));
+            err::check_null_raise(_param, "malloc failed!");
+            memset(_param, 0, sizeof(encoder_param_t));
+
+            AVFormatContext *outputFormatContext = NULL;
+            if (0 != avformat_alloc_output_context2(&outputFormatContext, NULL, NULL, _path.c_str())) {
                 log::error("Count not open file: %s", _path.c_str());
                 err::check_raise(err::ERR_RUNTIME, "Could not open file");
             }
-        }
+            AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
+            err::check_null_raise(outputStream, "create new stream failed");
 
-        err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
+            outputStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+            outputStream->codecpar->codec_id = _video_type_to_ffmpeg(video_type);
+            outputStream->codecpar->width = _width;
+            outputStream->codecpar->height = _height;
+            outputStream->codecpar->format = _image_format_to_ffmpeg(_format);
+            outputStream->time_base = (AVRational){1, _framerate};
+            outputStream->codecpar->bit_rate = _bitrate;
 
-        AVPacket *pPacket = av_packet_alloc();
-        err::check_null_raise(pPacket, "malloc failed!");
+            if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+                if (avio_open(&outputFormatContext->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
+                    log::error("Count not open file: %s", _path.c_str());
+                    err::check_raise(err::ERR_RUNTIME, "Could not open file");
+                }
+            }
 
-        // mmf venc init
-        mmf_venc_cfg_t cfg = {
-            .type = 2,  //1, h265, 2, h264
-            .w = _width,
-            .h = _height,
-            .fmt = mmf_invert_format_to_mmf(_format),
-            .jpg_quality = 0,       // unused
-            .gop = _gop,
-            .intput_fps = _framerate,
-            .output_fps = _framerate,
-            .bitrate = _bitrate / 1000,
-        };
-        if (venc_type == PT_H265) {
-            cfg.type = 1;
-        } else if (venc_type == PT_H264) {
-            cfg.type = 2;
-        }
+            err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
 
-        if (0 != mmf_init_v2(true)) {
-            err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
-        }
+            AVPacket *pPacket = av_packet_alloc();
+            err::check_null_raise(pPacket, "malloc failed!");
 
-        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
-            mmf_deinit_v2(false);
-            err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
-        }
+            // mmf venc init
+            mmf_venc_cfg_t cfg = {
+                .type = 2,  //1, h265, 2, h264
+                .w = _width,
+                .h = _height,
+                .fmt = mmf_invert_format_to_mmf(_format),
+                .jpg_quality = 0,       // unused
+                .gop = _gop,
+                .intput_fps = _framerate,
+                .output_fps = _framerate,
+                .bitrate = _bitrate / 1000,
+            };
+            if (venc_type == PT_H265) {
+                cfg.type = 1;
+            } else if (venc_type == PT_H264) {
+                cfg.type = 2;
+            }
 
-        encoder_param_t *param = (encoder_param_t *)_param;
-        param->outputFormatContext = outputFormatContext;
-        param->outputStream = outputStream;
-        param->pPacket = pPacket;
-        param->video_type = video_type;
-        param->venc_ch = MMF_VENC_CHN;
-        param->venc_type = venc_type;
-        param->find_sps_pps = false;
-        param->frame_index = 0;
-        param->last_encode_ms = time::ticks_ms();
-        switch (video_type) {
-            case VIDEO_H264:
-                param->copy_sps_pps_per_iframe = true;
+            if (0 != mmf_init_v2(true)) {
+                err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+            }
+
+            if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+                mmf_deinit_v2(false);
+                err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
+            }
+
+            encoder_param_t *param = (encoder_param_t *)_param;
+            param->outputFormatContext = outputFormatContext;
+            param->outputStream = outputStream;
+            param->pPacket = pPacket;
+            param->video_type = video_type;
+            param->venc_ch = MMF_VENC_CHN;
+            param->venc_type = venc_type;
+            param->find_sps_pps = false;
+            param->frame_index = 0;
+            param->last_encode_ms = time::ticks_ms();
+            switch (video_type) {
+                case VIDEO_H264:
+                    param->copy_sps_pps_per_iframe = true;
+                    break;
+                case VIDEO_H264_MP4:
+                    param->copy_sps_pps_per_iframe = false;
+                    break;
+                case VIDEO_H264_FLV:
+                    param->copy_sps_pps_per_iframe = false;
                 break;
-            case VIDEO_H264_MP4:
-                param->copy_sps_pps_per_iframe = false;
-                break;
-            case VIDEO_H264_FLV:
-                param->copy_sps_pps_per_iframe = false;
-               break;
-            case VIDEO_H265:
-                param->copy_sps_pps_per_iframe = true;
-                break;
-            case VIDEO_H265_MP4:
-                param->copy_sps_pps_per_iframe = false;
-                break;
-            default:
-                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+                case VIDEO_H265:
+                    param->copy_sps_pps_per_iframe = true;
+                    break;
+                case VIDEO_H265_MP4:
+                    param->copy_sps_pps_per_iframe = false;
+                    break;
+                default:
+                    err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+            }
         }
     }
 
     Encoder::~Encoder() {
-        encoder_param_t *param = (encoder_param_t *)_param;
-        if (param) {
-            mmf_del_venc_channel(MMF_VENC_CHN);
-            av_write_trailer(param->outputFormatContext);
-            avformat_close_input(&param->outputFormatContext);
-            if (param->outputFormatContext && !(param->outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
-                avio_closep(&param->outputFormatContext->pb);
+        if (_path.size() == 0) {
+            switch (_type) {
+            case VIDEO_H264:
+            {
+                mmf_del_venc_channel(MMF_VENC_CHN);
+                mmf_deinit_v2(false);
+                break;
             }
-            avformat_free_context(param->outputFormatContext);
-            av_packet_unref(param->pPacket);
-            av_packet_free(&param->pPacket);
-            free(_param);
-            _param = NULL;
-        }
+            case VIDEO_H265:
+            {
+                mmf_enc_h265_deinit(MMF_VENC_CHN);
+                mmf_deinit_v2(false);
+                break;
+            }
+            default:
+                std::string err_str = "Encoder not support type: " + std::to_string(_type);
+                err::check_raise(err::ERR_RUNTIME, err_str);
+            }
 
-        if (_capture_image && _capture_image->data()) {
-            delete _capture_image;
-            _capture_image = nullptr;
-        }
+            if (_capture_image && _capture_image->data()) {
+                delete _capture_image;
+                _capture_image = nullptr;
+            }
+        } else {
+            encoder_param_t *param = (encoder_param_t *)_param;
+            if (param) {
+                mmf_del_venc_channel(MMF_VENC_CHN);
+                mmf_deinit_v2(false);
+                av_write_trailer(param->outputFormatContext);
+                avformat_close_input(&param->outputFormatContext);
+                if (param->outputFormatContext && !(param->outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+                    avio_closep(&param->outputFormatContext->pb);
+                }
+                avformat_free_context(param->outputFormatContext);
+                av_packet_unref(param->pPacket);
+                av_packet_free(&param->pPacket);
+                free(_param);
+                _param = NULL;
+            }
 
-        system("sync");
+            if (_capture_image && _capture_image->data()) {
+                delete _capture_image;
+                _capture_image = nullptr;
+            }
+
+            system("sync");
+        }
     }
 
     err::Err Encoder::bind_camera(camera::Camera *camera) {
@@ -340,31 +410,436 @@ namespace maix::video
 
     video::Frame *Encoder::encode(image::Image *img) {
 #if 1
-        encoder_param_t *param = (encoder_param_t *)_param;
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
-        bool use_input_img = false;
-        video::Frame *frame = NULL;
+        uint64_t pts = 0, dts = 0;
+        if (_path.size() == 0) {
+            uint64_t curr_ms = time::ticks_ms();
+            uint64_t diff_ms = 0;
+            if (!_encode_started) {
+                _encode_started = true;
+                _start_encode_ms = curr_ms;
+            }
+            diff_ms = curr_ms - _start_encode_ms;
 
-        // you need bind camera or pass in an image
-        err::check_bool_raise(_bind_camera || (img && img->data()), "You need bind a camera or pass in an image!");
+            switch (_type) {
+            case VIDEO_H264:
+            {
+                if (img && img->data() != NULL) {  // encode from image
+                    if (img->data_size() > 2560 * 1440 * 3 / 2) {
+                        log::error("image is too large!\r\n");
+                        goto _exit;
+                    }
 
-        // check use image or not
-        if (img && img->data() != NULL && (img->width() != _width || img->height() != _height)) {
-            log::error("image is not match!\r\n"\
-                        "the width of image need:%d input:%d\r\n"
-                        "the height of image need:%d input:%d\r\n"
-                        "the format of image need:%s input:%s",
-                        _width, img->width(), _height, img->height(),
-                        image::fmt_names[_format], image::fmt_names[img->format()]);
-            err::check_raise(err::ERR_RUNTIME, "image is not match!");
-        } else if (img && img->data() != NULL) {
-            use_input_img = true;
+                    mmf_venc_cfg_t cfg = {0};
+                    if (0 != mmf_venc_get_cfg(MMF_VENC_CHN, &cfg)) {
+                        err::check_raise(err::ERR_RUNTIME, "get venc config failed!\r\n");
+                    }
+
+                    dts = get_dts(diff_ms);
+                    pts = get_pts(diff_ms);
+
+                    int img_w = img->width();
+                    int img_h = img->height();
+                    image::Format img_fmt = img->format();
+                    if (img_w != cfg.w
+                        || img->height() != cfg.h
+                        || img->format() != mmf_invert_format_to_maix(cfg.fmt)) {
+                        log::warn("image size or format is incorrect, try to reinit venc!\r\n");
+                        mmf_del_venc_channel(MMF_VENC_CHN);
+                        cfg.w = img_w;
+                        cfg.h = img_h;
+                        cfg.fmt = mmf_invert_format_to_mmf(img_fmt);
+                        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+                            err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
+                        }
+                        _width = img_w;
+                        _height = img_h;
+                        _format = img_fmt;
+                    }
+
+                    if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
+                        log::error("mmf_venc_push failed\n");
+                        goto _exit;
+                    }
+
+                    mmf_stream_t stream = {0};
+                    if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
+                        log::error("mmf_enc_h265_pull failed\n");
+                        mmf_venc_free(MMF_VENC_CHN);
+                        goto _exit;
+                    }
+
+                    for (int i = 0; i < stream.count; i ++) {
+                        // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
+                        stream_size += stream.data_size[i];
+                    }
+
+                    if (stream_size != 0) {
+                        stream_buffer = (uint8_t *)malloc(stream_size);
+                        if (!stream_buffer) {
+                            log::error("malloc failed!\r\n");
+                            mmf_venc_free(MMF_VENC_CHN);
+                            goto _exit;
+                        } else {
+                            if (stream.count > 1) {
+                                int copy_length = 0;
+                                for (int i = 0; i < stream.count; i ++) {
+                                    memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
+                                    copy_length += stream.data_size[i];
+                                }
+                            } else if (stream.count == 1) {
+                                memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
+                            }
+                        }
+                    }
+
+                    if (mmf_venc_free(MMF_VENC_CHN)) {
+                        printf("mmf_venc_free failed\n");
+                        free(stream_buffer);
+                        stream_buffer = NULL;
+                        goto _exit;
+                    }
+                } else { // encode from camera
+                    if (!this->_bind_camera) {
+                        goto _exit;
+                    }
+
+                    int vi_ch = _camera->get_channel();
+                    void *data;
+                    int data_size, width, height, format;
+                    do {
+                        mmf_stream_t stream = {0};
+                        if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
+                            log::error("mmf_venc_pop failed\n");
+                            mmf_venc_free(MMF_VENC_CHN);
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        for (int i = 0; i < stream.count; i ++) {
+                            stream_size += stream.data_size[i];
+                        }
+
+                        if (stream_size != 0) {
+                            stream_buffer = (uint8_t *)malloc(stream_size);
+                            if (!stream_buffer) {
+                                log::error("malloc failed!\r\n");
+                                mmf_venc_free(MMF_VENC_CHN);
+                                mmf_del_venc_channel(MMF_VENC_CHN);
+                                goto _exit;
+                            } else {
+                                if (stream.count > 1) {
+                                    int copy_length = 0;
+                                    for (int i = 0; i < stream.count; i ++) {
+                                        memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
+                                        copy_length += stream.data_size[i];
+                                    }
+                                } else if (stream.count == 1) {
+                                    memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
+                                }
+                            }
+                        }
+
+                        if (mmf_venc_free(MMF_VENC_CHN)) {
+                            printf("mmf_venc_free failed\n");
+                            free(stream_buffer);
+                            stream_buffer = NULL;
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
+                            log::error("read camera image failed!\r\n");
+                            goto _exit;
+                        }
+
+                        dts = get_dts(diff_ms);
+                        pts = get_pts(diff_ms);
+
+                        if (data_size > 2560 * 1440 * 3 / 2) {
+                            log::error("image is too large!\r\n");
+                            goto _exit;
+                        }
+
+                        if (_need_capture) {
+                            if (_capture_image && _capture_image->data()) {
+                                delete _capture_image;
+                                _capture_image = NULL;
+                            }
+
+                            image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
+                            bool need_align = (width % mmf_vi_aligned_width(vi_ch) == 0) ? false : true;   // Width need align only
+                            switch (capture_format) {
+                                case image::Format::FMT_BGR888: // fall through
+                                case image::Format::FMT_RGB888:
+                                {
+                                    _capture_image = new image::Image(width, height, capture_format);
+                                    uint8_t * image_data = (uint8_t *)_capture_image->data();
+                                    if (need_align) {
+                                        for (int h = 0; h < height; h++) {
+                                            memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
+                                        }
+                                    } else {
+                                        memcpy(image_data, data, width * height * 3);
+                                    }
+                                }
+                                    break;
+                                case image::Format::FMT_YVU420SP:
+                                {
+                                    _capture_image = new image::Image(width, height, capture_format);
+                                    uint8_t * image_data = (uint8_t *)_capture_image->data();
+                                    if (need_align) {
+                                        for (int h = 0; h < height * 3 / 2; h ++) {
+                                            memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
+                                        }
+                                    } else {
+                                        memcpy(image_data, data, width * height * 3 / 2);
+                                    }
+                                    break;
+                                }
+                                default:
+                                {
+                                    _capture_image = NULL;
+                                    break;
+                                }
+                            }
+                        }
+
+                        mmf_venc_cfg_t cfg = {0};
+                        if (0 != mmf_venc_get_cfg(MMF_VENC_CHN, &cfg)) {
+                            err::check_raise(err::ERR_RUNTIME, "get venc config failed!\r\n");
+                        }
+
+                        int img_w = width;
+                        int img_h = height;
+                        int mmf_fmt = format;
+                        if (img_w != cfg.w
+                            || img_h != cfg.h
+                            || mmf_fmt != cfg.fmt) {
+                            log::warn("image size or format is incorrect, try to reinit venc!\r\n");
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            cfg.w = img_w;
+                            cfg.h = img_h;
+                            cfg.fmt = mmf_invert_format_to_mmf(mmf_fmt);
+                            if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+                                err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
+                            }
+                            _width = img_w;
+                            _height = img_h;
+                            _format = (image::Format)mmf_invert_format_to_maix(mmf_fmt);
+                        }
+
+                        if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
+                            log::warn("mmf_venc_push failed\n");
+                            mmf_del_venc_channel(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        mmf_vi_frame_free(vi_ch);
+                    } while (stream_size == 0);
+                }
+                break;
+            }
+            case VIDEO_H265:
+            {
+                if (img && img->data() != NULL) {  // encode from image
+                    if (img->data_size() > 2560 * 1440 * 3 / 2) {
+                        log::error("image is too large!\r\n");
+                        goto _exit;
+                    }
+
+                    dts = get_dts(diff_ms);
+                    pts = get_pts(diff_ms);
+
+                    if (mmf_enc_h265_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
+                        log::error("mmf_enc_h265_push failed\n");
+                        goto _exit;
+                    }
+
+                    mmf_h265_stream_t stream = {0};
+                    if (mmf_enc_h265_pop(MMF_VENC_CHN, &stream)) {
+                        log::error("mmf_enc_h265_pull failed\n");
+                        mmf_enc_h265_free(MMF_VENC_CHN);
+                        goto _exit;
+                    }
+
+                    for (int i = 0; i < stream.count; i ++) {
+                        // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
+                        stream_size += stream.data_size[i];
+                    }
+
+                    if (stream_size != 0) {
+                        stream_buffer = (uint8_t *)malloc(stream_size);
+                        if (!stream_buffer) {
+                            log::error("malloc failed!\r\n");
+                            mmf_enc_h265_free(MMF_VENC_CHN);
+                            goto _exit;
+                        } else {
+                            if (stream.count > 1) {
+                                int copy_length = 0;
+                                for (int i = 0; i < stream.count; i ++) {
+                                    memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
+                                    copy_length += stream.data_size[i];
+                                }
+                            } else if (stream.count == 1) {
+                                memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
+                            }
+                        }
+                    }
+
+                    if (mmf_enc_h265_free(MMF_VENC_CHN)) {
+                        printf("mmf_enc_h265_free failed\n");
+                        free(stream_buffer);
+                        stream_buffer = NULL;
+                        goto _exit;
+                    }
+                } else { // encode from camera
+                    if (!this->_bind_camera) {
+                        log::warn("You need use bind_camera() function to bind the camera!\r\n");
+                        goto _exit;
+                    }
+
+                    int vi_ch = _camera->get_channel();
+                    void *data;
+                    int data_size, width, height, format;
+
+                    do {
+                        mmf_h265_stream_t stream = {0};
+                        if (mmf_enc_h265_pop(MMF_VENC_CHN, &stream)) {
+                            log::error("mmf_enc_h265_pop failed\n");
+                            mmf_enc_h265_free(MMF_VENC_CHN);
+                            mmf_enc_h265_deinit(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        for (int i = 0; i < stream.count; i ++) {
+                            stream_size += stream.data_size[i];
+                        }
+
+                        if (stream_size != 0) {
+                            stream_buffer = (uint8_t *)malloc(stream_size);
+                            if (!stream_buffer) {
+                                log::error("malloc failed!\r\n");
+                                mmf_enc_h265_free(MMF_VENC_CHN);
+                                mmf_enc_h265_deinit(MMF_VENC_CHN);
+                                goto _exit;
+                            } else {
+                                if (stream.count > 1) {
+                                    int copy_length = 0;
+                                    for (int i = 0; i < stream.count; i ++) {
+                                        memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
+                                        copy_length += stream.data_size[i];
+                                    }
+                                } else if (stream.count == 1) {
+                                    memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
+                                }
+                            }
+                        }
+
+                        if (mmf_enc_h265_free(MMF_VENC_CHN)) {
+                            printf("mmf_enc_h265_free failed\n");
+                            free(stream_buffer);
+                            stream_buffer = NULL;
+                            mmf_enc_h265_deinit(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
+                            log::error("read camera image failed!\r\n");
+                            goto _exit;
+                        }
+
+                        dts = get_dts(diff_ms);
+                        pts = get_pts(diff_ms);
+
+                        if (data_size > 2560 * 1440 * 3 / 2) {
+                            log::error("image is too large!\r\n");
+                            goto _exit;
+                        }
+
+                        if (_need_capture) {
+                            if (_capture_image && _capture_image->data()) {
+                                delete _capture_image;
+                                _capture_image = NULL;
+                            }
+
+                            image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
+                            bool need_align = (width % mmf_vi_aligned_width(vi_ch) == 0) ? false : true;   // Width need align only
+                            switch (capture_format) {
+                                case image::Format::FMT_BGR888: // fall through
+                                case image::Format::FMT_RGB888:
+                                {
+                                    _capture_image = new image::Image(width, height, capture_format);
+                                    uint8_t * image_data = (uint8_t *)_capture_image->data();
+                                    if (need_align) {
+                                        for (int h = 0; h < height; h++) {
+                                            memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
+                                        }
+                                    } else {
+                                        memcpy(image_data, data, width * height * 3);
+                                    }
+                                }
+                                    break;
+                                case image::Format::FMT_YVU420SP:
+                                {
+                                    _capture_image = new image::Image(width, height, capture_format);
+                                    uint8_t * image_data = (uint8_t *)_capture_image->data();
+                                    if (need_align) {
+                                        for (int h = 0; h < height * 3 / 2; h ++) {
+                                            memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
+                                        }
+                                    } else {
+                                        memcpy(image_data, data, width * height * 3 / 2);
+                                    }
+                                    break;
+                                }
+                                default:
+                                {
+                                    _capture_image = NULL;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (mmf_enc_h265_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
+                            log::warn("mmf_enc_h265_push failed\n");
+                            mmf_enc_h265_deinit(MMF_VENC_CHN);
+                            goto _exit;
+                        }
+
+                        mmf_vi_frame_free(vi_ch);
+                    } while (stream_size == 0);
+                }
+                break;
+            }
+            default:
+                std::string err_str = "Encoder not support type: " + std::to_string(_type);
+                err::check_raise(err::ERR_RUNTIME, err_str);
+            }
         } else {
-            use_input_img = false;
-        }
+            encoder_param_t *param = (encoder_param_t *)_param;
+            bool use_input_img = false;
 
-        switch (_type) {
+            // you need bind camera or pass in an image
+            err::check_bool_raise(_bind_camera || (img && img->data()), "You need bind a camera or pass in an image!");
+
+            // check use image or not
+            if (img && img->data() != NULL && (img->width() != _width || img->height() != _height)) {
+                log::error("image is not match!\r\n"\
+                            "the width of image need:%d input:%d\r\n"
+                            "the height of image need:%d input:%d\r\n"
+                            "the format of image need:%s input:%s",
+                            _width, img->width(), _height, img->height(),
+                            image::fmt_names[_format], image::fmt_names[img->format()]);
+                err::check_raise(err::ERR_RUNTIME, "image is not match!");
+            } else if (img && img->data() != NULL) {
+                use_input_img = true;
+            } else {
+                use_input_img = false;
+            }
+
+            switch (_type) {
             case VIDEO_H264:
             {
                 if (_block) {
@@ -513,10 +988,11 @@ namespace maix::video
             default:
                 err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
                 break;
+            }
         }
 _exit:
-        frame = new video::Frame(stream_buffer, stream_size, 0, 0, 0, true, false);
-        return frame;
+            video::Frame *frame = new video::Frame(stream_buffer, stream_size, pts, dts, 0, true, false);
+            return frame;
 #else
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
