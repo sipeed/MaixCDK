@@ -832,7 +832,14 @@ CommListener* CommListener::instance = nullptr;
 
 CommListener::CommListener()
 {
-    this->protocol = new maix::comm::CommProtocol();
+    try
+    {
+        this->protocol = new maix::comm::CommProtocol();
+    }
+    catch(const std::exception& e)
+    {
+        this->protocol = nullptr;
+    }
     this->device = analyze_device(CommFileHandle::read_comm_info());
     // maix::log::info("[Default CommListener] Start listening on port %s", this->device.c_str());
 }
@@ -868,9 +875,12 @@ void CommListener::start_listen()
         maix::log::warn("Default CommListener thread already running!!! IGNORE.");
         return;
     }
-    this->th = new std::thread([this](){
-        this->run();
-    });
+    if(this->protocol)
+    {
+        this->th = new std::thread([this](){
+            this->run();
+        });
+    }
 }
 
 void CommListener::run() noexcept
