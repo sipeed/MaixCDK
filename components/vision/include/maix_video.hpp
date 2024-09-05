@@ -25,14 +25,14 @@ namespace maix::video
     enum VideoType
     {
         VIDEO_NONE = 0,  // format invalid
-        VIDEO_ENC_H265_CBR,
-        VIDEO_ENC_MP4_CBR,
-        VIDEO_DEC_H265_CBR,
-        VIDEO_DEC_MP4_CBR,
-        VIDEO_H264_CBR,
-        VIDEO_H265_CBR,
-        VIDEO_H264_CBR_MP4,
-        VIDEO_H265_CBR_MP4,
+        VIDEO_ENC_H265_CBR,     // Deprecated
+        VIDEO_ENC_MP4_CBR,      // Deprecated
+        VIDEO_DEC_H265_CBR,     // Deprecated
+        VIDEO_DEC_MP4_CBR,      // Deprecated
+        VIDEO_H264_CBR,         // Deprecated
+        VIDEO_H265_CBR,         // Deprecated
+        VIDEO_H264_CBR_MP4,     // Deprecated
+        VIDEO_H265_CBR_MP4,     // Deprecated
 
         VIDEO_H264,
         VIDEO_H264_MP4,
@@ -47,13 +47,13 @@ namespace maix::video
      */
     enum MediaType
     {
-        MEDIA_TYPE_UNKNOWN = -1,
-        MEDIA_TYPE_VIDEO,
-        MEDIA_TYPE_AUDIO,
-        MEDIA_TYPE_DATA,
-        MEDIA_TYPE_SUBTITLE,
-        MEDIA_TYPE_ATTACHMENT,
-        MEDIA_TYPE_NB
+        MEDIA_TYPE_UNKNOWN = -1,    // Represents an unknown media type, which is usually treated as AVMEDIA_TYPE_DATA.
+        MEDIA_TYPE_VIDEO,           // Represents a video stream, such as video content encoded in H.264, MPEG-4, etc.
+        MEDIA_TYPE_AUDIO,           // Represents an audio stream, such as audio content encoded in AAC, MP3, etc.
+        MEDIA_TYPE_DATA,            // Represents opaque data streams that are usually continuous. This type of stream is not necessarily audio or video and may be used for other data purposes.
+        MEDIA_TYPE_SUBTITLE,        // Represents a subtitle stream used for displaying text or subtitle information, such as SRT, ASS, etc.
+        MEDIA_TYPE_ATTACHMENT,      // Represents attachment streams that are usually sparse. Attachment streams can include images, fonts, or other files that need to be bundled with the media.
+        MEDIA_TYPE_NB               // Represents the number of media types (count) and indicates the total number of media types defined in this enumeration. It is not a media type itself but is used for counting enumeration items.
     };
 
     typedef struct {
@@ -158,6 +158,14 @@ namespace maix::video
         */
         int duration() {
             return _duration;
+        }
+
+        /**
+         * @brief Duration of the current frame. unit: us
+         * @maixpy maix.video.Context.duration_us
+        */
+        uint64_t duration_us() {
+            return _duration * 1000000 / (_timebase[1] / _timebase[0]);
         }
         private:
         video::MediaType _media_type;
@@ -656,7 +664,7 @@ namespace maix::video
     public:
         /**
          * @brief Construct a new decoder object
-         * @param path Path to the file to be decoded
+         * @param path Path to the file to be decoded. Supports files with .264 and .mp4 extensions. Note that only mp4 files containing h.264 streams are supported.
          * @param format Decoded output format, currently only support YUV420SP
          * @maixpy maix.video.Decoder.__init__
          * @maixcdk maix.video.Decoder.Decoder

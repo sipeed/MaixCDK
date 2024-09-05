@@ -1655,8 +1655,8 @@ _exit:
         // Get video width/height
         _width = codec_params->width;
         _height = codec_params->height;
-        _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.den);
         _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.num);
+        _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.den);
         AVStream *video_stream = pFormatContext->streams[video_stream_index];
         AVRational frame_rate = av_guess_frame_rate(pFormatContext, video_stream, NULL);
         _fps = av_q2d(frame_rate);
@@ -1863,8 +1863,8 @@ _retry:
                     err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
                 }
 
-                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.den,
-                                            (int)pFormatContext->streams[video_stream_index]->time_base.num};
+                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                            (int)pFormatContext->streams[video_stream_index]->time_base.den};
                 context = new video::Context(media_type, timebase);
                 context->set_image(img, pPacket->duration, frame.stVFrame.u64PTS, last_pts);
                 av_packet_unref(pPacket);

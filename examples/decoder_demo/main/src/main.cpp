@@ -32,15 +32,15 @@ int _main(int argc, char* argv[])
             helper();
             return -1;
         }
+
         std::string filepath = argv[2];
         double seek_s = 0.0;
         if (argc > 3) seek_s = atof(argv[3]);
         video::Decoder decoder = video::Decoder(filepath);
         display::Display disp = display::Display();
-        uint64_t loop_ms = time::ticks_ms(), last_ms = loop_ms;
+        uint64_t loop_ms = time::ticks_ms(), last_us = time::ticks_us();
         log::info("resolution:%dx%d bitrate:%d duration:%.2f s fps:%d seek_s:%f", decoder.width(), decoder.height(), decoder.bitrate(), decoder.duration(), decoder.fps(), seek_s);
 
-        std::vector<int> timebase = decoder.timebase();
         err::check_bool_raise(decoder.seek(seek_s) >= 0, "decoder.seek failed");
         log::info("decoder.seek:%f", decoder.seek());
         while (!app::need_exit()) {
@@ -53,11 +53,10 @@ int _main(int argc, char* argv[])
                 image::Image *img = ctx->image();
                 disp.show(*img);
 
-                double wait_ms = (double)ctx->duration() * 1000 / (timebase[0] / timebase[1]);
-                while ((double)(time::ticks_ms() - last_ms) < wait_ms) {
-                    time::sleep_us(1);
+                while (time::ticks_us() - last_us < ctx->duration_us()) {
+                    time::sleep_ms(1);
                 }
-                last_ms = time::ticks_ms();
+                last_us = time::ticks_us();
 
                 delete img;
                 delete ctx;
