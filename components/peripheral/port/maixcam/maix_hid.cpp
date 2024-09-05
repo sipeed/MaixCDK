@@ -19,6 +19,47 @@
 
 namespace maix::peripheral::hid
 {
+    static int get_hid_device_idx(hid::DeviceType device_type)
+    {
+        int find_mouse = fs::exists("/boot/usb.mouse") ? 1 : 0;
+        int find_touchpad = fs::exists("/boot/usb.touchpad") ? 1 : 0;
+        int find_keyboard = fs::exists("/boot/usb.keyboard") ? 1 : 0;
+        int id = -1;
+
+        switch (device_type) {
+        case DEVICE_KEYBOARD:
+        {
+            if (find_keyboard) {
+                id = 0;
+            }
+            break;
+        }
+        case DEVICE_MOUSE:
+        {
+            if (find_keyboard && find_mouse) {
+                id = 1;
+            } else if (!find_keyboard && find_mouse) {
+                id = 0;
+            }
+            break;
+        }
+        case DEVICE_TOUCHPAD:
+        {
+            if ((find_keyboard + find_mouse == 2) && find_touchpad) {
+                id = 2;
+            } else if ((find_keyboard + find_mouse == 1) && find_touchpad) {
+                id = 1;
+            } else if (!(find_keyboard + find_mouse) && find_touchpad) {
+                id = 0;
+            }
+            break;
+        }
+        default: err::check_raise(err::ERR_ARGS, "device type not support");
+        }
+        err::check_bool_raise(id >= 0, "Can not find device idx");
+        return id;
+    }
+
     Hid::Hid(hid::DeviceType device_type, bool open)
     {
         _fd = -1;
@@ -42,14 +83,7 @@ namespace maix::peripheral::hid
         }
 
         char dev_path[256];
-        int type_id = 0;
-        switch (_device_type) {
-            case DEVICE_KEYBOARD: type_id = 0; break;
-            case DEVICE_MOUSE: type_id = 1; break;
-            case DEVICE_TOUCHPAD: type_id = 2; break;
-            default:
-                err::check_raise(err::ERR_ARGS, "device type not support");
-        }
+        int type_id = get_hid_device_idx(_device_type);
         snprintf(dev_path, sizeof(dev_path), DEV_PATH, type_id);
 
         // open hid devicce
