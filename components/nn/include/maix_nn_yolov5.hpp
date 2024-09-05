@@ -21,8 +21,6 @@ namespace maix::nn
     class YOLOv5
     {
     public:
-
-    public:
         /**
          * Constructor of YOLOv5 class
          * @param model model path, default empty, you can load model later by load function.
@@ -231,29 +229,6 @@ namespace maix::nn
             return err::ERR_NONE;
         }
 
-        err::Err _load_labels_from_file(std::vector<std::string> &labels, const std::string &label_path)
-        {
-            // load labels from labels file
-            labels.clear();
-            fs::File *f = fs::open(label_path, "r");
-            if (!f)
-            {
-                log::error("open label file %s failed", label_path.c_str());
-                return err::ERR_ARGS;
-            }
-            std::string line;
-            while (f->readline(line) > 0)
-            {
-                // strip line
-                line.erase(0, line.find_first_not_of(" \t\r\n"));
-                line.erase(line.find_last_not_of(" \t\r\n") + 1);
-                labels.push_back(line);
-            }
-            f->close();
-            delete f;
-            return err::ERR_NONE;
-        }
-
         /**
          * Detect objects from image
          * @param img Image want to detect, if image's size not match model input's, will auto resize with fit method.
@@ -368,6 +343,29 @@ namespace maix::nn
         bool _dual_buff;
 
     private:
+        err::Err _load_labels_from_file(std::vector<std::string> &labels, const std::string &label_path)
+        {
+            // load labels from labels file
+            labels.clear();
+            fs::File *f = fs::open(label_path, "r");
+            if (!f)
+            {
+                log::error("open label file %s failed", label_path.c_str());
+                return err::ERR_ARGS;
+            }
+            std::string line;
+            while (f->readline(line) > 0)
+            {
+                // strip line
+                line.erase(0, line.find_first_not_of(" \t\r\n"));
+                line.erase(line.find_last_not_of(" \t\r\n") + 1);
+                labels.push_back(line);
+            }
+            f->close();
+            delete f;
+            return err::ERR_NONE;
+        }
+
         std::vector<nn::Object> *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
         {
             std::vector<nn::Object> *objects = new std::vector<nn::Object>();

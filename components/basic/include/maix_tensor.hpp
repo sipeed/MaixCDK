@@ -134,9 +134,10 @@ namespace maix
              * @param dtype tensor element data type, see DType of this module
              * @param data pointer to data content, can be nullptr, it will automatically alloc memory
              *             and detroy it when this object is destroyed
+             * @param copy defalt true to alloc new memory and copy from data.
              * @maixcdk maix.tensor.Tensor.Tensor
              */
-            Tensor(std::vector<int> shape, tensor::DType dtype, void *data)
+            Tensor(std::vector<int> shape, tensor::DType dtype, void *data, bool copy = true)
             {
                 _shape = shape;
                 _dtype = dtype;
@@ -147,11 +148,15 @@ namespace maix
                 {
                     size *= shape[i];
                 }
-                if(!_data)
+                if((!_data) || (data && copy))
                 {
                     _data = malloc(size * dtype_size[dtype]);
                     _is_alloc = true;
                     log::debug("malloc tensor data\n");
+                    if(data)
+                    {
+                        memcpy(_data, data, size * dtype_size[dtype]);
+                    }
                 }
                 // log::info("new tensor: %p", this);
             }
@@ -526,6 +531,19 @@ namespace maix
                     delete tensors[key];
                 }
                 tensors.erase(key);
+            }
+
+            /**
+             * Clear tensors
+             * @maixpy maix.tensor.Tensors.clear
+            */
+            void clear()
+            {
+                auto _keys = keys();
+                for(const auto &k : _keys)
+                {
+                    rm_tensor(k);
+                }
             }
 
             /**
