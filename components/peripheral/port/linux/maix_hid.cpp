@@ -28,11 +28,11 @@ namespace maix::peripheral::hid
     {
     }
 
-    err::Err open() {
+    err::Err Hid::open() {
         return err::ERR_NOT_IMPL;
     }
 
-    err::Err close() {
+    err::Err Hid::close() {
         return err::ERR_NOT_IMPL;
     }
 
