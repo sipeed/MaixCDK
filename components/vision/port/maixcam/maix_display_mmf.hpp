@@ -24,6 +24,19 @@ using namespace maix::peripheral;
 
 namespace maix::display
 {
+    static char* _get_board_name(void)
+    {
+        static char name[30];
+        if (fs::exists("/boot/board.maixcam_pro")) {
+            snprintf(name, sizeof(name), "maixcam_pro");
+        } else {
+            snprintf(name, sizeof(name), "maixcam");
+        }
+
+        log::info("find board: %s", name);
+        return name;
+    }
+
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
@@ -54,7 +67,7 @@ namespace maix::display
         }
 
         if (strlen(panel_value) > 0) {
-            printf("panel= %s\n", panel_value);
+            // printf("panel= %s\n", panel_value);
         } else {
             printf("panel value not found\n");
         }
@@ -77,6 +90,9 @@ namespace maix::display
         } else if (!strcmp(panel_value, "st7701_hd228001c31")) {
             w = 368;
             h = 552;
+        } else if (!strcmp(panel_value, "MaixCam_Pro")) {
+            w = 480;
+            h = 640;
         } else {
             w = 368;
             h = 552;
@@ -105,10 +121,31 @@ namespace maix::display
             this->_format = format;
             this->_opened = false;
             this->_format = format;
+            this->_invert_flip = false;
+            this->_invert_mirror = false;
             this->_layer = 0;       // layer 0 means vedio layer
             err::check_bool_raise(_format == image::FMT_RGB888
                                 || _format == image::FMT_YVU420SP
                                 || _format == image::FMT_BGRA8888, "Format not support");
+
+            if (this->_layer == 0) {
+                bool flip = false;
+                bool mirror = false;
+                char *board_name = _get_board_name();
+                if (!strcmp(board_name, "maixcam_pro")) {
+                    flip = true;
+                    mirror = false;
+                } else if (!strcmp(board_name, "maixcam")) {
+                    flip = true;
+                    mirror = true;
+                } else {
+                    err::check_raise(err::ERR_RUNTIME, "unknown board name!");
+                }
+                mmf_set_vo_video_hmirror(0, mirror);
+                mmf_set_vo_video_flip(0, flip);
+                this->_invert_flip = flip;
+                this->_invert_mirror = mirror;
+            }
 
             if (0 != mmf_init_v2(true)) {
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
@@ -127,6 +164,8 @@ namespace maix::display
             this->_format = format;
             this->_opened = false;
             this->_format = format;
+            this->_invert_flip = false;
+            this->_invert_mirror = false;
             this->_layer = layer;       // layer 0 means vedio layer
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
@@ -366,6 +405,8 @@ namespace maix::display
         }
 
         err::Err set_hmirror(bool en) {
+            en = _invert_mirror ? !en : en;
+
             bool need_open = false;
             if (this->_opened) {
                 this->close();
@@ -385,6 +426,8 @@ namespace maix::display
         }
 
         err::Err set_vflip(bool en) {
+            en = _invert_flip ? !en : en;
+
             bool need_open = false;
             if (this->_opened) {
                 this->close();
@@ -412,6 +455,8 @@ namespace maix::display
         int _layer;
         int _ch;
         bool _opened;
+        bool _invert_flip;
+        bool _invert_mirror;
         pwm::PWM *_bl_pwm;
     };
 }

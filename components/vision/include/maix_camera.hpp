@@ -373,6 +373,8 @@ namespace maix::camera
         bool _open_set_regs;
         bool _check_format(image::Format format);
         uint64_t _last_read_us;
+        bool _invert_flip;
+        bool _invert_mirror;
         bool _is_opened;
     };
 }

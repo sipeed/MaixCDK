@@ -14,7 +14,7 @@
 using namespace maix;
 
 static int cmd_init(void);
-static int cmd_loop(camera::Camera *cam);
+static int cmd_loop(camera::Camera *cam, display::Display *disp);
 
 static bool camera2_enable = false;
 static bool disp2_enable = false;
@@ -58,7 +58,7 @@ int _main(int argc, char* argv[])
     while(!app::need_exit())
     {
         // cmd loop
-        cmd_loop(&cam);
+        cmd_loop(&cam, &disp);
 
         // time when start read image from camera
         t1 = time::ticks_ms();
@@ -95,6 +95,7 @@ int _main(int argc, char* argv[])
                 err::check_null_raise(disp2, "display add channel failed!");
             }
             image::Image disp2_img = image::Image(disp2->width(), disp2->height(), disp2->format());
+            disp2_img.draw_string(0, 10, "HELLO MAIXCAM", image::COLOR_GREEN, 1.5);
             disp2_img.draw_rect(0, 0, disp2->width(), disp2->height(), image::Color::from_bgra(0,0xff,0,0.5), -1);
             disp2_img.draw_rect(50, 50, disp2->width()/2, disp2->height()/2, image::Color::from_bgra(0,0xff,0,0.5), -1);
             disp2->show(disp2_img);
@@ -151,17 +152,19 @@ static int cmd_init(void)
             "6 <value> : set exposure mode\r\n"
             "7 <value> : show colorbar, 1:enable 0:disable\r\n"
             "8 <width> <height>: set new resolution\r\n"
-            "9 <enable>: set hmirror, 1:enable;0:disable\r\n"
-            "10 <enable>: set vflip, 1:enable;0:disable\r\n"
+            "9 <enable>: set camera hmirror, 1:enable;0:disable\r\n"
+            "10 <enable>: set camera vflip, 1:enable;0:disable\r\n"
             "11 <x> <y> <w> <h>: set windowing\r\n"
             "12 <enable>: use a new channel of camera, 1:use 0:unuse\r\n"
             "13 <enable>: use a new channel of display, 1:use 0:unuse\r\n"
+            "14 <enable>: set disolay hmirror, 1:enable;0:disable\r\n"
+            "15 <enable>: set disolay vflip, 1:enable;0:disable\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
 }
 
-static int cmd_loop(camera::Camera *cam)
+static int cmd_loop(camera::Camera *cam, display::Display *disp)
 {
     uint64_t t1;
     uint64_t value = -1, value2 = -1, value3 = -1, value4 = -1;
@@ -261,15 +264,15 @@ static int cmd_loop(camera::Camera *cam)
         case 9:
         {
             cam->hmirror(value);
-            log::info("set hmirror: %d", value);
-            log::info("get hmirror: %d", cam->hmirror());
+            log::info("set camera hmirror: %d", value);
+            log::info("get camera hmirror: %d", cam->hmirror());
             break;
         }
         case 10:
         {
             cam->vflip(value);
-            log::info("set vflip: %d", value);
-            log::info("get vflip: %d", cam->vflip());
+            log::info("set camera vflip: %d", value);
+            log::info("get camera vflip: %d", cam->vflip());
             break;
         }
         case 11:
@@ -286,6 +289,20 @@ static int cmd_loop(camera::Camera *cam)
         case 13:
         {
             disp2_enable = value;
+            break;
+        }
+        case 14:
+        {
+            if (disp)
+                disp->set_hmirror(value);
+            log::info("set display hmirror: %d", value);
+            break;
+        }
+        case 15:
+        {
+            if (disp)
+                disp->set_vflip(value);
+            log::info("set display  vflip: %d", value);
             break;
         }
         default:printf("Find not cmd!\r\n"); break;

@@ -76,6 +76,8 @@ namespace maix::camera
         _open_set_regs = set_regs_flag;
         _device =  "";
         _last_read_us = time::ticks_us();
+        _invert_flip = false;
+        _invert_mirror = false;
         _is_opened = false;
 
 
@@ -135,6 +137,19 @@ namespace maix::camera
         } else {
             return false;
         }
+    }
+
+    static char* _get_board_name(void)
+    {
+        static char name[30];
+        if (fs::exists("/boot/board.maixcam_pro")) {
+            snprintf(name, sizeof(name), "maixcam_pro");
+        } else {
+            snprintf(name, sizeof(name), "maixcam");
+        }
+
+        log::info("find board: %s", name);
+        return name;
     }
 
     static char* _get_sensor_name(void)
@@ -276,14 +291,14 @@ namespace maix::camera
         return poolIdCount;
     }
 
-    static int _mmf_vi_init(int width, int height, int fps)
+    static int _mmf_vi_init(char *board_name, int width, int height, int fps)
     {
         SIZE_S stSize;
         PIC_SIZE_E enPicSize;
         SAMPLE_INI_CFG_S	stIniCfg;
         SAMPLE_VI_CONFIG_S	stViConfig;
-        PIXEL_FORMAT_E vi_format;
-        PIXEL_FORMAT_E vi_vpss_format;
+        PIXEL_FORMAT_E vi_format = PIXEL_FORMAT_NV21;
+        PIXEL_FORMAT_E vi_vpss_format = PIXEL_FORMAT_NV21;
 
         // config vi param
         char *sensor_name = getenv(MMF_SENSOR_NAME);
@@ -291,68 +306,118 @@ namespace maix::camera
         err::check_bool_raise(!SAMPLE_COMM_VI_ParseIni(&stIniCfg), "sensor cfg parse complete!");
         err::check_bool_raise(stIniCfg.devNum != 0, "Not device found! devnum = 0");
 
-        if (!strcmp(sensor_name, "sms_sc035gs")) {
+        struct {
+            SAMPLE_SNS_TYPE_E sns_type = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
+            std::vector<int> lane_id = std::vector<int>(5);
+            std::vector<int> pn_swap = std::vector<int>(5);
+            int mclk_en = 1;
+            int mclk = 1;
+        } sensor_cfg;
 
-            stIniCfg.enSnsType[0] = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
-            stIniCfg.as8PNSwap[0][0] = 0;
-            stIniCfg.as8PNSwap[0][1] = 0;
-            stIniCfg.as8PNSwap[0][2] = 0;
-            stIniCfg.as8PNSwap[0][3] = 0;
-            stIniCfg.as8PNSwap[0][4] = 0;
-            vi_format = PIXEL_FORMAT_NV21;
-            vi_vpss_format = PIXEL_FORMAT_YUV_400;
-        } else if (!strcmp(sensor_name, "ov_ov2685")) {
-            stIniCfg.enSnsType[0] = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
-            stIniCfg.as8PNSwap[0][0] = 1;
-            stIniCfg.as8PNSwap[0][1] = 1;
-            stIniCfg.as8PNSwap[0][2] = 1;
-            stIniCfg.as8PNSwap[0][3] = 0;
-            stIniCfg.as8PNSwap[0][4] = 0;
-            vi_format = PIXEL_FORMAT_NV21;
-            vi_vpss_format = PIXEL_FORMAT_NV21;
-            err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
-        } else if (!strcmp(sensor_name, "lt6911")) {
-            stIniCfg.enSnsType[0] = LONTIUM_LT6911_2M_60FPS_8BIT;
-            stIniCfg.as16LaneId[0][0] = 2;
-            stIniCfg.as16LaneId[0][1] = 4;
-            stIniCfg.as16LaneId[0][2] = 3;
-            stIniCfg.as16LaneId[0][3] = 1;
-            stIniCfg.as16LaneId[0][4] = 0;
-            stIniCfg.as8PNSwap[0][0] = 0;
-            stIniCfg.as8PNSwap[0][1] = 0;
-            stIniCfg.as8PNSwap[0][2] = 0;
-            stIniCfg.as8PNSwap[0][3] = 0;
-            stIniCfg.as8PNSwap[0][4] = 0;
-            vi_format = PIXEL_FORMAT_UYVY;
-            vi_vpss_format = PIXEL_FORMAT_UYVY;
-        } else if (!strcmp(sensor_name, "ov_os04a10")) {
-            stIniCfg.enSnsType[0] = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
-            stIniCfg.as16LaneId[0][0] = 2;
-            stIniCfg.as16LaneId[0][1] = 1;
-            stIniCfg.as16LaneId[0][2] = 3;
-            stIniCfg.as16LaneId[0][3] = 0;
-            stIniCfg.as16LaneId[0][4] = 4;
-            stIniCfg.as8PNSwap[0][0] = 0;
-            stIniCfg.as8PNSwap[0][1] = 0;
-            stIniCfg.as8PNSwap[0][2] = 0;
-            stIniCfg.as8PNSwap[0][3] = 0;
-            stIniCfg.as8PNSwap[0][4] = 0;
-            vi_format = PIXEL_FORMAT_NV21;
-            vi_vpss_format = PIXEL_FORMAT_NV21;
-            err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
-        } else { // default is gcore_gc4653
-            if (width <= 1280 && height <= 720 && fps > 30) {
-                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
-            } else {
-                stIniCfg.enSnsType[0] = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
+        if (!strcmp(board_name, "maixcam_pro")) {
+            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
+            sensor_cfg.mclk = 0;
+            if (!strcmp(sensor_name, "sms_sc035gs")) {
+                sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
+                sensor_cfg.lane_id = {0, 1, 2, -1, -1};
+                sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_YUV_400;
+            } else if (!strcmp(sensor_name, "ov_ov2685")) {
+                sensor_cfg.sns_type = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
+                sensor_cfg.lane_id = {0, 1, 2, -1, -1};
+                sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
+                err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
+            } else if (!strcmp(sensor_name, "lt6911")) {
+                sensor_cfg.sns_type = LONTIUM_LT6911_2M_60FPS_8BIT;
+                sensor_cfg.lane_id = {2, 0, 1, 3, 4};
+                sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
+                sensor_cfg.mclk_en = 0;
+                vi_format = PIXEL_FORMAT_UYVY;
+                vi_vpss_format = PIXEL_FORMAT_UYVY;
+            } else if (!strcmp(sensor_name, "ov_os04a10")) {
+                sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                sensor_cfg.lane_id = {2, 3, 1, 4, 0};
+                sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
+                sensor_cfg.mclk_en = 0;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
+                err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
+            } else { // default is gcore_gc4653
+                if (width <= 1280 && height <= 720 && fps > 30) {
+                    sensor_cfg.sns_type = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
+                } else {
+                    sensor_cfg.sns_type = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
+                }
+                sensor_cfg.lane_id = {0, 1, 2, -1, -1};
+                sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
             }
-            stIniCfg.as8PNSwap[0][0] = 0;
-            stIniCfg.as8PNSwap[0][1] = 0;
-            stIniCfg.as8PNSwap[0][2] = 0;
-            stIniCfg.as8PNSwap[0][3] = 0;
-            stIniCfg.as8PNSwap[0][4] = 0;
-            vi_format = PIXEL_FORMAT_NV21;
-            vi_vpss_format = PIXEL_FORMAT_NV21;
+        } else if (!strcmp(board_name, "maixcam")) {
+            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
+            sensor_cfg.mclk = 1;
+            if (!strcmp(sensor_name, "sms_sc035gs")) {
+                sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
+                sensor_cfg.lane_id = {4, 3, 2, -1, -1};
+                sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_YUV_400;
+            } else if (!strcmp(sensor_name, "ov_ov2685")) {
+                sensor_cfg.sns_type = GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT;
+                sensor_cfg.lane_id = {4, 3, 2, -1, -1};
+                sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
+                err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
+            } else if (!strcmp(sensor_name, "lt6911")) {
+                sensor_cfg.sns_type = LONTIUM_LT6911_2M_60FPS_8BIT;
+                sensor_cfg.lane_id = {2, 4, 3, 1, 0};
+                sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
+                sensor_cfg.mclk_en = 0;
+                vi_format = PIXEL_FORMAT_UYVY;
+                vi_vpss_format = PIXEL_FORMAT_UYVY;
+            } else if (!strcmp(sensor_name, "ov_os04a10")) {
+                sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                sensor_cfg.lane_id = {2, 1, 3, 0, 4};
+                sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
+                sensor_cfg.mclk_en = 0;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
+                err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
+            } else { // default is gcore_gc4653
+                if (width <= 1280 && height <= 720 && fps > 30) {
+                    sensor_cfg.sns_type = GCORE_GC4653_MIPI_720P_60FPS_10BIT;
+                } else {
+                    sensor_cfg.sns_type = GCORE_GC4653_MIPI_4M_30FPS_10BIT;
+                }
+                sensor_cfg.lane_id = {4, 3, 2, -1, -1};
+                sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
+                sensor_cfg.mclk_en = 1;
+                vi_format = PIXEL_FORMAT_NV21;
+                vi_vpss_format = PIXEL_FORMAT_NV21;
+            }
+        } else {
+            err::check_raise(err::ERR_RUNTIME, "unknown board name!");
+        }
+
+        stIniCfg.enSnsType[0] = sensor_cfg.sns_type;
+        stIniCfg.stMclkAttr[0].bMclkEn = sensor_cfg.mclk_en;
+        stIniCfg.stMclkAttr[0].u8Mclk = sensor_cfg.mclk;
+        for (int i = 0; i < 5; i++) {
+            stIniCfg.as16LaneId[0][i] = sensor_cfg.lane_id[i];
+        }
+        for (int i = 0; i < 5; i++) {
+            stIniCfg.as8PNSwap[0][i] = sensor_cfg.pn_swap[i];
         }
 
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
@@ -426,9 +491,18 @@ namespace maix::camera
 
         // config sensor env
         _config_sensor_env(_fps);
-
+        char *board_name = _get_board_name();
+        if (!strcmp(board_name, "maixcam_pro")) {
+            _invert_flip = true;
+            _invert_mirror = true;
+        } else {
+            _invert_flip = false;
+            _invert_mirror = false;
+        }
+        mmf_set_vi_vflip(0, _invert_flip);
+        mmf_set_vi_hmirror(0, _invert_mirror);
         // mmf init
-        err::check_bool_raise(!_mmf_vi_init(_width, _height, _fps), "mmf vi init failed");
+        err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
         if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
             mmf_vi_deinit();
@@ -720,6 +794,7 @@ _error:
         if (value == -1) {
             mmf_get_vi_hmirror(_ch, &out);
         } else {
+            value = _invert_mirror ? !value : value;
             if (this->is_opened()) {
                 VPSS_CHN_ATTR_S chn_attr = {0};
                 int s32Ret = CVI_VPSS_GetChnAttr(0, _ch, &chn_attr);
@@ -747,6 +822,7 @@ _error:
         if (value == -1) {
             mmf_get_vi_vflip(_ch, &out);
         } else {
+            value = _invert_flip ? !value : value;
             if (this->is_opened()) {
                 VPSS_CHN_ATTR_S chn_attr = {0};
                 int s32Ret = CVI_VPSS_GetChnAttr(0, _ch, &chn_attr);
