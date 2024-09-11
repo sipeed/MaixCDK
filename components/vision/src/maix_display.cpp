@@ -42,34 +42,6 @@ namespace maix::display
             err::Err e = this->open();
             err::check_raise(e, "display open failed");
         }
-
-        char line[1024];
-        char panel_value[256];
-
-        char *panel_env = getenv("MMF_PANEL_NAME");
-        if (panel_env) {
-            log::info("Found panel env MMF_PANEL_NAME=%s\r\n", panel_env);
-            strncpy(panel_value, panel_env, sizeof(panel_value));
-        } else {
-            FILE *file = fopen("/boot/uEnv.txt", "r");
-            if (file == NULL) {
-                perror("Error opening uEnv.txt");
-            }
-
-            while (fgets(line, sizeof(line), file)) {
-                if (strncmp(line, "panel=", 6) == 0) {
-                    strcpy(panel_value, line + 6);
-                    panel_value[strcspn(panel_value, "\n")] = '\0';
-                    break;
-                }
-            }
-
-            fclose(file);
-        }
-
-        if (!strcmp(panel_value, "MaixCam_Pro")) {
-            this->set_vflip(true);
-        }
     }
 
     Display::Display(const char *device, DisplayBase *base, int width, int height, image::Format format, bool open)

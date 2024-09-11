@@ -511,8 +511,6 @@ namespace maix::camera
         }
 
         _is_opened = true;
-        this->vflip(true);
-        this->hmirror(true);
         return err::ERR_NONE;
     }
 
