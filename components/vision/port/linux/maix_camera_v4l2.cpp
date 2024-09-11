@@ -920,6 +920,16 @@ namespace maix::camera
             }
         } // read
 
+        image::Image *read_raw() {
+            err::check_raise(err::ERR_NOT_IMPL, "read_raw() not impl");
+            return NULL;
+
+        }
+
+        err::Err set_fps(int fps) {
+
+        }
+
         void close()
         {
             enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

@@ -36,6 +36,22 @@ namespace maix::image
         FMT_YVU420P,  // YYY...VVV...UUU
         FMT_YUV420P,  // YYY...UUU...VVV
         FMT_GRAYSCALE,
+        FMT_BGGR6,      // 6-bit Bayer format with a BGGR pattern.
+        FMT_GBRG6,      // 6-bit Bayer format with a GBRG pattern.
+        FMT_GRBG6,      // 6-bit Bayer format with a GRBG pattern.
+        FMT_RGGB6,      // 6-bit Bayer format with a RGGB pattern.
+        FMT_BGGR8,      // 8-bit Bayer format with a BGGR pattern.
+        FMT_GBRG8,      // 8-bit Bayer format with a GBRG pattern.
+        FMT_GRBG8,      // 8-bit Bayer format with a GRBG pattern.
+        FMT_RGGB8,      // 8-bit Bayer format with a RGGB pattern.
+        FMT_BGGR10,     // 10-bit Bayer format with a BGGR pattern.
+        FMT_GBRG10,     // 10-bit Bayer format with a GBRG pattern.
+        FMT_GRBG10,     // 10-bit Bayer format with a GRBG pattern.
+        FMT_RGGB10,     // 10-bit Bayer format with a RGGB pattern.
+        FMT_BGGR12,     // 12-bit Bayer format with a BGGR pattern.
+        FMT_GBRG12,     // 12-bit Bayer format with a GBRG pattern.
+        FMT_GRBG12,     // 12-bit Bayer format with a GRBG pattern.
+        FMT_RGGB12,     // 12-bit Bayer format with a RGGB pattern.
         FMT_UNCOMPRESSED_MAX,
 
         // compressed format below, not compressed should define upper
@@ -68,6 +84,22 @@ namespace maix::image
         1.5,
         1.5,
         1, // grayscale
+        0.75,   // 6-bit Bayer format
+        0.75,   // 6-bit Bayer format
+        0.75,   // 6-bit Bayer format
+        0.75,   // 6-bit Bayer format
+        1,      // 8-bit Bayer format
+        1,      // 8-bit Bayer format
+        1,      // 8-bit Bayer format
+        1,      // 8-bit Bayer format
+        1.25,   // 10-bit Bayer format
+        1.25,   // 10-bit Bayer format
+        1.25,   // 10-bit Bayer format
+        1.25,   // 10-bit Bayer format
+        1.5,    // 12-bit Bayer format
+        1.5,    // 12-bit Bayer format
+        1.5,    // 12-bit Bayer format
+        1.5,    // 12-bit Bayer format
         0, // uncompereed_max
         0, // compressed_min
         1, // jpeg
@@ -94,6 +126,22 @@ namespace maix::image
         "YVU420P",
         "YUV420P",
         "GRAYSCALE",
+        "BGGR6",
+        "GBRG6",
+        "GRBG6",
+        "RG6B6",
+        "BGGR8",
+        "GBRG8",
+        "GRBG8",
+        "RG6B8",
+        "BGGR10",
+        "GBRG10",
+        "GRBG10",
+        "RG6B10",
+        "BGGR12",
+        "GBRG12",
+        "GRBG12",
+        "RG6B12",
         "UNCOMPRESSED_MAX",
         "COMPRESSED_MIN",
         "JPEG",

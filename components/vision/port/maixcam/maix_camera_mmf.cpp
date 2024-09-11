@@ -63,6 +63,12 @@ namespace maix::camera
         }
     }
 
+    typedef struct {
+        int dev;
+        SAMPLE_SNS_TYPE_E sns_type;
+        ISP_BAYER_FORMAT_E bayer_fmt;
+    } mmf_camera_priv_t;
+
     Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open)
     {
         err::Err e;
@@ -79,6 +85,11 @@ namespace maix::camera
         _invert_flip = false;
         _invert_mirror = false;
         _is_opened = false;
+
+        mmf_camera_priv_t *priv = (mmf_camera_priv_t *)malloc(sizeof(mmf_camera_priv_t));
+        err::check_null_raise(priv, "mmf_camera_priv_t malloc error");
+        priv->dev = 0;
+        _param = priv;
 
 
         if (format == image::Format::FMT_RGB888 && _width * _height * 3 > 640 * 640 * 3) {
@@ -168,24 +179,24 @@ namespace maix::camera
             log::info("i2c4 addr: 0x%02x", addr_list[i]);
             switch (addr_list[i]) {
                 case 0x29:
-                    log::info("found gcore_gc4653, addr %#x", addr_list[i]);
+                    log::info("find gcore_gc4653, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "gcore_gc4653");
                     return name;
                 case 0x30:
-                    log::info("found sms_sc035gs, addr %#x", addr_list[i]);
+                    log::info("find sms_sc035gs, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "sms_sc035gs");
                     return name;
                 case 0x2b:
-                    log::info("found lt6911, addr %#x", addr_list[i]);
+                    log::info("find lt6911, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "lt6911");
                     return name;
                 case 0x36:
-                    log::info("found ov_os04a10, addr %#x", addr_list[i]);
+                    log::info("find ov_os04a10, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "ov_os04a10");
                     return name;
                 case 0x48:// fall through
                 case 0x3c:
-                    log::info("found ov_ov2685, addr %#x", addr_list[i]);
+                    log::info("find ov_ov2685, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "ov_ov2685");
                     return name;
                 default: break;
@@ -205,7 +216,7 @@ namespace maix::camera
             err::check_null_raise(sensor_name, "sensor name not found!");
             setenv(MMF_SENSOR_NAME, sensor_name, 0);
         } else {
-            log::info("Found MMF_SENSOR_NAME=%s", env_value);
+            log::info("Find MMF_SENSOR_NAME=%s", env_value);
         }
 
         env_value = getenv(MAIX_SENSOR_FPS);
@@ -214,7 +225,7 @@ namespace maix::camera
             snprintf(new_value, sizeof(new_value), "%d", fps);
             setenv(MAIX_SENSOR_FPS, new_value, 0);
         } else {
-            log::info("Found MMF_SENSOR_FPS=%s", env_value);
+            log::info("Find MMF_SENSOR_FPS=%s", env_value);
         }
     }
 
@@ -291,7 +302,7 @@ namespace maix::camera
         return poolIdCount;
     }
 
-    static int _mmf_vi_init(char *board_name, int width, int height, int fps)
+    static int _mmf_vi_init(char *board_name, int width, int height, int fps, mmf_camera_priv_t *priv)
     {
         SIZE_S stSize;
         PIC_SIZE_E enPicSize;
@@ -420,10 +431,18 @@ namespace maix::camera
             stIniCfg.as8PNSwap[0][i] = sensor_cfg.pn_swap[i];
         }
 
+        ISP_PUB_ATTR_S stPubAttr;
+        memset(&stPubAttr, 0, sizeof(ISP_PUB_ATTR_S));
+        SAMPLE_COMM_SNS_GetIspAttrBySns(sensor_cfg.sns_type, &stPubAttr);
+        priv->sns_type = sensor_cfg.sns_type;
+        priv->bayer_fmt = stPubAttr.enBayer;
+
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
+        stViConfig.astViInfo[0].stChnInfo.enCompressMode = COMPRESS_MODE_NONE;
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
+
         if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, 3, &stViConfig)) {
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
@@ -438,6 +457,7 @@ namespace maix::camera
         image::Format format_tmp = (format == image::FMT_INVALID) ? _format : format;
         int fps_tmp = (fps == -1) ? _fps : fps;
         int buff_num_tmp =( buff_num == -1) ? _buff_num : buff_num;
+        mmf_camera_priv_t *priv = (mmf_camera_priv_t *)_param;
 
         // check format
         err::check_bool_raise(_check_format(format_tmp), "Format not support");
@@ -499,11 +519,12 @@ namespace maix::camera
             _invert_flip = false;
             _invert_mirror = false;
         }
-        mmf_set_vi_vflip(0, _invert_flip);
-        mmf_set_vi_hmirror(0, _invert_mirror);
+
         // mmf init
-        err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps), "mmf vi init failed");
+        err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps, priv), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
+        mmf_set_vi_vflip(_ch, _invert_flip);
+        mmf_set_vi_hmirror(_ch, _invert_mirror);
         if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
             mmf_vi_deinit();
             mmf_deinit_v2(false);
@@ -731,6 +752,136 @@ _error:
         }
     }
 
+    static image::Format _get_raw_format_with_size(int w, int h, int total_size, BAYER_FORMAT_E bayer_format) {
+        image::Format format = image::FMT_INVALID;
+        int size = w * h;
+        if (total_size == size * 0.75) {
+            switch (bayer_format) {
+            case BAYER_FORMAT_BG:
+                format = image::FMT_BGGR6;
+                break;
+            case BAYER_FORMAT_GB:
+                format = image::FMT_GBRG6;
+                break;
+            case BAYER_FORMAT_GR:
+                format = image::FMT_GRBG6;
+                break;
+            case BAYER_FORMAT_RG:
+                format = image::FMT_RGGB6;
+                break;
+            default:
+                return image::FMT_INVALID;
+            }
+        } else if (total_size == size * 1) {
+            switch (bayer_format) {
+            case BAYER_FORMAT_BG:
+                format = image::FMT_BGGR8;
+                break;
+            case BAYER_FORMAT_GB:
+                format = image::FMT_GBRG8;
+                break;
+            case BAYER_FORMAT_GR:
+                format = image::FMT_GRBG8;
+                break;
+            case BAYER_FORMAT_RG:
+                format = image::FMT_RGGB8;
+                break;
+            default:
+                return image::FMT_INVALID;
+            }
+        } else if (total_size == size * 1.25) {
+            switch (bayer_format) {
+            case BAYER_FORMAT_BG:
+                format = image::FMT_BGGR10;
+                break;
+            case BAYER_FORMAT_GB:
+                format = image::FMT_GBRG10;
+                break;
+            case BAYER_FORMAT_GR:
+                format = image::FMT_GRBG10;
+                break;
+            case BAYER_FORMAT_RG:
+                format = image::FMT_RGGB10;
+                break;
+            default:
+                return image::FMT_INVALID;
+            }
+        } else if (total_size == size * 1.5) {
+            switch (bayer_format) {
+            case BAYER_FORMAT_BG:
+                format = image::FMT_BGGR12;
+                break;
+            case BAYER_FORMAT_GB:
+                format = image::FMT_GBRG12;
+                break;
+            case BAYER_FORMAT_GR:
+                format = image::FMT_GRBG12;
+                break;
+            case BAYER_FORMAT_RG:
+                format = image::FMT_RGGB12;
+                break;
+            default:
+                return image::FMT_INVALID;
+            }
+        } else {
+            return image::FMT_INVALID;
+        }
+
+        return format;
+    }
+
+    image::Image *Camera::read_raw() {
+        if (!this->is_opened()) {
+            err::Err e = open(_width, _height, _format, _fps, _buff_num);
+            err::check_raise(e, "open camera failed");
+        }
+
+        VI_DUMP_ATTR_S attr;
+        memset(&attr, 0, sizeof(VI_DUMP_ATTR_S));
+        CVI_VI_GetPipeDumpAttr(0, &attr);
+        // log::info("Get enable:%d dumptype:%d", attr.bEnable, attr.enDumpType);
+        if (attr.bEnable != 1 || attr.enDumpType != VI_DUMP_TYPE_RAW) {
+            memset(&attr, 0, sizeof(VI_DUMP_ATTR_S));
+            attr.bEnable = 1;
+            attr.enDumpType = VI_DUMP_TYPE_RAW;
+            CVI_VI_SetPipeDumpAttr(0, &attr);
+
+            memset(&attr, 0, sizeof(VI_DUMP_ATTR_S));
+            CVI_VI_GetPipeDumpAttr(0, &attr);
+            err::check_bool_raise(attr.bEnable == 1, "Set dump enable failed");
+            err::check_bool_raise(attr.enDumpType == VI_DUMP_TYPE_RAW, "Set dump type failed");
+        }
+        image::Image *img = NULL;
+        image::Format format = image::FMT_INVALID;
+        VIDEO_FRAME_INFO_S stVideoFrame;
+        memset(&stVideoFrame, 0, sizeof(VIDEO_FRAME_INFO_S));
+        if (0 == CVI_VI_GetPipeFrame(0, &stVideoFrame, 2000)) {
+            stVideoFrame.stVFrame.pu8VirAddr[0] = (CVI_U8 *)CVI_SYS_Mmap(stVideoFrame.stVFrame.u64PhyAddr[0],
+                                                                        stVideoFrame.stVFrame.u32Length[0]);
+            log::info("bayer format:%d pixel format:%d length:%d width:%d height:%d\r\n", stVideoFrame.stVFrame.enBayerFormat, stVideoFrame.stVFrame.enPixelFormat, stVideoFrame.stVFrame.u32Length[0], stVideoFrame.stVFrame.u32Width, stVideoFrame.stVFrame.u32Height);
+			CVI_SYS_IonFlushCache(stVideoFrame.stVFrame.u64PhyAddr[0],
+								stVideoFrame.stVFrame.pu8VirAddr[0],
+								stVideoFrame.stVFrame.u32Length[0]);
+            format = _get_raw_format_with_size(stVideoFrame.stVFrame.u32Width, stVideoFrame.stVFrame.u32Height, stVideoFrame.stVFrame.u32Length[0], stVideoFrame.stVFrame.enBayerFormat);
+            if (format == image::FMT_INVALID) {
+                log::error("camera read: unsupport pixel/bayer format");
+                CVI_VI_ReleasePipeFrame(0, &stVideoFrame);
+                return NULL;
+            }
+            img = new image::Image(stVideoFrame.stVFrame.u32Width, stVideoFrame.stVFrame.u32Height, format);
+            if (!img) {
+                log::error("camera read: new image failed");
+                CVI_VI_ReleasePipeFrame(0, &stVideoFrame);
+                return NULL;
+            }
+
+            memcpy(img->data(), (const void *)stVideoFrame.stVFrame.pu8VirAddr[0], stVideoFrame.stVFrame.u32Length[0]);
+            CVI_SYS_Munmap((void *)stVideoFrame.stVFrame.pu8VirAddr[0], stVideoFrame.stVFrame.u32Length[0]);
+            CVI_VI_ReleasePipeFrame(0, &stVideoFrame);
+        }
+        return img;
+    }
+
     void Camera::clear_buff()
     {
         log::warn("This operation is not supported!");
@@ -756,6 +907,15 @@ _error:
         if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
         }
+        return err::ERR_NONE;
+    }
+
+    err::Err Camera::set_fps(int fps) {
+        ISP_PUB_ATTR_S stPubAttr;
+        memset(&stPubAttr, 0, sizeof(stPubAttr));
+        err::check_bool_raise(0 == CVI_ISP_GetPubAttr(0, &stPubAttr), "CVI_ISP_GetPubAttr failed");
+        stPubAttr.f32FrameRate = fps;
+        err::check_bool_raise(0 == CVI_ISP_SetPubAttr(0, &stPubAttr), "CVI_ISP_SetPubAttr failed");
         return err::ERR_NONE;
     }
 

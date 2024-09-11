@@ -136,8 +136,8 @@ namespace maix::display
                     flip = true;
                     mirror = false;
                 } else if (!strcmp(board_name, "maixcam")) {
-                    flip = true;
-                    mirror = true;
+                    flip = false;
+                    mirror = false;
                 } else {
                     err::check_raise(err::ERR_RUNTIME, "unknown board name!");
                 }

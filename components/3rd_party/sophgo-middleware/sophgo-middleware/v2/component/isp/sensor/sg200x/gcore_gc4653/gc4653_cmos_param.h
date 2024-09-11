@@ -58,8 +58,8 @@ static const GC4653_MODE_S g_astGc4653_mode[GC4653_MODE_NUM] = {
 		},
 		.f32MaxFps = 30,
 		.f32MinFps = 2.75, /* 1500 * 30 / 16383  */
-		.u32HtsDef = 1500,
-		.u32VtsDef = 750,//650
+		.u32HtsDef = 2200,
+		.u32VtsDef = 1500,//650
 		.stExp[0] = {
 			.u16Min = 1,
 			.u16Max = 0x3fff,

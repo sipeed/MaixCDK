@@ -95,6 +95,14 @@ namespace maix::camera
         image::Image *read(void *buff = nullptr, size_t buff_size = 0, bool block = true);
 
         /**
+         * Read the raw image and obtain the width, height, and format of the raw image through the returned Image object.
+         * @note The raw image is in a Bayer format, and its width and height are affected by the driver. Modifying the size and format is generally not allowed.
+         * @return image::Image object, if failed, return nullptr, you should delete if manually in C++
+         * @maixpy maix.camera.Camera.read_raw
+        */
+        image::Image *read_raw();
+
+        /**
          * Clear buff to ensure the next read image is the latest image
          * @maixpy maix.camera.Camera.clear_buff
         */
@@ -265,6 +273,14 @@ namespace maix::camera
         err::Err set_resolution(int width, int height);
 
         /**
+         * Set camera fps
+         * @param fps new fps
+         * @return error code, err::ERR_NONE means success, others means failed
+         * @maixpy maix.camera.Camera.set_fps
+        */
+        err::Err set_fps(int fps);
+
+        /**
          * Set/Get camera exposure
          * @attention This method will affect the isp and thus the image, so please be careful with it.
          * @param value exposure time. unit: us
@@ -376,5 +392,6 @@ namespace maix::camera
         bool _invert_flip;
         bool _invert_mirror;
         bool _is_opened;
+        void *_param;
     };
 }

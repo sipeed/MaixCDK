@@ -159,6 +159,8 @@ static int cmd_init(void)
             "13 <enable>: use a new channel of display, 1:use 0:unuse\r\n"
             "14 <enable>: set disolay hmirror, 1:enable;0:disable\r\n"
             "15 <enable>: set disolay vflip, 1:enable;0:disable\r\n"
+            "16 : dump raw data to file, default save in: /root/dump_bayer.raw\r\n"
+            "17 <fps>: set fps\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -303,6 +305,31 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
             if (disp)
                 disp->set_vflip(value);
             log::info("set display  vflip: %d", value);
+            break;
+        }
+        case 16:
+        {
+            std::string path = "/root/dump_bayer.raw";
+            image::Image *img = cam->read_raw();
+            if (img) {
+                log::info("dump bayer data to %s, width:%d height:%d data size:%d format:%s",
+                            path.c_str(), img->width(), img->height(), img->data_size(), image::fmt_names[img->format()].c_str());
+                fs::File *f = fs::open(path, "w+");
+                err::check_null_raise(f, "open file error");
+                f->write(img->data(), img->data_size());
+                f->close();
+                delete img;
+                delete f;
+            } else {
+                log::info("Can not read raw image");
+            }
+
+            break;
+        }
+        case 17:
+        {
+            int fps = value;
+            err::check_raise(cam->set_fps(fps), "set fps error");
             break;
         }
         default:printf("Find not cmd!\r\n"); break;
