@@ -456,6 +456,12 @@ namespace maix::camera
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
         }
+
+        ISP_EXPOSURE_ATTR_S stExpAttr;
+        memset(&stExpAttr, 0, sizeof(ISP_EXPOSURE_ATTR_S));
+        err::check_bool_raise(CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &stExpAttr), "GetExposureAttr failed!");
+        stExpAttr.stAuto.stExpTimeRange.u32Max = 1 * 1000 * 1000;
+        err::check_bool_raise(CVI_SUCCESS == CVI_ISP_SetExposureAttr(0, &stExpAttr), "SetExposureAttr failed!");
         return  0;
     }
 
