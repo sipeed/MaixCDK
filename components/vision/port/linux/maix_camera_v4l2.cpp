@@ -920,16 +920,6 @@ namespace maix::camera
             }
         } // read
 
-        image::Image *read_raw() {
-            err::check_raise(err::ERR_NOT_IMPL, "read_raw() not impl");
-            return NULL;
-
-        }
-
-        err::Err set_fps(int fps) {
-
-        }
-
         void close()
         {
             enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1109,6 +1099,15 @@ namespace maix::camera
 
     void set_regs_enable(bool enable) {
         set_regs_flag = enable;
+    }
+
+    image::Image *Camera::read_raw() {
+        err::check_raise(err::ERR_NOT_IMPL, "read_raw() not impl");
+        return NULL;
+    }
+
+    err::Err Camera::set_fps(int fps) {
+        return err::ERR_NOT_IMPL;
     }
 
     err::Err Camera::show_colorbar(bool enable)
