@@ -55,10 +55,11 @@ namespace maix::camera
          * @param buff_num camera buffer number, default is 3, means 3 buffer, one used by user, one used for cache the next frame,
          *                 more than one buffer will accelerate image read speed, but will cost more memory.
          * @param open If true, camera will automatically call open() after creation. default is true.
+         * @param raw If true, you can use read_raw() to capture the raw image output from the sensor.
          * @maixpy maix.camera.Camera.__init__
          * @maixcdk maix.camera.Camera.Camera
          */
-        Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, int fps = -1, int buff_num = 3, bool open = true);
+        Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, int fps = -1, int buff_num = 3, bool open = true, bool raw = false);
         ~Camera();
 
         /**

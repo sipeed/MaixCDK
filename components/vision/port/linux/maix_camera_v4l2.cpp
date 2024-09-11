@@ -1159,7 +1159,7 @@ namespace maix::camera
     }
 
     static CameraV4L2 *_impl;
-    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open)
+    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open, bool raw)
     {
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");

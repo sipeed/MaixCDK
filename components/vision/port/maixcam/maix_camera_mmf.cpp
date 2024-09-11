@@ -67,9 +67,10 @@ namespace maix::camera
         int dev;
         SAMPLE_SNS_TYPE_E sns_type;
         ISP_BAYER_FORMAT_E bayer_fmt;
-    } mmf_camera_priv_t;
+        bool raw;
+    } camera_priv_t;
 
-    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open)
+    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open, bool raw)
     {
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");
@@ -86,9 +87,11 @@ namespace maix::camera
         _invert_mirror = false;
         _is_opened = false;
 
-        mmf_camera_priv_t *priv = (mmf_camera_priv_t *)malloc(sizeof(mmf_camera_priv_t));
-        err::check_null_raise(priv, "mmf_camera_priv_t malloc error");
+        camera_priv_t *priv = (camera_priv_t *)malloc(sizeof(camera_priv_t));
+        err::check_null_raise(priv, "camera_priv_t malloc error");
+        memset(priv, 0, sizeof(camera_priv_t));
         priv->dev = 0;
+        priv->raw = raw;
         _param = priv;
 
 
@@ -127,6 +130,10 @@ namespace maix::camera
     {
         if (this->is_opened()) {
             this->close();
+        }
+
+        if (_param) {
+            free(_param);
         }
     }
 
@@ -302,7 +309,7 @@ namespace maix::camera
         return poolIdCount;
     }
 
-    static int _mmf_vi_init(char *board_name, int width, int height, int fps, mmf_camera_priv_t *priv)
+    static int _mmf_vi_init(char *board_name, int width, int height, int fps, camera_priv_t *priv)
     {
         SIZE_S stSize;
         PIC_SIZE_E enPicSize;
@@ -439,7 +446,9 @@ namespace maix::camera
 
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
-        stViConfig.astViInfo[0].stChnInfo.enCompressMode = COMPRESS_MODE_NONE;
+        if (priv->raw) {
+            stViConfig.astViInfo[0].stChnInfo.enCompressMode = COMPRESS_MODE_NONE;
+        }
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
 
@@ -457,7 +466,7 @@ namespace maix::camera
         image::Format format_tmp = (format == image::FMT_INVALID) ? _format : format;
         int fps_tmp = (fps == -1) ? _fps : fps;
         int buff_num_tmp =( buff_num == -1) ? _buff_num : buff_num;
-        mmf_camera_priv_t *priv = (mmf_camera_priv_t *)_param;
+        camera_priv_t *priv = (camera_priv_t *)_param;
 
         // check format
         err::check_bool_raise(_check_format(format_tmp), "Format not support");
@@ -834,6 +843,11 @@ _error:
         if (!this->is_opened()) {
             err::Err e = open(_width, _height, _format, _fps, _buff_num);
             err::check_raise(e, "open camera failed");
+        }
+
+        camera_priv_t *priv = (camera_priv_t *)this->_param;
+        if (!priv->raw) {
+            err::check_raise(err::ERR_NOT_READY, "you need to enable the raw parameter when constructing the Camera object.");
         }
 
         VI_DUMP_ATTR_S attr;

@@ -30,10 +30,11 @@ int _main(int argc, char* argv[])
     image::Format cam_fmt = image::Format::FMT_RGB888;
     int cam_fps = -1;
     int cam_buffer_num = 3;
+    bool raw = true;
     if (argc > 1) {
         if (!strcmp(argv[1], "-h")) {
-            log::info("./camera_display <width> <height> <format> <fps> <buff_num>");
-            log::info("example: ./camera_display 640 480 0 60 2");
+            log::info("./camera_display <width> <height> <format> <fps> <buff_num> <raw>");
+            log::info("example: ./camera_display 640 480 0 60 2 1");
             exit(0);
         } else {
             cam_w = atoi(argv[1]);
@@ -43,9 +44,11 @@ int _main(int argc, char* argv[])
     if (argc > 3) cam_fmt = (image::Format)atoi(argv[3]);
     if (argc > 4) cam_fps = atoi(argv[4]);
     if (argc > 5) cam_buffer_num = atoi(argv[5]);
-    log::info("Camera width:%d height:%d format:%s fps:%d buffer_num:%d", cam_w, cam_h, image::fmt_names[cam_fmt].c_str(), cam_fps, cam_buffer_num);
+    if (argc > 6) raw = atoi(argv[6]) ? true : false;
+    log::info("Camera width:%d height:%d format:%s fps:%d buffer_num:%d raw:%d",
+        cam_w, cam_h, image::fmt_names[cam_fmt].c_str(), cam_fps, cam_buffer_num, raw);
 
-    camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num);
+    camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num, true, raw);
     camera::Camera *cam2 = NULL;
     display::Display disp = display::Display();
     display::Display *disp2 = NULL;
