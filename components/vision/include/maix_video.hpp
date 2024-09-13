@@ -10,6 +10,7 @@
 #include "maix_image.hpp"
 #include "maix_display.hpp"
 #include "maix_camera.hpp"
+#include "maix_audio.hpp"
 #include <memory>
 
 /**
@@ -56,10 +57,25 @@ namespace maix::video
         MEDIA_TYPE_NB               // Represents the number of media types (count) and indicates the total number of media types defined in this enumeration. It is not a media type itself but is used for counting enumeration items.
     };
 
-    typedef struct {
-        int num;
-        int den;
-    } time_base_t;
+    /**
+     * @brief Convert a value in timebase units to microseconds. value * 1000000 / (timebase[1] / timebase[0])
+     * @param timebse Time base, used as the unit for calculating playback time. It must be an array containing two parameters,
+     * in the format [num, den], where the first parameter is the numerator of the time base, and the second parameter is the denominator of the time base.
+     * @param value Input value
+     * @return Return the result in microseconds.
+     * @maixpy maix.video.timebase_to_us
+    */
+    double timebase_to_us(std::vector<int> timebase, uint64_t value);
+
+    /**
+     * @brief Convert a value in timebase units to milliseconds.
+     * @param timebse Time base, used as the unit for calculating playback time. It must be an array containing two parameters,
+     * in the format [num, den], where the first parameter is the numerator of the time base, and the second parameter is the denominator of the time base.
+     * @param value Input value
+     * @return Return the result in milliseconds.
+     * @maixpy maix.video.timebase_to_ms
+    */
+    double timebase_to_ms(std::vector<int> timebase, uint64_t value);
 
     /**
      * Context class
@@ -69,7 +85,7 @@ namespace maix::video
     {
     public:
         /**
-         * @brief Construct a new Video object
+         * @brief Construct a new Context object
          * @param media_type enable capture, if true, you can use capture() function to get an image object
          * @param timebase Time base, used as the unit for calculating playback time. It must be an array containing two parameters,
          * in the format [num, den], where the first parameter is the numerator of the time base, and the second parameter is the denominator of the time base.
@@ -84,14 +100,100 @@ namespace maix::video
             } else {
                 _timebase = timebase;
             }
+
+            _pcm = NULL;
+            _image = NULL;
         }
+
+        /**
+         * @brief Construct a new Context object
+         * @param media_type enable capture, if true, you can use capture() function to get an image object
+         * @param timebase Time base, used as the unit for calculating playback time. It must be an array containing two parameters,
+         * in the format [num, den], where the first parameter is the numerator of the time base, and the second parameter is the denominator of the time base.
+         * @param sample_rate sampling rate of audio
+         * @param format audio format
+         * @param channels number of audio channels
+         * @maixcdk maix.video.Context.Context
+         */
+        Context(video::MediaType media_type, std::vector<int> timebase, int sample_rate, audio::Format format, int channels) {
+            _media_type = media_type;
+
+            if (timebase.size() < 2) {
+                _timebase = {0, 0};
+            } else {
+                _timebase = timebase;
+            }
+
+            _audio_sample_rate = sample_rate;
+            _audio_format = format;
+            _audio_channels = channels;
+            _pcm = NULL;
+            _image = NULL;
+        }
+
         ~Context() {
             if (_media_type == video::MEDIA_TYPE_VIDEO) {
                 if (_image) {
                     delete _image;
                     _image = NULL;
                 }
+            } else if (_media_type == video::MEDIA_TYPE_AUDIO) {
+                if (_pcm) {
+                    delete _pcm;
+                    _pcm = NULL;
+                }
             }
+        }
+
+        /**
+         * @brief Get sample rate of audio (only valid in the context of audio)
+         * @return sample rate
+         * @maixpy maix.video.Context.audio_sample_rate
+        */
+        int audio_sample_rate() { return _audio_sample_rate; }
+
+        /**
+         * @brief Get channels of audio (only valid in the context of audio)
+         * @return channels
+         * @maixpy maix.video.Context.audio_channels
+        */
+        int audio_channels() { return _audio_channels; }
+
+        /**
+         * @brief Get format of audio (only valid in the context of audio)
+         * @return audio format. @see audio::Format
+         * @maixpy maix.video.Context.audio_format
+        */
+        audio::Format audio_format() { return _audio_format; }
+
+        /**
+         * @brief Set pcm data (only valid in the context of audio)
+         * @param duration Duration of the current pcm. unit: timebase
+         * @param pts The start time of this pcm playback. If it is 0, it means this parameter is not supported. unit: timebase
+         * @return err::Err
+         * @maixpy maix.video.Context.set_pcm
+        */
+        err::Err set_pcm(maix::Bytes *data, int duration = 0, uint64_t pts = 0, bool copy = true) {
+            maix::Bytes *bytes = NULL;
+            bytes = new maix::Bytes(data->data, data->size(), true, copy);
+            err::check_null_raise(bytes, "set_pcm failed");
+            _pcm = bytes;
+            _duration = duration < 0 ? 0 : duration;
+            _pts = pts < 0 ? 0 : pts;
+            _last_pts = 0;
+            return err::ERR_NONE;
+        }
+
+        /**
+        * @brief Get pcm data (only valid in the context of audio)
+        * @attention Note that if you call this interface, you are responsible for releasing the memory of the data, and this interface cannot be called again.
+        * @return Bytes
+        * @maixpy maix.video.Context.get_pcm
+        */
+        Bytes *get_pcm() {
+            maix::Bytes *bytes_out = _pcm;
+            _pcm = NULL;
+            return bytes_out;
         }
 
         /**
@@ -100,7 +202,7 @@ namespace maix::video
          * @param duration Duration of the current image. unit: timebase
          * @param pts The start time of this image playback. If it is 0, it means this parameter is not supported. unit: timebase
          * @param last_pts The start time of the previous image playback. It can be used to ensure the playback order. If it is 0, it means this parameter is not supported. unit: timebase
-         * @maixpy maix.video.Context.set_image
+         * @maixcdk maix.video.Context.set_image
          */
         void set_image(image::Image *image, int duration = 0, uint64_t pts = 0, uint64_t last_pts = 0) {
             _image = image;
@@ -174,6 +276,11 @@ namespace maix::video
         uint64_t _last_pts;
         std::vector<int> _timebase; // [den, num], timebase = den / num
         int _duration;
+
+        int _audio_sample_rate;
+        audio::Format _audio_format;
+        int _audio_channels;
+        Bytes *_pcm;
     };
 
     /**
@@ -677,10 +784,50 @@ namespace maix::video
          * @param block Whether it blocks or not. If true, it will wait for the decoding to complete and return the current frame.
          * If false, it will return the result of the previous frame's decoding. If the previous frame's decoding result is empty,
          * it will return an unknown Context, and you can use the media_type method of the Context to determine if a valid result exists.
-         * @return Decoded context information. default is true.
+         * default is true.
+         * @return Decoded context information.
          * @maixpy maix.video.Decoder.decode_video
         */
         video::Context * decode_video(bool block = true);
+
+        /**
+         * Decode the video stream, returning the image of the next frame each time.
+         * @return Decoded context information.
+         * @maixpy maix.video.Decoder.decode_audio
+        */
+        video::Context * decode_audio();
+
+        /**
+         * Decode the video and audio stream
+         * @param block Whether it blocks or not. If true, it will wait for the decoding to complete and return the current frame.
+         * If false, it will return the result of the previous frame's decoding. If the previous frame's decoding result is empty,
+         * it will return an unknown Context, and you can use the media_type method of the Context to determine if a valid result exists.
+         * default is true.
+         * @return Decoded context information.
+         * @maixpy maix.video.Decoder.decode
+        */
+        video::Context * decode(bool block = true);
+
+        /**
+         * @brief Get sample rate of audio (only valid in the context of audio)
+         * @return sample rate
+         * @maixpy maix.video.Context.audio_sample_rate
+        */
+        int audio_sample_rate() { return _audio_sample_rate; }
+
+        /**
+         * @brief Get channels of audio (only valid in the context of audio)
+         * @return channels
+         * @maixpy maix.video.Context.audio_channels
+        */
+        int audio_channels() { return _audio_channels; }
+
+        /**
+         * @brief Get format of audio (only valid in the context of audio)
+         * @return audio format. @see audio::Format
+         * @maixpy maix.video.Context.audio_format
+        */
+        audio::Format audio_format() { return _audio_format; }
 
         /**
          * @brief Get the video width
@@ -744,15 +891,38 @@ namespace maix::video
         std::vector<int> timebase() {
             return _timebase;
         }
+
+        /**
+         * @brief If find audio data, return true
+         * @maixpy maix.video.Decoder.has_audio
+        */
+        bool has_audio() {
+            return _has_audio;
+        }
+
+        /**
+         * @brief If find video data, return true
+         * @maixpy maix.video.Decoder.has_video
+        */
+        bool has_video() {
+            return _has_video;
+        }
     private:
         std::string _path;
         int _width;
         int _height;
         int _bitrate;
         int _fps;
+        int _has_audio;
+        int _has_video;
         uint64_t _last_pts;
         image::Format _format_out;
         std::vector<int> _timebase;
+
+        int _audio_sample_rate;
+        audio::Format _audio_format;
+        int _audio_channels;
+
         void *_param;
     };
 

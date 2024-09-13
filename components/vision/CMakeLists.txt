@@ -45,7 +45,7 @@ elseif(PLATFORM_MAIXCAM)
         set(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--start-group vision/libvision.a -lmaixcam_lib -Wl,--end-group" PARENT_SCOPE)
     endif()
 endif()
-list(APPEND ADD_REQUIREMENTS eigen)
+list(APPEND ADD_REQUIREMENTS eigen voice)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

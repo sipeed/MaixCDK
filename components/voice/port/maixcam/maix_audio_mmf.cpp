@@ -264,7 +264,7 @@ namespace maix::audio
         if (handle) *handle = NULL;
         if (hw_params) *hw_params = NULL;
 
-        if ((err = snd_pcm_open(handle, "hw:1,0", SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
+        if ((err = snd_pcm_open(handle, "hw:1,0", SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
             printf("Cannot open audio device hw:1,0 (%s)\n", snd_strerror(err));
             goto _exit;
         }
@@ -350,8 +350,28 @@ namespace maix::audio
             return 0;
         }
 
-        if ((len = (int)snd_pcm_writei(handle, buffer, write_count)) < 0) {
-            return len;
+        int remain_len = write_count;
+        uint64_t timeout_ms = 1000;
+        uint64_t last_ms = time::ticks_ms();
+        uint8_t *buffer2 = (uint8_t *)buffer;
+        while (remain_len > 0) {
+            // log::info("======[%s][%d] total:%d remain_len:%d idle:%d", __func__, __LINE__, write_count, remain_len, snd_pcm_avail_update(handle));
+            if ((len = (int)snd_pcm_writei(handle, buffer2, remain_len)) < 0) {
+                snd_pcm_prepare(handle);
+                return len;
+            }
+
+            remain_len -= len;
+            buffer2 += len * frame_byte * channels;
+
+            if (len > 0) {
+                last_ms = time::ticks_ms();
+            }
+
+            if (time::ticks_ms() - last_ms > timeout_ms) {
+                log::warn("write pcm timeout! write:%d remain %d", len * frame_byte * channels, remain_len * frame_byte * channels);
+                return (len - remain_len) * frame_byte * channels;
+            }
         }
 
         return len * frame_byte * channels;

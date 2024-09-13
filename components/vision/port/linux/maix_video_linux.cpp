@@ -22,6 +22,14 @@ namespace maix::video
     maix::image::Image *Encoder::NoneImage = NULL;
 #endif
 
+    double timebase_to_us(std::vector<int> timebase, uint64_t value) {
+        return value * 1000000 / ((double)timebase[1] / timebase[0]);
+    }
+
+    double timebase_to_ms(std::vector<int> timebase, uint64_t value) {
+        return value * 1000 / ((double)timebase[1] / timebase[0]);
+    }
+
     Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
         throw err::Exception(err::ERR_NOT_IMPL);
     }
@@ -51,6 +59,15 @@ namespace maix::video
     }
 
     video::Context *Decoder::decode_video(bool block) {
+        return NULL;
+    }
+
+    video::Context *Decoder::decode_audio() {
+        return NULL;
+    }
+
+    video::Context *Decoder::decode(bool block) {
+        (void)block;
         return NULL;
     }
 
