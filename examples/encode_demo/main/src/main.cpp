@@ -6,17 +6,39 @@
 #include "maix_display.hpp"
 #include "maix_video.hpp"
 #include "maix_camera.hpp"
-
+#include "list"
 using namespace maix;
 
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <stdio.h>
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/opt.h>
+#include <libavutil/samplefmt.h>
+#include <libavutil/channel_layout.h>
+#include <libswresample/swresample.h>
+}
+
+static double timebase_to_ms(std::vector<int> timebase, uint64_t value) {
+    return value * 1000 / ((double)timebase[1] / timebase[0]);
 }
 
 static int h264_to_mp4(int argc, char *argv[]) {
     const char *input_filename = "output.h264";
     const char *output_filename = "output2.mp4";
+
+    AVStream *audio_stream = NULL;
+    AVCodecContext *audio_codec_ctx = NULL;
+    AVCodec *audio_codec = NULL;
+    AVFrame *audio_frame = NULL;
+    SwrContext *swr_ctx = NULL;
+    AVPacket *audio_packet = NULL;
+    audio_packet = av_packet_alloc();
+    err::check_null_raise(audio_packet, "av_packet_alloc");
+    audio_packet->data = NULL;
+    audio_packet->size = 0;
 
     AVFormatContext *input_format_ctx = NULL;
     AVFormatContext *output_format_ctx = NULL;
@@ -57,11 +79,51 @@ static int h264_to_mp4(int argc, char *argv[]) {
         // 复制编码器参数
         ret = avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
         if (ret < 0) {
-            fprintf(stderr, "Failed to copy codec parameters\n");
+            fprintf(stderr, "Failed to copy audio_codec parameters\n");
             return -1;
         }
         out_stream->codecpar->codec_tag = 0;
     }
+
+    enum AVSampleFormat format = AV_SAMPLE_FMT_S16;
+    int sample_rate = 48000;
+    int channels = 1;
+    int bitrate = 128000;
+    {
+        err::check_null_raise(audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
+        err::check_null_raise(audio_stream = avformat_new_stream(output_format_ctx, NULL), "Could not allocate stream");
+        err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
+        audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
+        audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
+        audio_codec_ctx->sample_rate = sample_rate;
+        audio_codec_ctx->channels = channels;
+        audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+        audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
+        audio_codec_ctx->bit_rate = bitrate;
+        audio_stream->time_base = (AVRational){1, sample_rate};
+        err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
+        err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
+
+        swr_ctx = swr_alloc();
+        av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
+        av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+        av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
+        av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
+        av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
+        av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+        swr_init(swr_ctx);
+    }
+
+    int frame_size = audio_codec_ctx->frame_size;
+    size_t buffer_size = av_samples_get_buffer_size(NULL, 1, frame_size, format, 1);
+    audio_frame = av_frame_alloc();
+    audio_frame->nb_samples = frame_size;
+    audio_frame->channel_layout = audio_codec_ctx->channel_layout;
+    audio_frame->format = AV_SAMPLE_FMT_FLTP;
+    audio_frame->sample_rate = audio_codec_ctx->sample_rate;
+    av_frame_get_buffer(audio_frame, 0);
+
+    int last_pts = 0;
 
     // 打开输出文件
     if (!(output_format_ctx->oformat->flags & AVFMT_NOFILE)) {
@@ -81,7 +143,99 @@ static int h264_to_mp4(int argc, char *argv[]) {
 
     int count = 0;
     // 读取输入数据包并写入输出文件
-    while (av_read_frame(input_format_ctx, &packet) >= 0) {
+
+    audio::Recorder *r = new audio::Recorder();
+    Bytes *pcm = NULL;
+    std::list<Bytes *> *pcm_list = new std::list<Bytes *>;
+
+    while (av_read_frame(input_format_ctx, &packet) >= 0 && !app::need_exit()) {
+{
+        uint64_t t = time::ticks_ms();
+        pcm = r->record();
+        if (pcm) {
+            if (pcm->data_len > 0) {
+                log::info("record use %lld ms", time::ticks_ms() - t);
+                t = time::ticks_ms();
+                size_t pcm_remain_len = pcm->data_len;
+                // fill last pcm to buffer_size
+                Bytes *last_pcm = pcm_list->back();
+                if (last_pcm && last_pcm->data_len < buffer_size) {
+                    int temp_size = pcm_remain_len + last_pcm->data_len >= buffer_size ? buffer_size : pcm_remain_len + last_pcm->data_len;
+                    uint8_t *temp = (uint8_t *)malloc(temp_size);
+                    err::check_null_raise(temp, "malloc failed!");
+                    memcpy(temp, last_pcm->data, last_pcm->data_len);
+                    if (pcm_remain_len + last_pcm->data_len < buffer_size) {
+                        memcpy(temp + last_pcm->data_len, pcm->data, pcm_remain_len);
+                        pcm_remain_len = 0;
+                    } else {
+                        memcpy(temp + last_pcm->data_len, pcm->data, buffer_size - last_pcm->data_len);
+                        pcm_remain_len -= (buffer_size - last_pcm->data_len);
+                    }
+
+                    Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                    pcm_list->pop_back();
+                    delete last_pcm;
+                    pcm_list->push_back(new_pcm);
+                }
+
+                // fill other pcm
+                while (pcm_remain_len > 0) {
+                    int temp_size = pcm_remain_len >= buffer_size ? buffer_size : pcm_remain_len;
+                    uint8_t *temp = (uint8_t *)malloc(temp_size);
+                    err::check_null_raise(temp, "malloc failed!");
+                    memcpy(temp, pcm->data + pcm->data_len - pcm_remain_len, temp_size);
+                    pcm_remain_len -= temp_size;
+
+                    Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                    pcm_list->push_back(new_pcm);
+                }
+
+                // audio process
+                while (pcm_list->size() > 0) {
+                    Bytes *pcm = pcm_list->front();
+                    if (pcm) {
+                        if (pcm->data_len == buffer_size) {
+                            // save to mp4
+                            // log::info("pcm data:%p size:%d list_size:%d", pcm->data, pcm->data_len, pcm_list->size());
+                            const uint8_t *in[] = {pcm->data};
+                            uint8_t *out[] = {audio_frame->data[0]};
+                            swr_convert(swr_ctx, out, frame_size, in, frame_size);
+                            audio_frame->pts = last_pts;
+                            if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
+                                printf("Error sending audio_frame to encoder.\n");
+                                break;
+                            }
+
+                            while (avcodec_receive_packet(audio_codec_ctx, audio_packet) == 0) {
+                                audio_packet->stream_index = audio_stream->index;
+                                audio_packet->pts = last_pts;
+                                audio_packet->dts = audio_packet->pts;
+                                audio_packet->duration = audio_codec_ctx->frame_size;
+                                last_pts = audio_packet->pts + audio_packet->duration;
+                                // log::info("audio_frame->pts:%d packet: pts:%d dts:%d duration:%d", audio_frame->pts, audio_packet->pts, audio_packet->dts, audio_packet->duration);
+
+                                std::vector<int> timebase = {audio_stream->time_base.num, audio_stream->time_base.den};
+                                log::info("[AUDIO] id:%d pts:%d dts:%d duration:%d timebase:%d/%d time:%.2f", audio_packet->stream_index, audio_packet->pts, audio_packet->dts, audio_packet->duration, audio_stream->time_base.num, audio_stream->time_base.den, timebase_to_ms(timebase, audio_packet->pts) / 1000);
+                                av_interleaved_write_frame(output_format_ctx, audio_packet);
+                                av_packet_unref(audio_packet);
+                            }
+
+                            pcm_list->pop_front();
+                            delete pcm;
+                        } else {
+                            break;
+                        }
+                    } else {
+                        err::check_raise(err::ERR_RUNTIME, "pcm data error");
+                    }
+                }
+                // log::info("save to mp4 use %lld ms", time::ticks_ms() - t);
+            }
+            delete pcm;
+        }
+        time::sleep_ms(33);
+}
+
         AVStream *in_stream = input_format_ctx->streams[packet.stream_index];
         AVStream *out_stream = output_format_ctx->streams[packet.stream_index];
         count ++;
@@ -106,6 +260,7 @@ static int h264_to_mp4(int argc, char *argv[]) {
         }
 
         // 将时间戳从输入流转换为输出流
+        packet.stream_index = out_stream->index;
         packet.pts = av_rescale_q_rnd(packet.pts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
         packet.dts = av_rescale_q_rnd(packet.dts, in_stream->time_base, out_stream->time_base, (AVRounding)(AV_ROUND_NEAR_INF|AV_ROUND_PASS_MINMAX));
         packet.duration = av_rescale_q(packet.duration, in_stream->time_base, out_stream->time_base);
@@ -113,12 +268,15 @@ static int h264_to_mp4(int argc, char *argv[]) {
         packet.dts = count * packet.duration;
         packet.pos = -1;
 
+        std::vector<int> timebase = {out_stream->time_base.num, out_stream->time_base.den};
+        log::info("[VIDEO] id:%d pts:%d dts:%d duration:%d time:%.2f", packet.stream_index, packet.pts, packet.dts, packet.duration, timebase_to_ms(timebase, packet.pts) / 1000);
         // 写入包到输出文件
         ret = av_interleaved_write_frame(output_format_ctx, &packet);
         if (ret < 0) {
             fprintf(stderr, "Error muxing packet\n");
             break;
         }
+
         av_packet_unref(&packet);
     }
 
@@ -178,6 +336,7 @@ int _main(int argc, char* argv[])
         int height = 480;
         image::Format format = image::Format::FMT_YVU420SP;
         video::VideoType type = video::VIDEO_H264;
+        audio::Recorder r = audio::Recorder();
         int framerate = 30;
         int gop = 50;
         int bitrate = 3000 * 1000;
@@ -203,9 +362,9 @@ int _main(int argc, char* argv[])
 
         while(!app::need_exit()) {
             image::Image *img = cam.read();
-            video::Frame *frame = e.encode(img);
-            // printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
-            //     frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
+            Bytes *pcm = r.record();
+            video::Frame *frame = e.encode(img, pcm);
+            delete pcm;
             delete frame;
 
             disp.show(*img);
@@ -232,17 +391,17 @@ int _main(int argc, char* argv[])
         video::Encoder e = video::Encoder(path, width, height, format, type, framerate, gop, bitrate, time_base, capture);
         camera::Camera cam = camera::Camera(width, height, format);
         display::Display disp = display::Display();
+        audio::Recorder r = audio::Recorder();
         e.bind_camera(&cam);
 
         while(!app::need_exit()) {
-            video::Frame *frame = e.encode();
+            Bytes *pcm = r.record();
+            video::Frame *frame = e.encode(NULL, pcm);
             image::Image *img = e.capture();
-            printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
-                frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
-
             disp.show(*img);
             delete frame;
             delete img;
+            delete pcm;
         }
         break;
     }
@@ -279,10 +438,10 @@ int _main(int argc, char* argv[])
 
             if (time::ticks_ms() - last_ms >= delay_record) {
                 last_ms = time::ticks_ms();
-                video::Frame *frame = e.encode(img);
-                printf("frame data:%p size:%ld pts:%ld dts:%ld\r\n",
-                    frame->data(), frame->size(), frame->get_pts(), frame->get_dts());
-                delete frame;
+                video::Frame *audio_frame = e.encode(img);
+                printf("audio_frame data:%p size:%ld pts:%ld dts:%ld\r\n",
+                    audio_frame->data(), audio_frame->size(), audio_frame->get_pts(), audio_frame->get_dts());
+                delete audio_frame;
                 continue;
             }
 

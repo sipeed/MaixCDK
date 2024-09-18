@@ -195,6 +195,19 @@ namespace maix::video
         video::VideoType video_type;
         int venc_ch;
         PAYLOAD_TYPE_E venc_type;
+
+        AVStream *audio_stream = NULL;
+        AVCodecContext *audio_codec_ctx = NULL;
+        AVCodec *audio_codec = NULL;
+        AVFrame *audio_frame = NULL;
+        SwrContext *swr_ctx = NULL;
+        AVPacket *audio_packet = NULL;
+        uint64_t audio_last_pts = 0;
+        std::list<Bytes *> *pcm_list;
+        int audio_sample_rate;
+        int audio_channels;
+        int audio_bitrate;
+        enum AVSampleFormat audio_format;
     } encoder_param_t;
 
     Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
@@ -273,6 +286,8 @@ namespace maix::video
                 log::error("Count not open file: %s", _path.c_str());
                 err::check_raise(err::ERR_RUNTIME, "Could not open file");
             }
+
+            /* video init */
             AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
             err::check_null_raise(outputStream, "create new stream failed");
 
@@ -290,8 +305,6 @@ namespace maix::video
                     err::check_raise(err::ERR_RUNTIME, "Could not open file");
                 }
             }
-
-            err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
 
             AVPacket *pPacket = av_packet_alloc();
             err::check_null_raise(pPacket, "malloc failed!");
@@ -323,9 +336,64 @@ namespace maix::video
                 err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
             }
 
+            /* audio init */
+            AVStream *audio_stream = NULL;
+            AVCodecContext *audio_codec_ctx = NULL;
+            AVCodec *audio_codec = NULL;
+            AVFrame *audio_frame = NULL;
+            SwrContext *swr_ctx = NULL;
+            AVPacket *audio_packet = NULL;
+
+            audio_packet = av_packet_alloc();
+            err::check_null_raise(audio_packet, "av_packet_alloc");
+            audio_packet->data = NULL;
+            audio_packet->size = 0;
+
+            int sample_rate = 48000;
+            int channels = 1;
+            int bitrate = 128000;
+            enum AVSampleFormat format = AV_SAMPLE_FMT_S16;
+            err::check_null_raise(audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
+            err::check_null_raise(audio_stream = avformat_new_stream(outputFormatContext, NULL), "Could not allocate stream");
+            err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
+            audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
+            audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
+            audio_codec_ctx->sample_rate = sample_rate;
+            audio_codec_ctx->channels = channels;
+            audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+            audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
+            audio_codec_ctx->time_base = (AVRational){1, sample_rate};
+            audio_codec_ctx->bit_rate = bitrate;
+            audio_stream->time_base = audio_codec_ctx->time_base;
+            err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
+            err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
+log::info("audio stream index:%d video index:%d outputFormatContext outputFormatContext->nb_streams:%d timebase:%d/%d",
+audio_stream->index, outputStream->index, outputFormatContext->nb_streams, audio_stream->time_base.num, audio_stream->time_base.den);
+            swr_ctx = swr_alloc();
+            av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
+            av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+            av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
+            av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
+            av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
+            av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+            swr_init(swr_ctx);
+
+            int frame_size = audio_codec_ctx->frame_size;
+            audio_frame = av_frame_alloc();
+            audio_frame->nb_samples = frame_size;
+            audio_frame->channel_layout = audio_codec_ctx->channel_layout;
+            audio_frame->format = AV_SAMPLE_FMT_FLTP;
+            audio_frame->sample_rate = audio_codec_ctx->sample_rate;
+            av_frame_get_buffer(audio_frame, 0);
+
+            err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
+
+            /* param init */
             encoder_param_t *param = (encoder_param_t *)_param;
             param->outputFormatContext = outputFormatContext;
             param->outputStream = outputStream;
+
+            // video init
             param->pPacket = pPacket;
             param->video_type = video_type;
             param->venc_ch = MMF_VENC_CHN;
@@ -352,6 +420,20 @@ namespace maix::video
                 default:
                     err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
             }
+
+            // audio init
+            param->audio_stream = audio_stream;
+            param->audio_codec_ctx = audio_codec_ctx;
+            param->audio_codec = audio_codec;
+            param->audio_frame = audio_frame;
+            param->swr_ctx = swr_ctx;
+            param->audio_packet = audio_packet;
+            param->audio_last_pts = 0;
+            param->pcm_list = new std::list<Bytes *>;
+            param->audio_sample_rate = 48000;
+            param->audio_channels = 1;
+            param->audio_bitrate = 128000;
+            param->audio_format = AV_SAMPLE_FMT_S16;
         }
     }
 
@@ -385,6 +467,17 @@ namespace maix::video
                 mmf_del_venc_channel(MMF_VENC_CHN);
                 mmf_deinit_v2(false);
                 av_write_trailer(param->outputFormatContext);
+
+                for (auto it = param->pcm_list->begin(); it != param->pcm_list->end(); ++it) {
+                    Bytes *pcm = *it;
+                    delete pcm;
+                    param->pcm_list->erase(it);
+                }
+                delete param->pcm_list;
+                av_frame_free(&param->audio_frame);
+                swr_free(&param->swr_ctx);
+                avcodec_free_context(&param->audio_codec_ctx);
+
                 avformat_close_input(&param->outputFormatContext);
                 if (param->outputFormatContext && !(param->outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
                     avio_closep(&param->outputFormatContext->pb);
@@ -392,6 +485,7 @@ namespace maix::video
                 avformat_free_context(param->outputFormatContext);
                 av_packet_unref(param->pPacket);
                 av_packet_free(&param->pPacket);
+
                 free(_param);
                 _param = NULL;
             }
@@ -417,7 +511,7 @@ namespace maix::video
         return err;
     }
 
-    video::Frame *Encoder::encode(image::Image *img) {
+    video::Frame *Encoder::encode(image::Image *img, Bytes *pcm) {
 #if 1
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
@@ -937,6 +1031,9 @@ namespace maix::video
                             }
                             pPacket->data = stream_buffer;
                             pPacket->size = copy_length;
+
+                            // std::vector<int> timebase = {param->outputStream->time_base.num, param->outputStream->time_base.den};
+                            // log::info("[VIDEO] pts:%d duration:%d time:%.2f", pPacket->pts, pPacket->duration, timebase_to_ms(timebase, pPacket->pts) / 1000);
                             err::check_bool_raise(av_interleaved_write_frame(param->outputFormatContext, pPacket) >= 0, "av_interleaved_write_frame failed!");
                         }
                     }
@@ -947,6 +1044,91 @@ namespace maix::video
                     stream_buffer = NULL;
                     mmf_del_venc_channel(MMF_VENC_CHN);
                     goto _exit;
+                }
+
+                // audio process
+                if (pcm && pcm->data_len > 0) {
+                    // uint64_t t = time::ticks_ms();
+                    std::list<Bytes *> *pcm_list = param->pcm_list;
+                    AVFrame *audio_frame = param->audio_frame;
+                    AVStream *audio_stream = param->audio_stream;
+                    AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
+                    SwrContext *swr_ctx = param->swr_ctx;
+                    AVFormatContext *outputFormatContext = param->outputFormatContext;
+                    AVPacket *audio_packet = param->audio_packet;
+                    size_t buffer_size = av_samples_get_buffer_size(NULL, 1, audio_frame->nb_samples, param->audio_format, 1);
+                    size_t pcm_remain_len = pcm->data_len;
+                    // fill last pcm to buffer_size
+                    Bytes *last_pcm = pcm_list->back();
+                    if (last_pcm && last_pcm->data_len < buffer_size) {
+                        int temp_size = pcm_remain_len + last_pcm->data_len >= buffer_size ? buffer_size : pcm_remain_len + last_pcm->data_len;
+                        uint8_t *temp = (uint8_t *)malloc(temp_size);
+                        err::check_null_raise(temp, "malloc failed!");
+                        memcpy(temp, last_pcm->data, last_pcm->data_len);
+                        if (pcm_remain_len + last_pcm->data_len < buffer_size) {
+                            memcpy(temp + last_pcm->data_len, pcm->data, pcm_remain_len);
+                            pcm_remain_len = 0;
+                        } else {
+                            memcpy(temp + last_pcm->data_len, pcm->data, buffer_size - last_pcm->data_len);
+                            pcm_remain_len -= (buffer_size - last_pcm->data_len);
+                        }
+
+                        Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                        pcm_list->pop_back();
+                        delete last_pcm;
+                        pcm_list->push_back(new_pcm);
+                    }
+
+                    // fill other pcm
+                    while (pcm_remain_len > 0) {
+                        int temp_size = pcm_remain_len >= buffer_size ? buffer_size : pcm_remain_len;
+                        uint8_t *temp = (uint8_t *)malloc(temp_size);
+                        err::check_null_raise(temp, "malloc failed!");
+                        memcpy(temp, pcm->data + pcm->data_len - pcm_remain_len, temp_size);
+                        pcm_remain_len -= temp_size;
+
+                        Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                        pcm_list->push_back(new_pcm);
+                    }
+
+                    // audio process
+                    while (pcm_list->size() > 0) {
+                        Bytes *pcm = pcm_list->front();
+                        if (pcm) {
+                            if (pcm->data_len == buffer_size) {
+                                // save to mp4
+                                // log::info("pcm data:%p size:%d list_size:%d", pcm->data, pcm->data_len, pcm_list->size());
+                                const uint8_t *in[] = {pcm->data};
+                                uint8_t *out[] = {audio_frame->data[0]};
+                                swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
+                                audio_frame->pts = param->audio_last_pts;
+                                if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
+                                    printf("Error sending audio_frame to encoder.\n");
+                                    break;
+                                }
+
+                                while (avcodec_receive_packet(audio_codec_ctx, audio_packet) == 0) {
+                                    audio_packet->stream_index = audio_stream->index;
+                                    audio_packet->pts = param->audio_last_pts;
+                                    audio_packet->dts = audio_packet->pts;
+                                    audio_packet->duration = audio_codec_ctx->frame_size;
+                                    param->audio_last_pts = audio_packet->pts + audio_packet->duration;
+
+                                    // std::vector<int> timebase = {audio_stream->time_base.num, audio_stream->time_base.den};
+                                    // log::info("[AUDIO] pts:%d duration:%d timebase:%d/%d time:%.2f", audio_packet->pts, audio_packet->duration, audio_stream->time_base.num, audio_stream->time_base.den, timebase_to_ms(timebase, audio_packet->pts) / 1000);
+                                    av_interleaved_write_frame(outputFormatContext, audio_packet);
+                                    av_packet_unref(audio_packet);
+                                }
+                                pcm_list->pop_front();
+                                delete pcm;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            err::check_raise(err::ERR_RUNTIME, "pcm data error");
+                        }
+                    }
+                    // log::info("pcm process time:%d", time::ticks_ms() - t);
                 }
 
                 if (!_block) {
@@ -2006,8 +2188,6 @@ _retry:
         decoder_param_t *param = (decoder_param_t *)_param;
         AVPacket *pPacket = param->pPacket;
         AVFormatContext *pFormatContext = param->pFormatContext;
-        AVBSFContext * bsfc = param->bsfc;
-        int video_stream_index = param->video_stream_index;
         int audio_stream_index = param->audio_stream_index;
         AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
         AVFrame *audio_frame = param->audio_frame;
@@ -2015,11 +2195,7 @@ _retry:
         int resample_sample_rate = param->resample_sample_rate;
         enum AVSampleFormat resample_format = param->resample_sample_format;
         SwrContext *swr_ctx = param->swr_ctx;
-        image::Image *img = NULL;
         video::Context *context = NULL;
-        uint64_t last_pts = 0;
-        uint64_t curr_pts = param->next_pts;
-        int frame_duration = pFormatContext->streams[video_stream_index]->time_base.den / pFormatContext->streams[video_stream_index]->time_base.num / _fps;
         while (av_read_frame(pFormatContext, pPacket) >= 0) {
             if (pPacket->stream_index == audio_stream_index) {
                 if (avcodec_send_packet(audio_codec_ctx, pPacket) >= 0) {
@@ -2079,11 +2255,10 @@ _retry:
         image::Image *img = NULL;
         video::Context *context = NULL;
         uint64_t last_pts = 0;
-        uint64_t curr_pts = param->next_pts;
         int frame_duration = pFormatContext->streams[video_stream_index]->time_base.den / pFormatContext->streams[video_stream_index]->time_base.num / _fps;
         bool is_video = false;
         bool is_audio = false;
-_retry:
+
         while (av_read_frame(pFormatContext, pPacket) >= 0) {
             log::info("[READ] audio/video:%d pts:%d pts_ms:%.2f ms",
             pPacket->stream_index, pPacket->pts, pPacket->pts / ((float)pFormatContext->streams[pPacket->stream_index]->time_base.den/pFormatContext->streams[pPacket->stream_index]->time_base.num));

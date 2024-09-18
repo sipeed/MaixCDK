@@ -628,10 +628,11 @@ namespace maix::video
          * Encode image.
          * @param img the image will be encode.
          * if the img is NULL, this function will try to get image from camera, you must use bind_camera() function to bind the camera.
+         * @param pcm the pcm data will be encode.
          * @return encode result
          * @maixpy maix.video.Encoder.encode
         */
-        video::Frame *encode(image::Image *img = maix::video::Encoder::NoneImage);
+        video::Frame *encode(image::Image *img = maix::video::Encoder::NoneImage, Bytes *pcm = NULL);
 
         /**
          * Capture image

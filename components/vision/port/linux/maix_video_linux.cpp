@@ -44,8 +44,9 @@ namespace maix::video
         return err::ERR_NOT_IMPL;
     }
 
-    video::Frame *Encoder::encode(image::Image *img) {
+    video::Frame *Encoder::encode(image::Image *img, Bytes *pcm) {
         (void)img;
+        (void)pcm;
         throw err::Exception(err::ERR_NOT_IMPL);
         return nullptr;
     }
