@@ -69,7 +69,7 @@ namespace maix
         };
 
         /**
-         * @brief Example enum
+         * @brief Example enum(not recommend! See Kind2)
          * @maixpy maix.example.Kind
          */
         enum Kind
@@ -81,6 +81,21 @@ namespace maix
             KIND_MAX /* Max Kind quantity,
                         You can get max Kind value by KIND_MAX - 1
                      */
+        };
+
+        /**
+         * @brief Example enum class(recommend!)
+         * @maixpy maix.example.Kind2
+         */
+        enum class Kind2
+        {
+            NONE = 0, /** Kind none, value always 0, other enum value will auto increase */
+            DOG,      /** Kind dog*/
+            CAT,      // Kind cat, value is auto generated according to KING_DOG
+            BIRD,
+            MAX       /* Max Kind quantity,
+                         You can get max Kind value by KIND_MAX - 1
+                      */
         };
 
         /**
