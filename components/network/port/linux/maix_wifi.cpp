@@ -503,7 +503,7 @@ bssid / frequency / signal level / flags / ssid
         {
             if (time::ticks_s() - last_t > 8)
             {
-                log::info("wait connect %d/%d s", time::ticks_s() - t, timeout);
+                log::info("wait connect %.2f/%d s", time::ticks_s() - t, timeout);
                 last_t = time::ticks_s();
             }
             time::sleep_ms(50);
@@ -513,7 +513,7 @@ bssid / frequency / signal level / flags / ssid
         {
             if (time::ticks_s() - last_t > 8)
             {
-                log::info("wait get ip %d/%d s", time::ticks_s() - t, timeout);
+                log::info("wait get ip %.2f/%d s", time::ticks_s() - t, timeout);
                 last_t = time::ticks_s();
             }
             time::sleep_ms(50);
