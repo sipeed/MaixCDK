@@ -102,7 +102,7 @@ namespace maix::comm
                 listener_priv::CommFileHandle::write_comm_info(uart_port);
                 return new uart::UART(uart_port, 115200);
             }
-            maix::log::info("new uart: %s",ports[ports.size() - 1].c_str());
+            maix::log::debug("new uart: %s",ports[ports.size() - 1].c_str());
             listener_priv::CommFileHandle::write_comm_info(ports[ports.size() - 1]);
             // std::string testfile("/root/linkA");
             // testfile_s.open(testfile, std::ios::in);
