@@ -1,4 +1,3 @@
-
 #include "maix_basic.hpp"
 #include "main.h"
 #include "maix_bm8563.hpp"
@@ -23,6 +22,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/time.h>
+#include <stdexcept>
 #include "cxxopts.hpp"
 
 #define _NTP_USE_CONFIG_FILE_ false
@@ -30,9 +30,7 @@
 static constexpr uint8_t BM8563_I2CBUS_NUM = 4;
 static constexpr uint64_t LOG_FILE_MAX_BYTES = 4 * 1024 * 1024; //4MB
 
-// #if _NTP_USE_CONFIG_FILE_
 static const char* LOG_FILE_PATH = "./assets/ntp_config.yaml";
-// #else
 static const std::map<std::string, int> ntp_hosts {
     {"ntp.tencent.com",     123},
     {"ntp1.tencent.com",    123},
@@ -55,7 +53,6 @@ static const std::map<std::string, int> ntp_hosts {
     {"time.nist.gov",       123},
     {"time.windows.com",    123}
 };
-// #endif
 
 static const std::map<std::string, std::string> addrs = {
     {"www.sipeed.com",  "80"},
@@ -178,7 +175,6 @@ std::string get_time_string_from_system(void)
     return oss.str();
 }
 
-// #if _NTP_USE_CONFIG_FILE_ == false
 static bool ntp_sync_from_map(const std::map<std::string, int>& m)
 {
     for (const auto& item : m) {
@@ -188,18 +184,14 @@ static bool ntp_sync_from_map(const std::map<std::string, int>& m)
     }
     return false;
 }
-// #endif
 
 static bool file_is_exists(std::string path)
 {
-    // std::fstream file(path, std::ios::in);
-    // return file.good();
     return std::fstream(path, std::ios::in).good();
 }
 
 static bool sync_sys(bool use_config_file, int& retry)
 {
-    // #if _NTP_USE_CONFIG_FILE_
     if (use_config_file) {
         auto ret = time::ntp_sync_sys_time_with_config(LOG_FILE_PATH);
         if (!ret.empty()) return true;
@@ -207,25 +199,83 @@ static bool sync_sys(bool use_config_file, int& retry)
         ++retry;
         return false;
     }
-    // #else
     if (ntp_sync_from_map(ntp_hosts))
         return true;
     maix::log::error("[%s][%d] Sync NTP -> system FAILED!!!", get_time_string_from_system().c_str(), retry);
     ++retry;
     return false;
-    // #endif
+}
+
+static const std::pair<tm, timeval> system_time(void)
+{
+    struct timeval tv;
+    struct tm *tm_;
+
+    ::gettimeofday(&tv, nullptr);
+
+    tm_ = ::localtime(&tv.tv_sec);
+
+    struct tm res;
+    ::memcpy(&res, tm_, sizeof(tm));
+
+    return std::make_pair(res, tv);
+}
+
+[[maybe_unused]]
+static void print_sys_time(std::pair<tm, timeval>&& t)
+{
+    const auto& t_ = t.first;
+    const auto& tv_ = t.second;
+    maix::log::info("Current [System Time]: %04d-%02d-%02d %02d:%02d:%02d.%03ld",
+           t_.tm_year + 1900, t_.tm_mon + 1, t_.tm_mday,
+           t_.tm_hour, t_.tm_min, t_.tm_sec,
+           tv_.tv_usec / 1000);
+}
+
+static void print_sys_time(void)
+{
+    struct timeval tv;
+    struct tm *tm;
+
+    ::gettimeofday(&tv, NULL);
+
+    tm = ::localtime(&tv.tv_sec);
+
+    maix::log::info("Current [System Time]: %04d-%02d-%02d %02d:%02d:%02d.%03ld",
+           tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+           tm->tm_hour, tm->tm_min, tm->tm_sec,
+           tv.tv_usec / 1000); // 微秒转换为毫秒
+
+}
+
+static void waiting_sys_time(uint32_t err_ms)
+{
+    for(;;) {
+        const auto now = system_time();
+        if (now.second.tv_usec/1000 <= err_ms)
+            break;
+    }
+}
+
+static void print_sys_and_rtc_time(maix::ext_dev::bm8563::BM8563& rtc)
+{
+    print_sys_time();
+    const auto rtc_t = rtc.now();
+    if (rtc_t.empty()) return;
+    maix::log::info("Current [RTC Time]: %04d-%02d-%02d %02d:%02d:%02d",
+            rtc_t[0], rtc_t[1], rtc_t[2], rtc_t[3], rtc_t[4], rtc_t[5]);
 }
 
 static void setup(int argc, char** argv)
 {
-    if (setsid() < 0) {
+    if (::setsid() < 0) {
         maix::log::error("setsid failed!");
         exit(1);
     }
 
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    ::close(STDIN_FILENO);
+    ::close(STDOUT_FILENO);
+    ::close(STDERR_FILENO);
 
     std::string filename(argv[0]);
     filename = "./" + filename + ".log";
@@ -239,10 +289,10 @@ static void setup(int argc, char** argv)
         maix::log::error("Failed to open log file!");
         exit(1);
     }
-    dup2(fd, STDIN_FILENO);
-    dup2(fd, STDOUT_FILENO);
-    dup2(fd, STDERR_FILENO);
-    close(fd);
+    ::dup2(fd, STDIN_FILENO);
+    ::dup2(fd, STDOUT_FILENO);
+    ::dup2(fd, STDERR_FILENO);
+    ::close(fd);
 }
 
 
@@ -265,6 +315,8 @@ static void deamon()
     maix::log::info("[%s] Init BM5863 START...", get_time_string_from_system().c_str());
     drv::bm8563::BM8563 rtc(BM8563_I2CBUS_NUM);
     maix::log::info("[%s] Init BM8653 FINISH...", get_time_string_from_system().c_str());
+
+    print_sys_and_rtc_time(rtc);
 
     static constexpr int MAX_RETRY_NUM = 10;
     int retry = 0;
@@ -289,6 +341,10 @@ static void deamon()
         if (!sync_sys(use_config_file, retry)) continue;
 
         maix::log::info("[%s] Sync NTP -> system Succ...", get_time_string_from_system().c_str());
+
+        maix::log::info("[%s] Wait for the system time to reach the whole second", get_time_string_from_system().c_str());
+        waiting_sys_time(50);
+
         if (err::Err::ERR_NONE != rtc.systohc()) {
             maix::log::error("[%s][%d] Sync system -> RTC FAILED!!!", get_time_string_from_system().c_str(), retry);
             ++retry;
@@ -302,26 +358,8 @@ static void deamon()
         maix::log::error("[%s] ALL retry FAILED!!!", get_time_string_from_system().c_str());
     auto rtime = maix::time::ticks_ms() - ltime;
     maix::log::info("[%s] EXIT, total time: %llu ms", get_time_string_from_system().c_str(), rtime);
+    print_sys_and_rtc_time(rtc);
     maix::log::info("----------------------------------------\n\n\n");
-}
-
-void print_sys_time(void)
-{
-    struct timeval tv;
-    struct tm *tm;
-
-    // 获取当前时间
-    gettimeofday(&tv, NULL);
-
-    // 将时间转换为本地时间
-    tm = localtime(&tv.tv_sec);
-
-    // 打印时间，精确到毫秒
-    maix::log::info("当前时间: %04d-%02d-%02d %02d:%02d:%02d.%03ld",
-           tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-           tm->tm_hour, tm->tm_min, tm->tm_sec,
-           tv.tv_usec / 1000); // 微秒转换为毫秒
-
 }
 
 int check(void)
@@ -346,31 +384,13 @@ int check(void)
 
     maix::log::info("[%s] Sync NTP -> system Succ...", get_time_string_from_system().c_str());
 
-    // while (!app::need_exit()) {
-    //     // ::system("date");
-    //     maix::log::info("");
-    //     maix::log::info("-----------");
-    //     auto rt = rtc.datetime();
-    //     if (rt.empty()) continue;
-    //     maix::log::info("%d-%d-%d %d:%d:%d", rt[0], rt[1], rt[2], rt[3], rt[4], rt[5]);
-    //     print_sys_time();
-    //     maix::log::info("-----------");
-    //     maix::time::sleep_ms(1000);
-    // }
-
-    // app::set_exit_flag(false);
-
-    int prev_s = 0;
-    {
-        auto rt = rtc.datetime();
-        prev_s = rt[5];
-    }
+    int prev_s = rtc.datetime()[5];
     while (!app::need_exit()) {
         auto rt = rtc.datetime();
         if (rt.empty()) continue;
         if (rt[5] != prev_s) {
             prev_s = rt[5];
-            maix::log::info("%d-%d-%d %d:%d:%d", rt[0], rt[1], rt[2], rt[3], rt[4], rt[5]);
+            maix::log::info("Current [RTC Time]: %d-%d-%d %d:%d:%d", rt[0], rt[1], rt[2], rt[3], rt[4], rt[5]);
             print_sys_time();
         }
     }
@@ -380,41 +400,49 @@ int check(void)
 
 int _main(int argc, char* argv[])
 {
-    if (argc >= 2) {
-        cxxopts::Options options(argv[0], "Sync NTP->SystemTime->RTC[bm8658]");
-        options.add_options()
-            ("d,debug", "Enable debugging")
-            ("h,help", "Print usage");
+    cxxopts::Options options(argv[0], "Sync NTP->SystemTime->RTC[bm8658].");
+    options.add_options()
+        ("b,blocking", "Run in blocking mode.", cxxopts::value<bool>()->default_value("false"))
+        ("d,debug", "Enable debugging", cxxopts::value<bool>()->default_value("false"))
+        ("h,help", "Print usage");
 
-        auto result = options.parse(argc, argv);
+    cxxopts::ParseResult result;
+    try {
+        result = options.parse(argc, argv);
+    } catch(std::exception& e) {
+        std::cout << options.help() << std::endl;
+        maix::log::error("%s", e.what());
+        return 1;
+    }
 
-        if (result.count("help")) {
-            std::cout << options.help() << std::endl;
-            return 0;
-        }
-
-        if (result["debug"].as<bool>()) {
-            return check();
-        }
+    if (result.count("help")) {
+        std::cout << options.help() << std::endl;
         return 0;
     }
 
-    pid_t pid = fork();
+    if (result["debug"].as<bool>()) {
+        return check();
+    }
 
-    if (pid < 0) {
-        maix::log::error("Start Failed...");
-        return 1;
-    } else if (pid > 0) {
-        // 父进程
-        // std::cout << "Parent process exiting, child process PID: " << pid << std::endl;
-        // maix::time::sleep(1);
-        maix::time::sleep_ms(50);
-        exit(0); // 父进程退出
+    if (result["blocking"].as<bool>()) {
+        deamon();
+        return 0;
     } else {
+        pid_t pid = fork();
+
+        if (pid < 0) {
+            maix::log::error("Start Failed...");
+            return 1;
+        } else if (pid > 0) {
+            maix::time::sleep_ms(50);
+            exit(0);
+        }
         setup(argc, argv);
         deamon();
         return 0;
     }
+    // std::cout << options.help() << std::endl;
+    return 0;
 }
 
 int main(int argc, char* argv[])

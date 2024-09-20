@@ -25,6 +25,11 @@ namespace maix::ext_dev::bm8563 {
         BM8563(int i2c_bus=-1);
         ~BM8563();
 
+        BM8563(const BM8563&)               = delete;
+        BM8563& operator=(const BM8563&)    = delete;
+        BM8563(BM8563&&)                    = delete;
+        BM8563& operator=(BM8563&&)         = delete;
+
         /**
          * @brief Get or set the date and time of the BM8563.
          *
