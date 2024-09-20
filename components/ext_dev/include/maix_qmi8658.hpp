@@ -8,6 +8,7 @@
 #pragma once
 #include "maix_basic.hpp"
 #include <atomic>
+#include <future>
 
 namespace maix::ext_dev::qmi8658 {
 
@@ -99,6 +100,7 @@ public:
      * @param acc_odr acc output data rate, see @qmi8658::AccOdr
      * @param gyro_scale gyro scale, see @qmi8658::GyroScale
      * @param gyro_odr gyro output data rate, see @qmi8658::GyroOdr
+     * @param blocking blocking or non-blocking, defalut is [blocking]
      *
      * @maixpy maix.ext_dev.qmi8658.QMI8658.__init__
      */
@@ -107,8 +109,14 @@ public:
             maix::ext_dev::qmi8658::AccScale acc_scale=maix::ext_dev::qmi8658::AccScale::ACC_SCALE_2G,
             maix::ext_dev::qmi8658::AccOdr acc_odr=maix::ext_dev::qmi8658::AccOdr::ACC_ODR_8000,
             maix::ext_dev::qmi8658::GyroScale gyro_scale=maix::ext_dev::qmi8658::GyroScale::GYRO_SCALE_16DPS,
-            maix::ext_dev::qmi8658::GyroOdr gyro_odr=maix::ext_dev::qmi8658::GyroOdr::GYRO_ODR_8000);
+            maix::ext_dev::qmi8658::GyroOdr gyro_odr=maix::ext_dev::qmi8658::GyroOdr::GYRO_ODR_8000,
+            bool blocking=true);
     ~QMI8658();
+
+    QMI8658(const QMI8658&)             = delete;
+    QMI8658& operator=(const QMI8658&)  = delete;
+    QMI8658(QMI8658&&)                  = delete;
+    QMI8658& operator=(QMI8658&&)       = delete;
 
     /**
      * @brief Read data from QMI8658.
@@ -123,6 +131,8 @@ private:
     void* _data;
     Mode _mode;
     std::atomic_bool reset_finished{false};
+    std::future<std::pair<int, std::string>> open_future;
+    bool open_fut_need_get{false};
 };
 
 

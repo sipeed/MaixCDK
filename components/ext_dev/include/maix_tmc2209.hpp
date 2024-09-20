@@ -128,6 +128,11 @@ public:
             float speed_mm_s=-1, bool use_internal_sense_resistors=true, uint8_t run_current_per=100,
             uint8_t hold_current_per=100, std::string cfg_file_path="" /* Driver init param */);
 
+    Slide(const Slide&)               = delete;
+    Slide& operator=(const Slide&)    = delete;
+    Slide(Slide&&)                    = default;
+    Slide& operator=(Slide&&)         = default;
+
     /**
      * @brief Load configuration from a file
      *
@@ -259,6 +264,11 @@ public:
                 float step_angle, uint16_t micro_step, float screw_pitch,   /* Motor init param */
                 float speed_mm_s=-1, bool use_internal_sense_resistors=true, uint8_t run_current_per=100,
                 uint8_t hold_current_per=100);
+
+    ScrewSlide(const ScrewSlide&)               = delete;
+    ScrewSlide& operator=(const ScrewSlide&)    = delete;
+    ScrewSlide(ScrewSlide&&)                    = default;
+    ScrewSlide& operator=(ScrewSlide&&)         = default;
 
     /**
      * @brief Move the slide by a specified length
