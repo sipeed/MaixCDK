@@ -15,6 +15,8 @@ typedef struct {
     int iso_screen_w_pct;
     int ev_screen_w_pct;
     int wb_screen_w_pct;
+
+    ui_camera_config_t cam_cfg;
 } priv_t;
 
 static priv_t priv;
@@ -93,6 +95,25 @@ static void priv_init(void)
     priv.iso_screen_w_pct = 10;         // %
     priv.ev_screen_w_pct = 10;          // %
     priv.wb_screen_w_pct = 10;          // %
+
+    priv.cam_cfg.exposure_time_default = 3000;
+    priv.cam_cfg.exposure_time_max = 3333333;
+    priv.cam_cfg.exposure_time_min = 340;
+    priv.cam_cfg.iso_max = 6400;
+    priv.cam_cfg.iso_min = 100;
+    priv.cam_cfg.iso_default = 100;
+}
+
+void ui_camera_config_read(ui_camera_config_t *cfg)
+{
+    if (!cfg) return;
+    memcpy(cfg, &priv.cam_cfg, sizeof(ui_camera_config_t));
+}
+
+void ui_camera_config_update(ui_camera_config_t *cfg)
+{
+    if (!cfg) return;
+    memcpy(&priv.cam_cfg, cfg, sizeof(ui_camera_config_t));
 }
 
 static void left_screen_init(void)
@@ -669,6 +690,35 @@ static void screen_resolution_init(void)
     }
 }
 
+// iso = 100~800
+void ui_set_iso_value(int val)
+{
+    if (val < 0) return;
+    ui_camera_config_t *cam_cfg = &priv.cam_cfg;
+    val = val < cam_cfg->iso_min ? cam_cfg->iso_min : val;
+    val = val > cam_cfg->iso_max ? cam_cfg->iso_max : val;
+
+    {
+        lv_obj_t * obj = lv_obj_get_child(g_menu_setting, 1);
+        lv_obj_t *label = lv_obj_get_child(obj, -1);
+        lv_obj_t *label2 = lv_obj_get_child(label, -1);
+        lv_label_set_text_fmt(label2, "%d", val);
+    }
+
+    {
+        lv_obj_t *obj = g_iso_setting;
+        lv_obj_t * label = lv_obj_get_child(obj, 1);
+        lv_label_set_text_fmt(label, "%d", val);
+
+
+        lv_obj_t * bar = lv_obj_get_child(obj, 2);
+        lv_bar_set_value(bar, val, LV_ANIM_OFF);
+
+        int *bar_last_val = (int *)lv_obj_get_user_data(obj);
+        *bar_last_val = val;
+    }
+}
+
 static void screen_shutter_init(void)
 {
     int right_screen_w = priv.right_screen_w_pct;
@@ -740,6 +790,7 @@ static void screen_iso_init(void)
     int right_screen_w = priv.right_screen_w_pct;
     int adjust_screen_w = priv.adjust_screen_w_pct;
     int w = priv.iso_screen_w_pct;
+    ui_camera_config_t *cam_cfg = &priv.cam_cfg;
 
     lv_obj_t *scr = lv_obj_create(lv_scr_act());
     lv_obj_set_pos(scr, lv_pct(100 - w - adjust_screen_w - right_screen_w), 0);
@@ -765,7 +816,7 @@ static void screen_iso_init(void)
 
         label2 = lv_label_create(scr);
         lv_obj_align_to(label2, label, LV_ALIGN_OUT_BOTTOM_MID, 4, 0);
-        lv_label_set_text_fmt(label2, "%d", 100);
+        lv_label_set_text_fmt(label2, "%d", cam_cfg->iso_default);
         lv_obj_set_style_text_color(label2, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_12, 0);
 
@@ -773,7 +824,7 @@ static void screen_iso_init(void)
         lv_obj_set_align(bar, LV_ALIGN_CENTER);
         lv_obj_set_size(bar, 20, lv_pct(60));
         lv_obj_center(bar);
-        lv_bar_set_range(bar, 100, 800);
+        lv_bar_set_range(bar, cam_cfg->iso_min, cam_cfg->iso_max);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_PRESSING, NULL);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_RELEASED, NULL);
         lv_bar_set_value(bar, 100, LV_ANIM_OFF);

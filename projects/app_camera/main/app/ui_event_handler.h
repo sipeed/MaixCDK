@@ -75,6 +75,17 @@ void ui_anim_photo_delay_start(int delay_s);
 bool ui_get_photo_delay_anim_status(void);
 bool ui_get_photo_delay_anim_stop_flag(void);
 
+typedef struct {
+    unsigned int exposure_time_max;
+    unsigned int exposure_time_min;
+    unsigned int exposure_time_default;
+    unsigned int iso_max;
+    unsigned int iso_min;
+    unsigned int iso_default;
+} ui_camera_config_t;
+void ui_camera_config_read(ui_camera_config_t *cfg);
+void ui_camera_config_update(ui_camera_config_t *cfg);
+
 #ifdef __cplusplus
 }
 #endif

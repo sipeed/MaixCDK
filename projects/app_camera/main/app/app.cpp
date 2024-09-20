@@ -77,6 +77,52 @@ int app_pre_init(void)
     return 0;
 }
 
+static int _mmf_set_exp_mode(int ch, int mode)
+{
+	CVI_U32 ret;
+	ISP_EXPOSURE_ATTR_S stExpAttr;
+
+	memset(&stExpAttr, 0, sizeof(ISP_EXPOSURE_ATTR_S));
+
+	ret = CVI_ISP_GetExposureAttr(ch, &stExpAttr);
+	if (ret != 0) {
+		printf("CVI_ISP_GetExposureAttr failed, ret: %#x.\r\n", ret);
+		return -1;
+	}
+
+	if (stExpAttr.enOpType == mode) {
+		return 0;
+	}
+
+	stExpAttr.u8DebugMode = 0;
+	if (mode == 0) {
+		stExpAttr.bByPass = 0;
+		stExpAttr.enOpType = OP_TYPE_AUTO;
+		stExpAttr.stManual.enExpTimeOpType = OP_TYPE_AUTO;
+		stExpAttr.stManual.enISONumOpType = OP_TYPE_AUTO;
+		stExpAttr.stManual.enAGainOpType = OP_TYPE_AUTO;
+		stExpAttr.stManual.enDGainOpType = OP_TYPE_AUTO;
+		stExpAttr.stManual.enISPDGainOpType = OP_TYPE_AUTO;
+	} else if (mode == 1) {
+		stExpAttr.bByPass = 0;
+		stExpAttr.enOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enExpTimeOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enISONumOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enAGainOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enDGainOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enISPDGainOpType = OP_TYPE_MANUAL;
+		stExpAttr.stManual.enGainType = AE_TYPE_ISO;
+	}
+
+	ret = CVI_ISP_SetExposureAttr(ch, &stExpAttr);
+	if (ret != 0) {
+		printf("CVI_ISP_SetExposureAttr failed, ret: %#x.\r\n", ret);
+		return -1;
+	}
+
+	return 0;
+}
+
 static void _ui_update_pic_img(maix::image::Image *img)
 {
     printf("update small img\n");
@@ -351,13 +397,13 @@ static int app_config_param(void)
         if (ui_get_shutter_auto_flag()) {
             printf("Shutter setting: Auto\n");
             if (priv.sensor_ae_mode != 0) {
-                mmf_set_exp_mode(0, 0);
+                _mmf_set_exp_mode(0, 0);
                 priv.sensor_ae_mode = 0;
             }
         } else {
             if (priv.sensor_ae_mode == 0) {
                 uint32_t exposure_time = 0, iso_num = 0;
-                mmf_set_exp_mode(0, 1);
+                _mmf_set_exp_mode(0, 1);
                 mmf_get_exptime_and_iso(0, &exposure_time, &iso_num);
                 priv.sensor_shutter_value = exposure_time;
                 priv.sensor_iso_value = iso_num;
@@ -378,13 +424,13 @@ static int app_config_param(void)
         if (ui_get_iso_auto_flag()) {
             printf("ISO setting: Auto\n");
             if (priv.sensor_ae_mode != 0) {
-                mmf_set_exp_mode(0, 0);
+                _mmf_set_exp_mode(0, OP_TYPE_AUTO);
                 priv.sensor_ae_mode = 0;
             }
         } else {
             if (priv.sensor_ae_mode == 0) {
                 uint32_t exposure_time = 0, iso_num = 0;
-                mmf_set_exp_mode(0, 1);
+                _mmf_set_exp_mode(0, 1);
                 mmf_get_exptime_and_iso(0, &exposure_time, &iso_num);
                 priv.sensor_shutter_value = exposure_time;
                 priv.sensor_iso_value = iso_num;
@@ -424,6 +470,17 @@ static int app_config_param(void)
 int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::display::Display &disp, maix::display::Display *disp2)
 {
     app_config_param();
+
+    uint32_t exposure_time = 0, iso_num = 0;
+    mmf_get_exptime_and_iso(0, &exposure_time, &iso_num);
+    // log::info("exp:%d iso:%d", exposure_time, iso_num);
+    if (ui_get_shutter_auto_flag()) {
+        ui_set_shutter_value((double)exposure_time / 1000000);
+    }
+    if (ui_get_iso_auto_flag()) {
+        ui_set_iso_value(iso_num);
+    }
+
 
     if (priv.cam_start_snap_flag) {
         if (priv.cam_snap_delay_s == 0 || (priv.cam_snap_delay_s > 0 && ui_get_photo_delay_anim_stop_flag())) {
