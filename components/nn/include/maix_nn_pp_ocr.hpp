@@ -362,7 +362,7 @@ namespace maix::nn
             {
                 return new nn::OCR_Objects();
             }
-            nn::OCR_Objects *res = _post_process(img, outputs, img.width(), img.height(), fit, char_box);
+            nn::OCR_Objects *res = _post_process(img, outputs, img.width(), img.height(), fit);
             delete outputs;
             if(res == NULL)
             {
@@ -381,7 +381,7 @@ namespace maix::nn
          *                   4 points postiion, format: [x1, y1, x2, y2, x3, y3, x4, y4], point 1 at the left-top, point 2 right-top...
          * @param char_box Calculate every charactor's box, default false, if true then you can get charactor's box by nn.OCR_Object's char_boxes attribute.
         */
-        nn::OCR_Object *recognize(image::Image &img, const std::vector<int> &box_points = std::vector<int>(), bool char_box = false)
+        nn::OCR_Object *recognize(image::Image &img, const std::vector<int> &box_points = std::vector<int>())
         {
             nn::OCR_Box box(0, 0, img.width(), 0, img.width(), img.height(), 0, img.height());
             bool crop = false;
@@ -399,13 +399,13 @@ namespace maix::nn
             }
             std::vector<int> idx_list;
             std::vector<std::string> char_list;
-            std::vector<nn::OCR_Box> char_boxes;
-            nn::OCR_Object *obj = new nn::OCR_Object(box, idx_list, char_list, 1.0, char_boxes);
+            std::vector<int> char_pos;
+            nn::OCR_Object *obj = new nn::OCR_Object(box, idx_list, char_list, 1.0, char_pos);
             if(!obj)
             {
                 throw err::Exception(err::ERR_NO_MEM);
             }
-            _recognize(img, box, obj->idx_list, char_list, obj->char_boxes, char_box, crop);
+            _recognize(img, box, obj->idx_list, char_list, obj->char_pos, crop);
             obj->update_chars(char_list);
             return obj;
         }
@@ -572,9 +572,9 @@ namespace maix::nn
             return err::ERR_NONE;
         }
 
-        nn::OCR_Objects *_post_process(image::Image &img, tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit, bool char_box);
+        nn::OCR_Objects *_post_process(image::Image &img, tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit);
 
-        void _recognize(image::Image &img, const nn::OCR_Box &box, std::vector<int> &idx_list, std::vector<std::string> &char_list, std::vector<nn::OCR_Box> &char_boxes, bool char_box, bool crop);
+        void _recognize(image::Image &img, const nn::OCR_Box &box, std::vector<int> &idx_list, std::vector<std::string> &char_list, std::vector<int> &char_pos, bool crop);
 
         // void _get_layer_objs(std::vector<nn::Object> &objs, tensor::Tensor &output, int layer_i, int layer_num)
         // {

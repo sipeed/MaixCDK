@@ -82,7 +82,7 @@ namespace maix::nn
         /**
          * convert box point to a list type.
          * @return list type, element is int type, value [x1, y1, x2, y2, x3, y3, x4, y4].
-         * @maixpy maix.nn.OCR_Box.y4
+         * @maixpy maix.nn.OCR_Box.to_list
         */
         std::vector<int> to_list()
         {
@@ -112,8 +112,8 @@ namespace maix::nn
          * @maixpy maix.nn.OCR_Object.__init__
          * @maixcdk maix.nn.OCR_Object.OCR_Object
          */
-        OCR_Object(const nn::OCR_Box &box, const std::vector<int> &idx_list, const std::vector<std::string> &char_list, float score = 0, const std::vector<nn::OCR_Box> &char_boxes = std::vector<nn::OCR_Box>())
-        :box(box), score(score), idx_list(idx_list), char_boxes(char_boxes), _char_list(char_list)
+        OCR_Object(const nn::OCR_Box &box, const std::vector<int> &idx_list, const std::vector<std::string> &char_list, float score = 0, const std::vector<int> &char_pos = std::vector<int>())
+        :box(box), score(score), idx_list(idx_list), char_pos(char_pos), _char_list(char_list)
         {
             _chars.clear();
             for(const auto &c : _char_list)
@@ -143,6 +143,12 @@ namespace maix::nn
          * @maixpy maix.nn.OCR_Object.idx_list
         */
         std::vector<int> idx_list;
+
+        /**
+         * Chars' position relative to left
+         * @maixpy maix.nn.OCR_Object.char_pos
+        */
+        std::vector<int> char_pos;
 
         /**
          * Get OCR_Object's charactors, return a string type.
@@ -178,12 +184,6 @@ namespace maix::nn
                 _chars += c;
             }
         }
-
-        /**
-         * All charactors' boxes, list type, element is nn.OCR_Box type.
-         * @maixpy maix.nn.OCR_Object.char_boxes
-         */
-        std::vector<nn::OCR_Box> char_boxes;
 
         /**
          * OCR_Object info to string
@@ -229,9 +229,9 @@ namespace maix::nn
          * @throw Throw exception if no memory
          * @maixpy maix.nn.OCR_Objects.add
          */
-        nn::OCR_Object &add(const nn::OCR_Box &box, const std::vector<int> &idx_list, const std::vector<std::string> &char_list, float score = 0, const std::vector<nn::OCR_Box> &char_boxes = std::vector<nn::OCR_Box>())
+        nn::OCR_Object &add(const nn::OCR_Box &box, const std::vector<int> &idx_list, const std::vector<std::string> &char_list, float score = 0, const std::vector<int> &char_pos = std::vector<int>())
         {
-            OCR_Object *obj = new OCR_Object(box, idx_list, char_list, score, char_boxes);
+            OCR_Object *obj = new OCR_Object(box, idx_list, char_list, score, char_pos);
             if(!obj)
                 throw err::Exception(err::ERR_NO_MEM);
             objs.push_back(obj);

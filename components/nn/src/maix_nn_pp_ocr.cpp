@@ -34,7 +34,7 @@ namespace maix::nn
         h = h - y;
     }
 
-    nn::OCR_Objects *PP_OCR::_post_process(image::Image &img, tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit, bool char_box)
+    nn::OCR_Objects *PP_OCR::_post_process(image::Image &img, tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
     {
         nn::OCR_Objects *objects = new nn::OCR_Objects();
         // int layer_num = outputs->size();
@@ -80,8 +80,8 @@ namespace maix::nn
                 nn::OCR_Box box(boxes[i][0][0], boxes[i][0][1], boxes[i][1][0], boxes[i][1][1], boxes[i][2][0], boxes[i][2][1], boxes[i][3][0], boxes[i][3][1]);
                 std::vector<int> idxes;
                 std::vector<std::string> chars;
-                std::vector<nn::OCR_Box> char_boxes;
-                objects->add(box, idxes, chars, scores[i], char_boxes);
+                std::vector<int> char_pos;
+                objects->add(box, idxes, chars, scores[i], char_pos);
             }
             delete tmp_img;
 
@@ -95,7 +95,7 @@ namespace maix::nn
                 // _get_external_box(boxes[i], x, y, w, h, shape[3], shape[2]);
                 std::vector<std::string> char_list;
                 nn::OCR_Object &obj = objects->at(i);
-                _recognize(img, obj.box, obj.idx_list, char_list, obj.char_boxes, char_box, true);
+                _recognize(img, obj.box, obj.idx_list, char_list, obj.char_pos, true);
                 obj.update_chars(char_list);
             }
             break;
@@ -104,7 +104,7 @@ namespace maix::nn
         return objects;
     }
 
-    void PP_OCR::_recognize(image::Image &img, const nn::OCR_Box &box, std::vector<int> &idx_list, std::vector<std::string> &char_list, std::vector<nn::OCR_Box> &char_boxes, bool char_box, bool crop)
+    void PP_OCR::_recognize(image::Image &img, const nn::OCR_Box &box, std::vector<int> &idx_list, std::vector<std::string> &char_list, std::vector<int> &char_pos, bool crop)
     {
         cv::Mat img_src(img.height(), img.width(), CV_8UC3, img.data());
         cv::Mat *std_img = &img_src;
@@ -203,6 +203,7 @@ namespace maix::nn
                 {
                     idx_list.push_back(max_idxes[i] - 1);
                     char_list.push_back(labels[max_idxes[i] - 1]);
+                    char_pos.push_back(i);
                 }
                 last_idx = max_idxes[i];
             }

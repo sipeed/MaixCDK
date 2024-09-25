@@ -33,8 +33,8 @@ int _main(int argc, char *argv[])
     display::Display disp = display::Display();
 
     int font_size = 20;
-    image::load_font("sourcehansans", "/maixapp/share/font/SourceHanSansCN-Regular.otf", font_size);
-    image::set_default_font("sourcehansans");
+    image::load_font("ppocr", "/maixapp/share/font/ppocr_keys_v1.ttf", font_size);
+    image::set_default_font("ppocr");
 
     if (argc >= 3)
     {
