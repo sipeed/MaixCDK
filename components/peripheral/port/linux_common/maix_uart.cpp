@@ -551,7 +551,6 @@ namespace maix::peripheral::uart
 					_available = available(timeout);
 				if (_available)
 				{
-					log::info("-- %d %d", _available, t_last);
 					int len = _uart_read(_fd, buff + read_len, recv_len - read_len);
 					if (len < 0)
 					{
