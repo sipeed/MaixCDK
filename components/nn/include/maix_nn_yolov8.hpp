@@ -559,8 +559,8 @@ namespace maix::nn
                         float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
                         float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
                         _KpInfo *kp_info = new _KpInfo(offset, ax, ay, stride[i]);
-                        Object *obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
-                        obj->temp = (void *)kp_info;
+                        Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
+                        obj.temp = (void *)kp_info;
                     }
                 }
             }
@@ -574,16 +574,16 @@ namespace maix::nn
                       { return a->score > b->score; });
             for (size_t i = 0; i < objs.size(); ++i)
             {
-                nn::Object *a = objs.at(i);
-                if (a->score == 0)
+                nn::Object &a = objs.at(i);
+                if (a.score == 0)
                     continue;
                 for (size_t j = i + 1; j < objs.size(); ++j)
                 {
-                    nn::Object *b = objs.at(j);
+                    nn::Object &b = objs.at(j);
                     {
-                        if (b->score != 0 && a->class_id == b->class_id && _calc_iou(*a, *b) > this->_iou_th)
+                        if (b.score != 0 && a.class_id == b.class_id && _calc_iou(a, b) > this->_iou_th)
                         {
-                            b->score = 0;
+                            b.score = 0;
                         }
                     }
                 }
@@ -592,26 +592,26 @@ namespace maix::nn
             {
                 if (a->score != 0)
                 {
-                    Object *obj = result->add(a->x, a->y, a->w, a->h, a->class_id, a->score, a->points);
-                    if (obj->x < 0)
+                    Object &obj = result->add(a->x, a->y, a->w, a->h, a->class_id, a->score, a->points);
+                    if (obj.x < 0)
                     {
-                        obj->w += obj->x;
-                        obj->x = 0;
+                        obj.w += obj.x;
+                        obj.x = 0;
                     }
-                    if (obj->y < 0)
+                    if (obj.y < 0)
                     {
-                        obj->h += obj->y;
-                        obj->y = 0;
+                        obj.h += obj.y;
+                        obj.y = 0;
                     }
-                    if (obj->x + obj->w > _input_size.width())
+                    if (obj.x + obj.w > _input_size.width())
                     {
-                        obj->w = _input_size.width() - obj->x;
+                        obj.w = _input_size.width() - obj.x;
                     }
-                    if (obj->y + obj->h > _input_size.height())
+                    if (obj.y + obj.h > _input_size.height())
                     {
-                        obj->h = _input_size.height() - obj->y;
+                        obj.h = _input_size.height() - obj.y;
                     }
-                    obj->temp = a->temp;
+                    obj.temp = a->temp;
                 }
                 else
                 {
@@ -629,8 +629,8 @@ namespace maix::nn
             int total_box_num = kp_out->shape()[2];    // 1, 51, 8400, 1
             for (size_t i = 0; i < objs.size(); ++i)
             {
-                nn::Object *o = objs.at(i);
-                _KpInfo *kp_info = (_KpInfo *)o->temp;
+                nn::Object &o = objs.at(i);
+                _KpInfo *kp_info = (_KpInfo *)o.temp;
                 float *p = data + kp_info->idx;
                 for (int k = 0; k < keypoint_num; ++k)
                 {
@@ -642,11 +642,11 @@ namespace maix::nn
                         x = (p[(k * 3) * total_box_num] * 2.0 + kp_info->anchor_x) * kp_info->stride;
                         y = (p[(k * 3 + 1) * total_box_num] * 2.0 + kp_info->anchor_y) * kp_info->stride;
                     }
-                    o->points.push_back(x);
-                    o->points.push_back(y);
+                    o.points.push_back(x);
+                    o.points.push_back(y);
                 }
-                delete (_KpInfo *)o->temp;
-                o->temp = NULL;
+                delete (_KpInfo *)o.temp;
+                o.temp = NULL;
             }
         }
 
@@ -662,19 +662,19 @@ namespace maix::nn
             float mask_weights[mask_num];
             for (size_t i = 0; i < objs.size(); ++i)
             {
-                nn::Object *o = objs.at(i);
-                int mask_x = o->x * mask_w / _input_size.width();
-                int mask_y = o->y * mask_h / _input_size.height();
-                int mask_x2 = (o->x + o->w) * mask_w / _input_size.width();
-                int mask_y2 = (o->y + o->h) * mask_h / _input_size.height();
-                _KpInfo *kp_info = (_KpInfo *)o->temp;
+                nn::Object &o = objs.at(i);
+                int mask_x = o.x * mask_w / _input_size.width();
+                int mask_y = o.y * mask_h / _input_size.height();
+                int mask_x2 = (o.x + o.w) * mask_w / _input_size.width();
+                int mask_y2 = (o.y + o.h) * mask_h / _input_size.height();
+                _KpInfo *kp_info = (_KpInfo *)o.temp;
                 float *p = data + kp_info->idx;
                 for (int k = 0; k < mask_num; ++k)
                 {
                     mask_weights[k] = p[k * total_box_num];
                 }
-                o->seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
-                uint8_t *p_img_data = (uint8_t *)o->seg_mask->data();
+                o.seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
+                uint8_t *p_img_data = (uint8_t *)o.seg_mask->data();
                 for (int j = mask_y; j < mask_y2; ++j)
                 {
                     for (int k = mask_x; k < mask_x2; ++k)
@@ -699,8 +699,8 @@ namespace maix::nn
                         *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
                     }
                 }
-                delete (_KpInfo *)o->temp;
-                o->temp = NULL;
+                delete (_KpInfo *)o.temp;
+                o.temp = NULL;
             }
         }
 

@@ -1,25 +1,15 @@
-
-list(APPEND ADD_INCLUDE "include")
-list(APPEND ADD_PRIVATE_INCLUDE "include_private")
-append_srcs_dir(ADD_SRCS "src")
-list(APPEND ADD_REQUIREMENTS basic ini vision clipper2)
-
-if(PLATFORM_MAIXCAM)
-    list(APPEND ADD_REQUIREMENTS maixcam_lib)
-endif()
-
-register_component()
-
-# Config enable component2 or not in Kconfig
-################# Add include #################
-# list(APPEND ADD_INCLUDE "include"
-#     )
-# list(APPEND ADD_PRIVATE_INCLUDE "include_private")
+############### Add include ###################
+list(APPEND ADD_INCLUDE "include"
+    )
+list(APPEND ADD_PRIVATE_INCLUDE "")
 ###############################################
 
-############## Add source files ###############
-# list(APPEND ADD_SRCS  "src/lib2.c"
+############ Add source files #################
+# list(APPEND ADD_SRCS  "src/main.c"
+#                       "src/test.c"
 #     )
+append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD_SRCS
+# list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
 # list(APPEND ADD_SRCS  ${EXTRA_SRC})
@@ -32,9 +22,8 @@ register_component()
 # SET_SOURCE_FILES_PROPERTIES(${ADD_ASM_SRCS} PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp -D BBBBB")
 ###############################################
 
-
 ###### Add required/dependent components ######
-# list(APPEND ADD_REQUIREMENTS basic ini)
+list(APPEND ADD_REQUIREMENTS basic nn vision)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
@@ -48,12 +37,6 @@ register_component()
 # list(APPEND ADD_STATIC_LIB "lib/libtest.a")
 ###############################################
 
-############ Add dynamic libs ##################
-# list(APPEND ADD_DYNAMIC_LIB "lib/arch/v831/libmaix_nn.so"
-#                             "lib/arch/v831/libmaix_cam.so"
-# )
-###############################################
-
 #### Add compile option for this component ####
 #### Just for this component, won't affect other 
 #### modules, including component that depend 
@@ -61,7 +44,7 @@ register_component()
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
-#### and components denpend on this component
+#### and components depend on this component
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1
 #                             -DAAAAA333=1)
 ###############################################
@@ -71,6 +54,21 @@ register_component()
 # set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
-# register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
-# register_component()
+######### Add files need to download #########
+# list(APPEND ADD_FILE_DOWNLOADS "{
+# 'url': 'https://*****/abcde.tar.xz',
+# 'urls': [],  # backup urls, if url failed, will try urls
+# 'sites': [], # download site, user can manually download file and put it into dl_path
+# 'sha256sum': '',
+# 'filename': 'abcde.tar.xz',
+# 'path': 'toolchains/xxxxx',
+# 'check_files': []
+# }"
+# )
+#
+# then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
+# you can directly use then, for example use it in add_custom_command
+##############################################
 
+# register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
+register_component()

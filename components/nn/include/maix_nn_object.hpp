@@ -223,16 +223,17 @@ namespace maix::nn
 
         /**
          * Add object to objects
+         * @throw Throw exception if no memory
          * @maixpy maix.nn.Objects.add
          */
-        nn::Object *add(int x = 0, int y = 0, int w = 0, int h = 0, int class_id = 0, float score = 0, std::vector<int> points = std::vector<int>())
+        nn::Object &add(int x = 0, int y = 0, int w = 0, int h = 0, int class_id = 0, float score = 0, std::vector<int> points = std::vector<int>())
         {
             Object *obj = new Object(x, y, w, h, class_id, score, points);
-            if (!obj)
-                return NULL;
+            if(!obj)
+                throw err::Exception(err::ERR_NO_MEM);
             obj->seg_mask = NULL;
             objs.push_back(obj);
-            return obj;
+            return *obj;
         }
 
         /**
@@ -251,9 +252,9 @@ namespace maix::nn
          * Get object item
          * @maixpy maix.nn.Objects.at
          */
-        nn::Object *at(int idx)
+        nn::Object &at(int idx)
         {
-            return objs.at(idx);
+            return *objs.at(idx);
         }
 
         /**
@@ -261,9 +262,9 @@ namespace maix::nn
          * @maixpy maix.nn.Objects.__item__
          * @maixcdk maix.nn.Objects.[]
          */
-        nn::Object *operator[](int idx)
+        nn::Object &operator[](int idx)
         {
-            return objs.at(idx);
+            return *objs.at(idx);
         }
 
         /**

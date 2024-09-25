@@ -1311,7 +1311,7 @@ namespace maix::image
         return this;
     }
 
-    image::Image *Image::draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size, int thickness)
+    image::Image *Image::draw_keypoints(const std::vector<int> &keypoints, const image::Color &color, int size, int thickness, int line_thickness)
     {
         int ch_format = 0;
         cv::Scalar cv_color;
@@ -1330,6 +1330,24 @@ namespace maix::image
             int radius = size;
             cv::circle(img, center, radius, cv_color, thickness);
         }
+
+        // Draw lines between consecutive keypoints if line_thickness is greater than 0
+        if (line_thickness > 0) {
+            for (size_t i = 1; i < keypoints.size() / 2; ++i) {
+                cv::Point pt1(keypoints[(i - 1) * 2], keypoints[(i - 1) * 2 + 1]);
+                cv::Point pt2(keypoints[i * 2], keypoints[i * 2 + 1]);
+                if (pt1.x < 0 || pt1.y < 0 || pt2.x < 0 || pt2.y < 0)
+                    continue;  // Skip invalid lines with negative coordinates
+                cv::line(img, pt1, pt2, cv_color, line_thickness);
+            }
+            // Draw a line from the last point to the first point to close the loop
+            cv::Point pt_first(keypoints[0], keypoints[1]);
+            cv::Point pt_last(keypoints[keypoints.size() - 2], keypoints[keypoints.size() - 1]);
+            if (pt_first.x >= 0 && pt_first.y >= 0 && pt_last.x >= 0 && pt_last.y >= 0) {
+                cv::line(img, pt_last, pt_first, cv_color, line_thickness);
+            }
+        }
+
         return this;
     }
 

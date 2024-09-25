@@ -401,7 +401,7 @@ namespace maix::image
          * @param y circle center point's coordinate y
          * @param radius circle radius
          * @param color circle color @see image::Color
-         * @param thickness circle thickness(line width), by default(value is 1), -1 means fill circle
+         * @param thickness circle thickness(line width), default -1 means fill circle
          * @return this image object self
          * @maixpy maix.image.Image.draw_circle
          */
@@ -478,12 +478,13 @@ namespace maix::image
          * Draw keypoints on image
          * @param keypoints keypoints, [x1, y1, x2, y2...] or [x, y, rotation_andle_in_degrees, x2, y2, rotation_andle_in_degrees2](TODO: rotation_andle_in_degrees support in the feature)
          * @param color keypoints color @see image::Color
-         * @param size size of keypoints
+         * @param size size of keypoints(radius)
          * @param thickness keypoints thickness(line width), by default(value is -1 means fill circle)
+         * @param line_thickness line thickness, default 0 means not draw lines, > 0 will draw lines connect points.
          * @return this image object self
          * @maixpy maix.image.Image.draw_keypoints
         */
-        image::Image *draw_keypoints(std::vector<int> keypoints, const image::Color &color, int size = 10, int thickness = -1);
+        image::Image *draw_keypoints(const std::vector<int> &keypoints, const image::Color &color, int size = 4, int thickness = -1, int line_thickness = 0);
 
         //************************** image operations **************************//
 
