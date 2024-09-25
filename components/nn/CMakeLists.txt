@@ -7,6 +7,7 @@ list(APPEND ADD_REQUIREMENTS basic ini vision clipper2)
 if(PLATFORM_MAIXCAM)
     list(APPEND ADD_REQUIREMENTS maixcam_lib alsa_lib)
     list(APPEND ADD_DYNAMIC_LIB "lib/libms_asr_sg2002.so")
+    list(APPEND ADD_DEFINITIONS -DDR_WAV_IMPLEMENTATION)
 endif()
 
 register_component()
