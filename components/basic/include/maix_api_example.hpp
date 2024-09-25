@@ -329,12 +329,25 @@ namespace maix
             /**
              * Callback example
              * @param cb callback function, param is two int type, return is int type
-             * @return int type, return value is cb(1, 2)
+             * @return int type, return value is cb's return value.
              * @maixpy maix.example.Example.callback
              */
             static int callback(std::function<int(int, int)> cb)
             {
                 return cb(1, 2);
+            }
+
+            /**
+             * Callback example
+             * @param cb callback function, param is a int list type and int type, return is int type
+             * @return int type, return value is cb's return value.
+             * @maixpy maix.example.Example.callback2
+             */
+            static int callback2(std::function<int(std::vector<int>, int)> cb)
+            {
+                std::vector<int> a;
+                a.push_back(1);
+                return cb(a, 2);
             }
 
             /**

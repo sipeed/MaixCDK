@@ -177,6 +177,7 @@ def get_var_name_value(definition):
 def get_func_def_info(code):
     '''
         std::map<std::string, int> get_dict(std::map<std::string, int> in,
+                    std::function<int(std::vector<int>, int)> cb,
                     int i, const char *j = "10",
                     std::vector<int> v = {1, 2, 3},
                     std::vector<int> &v2 = std::vector<int>()),
@@ -251,16 +252,19 @@ def get_func_def_info(code):
     }
     args_str = params_code.replace("\n", " ")
     if args_str:
-        except_start = None
+        except_start = []
         param_str = ""
+        # e.g. std::function<int(std::vector<int>, int)> cb
         for i in range(len(args_str)):
             if except_start:
-                if args_str[i] == except_pair[except_start]:
-                    except_start = None
+                if args_str[i] in ["<", "{"]: # more <
+                    except_start.append(args_str[i])
+                if args_str[i] == except_pair[except_start[-1]]:
+                    except_start.pop()
                 param_str += args_str[i]
                 continue
             if args_str[i] in ["<", "{"]:
-                except_start = args_str[i]
+                except_start = [args_str[i]]
                 param_str += args_str[i]
                 continue
             if args_str[i] == ",":
@@ -657,6 +661,8 @@ def parse_api_from_header(header_path, api_tree = {}, sdks = ["maixpy"], module_
         if api_tree is None:
             raise Exception("parse_api_from_header {} error: {}".format(header_path, msg))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise Exception("parse_api_from_header {} error: {}".format(header_path, e))
     return api_tree, updated, keys
 
