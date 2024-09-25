@@ -10,9 +10,7 @@
 #include "maix_nn.hpp"
 #include "maix_nn_F.hpp"
 
-#define DR_WAV_IMPLEMENTATION
 #include "speech/ms_asr.h"
-#include "speech/dr_wav.h"
 #include <iostream>
 #include <cstring>
 
