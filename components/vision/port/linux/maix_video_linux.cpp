@@ -17,9 +17,11 @@ namespace maix::video
 #if CONFIG_BUILD_WITH_MAIXPY
     maix::image::Image *Video::NoneImage = new maix::image::Image();
     maix::image::Image *Encoder::NoneImage = new maix::image::Image();
+    maix::Bytes *Encoder::NoneBytes = new maix::Bytes();
 #else
     maix::image::Image *Video::NoneImage = NULL;
     maix::image::Image *Encoder::NoneImage = NULL;
+    maix::Bytes *Encoder::NoneBytes = NULL;
 #endif
 
     double timebase_to_us(std::vector<int> timebase, uint64_t value) {

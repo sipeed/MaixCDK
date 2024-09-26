@@ -32,9 +32,11 @@ namespace maix::video
 #if CONFIG_BUILD_WITH_MAIXPY
     maix::image::Image *Video::NoneImage = new maix::image::Image();
     maix::image::Image *Encoder::NoneImage = new maix::image::Image();
+    maix::Bytes *Encoder::NoneBytes = new maix::Bytes();
 #else
     maix::image::Image *Video::NoneImage = NULL;
     maix::image::Image *Encoder::NoneImage = NULL;
+    maix::Bytes *Encoder::NoneBytes = NULL;
 #endif
     static void custom_log_callback(void* ptr, int level, const char* fmt, va_list vargs) {
         if (level > AV_LOG_ERROR) {
@@ -367,8 +369,7 @@ namespace maix::video
             audio_stream->time_base = audio_codec_ctx->time_base;
             err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
             err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
-log::info("audio stream index:%d video index:%d outputFormatContext outputFormatContext->nb_streams:%d timebase:%d/%d",
-audio_stream->index, outputStream->index, outputFormatContext->nb_streams, audio_stream->time_base.num, audio_stream->time_base.den);
+
             swr_ctx = swr_alloc();
             av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
             av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
@@ -2072,12 +2073,13 @@ _error:
         video::Context *context = NULL;
         uint64_t last_pts = 0;
         uint64_t curr_pts = param->next_pts;
-        int frame_duration = pFormatContext->streams[video_stream_index]->time_base.den / pFormatContext->streams[video_stream_index]->time_base.num / _fps;
 _retry:
         while (av_read_frame(pFormatContext, pPacket) >= 0) {
             if (pPacket->stream_index == video_stream_index) {
                 last_pts = _last_pts;
                 _last_pts = pPacket->pts;
+
+                int64_t packet_duration = pPacket->duration;
                 switch (param->video_format) {
                     case VIDEO_FORMAT_H264:
                         break;
@@ -2147,7 +2149,7 @@ _retry:
                 std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
                                             (int)pFormatContext->streams[video_stream_index]->time_base.den};
                 context = new video::Context(media_type, timebase);
-                context->set_image(img, pPacket->duration, frame.stVFrame.u64PTS, last_pts);
+                context->set_image(img, packet_duration, frame.stVFrame.u64PTS, last_pts);
                 av_packet_unref(pPacket);
                 break;
             }
@@ -2180,7 +2182,7 @@ _retry:
             }
         }
 
-        param->next_pts += frame_duration;
+        param->next_pts += context->duration();
         return context;
     }
 
@@ -2255,17 +2257,18 @@ _retry:
         image::Image *img = NULL;
         video::Context *context = NULL;
         uint64_t last_pts = 0;
-        int frame_duration = pFormatContext->streams[video_stream_index]->time_base.den / pFormatContext->streams[video_stream_index]->time_base.num / _fps;
         bool is_video = false;
         bool is_audio = false;
 
         while (av_read_frame(pFormatContext, pPacket) >= 0) {
-            log::info("[READ] audio/video:%d pts:%d pts_ms:%.2f ms",
-            pPacket->stream_index, pPacket->pts, pPacket->pts / ((float)pFormatContext->streams[pPacket->stream_index]->time_base.den/pFormatContext->streams[pPacket->stream_index]->time_base.num));
+            // log::info("[READ] audio/video:%d pts:%d pts_ms:%.2f ms",
+            // pPacket->stream_index, pPacket->pts, pPacket->pts / ((float)pFormatContext->streams[pPacket->stream_index]->time_base.den/pFormatContext->streams[pPacket->stream_index]->time_base.num));
             if (pPacket->stream_index == video_stream_index) {
                 last_pts = _last_pts;
                 _last_pts = pPacket->pts;
                 is_video = true;
+
+                int64_t packet_duration = pPacket->duration;
                 switch (param->video_format) {
                     case VIDEO_FORMAT_H264:
                         break;
@@ -2335,7 +2338,7 @@ _retry:
                 std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
                                             (int)pFormatContext->streams[video_stream_index]->time_base.den};
                 context = new video::Context(media_type, timebase);
-                context->set_image(img, pPacket->duration, frame.stVFrame.u64PTS, last_pts);
+                context->set_image(img, packet_duration, frame.stVFrame.u64PTS, last_pts);
                 av_packet_unref(pPacket);
                 break;
             } else if (pPacket->stream_index == audio_stream_index) {
@@ -2388,7 +2391,7 @@ _retry:
         }
 
         if (is_video) {
-            param->next_pts += frame_duration;
+            param->next_pts += context->duration();
             return context;
         } else if (is_audio) {
             return context;

@@ -6,6 +6,165 @@
 #include "alsa/asoundlib.h"
 
 using namespace maix;
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/avutil.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+}
+
+int decode_video(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage: %s <input_file>\n", argv[0]);
+        return -1;
+    }
+
+    const char *input_filename = argv[2];
+    AVFormatContext *format_ctx = NULL;
+    AVCodecContext *codec_ctx = NULL;
+    AVCodec *codec = NULL;
+    AVPacket *packet = NULL;
+    AVFrame *frame = NULL;
+    SwrContext *swr_ctx = NULL;
+    int audio_stream_index = -1;
+
+    // av_register_all();
+
+    // Open the input file
+    if (avformat_open_input(&format_ctx, input_filename, NULL, NULL) < 0) {
+        fprintf(stderr, "Could not open input file '%s'\n", input_filename);
+        return -1;
+    }
+
+    // Retrieve stream information
+    if (avformat_find_stream_info(format_ctx, NULL) < 0) {
+        fprintf(stderr, "Could not find stream information\n");
+        return -1;
+    }
+
+    // Find the first audio stream
+    // for (int i = 0; i < format_ctx->nb_streams; i++) {
+    //     if (format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+    //         audio_stream_index = i;
+    //         break;
+    //     }
+    // }
+    audio_stream_index = av_find_best_stream(format_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, &codec, 0);
+
+    if (audio_stream_index == -1) {
+        fprintf(stderr, "Could not find audio stream in the input file\n");
+        return -1;
+    }
+
+    // Get codec parameters and find the decoder
+    AVCodecParameters *codecpar = format_ctx->streams[audio_stream_index]->codecpar;
+    codec = avcodec_find_decoder(codecpar->codec_id);
+    if (!codec) {
+        fprintf(stderr, "Unsupported codec!\n");
+        return -1;
+    }
+
+    // Allocate codec context and set parameters
+    codec_ctx = avcodec_alloc_context3(codec);
+    if (!codec_ctx) {
+        fprintf(stderr, "Could not allocate audio codec context\n");
+        return -1;
+    }
+
+    if (avcodec_parameters_to_context(codec_ctx, codecpar) < 0) {
+        fprintf(stderr, "Could not copy codec parameters to codec context\n");
+        return -1;
+    }
+
+    // Open codec
+    if (avcodec_open2(codec_ctx, codec, NULL) < 0) {
+        fprintf(stderr, "Could not open codec\n");
+        return -1;
+    }
+
+    // Get PCM details from codec context
+    int sample_rate = codec_ctx->sample_rate;
+    enum AVSampleFormat sample_fmt = codec_ctx->sample_fmt;
+    int channels = codec_ctx->channels;
+
+    // Print PCM information
+    printf("PCM Sample Rate: %d\n", sample_rate);
+    printf("PCM Sample Format: %s\n", av_get_sample_fmt_name(sample_fmt));
+    printf("PCM Channels: %d\n", channels);
+
+    // Prepare to read packets and decode
+    packet = av_packet_alloc();
+    frame = av_frame_alloc();
+    if (!packet || !frame) {
+        fprintf(stderr, "Could not allocate packet or frame\n");
+        return -1;
+    }
+
+    // Set up software resampler to convert to PCM
+    swr_ctx = swr_alloc();
+    av_opt_set_int(swr_ctx, "in_channel_layout", codec_ctx->channel_layout, 0);
+    av_opt_set_int(swr_ctx, "in_sample_rate", codec_ctx->sample_rate, 0);
+    av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", codec_ctx->sample_fmt, 0);
+
+    av_opt_set_int(swr_ctx, "out_channel_layout", codec_ctx->channel_layout, 0);
+    av_opt_set_int(swr_ctx, "out_sample_rate", 48000, 0);
+    av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_S16, 0);
+
+    swr_init(swr_ctx);
+
+    audio::Player p = audio::Player("", 48000, audio::FMT_S16_LE, 2);
+
+    // Read and decode audio frames
+    while (av_read_frame(format_ctx, packet) >= 0 && !app::need_exit()) {
+        if (packet->stream_index == audio_stream_index) {
+            if (avcodec_send_packet(codec_ctx, packet) >= 0) {
+                while (avcodec_receive_frame(codec_ctx, frame) >= 0) {
+                    uint8_t *output;
+                    int out_samples = av_rescale_rnd(
+                        swr_get_delay(swr_ctx, codec_ctx->sample_rate) + frame->nb_samples,
+                        codec_ctx->sample_rate,
+                        codec_ctx->sample_rate,
+                        AV_ROUND_UP
+                    );
+
+                    av_samples_alloc(&output, NULL, codec_ctx->channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+
+                    int converted_samples = swr_convert(
+                        swr_ctx,
+                        &output, out_samples,
+                        (const uint8_t **)frame->data, frame->nb_samples
+                    );
+
+                    if (converted_samples > 0) {
+                        // Process the converted PCM data in `output` (e.g., write to file or buffer)
+                        // fwrite(output, 1, converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16), stdout);
+                        log::info("data:%p size:%d sample_rate:%d channel:%d", output,
+                        converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
+                        codec_ctx->sample_rate, codec_ctx->channels);
+uint64_t t = time::ticks_ms();
+                        Bytes b(output, converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+                        p.play(&b);
+                        log::info("use %lld ms", time::ticks_ms() - t);
+                    }
+
+                    av_freep(&output);
+                }
+            }
+        }
+        av_packet_unref(packet);
+    }
+
+    // Clean up
+    swr_free(&swr_ctx);
+    av_frame_free(&frame);
+    av_packet_free(&packet);
+    avcodec_free_context(&codec_ctx);
+    avformat_close_input(&format_ctx);
+
+    printf("Audio data extracted and decoded to PCM successfully.\n");
+    return 0;
+}
 
 static void helper(void)
 {
@@ -85,7 +244,7 @@ int _main(int argc, char* argv[])
         }
 
         log::info("Ready to record and save to %s\r\n", path.c_str());
-        audio::Recorder r = audio::Recorder(path, sample_rate, format, channel);
+        audio::Recorder r = audio::Recorder();
 
         while (!app::need_exit()) {
             Bytes *b = r.record(-1);
@@ -241,6 +400,11 @@ int _main(int argc, char* argv[])
         while (!app::need_exit()) {
             time::sleep_ms(1000);
         }
+        break;
+    }
+    case 100:
+    {
+        decode_video(argc, argv);
         break;
     }
     default:

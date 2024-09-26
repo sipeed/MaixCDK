@@ -21,6 +21,10 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
+#include "maix_qmi8658.hpp"
+#include "pthread.h"
+#include "gcsv.h"
+
 static double timebase_to_ms(std::vector<int> timebase, uint64_t value) {
     return value * 1000 / ((double)timebase[1] / timebase[0]);
 }
@@ -294,6 +298,103 @@ static int h264_to_mp4(int argc, char *argv[]) {
     return 0;
 }
 
+static void *_imu_thread_process(void *arg) {
+    #define _M_PI     (3.14159265358979323846f)
+    int *imu_is_ready = (int *)arg;
+    // gcsv init
+    gcsv_handle_t gcsv_handle;
+    gcsv_header_t gcsv_header = {
+        .tscale = 0.001,    //unit: ms
+        .gscale = ((double)1024 * _M_PI / 180) / 32768,
+        .ascale = ((double)16 / 32768),
+        .mscale = 0.0,
+    };
+    strncpy(gcsv_header.version, "1.3", sizeof(gcsv_header.version));
+    strncpy(gcsv_header.id, "test", sizeof(gcsv_header.id));
+    strncpy(gcsv_header.orientation, "YxZ", sizeof(gcsv_header.orientation));
+    gcsv_init(&gcsv_handle, (char *)"/root/output.gcsv", &gcsv_header);
+
+    // qmi init
+    ext_dev::qmi8658::QMI8658 qmi8658(4, 0x6B, 400000,
+                    maix::ext_dev::qmi8658::Mode::DUAL,
+                    maix::ext_dev::qmi8658::AccScale::ACC_SCALE_16G,
+                    maix::ext_dev::qmi8658::AccOdr::ACC_ODR_8000,
+                    maix::ext_dev::qmi8658::GyroScale::GYRO_SCALE_1024DPS,
+                    maix::ext_dev::qmi8658::GyroOdr::GYRO_ODR_8000);
+    time::sleep_ms(1000);
+    // bias init
+    float gyro_x_bias = 0, gyro_y_bias = 0, gyro_z_bias = 0;
+    float acc_x_bias = 0, acc_y_bias = 0, acc_z_bias = 0;
+#if 1
+    {
+        float acc_total[3] = {0}, gyro_total[3] = {0};
+        int max_count = 100;
+        for (int i = 0; i < max_count; i ++) {
+            auto data = qmi8658.read();
+            err::check_bool_raise(data.size(), "qmi8658 read failed!");
+            acc_total[0] += data[0];
+            acc_total[1] += data[1];
+            acc_total[2] += data[2];
+            gyro_total[0] += data[3];
+            gyro_total[1] += data[4];
+            gyro_total[2] += data[5];
+        }
+        acc_x_bias = acc_total[0] / max_count;
+        acc_y_bias = acc_total[1] / max_count - 1;
+        acc_z_bias = acc_total[2] / max_count;
+        gyro_x_bias = gyro_total[0] / max_count;
+        gyro_y_bias = gyro_total[1] / max_count;
+        gyro_z_bias = gyro_total[2] / max_count;
+        log::info("acc bias: %f %f %f", acc_x_bias, acc_y_bias, acc_z_bias);
+        log::info("gyro bias: %f %f %f", gyro_x_bias, gyro_y_bias, gyro_z_bias);
+    }
+#else
+    acc_x_bias = -0.010146;
+    acc_y_bias = 0.028223;
+    acc_z_bias = -0.012349;
+    gyro_x_bias = 0.055321;
+    gyro_y_bias = -0.031989;
+    gyro_z_bias = -0.016962;
+#endif
+
+    *imu_is_ready = true;
+    uint64_t first_read_ms = time::ticks_ms();
+    log::info("imu first read ms:%d", first_read_ms);
+    while (!app::need_exit()) {
+        // read gyro
+        {
+            // uint64_t t = time::time_ms();
+            float acc[3], gyro[3];
+            auto data = qmi8658.read();
+            err::check_bool_raise(data.size(), "qmi8658 read failed!");
+            acc[0] = data[0] - acc_x_bias;
+            acc[1] = data[1] - acc_y_bias;
+            acc[2] = data[2] - acc_z_bias;
+            gyro[0] = (data[3] - gyro_x_bias) * M_PI / 180;
+            gyro[1] = (data[4] - gyro_y_bias) * M_PI / 180;
+            gyro[2] = (data[5] - gyro_z_bias) * M_PI / 180;
+
+            // printf("acc: %f %f %f\n", acc[0], acc[1], acc[2]);
+            // printf("gyro: %f %f %f\n", gyro[0], gyro[1], gyro[2]);
+
+            gcsv_info_t gcsv_info;
+            memset(&gcsv_info, 0, sizeof(gcsv_info));
+            gcsv_info.t = time::ticks_ms() - first_read_ms;
+            gcsv_info.gyro.x = gyro[0] / gcsv_handle.header.gscale;
+            gcsv_info.gyro.y = gyro[1] / gcsv_handle.header.gscale;
+            gcsv_info.gyro.z = gyro[2] / gcsv_handle.header.gscale;
+            gcsv_info.acc.x = acc[0] / gcsv_handle.header.ascale;
+            gcsv_info.acc.y = acc[1] / gcsv_handle.header.ascale;
+            gcsv_info.acc.z = acc[2] / gcsv_handle.header.ascale;
+            gcsv_write(&gcsv_handle, &gcsv_info);
+
+            // log::info("imu use %lld ms", time::time_ms() - t);
+            time::sleep_us(100);
+        }
+    }
+    return NULL;
+}
+
 static void helper(void)
 {
     log::info(
@@ -453,6 +554,74 @@ int _main(int argc, char* argv[])
     case 3:
         h264_to_mp4(argc, argv);
         break;
+    case 4:
+    {
+        std::string path = "/root/output.mp4";
+        int width = 640;
+        int height = 480;
+        image::Format format = image::Format::FMT_YVU420SP;
+        video::VideoType type = video::VIDEO_H264;
+        audio::Recorder r = audio::Recorder();
+        int framerate = 60;
+        int gop = 50;
+        int bitrate = 3000 * 1000;
+        int time_base = 1000;
+        bool capture = true;
+        bool block = true;
+        if (argc > 2) path = argv[2];
+        if (argc > 3) width = atoi(argv[3]);
+        if (argc > 4) height = atoi(argv[4]);
+        if (argc > 5) format = (image::Format)atoi(argv[5]);
+        if (argc > 6) type = (video::VideoType)atoi(argv[6]);
+        if (argc > 7) framerate = atoi(argv[7]);
+        if (argc > 8) gop = atoi(argv[8]);
+        if (argc > 9) bitrate = atoi(argv[9]);
+        if (argc > 10) time_base = atoi(argv[10]);
+        if (argc > 11) capture = atoi(argv[11]) == 0 ? false : true;
+        if (argc > 12) block = atoi(argv[12]) == 0 ? false : true;
+        log::info("path:%s width:%d height:%d format:%d type:%d fps:%d gop:%d bitrate:%d time_base:%d capture:%d\r\n",
+            path.c_str(), width, height, format, type, framerate, gop, bitrate, time_base, capture);
+        video::Encoder e = video::Encoder(path, width, height, format, type, framerate, gop, bitrate, time_base, capture, block);
+        camera::Camera cam = camera::Camera(width, height, format, NULL, framerate);
+        display::Display disp = display::Display();
+
+        pthread_t imu_thread;
+        int imu_is_ready = false;
+        err::check_bool_raise(pthread_create(&imu_thread, NULL, _imu_thread_process, &imu_is_ready) == 0, "create thread failed!");
+        while (!imu_is_ready) {time::sleep_ms(10);}
+
+        uint64_t start_time = time::ticks_ms();
+        uint64_t last_loop_time = 0;
+        log::info("camera first read ms:%d", start_time);
+        while(!app::need_exit()) {
+            // uint64_t t = time::ticks_ms();
+            image::Image *img = cam.read();
+            // log::info("camera read use %lld ms", time::ticks_ms() - t);
+
+            // t = time::ticks_ms();
+            video::Frame *frame = e.encode(img);
+            // log::info("encode use %lld ms", time::ticks_ms() - t);
+
+            // t = time::ticks_ms();
+            disp.show(*img);
+            // log::info("show use %lld ms", time::ticks_ms() - t);
+
+            // t = time::ticks_ms();
+            // delete pcm;
+            delete frame;
+            delete img;
+            // log::info("free use %lld ms", time::ticks_ms() - t);
+
+            while ((time::ticks_ms() - last_loop_time) * framerate < 1000) {
+                time::sleep_us(500);
+            }
+            last_loop_time = time::ticks_ms();
+
+            log::info("loop use %lld ms", time::ticks_ms() - start_time, time::ticks_ms());
+            start_time = time::ticks_ms();
+        }
+        break;
+    }
     default:
         helper();
         return 0;

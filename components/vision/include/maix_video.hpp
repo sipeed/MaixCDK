@@ -275,7 +275,7 @@ namespace maix::video
         uint64_t _pts;
         uint64_t _last_pts;
         std::vector<int> _timebase; // [den, num], timebase = den / num
-        int _duration;
+        int64_t _duration;
 
         int _audio_sample_rate;
         audio::Format _audio_format;
@@ -594,6 +594,7 @@ namespace maix::video
     {
     public:
         static maix::image::Image *NoneImage;
+        static maix::Bytes *NoneBytes;
 
         /**
          * @brief Construct a new Video object
@@ -632,7 +633,7 @@ namespace maix::video
          * @return encode result
          * @maixpy maix.video.Encoder.encode
         */
-        video::Frame *encode(image::Image *img = maix::video::Encoder::NoneImage, Bytes *pcm = NULL);
+        video::Frame *encode(image::Image *img = maix::video::Encoder::NoneImage, Bytes *pcm = maix::video::Encoder::NoneBytes);
 
         /**
          * Capture image
