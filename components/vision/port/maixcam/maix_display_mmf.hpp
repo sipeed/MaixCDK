@@ -72,7 +72,13 @@ namespace maix::display
             printf("panel value not found\n");
         }
 
-        if (!strcmp(panel_value, "zct2133v1")) {
+        if (!strcmp(panel_value, "st7701_hd228001c31")) { // maixcam
+            w = 368;
+            h = 552;
+        } else if (!strcmp(panel_value, "st7701_lct024bsi20")) { // maixcam_pro
+            w = 480;
+            h = 640;
+        } else if (!strcmp(panel_value, "zct2133v1")) {
             w = 800;
             h = 1280;
         } else if (!strcmp(panel_value, "mtd700920b")) {
@@ -87,15 +93,11 @@ namespace maix::display
         } else if (!strcmp(panel_value, "st7701_d300fpc9307a")) {
             w = 480;
             h = 854;
-        } else if (!strcmp(panel_value, "st7701_hd228001c31")) {
-            w = 368;
-            h = 552;
-        } else if (!strcmp(panel_value, "MaixCam_Pro")) {
-            w = 480;
-            h = 640;
-        } else {
-            w = 368;
-            h = 552;
+        }
+
+        if(w == 0 || h == 0)
+        {
+            throw err::Exception(err::ERR_ARGS, "unkown display pannel");
         }
 
         if (rotate) {
@@ -113,6 +115,7 @@ namespace maix::display
     public:
         DisplayCviMmf(const char *device, int width, int height, image::Format format)
         {
+            char *board_name = _get_board_name();
             err::check_bool_raise(!_get_vo_max_size(&_max_width, &_max_height, 1), "get vo max size failed");
             width = width <= 0 ? _max_width : width;
             height = height <= 0 ? _max_height : height;
@@ -131,7 +134,6 @@ namespace maix::display
             if (this->_layer == 0) {
                 bool flip = false;
                 bool mirror = false;
-                char *board_name = _get_board_name();
                 if (!strcmp(board_name, "maixcam_pro")) {
                     flip = true;
                     mirror = false;
