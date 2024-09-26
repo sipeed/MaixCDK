@@ -95,22 +95,23 @@ public:
      *
      * @param i2c_bus i2c bus number. Automatically selects the on-board qmi8658 when -1 is passed in.
      * @param addr QMI8658 i2c addr.
+     * @param freq QMI8658 freq
      * @param mode QMI8658 Mode: ACC_ONLY/GYRO_ONLY/DUAL
      * @param acc_scale acc scale, see @qmi8658::AccScale
      * @param acc_odr acc output data rate, see @qmi8658::AccOdr
      * @param gyro_scale gyro scale, see @qmi8658::GyroScale
      * @param gyro_odr gyro output data rate, see @qmi8658::GyroOdr
-     * @param blocking blocking or non-blocking, defalut is [blocking]
+     * @param block block or non-block, defalut is true
      *
      * @maixpy maix.ext_dev.qmi8658.QMI8658.__init__
      */
-    QMI8658(int i2c_bus=-1, int addr=0x6B,
+    QMI8658(int i2c_bus=-1, int addr=0x6B, int freq=400000,
             maix::ext_dev::qmi8658::Mode mode=maix::ext_dev::qmi8658::Mode::DUAL,
             maix::ext_dev::qmi8658::AccScale acc_scale=maix::ext_dev::qmi8658::AccScale::ACC_SCALE_2G,
             maix::ext_dev::qmi8658::AccOdr acc_odr=maix::ext_dev::qmi8658::AccOdr::ACC_ODR_8000,
             maix::ext_dev::qmi8658::GyroScale gyro_scale=maix::ext_dev::qmi8658::GyroScale::GYRO_SCALE_16DPS,
             maix::ext_dev::qmi8658::GyroOdr gyro_odr=maix::ext_dev::qmi8658::GyroOdr::GYRO_ODR_8000,
-            bool blocking=true);
+            bool block=true);
     ~QMI8658();
 
     QMI8658(const QMI8658&)             = delete;

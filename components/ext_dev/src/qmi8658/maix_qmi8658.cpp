@@ -93,10 +93,10 @@ static std::vector<float> make_read_result(const Mode& m, const priv::qmi_data_t
     return {};
 }
 
-QMI8658::QMI8658(int i2c_bus, int addr, qmi8658::Mode mode, qmi8658::AccScale acc_scale,
-                qmi8658::AccOdr acc_odr, qmi8658::GyroScale gyro_scale, qmi8658::GyroOdr gyro_odr, bool blocking)
+QMI8658::QMI8658(int i2c_bus, int addr, int freq, qmi8658::Mode mode, qmi8658::AccScale acc_scale,
+                qmi8658::AccOdr acc_odr, qmi8658::GyroScale gyro_scale, qmi8658::GyroOdr gyro_odr, bool block)
 {
-    auto qmi8658c = new priv::Qmi8658c(i2c_bus, (uint8_t)addr, 100000);
+    auto qmi8658c = new priv::Qmi8658c(i2c_bus, (uint8_t)addr, freq);
     this->_data = (void*)qmi8658c;
 
     qmi8658c->deviceID = 0x0;
@@ -142,7 +142,7 @@ QMI8658::QMI8658(int i2c_bus, int addr, qmi8658::Mode mode, qmi8658::AccScale ac
     this->open_future = std::async(std::launch::async, init_task);
     this->open_fut_need_get = true;
 
-    if (blocking) {
+    if (block) {
         maix::log::info("[%s] Waiting for IMU open...", priv::TAG);
         auto future_ret = this->open_future.get();
         if (future_ret.first < 0) {

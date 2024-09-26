@@ -203,6 +203,10 @@ qmi8658_result_t Qmi8658c::open(qmi8658_cfg_t* qmi8658_cfg) {
     // maix::time::sleep(2);
     // this->i2cbus->scan();
 
+    // enable serial interface address auto increment
+    uint8_t data = this->qmi8658_read(QMI8658_CTRL1);
+    this->qmi8658_write(QMI8658_CTRL1, data | 0x40);
+
     this->select_mode(qmi8658_cfg->qmi8658_mode);
     // set accelerometr and gyroscope scale and ODR
     this->acc_set_odr(qmi8658_cfg->acc_odr);
@@ -223,40 +227,32 @@ qmi8658_result_t Qmi8658c::open(qmi8658_cfg_t* qmi8658_cfg) {
 // Read data from the QMI8658 sensor and stores it in the provided data structure.
 
 void Qmi8658c::read(qmi_data_t* data) {
+    maix::Bytes* res = nullptr;
+    static qmi_data_t last_data = {0};
+    res = i2cbus->readfrom_mem(this->deviceAdress, QMI8658_TEMP_L, 14);
+    if (res || res->data_len != 14) {
+        int16_t temp = (((int16_t)res->data[1] << 8) | res->data[0]);
+        data->temperature = (float)temp/TEMPERATURE_SENSOR_RESOLUTION;
 
-    // read accelerometer data
-    int16_t acc_x = (((int16_t)this->qmi8658_read(QMI8658_ACC_X_H) << 8) | this->qmi8658_read(QMI8658_ACC_X_L));
-    int16_t acc_y = (((int16_t)this->qmi8658_read(QMI8658_ACC_Y_H) << 8) | this->qmi8658_read(QMI8658_ACC_Y_L));
-    int16_t acc_z = (((int16_t)this->qmi8658_read(QMI8658_ACC_Z_H) << 8) | this->qmi8658_read(QMI8658_ACC_Z_L));
-    data->acc_xyz.x = (float)acc_x/qmi_ctx.acc_sensitivity;
-    data->acc_xyz.y = (float)acc_y/qmi_ctx.acc_sensitivity;
-    data->acc_xyz.z = (float)acc_z/qmi_ctx.acc_sensitivity;
+        int16_t acc_x = (((int16_t)res->data[3] << 8) | res->data[2]);
+        int16_t acc_y = (((int16_t)res->data[5] << 8) | res->data[4]);
+        int16_t acc_z = (((int16_t)res->data[7] << 8) | res->data[6]);
+        data->acc_xyz.x = (float)acc_x/qmi_ctx.acc_sensitivity;
+        data->acc_xyz.y = (float)acc_y/qmi_ctx.acc_sensitivity;
+        data->acc_xyz.z = (float)acc_z/qmi_ctx.acc_sensitivity;
 
-    // printf("\n");
-    // maix::log::info("-----------------------------------");
-    // maix::log::info("acc_x: 0x%04x", acc_x);
-    // maix::log::info("acc_y: 0x%04x", acc_y);
-    // maix::log::info("acc_z: 0x%04x", acc_z);
+        int16_t rot_x = (int16_t)(((uint16_t)res->data[9] << 8) | res->data[8]);
+        int16_t rot_y = (int16_t)(((uint16_t)res->data[11] << 8) | res->data[10]);
+        int16_t rot_z = (int16_t)(((uint16_t)res->data[13] << 8) | res->data[12]);
+        data->gyro_xyz.x = (float)rot_x/qmi_ctx.gyro_sensitivity;
+        data->gyro_xyz.y = (float)rot_y/qmi_ctx.gyro_sensitivity;
+        data->gyro_xyz.z = (float)rot_z/qmi_ctx.gyro_sensitivity;
+        delete res;
 
-    // read gyroscope data
-    int16_t rot_x = (((int16_t)this->qmi8658_read(QMI8658_GYR_X_H) << 8) | this->qmi8658_read(QMI8658_GYR_X_L));
-    int16_t rot_y = (((int16_t)this->qmi8658_read(QMI8658_GYR_Y_H) << 8) | this->qmi8658_read(QMI8658_GYR_Y_L));
-    int16_t rot_z = (((int16_t)this->qmi8658_read(QMI8658_GYR_Z_H) << 8) | this->qmi8658_read(QMI8658_GYR_Z_L));
-    data->gyro_xyz.x = (float)rot_x/qmi_ctx.gyro_sensitivity;
-    data->gyro_xyz.y = (float)rot_y/qmi_ctx.gyro_sensitivity;
-    data->gyro_xyz.z = (float)rot_z/qmi_ctx.gyro_sensitivity;
-
-    // maix::log::info("rot_x: 0x%04x", rot_x);
-    // maix::log::info("rot_y: 0x%04x", rot_y);
-    // maix::log::info("rot_z: 0x%04x", rot_z);
-
-
-    // read temperature data
-    int16_t temp = (((int16_t)this->qmi8658_read(QMI8658_TEMP_H) << 8) | this->qmi8658_read(QMI8658_TEMP_L));
-    data->temperature = (float)temp/TEMPERATURE_SENSOR_RESOLUTION;
-
-    // maix::log::info("temp: 0x%04x", temp);
-    // maix::log::info("-----------------------------------\n");
+        memcpy(&last_data, data, sizeof(last_data));
+    } else {
+        memcpy(data, &last_data, sizeof(last_data));
+    }
 }
 
 // Close communication with the QMI8658 sensor.
