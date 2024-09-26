@@ -104,8 +104,46 @@ namespace maix::nn
         return objects;
     }
 
+    static void _recognize_stdimg(nn::NN *_rec_model, image::Image &std_img, std::vector<float> &mean, std::vector<float> &scale, std::vector<int> &max_idxes, const int &_max_ch_num, const int &_prob_num)
+    {
+        // foward image
+        tensor::Tensors *outputs;
+        outputs = _rec_model->forward_image(std_img, mean, scale, image::Fit::FIT_FILL, true);
+        if (!outputs) // not happen here
+        {
+            throw err::Exception(err::ERR_RUNTIME);
+        }
+
+        // rec postprocess, outputs shape: _max_ch_num x (_prob_num)
+        // get all max prob, totally _max_ch_num sections,
+        // then remove dumplicate and empty section, get charactors store in chars var.
+        for (auto it = outputs->begin(); it != outputs->end(); it++)
+        {
+            tensor::Tensor *out = it->second;
+            float *data = (float*)out->data();
+            float max_score;
+            for(int i = 0; i < _max_ch_num; ++i)
+            {
+                max_score = 0;
+                for(int j = 0; j < _prob_num; ++j)
+                {
+                    if(*data > max_score)
+                    {
+                        max_score = *data;
+                        max_idxes[i] = j;
+                    }
+                    ++data;
+                }
+            }
+            break;
+        }
+        delete outputs;
+    }
+
     void PP_OCR::_recognize(image::Image &img, const nn::OCR_Box &box, std::vector<int> &idx_list, std::vector<std::string> &char_list, std::vector<int> &char_pos, bool crop)
     {
+        idx_list.clear();
+        char_list.clear();
         cv::Mat img_src(img.height(), img.width(), CV_8UC3, img.data());
         cv::Mat *std_img = &img_src;
         cv::Mat img_dst;
@@ -147,55 +185,59 @@ namespace maix::nn
         // finally we got _rec_input_size image
         float aspect_ratio = float(std_img->cols) / float(std_img->rows);
         cv::Mat resized_img;
+        // Height is the limiting factor
+        cv::resize(*std_img, resized_img, cv::Size(static_cast<int>(_rec_input_size.height() * aspect_ratio),
+                    _rec_input_size.height()));
         if (aspect_ratio > float(_rec_input_size.width()) / float(_rec_input_size.height())) {
-            // Width is the limiting factor
-            cv::resize(*std_img, resized_img, cv::Size(_rec_input_size.width(), 
-                        static_cast<int>(_rec_input_size.width() / aspect_ratio)));
-        } else {
-            // Height is the limiting factor
-            cv::resize(*std_img, resized_img, cv::Size(static_cast<int>(_rec_input_size.height() * aspect_ratio), 
-                        _rec_input_size.height()));
-        }
-        cv::Mat padded_img(_rec_input_size.height(), _rec_input_size.width(), CV_8UC3, cv::Scalar(0, 0, 0));
-        resized_img.copyTo(padded_img(cv::Rect(0, 0, resized_img.cols, resized_img.rows)));
-        image::Image pad_img(padded_img.cols, padded_img.rows, image::Format::FMT_BGR888, padded_img.data, -1, false);
-
-        // show image on left-top
-        // img.draw_image(0, 0, pad_img);
-
-        // foward image
-        tensor::Tensors *outputs;
-        outputs = _rec_model->forward_image(pad_img, this->rec_mean, this->rec_scale, image::Fit::FIT_FILL, true);
-        if (!outputs) // not happen here
-        {
-            throw err::Exception(err::ERR_RUNTIME);
-        }
-
-        // rec postprocess, outputs shape: _max_ch_num x (_prob_num)
-        // get all max prob, totally _max_ch_num sections,
-        // then remove dumplicate and empty section, get charactors store in chars var.
-        idx_list.clear();
-        char_list.clear();
-        for (auto it = outputs->begin(); it != outputs->end(); it++)
-        {
-            tensor::Tensor *out = it->second;
-            float *data = (float*)out->data();
-            std::vector<int> max_idxes(_max_ch_num);
-            std::vector<float> max_scores(_max_ch_num);
-            std::vector<int> res_idx(_max_ch_num, -1);
-            for(int i = 0; i < _max_ch_num; ++i)
+            // Width > input width
+            // slice and recognize
+            for(int i = 0; i < std::ceil((float)resized_img.cols / _rec_input_size.width()); ++i)
             {
-                max_scores[i] = 0;
-                for(int j = 0; j < _prob_num; ++j)
+                // crop
+                cv::Mat crop_img = resized_img(cv::Rect(i * _rec_input_size.width(), 0, std::min(_rec_input_size.width(), resized_img.cols - i * _rec_input_size.width()), resized_img.rows));
+                cv::Mat final_img;
+                if(crop_img.cols < _rec_input_size.width())
                 {
-                    if(*data > max_scores[i])
+                    cv::Mat padded_img(_rec_input_size.height(), _rec_input_size.width(), CV_8UC3, cv::Scalar(0, 0, 0));
+                    crop_img.copyTo(padded_img(cv::Rect(0, 0, crop_img.cols, crop_img.rows)));
+                    padded_img.copyTo(final_img);
+                }
+                else
+                {
+                    crop_img.copyTo(final_img);
+                }
+                // show image on left-top
+                image::Image std_img(final_img.cols, final_img.rows, image::Format::FMT_BGR888, final_img.data, -1, false);
+                // if(i == 0)
+                //     img.draw_image(0, 0, std_img);
+
+                std::vector<int> max_idxes(_max_ch_num);
+                _recognize_stdimg(_rec_model, std_img, this->rec_mean, this->rec_scale, max_idxes, _max_ch_num, _prob_num);
+
+                int last_idx = 0;
+                for(int j = 0; j < _max_ch_num; ++j)
+                {
+                    if((max_idxes[j] != last_idx) && (max_idxes[j] != 0))
                     {
-                        max_scores[i] = *data;
-                        max_idxes[i] = j;
+                        idx_list.push_back(max_idxes[j] - 1);
+                        char_list.push_back(labels[max_idxes[j] - 1]);
+                        char_pos.push_back(j + i * _max_ch_num);
                     }
-                    ++data;
+                    last_idx = max_idxes[j];
                 }
             }
+        } else {
+            // pad
+            cv::Mat padded_img(_rec_input_size.height(), _rec_input_size.width(), CV_8UC3, cv::Scalar(0, 0, 0));
+            resized_img.copyTo(padded_img(cv::Rect(0, 0, resized_img.cols, resized_img.rows)));
+            image::Image pad_img(padded_img.cols, padded_img.rows, image::Format::FMT_BGR888, padded_img.data, -1, false);
+
+            // show image on left-top
+            // img.draw_image(0, 0, pad_img);
+
+            std::vector<int> max_idxes(_max_ch_num);
+            _recognize_stdimg(_rec_model, pad_img, this->rec_mean, this->rec_scale, max_idxes, _max_ch_num, _prob_num);
+
             int last_idx = 0;
             for(int i = 0; i < _max_ch_num; ++i)
             {
@@ -207,10 +249,7 @@ namespace maix::nn
                 }
                 last_idx = max_idxes[i];
             }
-
-            break;
         }
-        delete outputs;
     }
 
     void PP_OCR::_correct_bbox(nn::OCR_Objects &objs, int img_w, int img_h, maix::image::Fit fit)
