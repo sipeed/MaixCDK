@@ -5,7 +5,7 @@ set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -Wall -fPIC)
 
 
 ###### set CXX(cpp) flags ######
-set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall -fPIC -std=c++2a)
+set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -Wall -fPIC -std=c++17)
 ################################
 
 # set(LINK_FLAGS -Wl,-EL) # (default little endian)
