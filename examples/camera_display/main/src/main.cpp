@@ -190,8 +190,9 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             uint64_t out = 0;
             out = cam->exposure(value);
-            err::check_bool_raise(out == value, "set error");
-            log::info("set exposure: %ld\r\n", value);
+            log::info("set exposure: %ld\r\n", out);
+            out = cam->gain();
+            log::info("get gain: %d\r\n", out);
             out = cam->exposure();
             log::info("get exposure: %ld\r\n", out);
         }
@@ -200,10 +201,11 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             uint32_t out = 0;
             out = cam->gain(value);
-            err::check_bool_raise(out == value, "set error");
-            log::info("set gain: %ld\r\n", value);
+            log::info("set gain: %ld\r\n", out);
             out = cam->gain();
             log::info("get gain: %d\r\n", out);
+            out = cam->exposure();
+            log::info("get exposure: %ld\r\n", out);
         }
         break;
         case 2:

@@ -75,6 +75,9 @@ void ui_anim_photo_delay_start(int delay_s);
 bool ui_get_photo_delay_anim_status(void);
 bool ui_get_photo_delay_anim_stop_flag(void);
 
+bool ui_get_focus_btn_update_flag();
+bool ui_get_focus_btn_touched();
+
 typedef struct {
     unsigned int exposure_time_max;
     unsigned int exposure_time_min;

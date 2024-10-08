@@ -373,6 +373,12 @@ namespace maix::camera
          * @maixpy maix.camera.Camera.set_windowing
         */
         err::Err set_windowing(std::vector<int> roi);
+
+        /**
+         * Get sensor size
+         * @return sensor size
+        */
+        std::vector<int> get_sensor_size();
     private:
         std::string _device;
         int _ch;

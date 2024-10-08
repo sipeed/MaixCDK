@@ -1396,5 +1396,10 @@ namespace maix::camera
     err::Err Camera::set_windowing(std::vector<int> roi) {
         return err::ERR_NOT_IMPL;
     }
+
+
+    std::vector<int> Camera::get_sensor_size() {
+        return {0, 0};
+    }
 }
 

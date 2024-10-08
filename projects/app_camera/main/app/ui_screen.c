@@ -42,8 +42,10 @@ lv_obj_t *g_ev_setting;
 lv_obj_t *g_wb_setting;
 lv_obj_t *g_small_img;
 lv_obj_t *g_big_img;
+lv_obj_t *g_center_img;
 
 lv_obj_t *g_video_running_screen;
+lv_obj_t *g_focus_button;
 
 LV_IMG_DECLARE(img_delay);
 LV_IMG_DECLARE(img_exit);
@@ -57,6 +59,7 @@ LV_IMG_DECLARE(img_photo_clicked);
 LV_IMG_DECLARE(img_video_ready);
 LV_IMG_DECLARE(img_video_stop);
 LV_IMG_DECLARE(img_small_recording);
+LV_IMG_DECLARE(img_focus);
 
 extern void event_touch_exit_cb(lv_event_t * e);
 extern void event_touch_delay_cb(lv_event_t * e);
@@ -81,7 +84,7 @@ extern void event_touch_wb_to_auto_cb(lv_event_t * e);
 extern void event_touch_select_delay_cb(lv_event_t * e);
 extern void event_touch_select_resolution_cb(lv_event_t * e);
 extern void event_touch_big_img_cb(lv_event_t * e);
-
+extern void event_touch_focus_cb(lv_event_t * e);
 static void priv_init(void)
 {
     priv.max_w = 552;
@@ -125,7 +128,8 @@ static void left_screen_init(void)
     lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
     lv_obj_set_style_radius(scr, 0, 0);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
-    lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    // lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_hor(scr, 1, 0);
 
     lv_obj_t *img;
@@ -199,6 +203,24 @@ static void left_screen_init(void)
 
         img = lv_image_create(obj);
         lv_image_set_src(img, &img_option);
+        lv_obj_center(img);
+    }
+
+    {
+        lv_obj_t *obj = lv_obj_create(scr);
+        lv_obj_set_size(obj, lv_pct(100), lv_pct(25));
+        lv_obj_set_pos(obj, 0, lv_pct(100));
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0), 0);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), LV_STATE_CHECKED);
+        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
+        lv_obj_set_style_radius(obj, 0, 0);
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_event_cb(obj, event_touch_focus_cb, LV_EVENT_CLICKED, NULL);
+        g_focus_button = obj;
+
+        img = lv_image_create(obj);
+        lv_image_set_src(img, &img_focus);
         lv_obj_center(img);
     }
 }
@@ -981,6 +1003,41 @@ static void screen_wb_init(void)
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
     }
 }
+
+void ui_show_center_image(uint8_t *data, int data_size, int width, int height)
+{
+    if (data_size != width * height * 3) {
+        printf("data_size != width * height * 3\n");
+        return;
+    }
+
+    static lv_obj_t *img = NULL;
+    static lv_img_dsc_t img_dsc;
+    if (img != NULL) {
+        lv_obj_delete(img);
+        img = NULL;
+        if (img_dsc.data) {
+            free(img_dsc.data);
+            img_dsc.data = NULL;
+        }
+    }
+
+    img = lv_image_create(lv_layer_top());
+    memset(&img_dsc, 0, sizeof(lv_img_dsc_t));
+    img_dsc.header.cf = LV_COLOR_FORMAT_RGB888;
+    img_dsc.header.w = width;
+    img_dsc.header.h = height;
+    img_dsc.data_size = img_dsc.header.w * img_dsc.header.h * 3;
+    img_dsc.data = malloc(img_dsc.data_size);
+    if (!img_dsc.data) {
+        printf("malloc failed\n");
+        return;
+    }
+    memcpy(img_dsc.data, data, img_dsc.data_size);
+    lv_img_set_src(img, &img_dsc);
+    lv_obj_center(img);
+}
+
 
 static void screen_big_image(void)
 {

@@ -961,9 +961,11 @@ _error:
 
         uint32_t out;
         if (value == -1) {
-            mmf_get_again(_ch, &out);
+            mmf_get_iso_num(_ch, &out);
+            out = (double)out * 1024 / 100;
         } else {
-            mmf_set_again(_ch, value);
+            int iso_num = value * 100 / 1024;
+            mmf_set_iso_num(_ch, iso_num);
             out = value;
         }
         return out;
@@ -1099,6 +1101,52 @@ _error:
         return this->awb_mode(value) == 0 ? 1 : 0;
     }
 
+    static int _mmf_set_exp_mode(int ch, int mode)
+    {
+        CVI_U32 ret;
+        ISP_EXPOSURE_ATTR_S stExpAttr;
+
+        memset(&stExpAttr, 0, sizeof(ISP_EXPOSURE_ATTR_S));
+
+        ret = CVI_ISP_GetExposureAttr(ch, &stExpAttr);
+        if (ret != 0) {
+            printf("CVI_ISP_GetExposureAttr failed, ret: %#x.\r\n", ret);
+            return -1;
+        }
+
+        if (stExpAttr.enOpType == mode) {
+            return 0;
+        }
+
+        stExpAttr.u8DebugMode = 0;
+        if (mode == 0) {
+            stExpAttr.bByPass = 0;
+            stExpAttr.enOpType = OP_TYPE_AUTO;
+            stExpAttr.stManual.enExpTimeOpType = OP_TYPE_AUTO;
+            stExpAttr.stManual.enISONumOpType = OP_TYPE_AUTO;
+            stExpAttr.stManual.enAGainOpType = OP_TYPE_AUTO;
+            stExpAttr.stManual.enDGainOpType = OP_TYPE_AUTO;
+            stExpAttr.stManual.enISPDGainOpType = OP_TYPE_AUTO;
+        } else if (mode == 1) {
+            stExpAttr.bByPass = 0;
+            stExpAttr.enOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enExpTimeOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enISONumOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enAGainOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enDGainOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enISPDGainOpType = OP_TYPE_MANUAL;
+            stExpAttr.stManual.enGainType = AE_TYPE_ISO;
+        }
+
+        ret = CVI_ISP_SetExposureAttr(ch, &stExpAttr);
+        if (ret != 0) {
+            printf("CVI_ISP_SetExposureAttr failed, ret: %#x.\r\n", ret);
+            return -1;
+        }
+
+        return 0;
+    }
+
     int Camera::exp_mode(int value) {
         if (!this->is_opened()) {
             return err::ERR_NOT_OPEN;
@@ -1108,7 +1156,7 @@ _error:
         if (value == -1) {
             out = mmf_get_exp_mode(_ch);
         } else {
-            mmf_set_exp_mode(_ch, value);
+            _mmf_set_exp_mode(_ch, value);
             out = value;
         }
 
@@ -1159,6 +1207,16 @@ _error:
         }
         err::check_bool_raise(!mmf_vi_channel_set_windowing(_ch,  x, y, w, h), "set windowing failed.");
         return err::ERR_NONE;
+    }
+
+    std::vector<int> Camera::get_sensor_size() {
+        camera_priv_t *priv = (camera_priv_t *)_param;
+        PIC_SIZE_E enPicSize;
+        SIZE_S stSize;
+        SAMPLE_COMM_VI_GetSizeBySensor(priv->sns_type, &enPicSize);
+        SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize);
+
+        return {(int)stSize.u32Width, (int)stSize.u32Height};
     }
 }
 

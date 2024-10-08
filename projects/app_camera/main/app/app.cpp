@@ -444,6 +444,22 @@ static int app_config_param(void)
         }
     }
 
+    if (ui_get_focus_btn_update_flag()) {
+        if (ui_get_focus_btn_touched()) {
+            int width = ALIGN(priv.disp->width(), 64);
+            int height = ALIGN(priv.disp->height(), 64);
+            std::vector<int> sensor_size = priv.camera->get_sensor_size();
+            int windowing_x = ALIGN((sensor_size[0] - width) / 2, 64);
+            int windowing_y = ALIGN((sensor_size[1] - height) / 2, 64);
+            priv.camera->set_windowing({windowing_x, windowing_y, width, height});
+            log::info("camera set windowing, %d, %d, %d, %d", windowing_x, windowing_y, width, height);
+        } else {
+            std::vector<int> sensor_size = priv.camera->get_sensor_size();
+            priv.camera->set_windowing({0, 0, sensor_size[0], sensor_size[1]});
+            log::info("camera set windowing, %d, %d, %d, %d", 0, 0, sensor_size[0], sensor_size[1]);
+        }
+    }
+
     if (ui_get_ev_setting_flag()) {
         if (ui_get_ev_auto_flag()) {
             printf("EV setting: Auto\n");

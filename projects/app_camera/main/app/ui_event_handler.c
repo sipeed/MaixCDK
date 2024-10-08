@@ -31,6 +31,7 @@ extern lv_obj_t *g_wb_setting;
 extern lv_obj_t *g_small_img;
 extern lv_obj_t *g_big_img;
 extern lv_obj_t *g_video_running_screen;
+extern lv_obj_t *g_focus_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -51,6 +52,8 @@ static struct {
     unsigned int wb_auto_flag : 1;
     unsigned int photo_delay_anim_start_flag : 1;
     unsigned int photo_delay_anim_stop_flag : 1;
+    unsigned int focus_btn_touched : 1;
+    unsigned int focus_btn_update_flag : 1;
 
     unsigned int resolution_setting_idx;
 } priv = {
@@ -300,6 +303,20 @@ void event_touch_wb_cb(lv_event_t * e)
             }
         } else {
             lv_obj_add_flag(g_wb_setting, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void event_touch_focus_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (lv_obj_get_state(g_focus_button) != LV_STATE_FOCUSED) {
+            priv.focus_btn_touched = 1;
+            priv.focus_btn_update_flag = 1;
+        } else {
+            priv.focus_btn_touched = 0;
+            priv.focus_btn_update_flag = 1;
         }
     }
 }
@@ -1109,4 +1126,14 @@ void ui_set_record_time(uint64_t ms)
 
     lv_obj_t *label = lv_obj_get_child(g_video_running_screen, -1);
     lv_label_set_text(label, str);
+}
+
+bool ui_get_focus_btn_update_flag() {
+    bool flag = priv.focus_btn_update_flag ? true : false;
+    priv.focus_btn_update_flag = false;
+    return flag;
+}
+
+bool ui_get_focus_btn_touched() {
+    return priv.focus_btn_touched ? true : false;
 }
