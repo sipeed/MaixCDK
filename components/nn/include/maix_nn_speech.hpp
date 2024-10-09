@@ -13,6 +13,7 @@
 #include "speech/ms_asr.h"
 #include <iostream>
 #include <cstring>
+#include <signal.h>
 
 static std::function<void(std::vector<pnyp_t>, int)> _raw_callback;
 static std::function<void(char*, int)> _digit_callback;
@@ -71,11 +72,14 @@ enum SpeechDecoder {
                     throw err::Exception(e, "load model failed");
                 }
             }
+            signal(SIGINT, _signal_handle);
         }
 
         ~Speech()
         {
-            this->deinit();
+            if (_dev_type != DEVICE_NONE) {
+                this->deinit();
+            }
 
             if (_model)
             {
@@ -240,12 +244,17 @@ enum SpeechDecoder {
          */
         void deinit()
         {
-            ms_asr_deinit();
             _dev_type = DEVICE_NONE;
             _decoder_raw = false;
             _decoder_dig = false;
             _decoder_lvcsr = false;
             _decoder_kws = false;
+            _raw_callback = nullptr;
+            _digit_callback = nullptr;
+            _kws_callback = nullptr;
+            _lvcsr_callback = nullptr;
+            ms_asr_deinit();
+            sys::register_default_signal_handle();
         }
 
         /**
@@ -253,9 +262,9 @@ enum SpeechDecoder {
          * @param decoder decoder type want to deinit
          * can choose between DECODER_RAW, DECODER_DIG, DECODER_LVCSR, DECODER_KWS or DECODER_ALL.
          * @throw If device is not supported, will throw err::ERR_NOT_IMPL.
-         * @maixpy maix.nn.Speech.deinit
+         * @maixpy maix.nn.Speech.dec_deinit
          */
-        void deinit(nn::SpeechDecoder decoder)
+        void dec_deinit(nn::SpeechDecoder decoder)
         {
             ms_asr_decoder_cfg(decoder, NULL , NULL, 0);
             switch (decoder)
@@ -458,7 +467,8 @@ enum SpeechDecoder {
          */
         int run(int frame)
         {
-            return ms_asr_run(frame);
+            int frames = ms_asr_run(frame);
+            return frames;
         }
 
         /**
@@ -504,7 +514,7 @@ enum SpeechDecoder {
          */
         err::Err similar(const string &pny, std::vector<std::string> similar_pnys)
         {
-            if (this->digit() != true) {
+            if (this->kws() != true) {
                 log::error("please init kws decoder first");
                 return err::ERR_RUNTIME;
             }
@@ -549,6 +559,16 @@ enum SpeechDecoder {
          * @maixpy maix.nn.Speech.dev_type
         */
         nn::SpeechDevice dev_type() { return _dev_type; }
+
+        static void _signal_handle(int signal)
+        {
+            switch (signal) {
+            case SIGINT:
+                maix::app::set_exit_flag(true);
+            break;
+            default: break;
+            }
+        }
 
     private:
         nn::NN *_model;
@@ -734,9 +754,9 @@ enum SpeechDecoder {
          * @param decoder decoder type want to deinit
          * can choose between DECODER_RAW, DECODER_DIG, DECODER_LVCSR, DECODER_KWS or DECODER_ALL.
          * @throw If device is not supported, will throw err::ERR_NOT_IMPL.
-         * @maixpy maix.nn.Speech.deinit
+         * @maixpy maix.nn.Speech.dec_deinit
          */
-        void deinit(nn::SpeechDecoder decoder)
+        void dec_deinit(nn::SpeechDecoder decoder)
         {
             
         }
