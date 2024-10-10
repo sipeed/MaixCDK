@@ -5,6 +5,14 @@
  * @update 2023.9.8: Add framework, create this file.
  */
 
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
+#include <libavutil/opt.h>
+#include <libswresample/swresample.h>
+}
 
 #include <stdint.h>
 #include "maix_basic.hpp"
@@ -18,14 +26,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <list>
-extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/imgutils.h>
-#include <libswscale/swscale.h>
-#include <libavutil/opt.h>
-#include <libswresample/swresample.h>
-}
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+
 #define MMF_VENC_CHN            (1)
 namespace maix::video
 {
@@ -192,8 +196,10 @@ namespace maix::video
         bool find_sps_pps;
         bool copy_sps_pps_per_iframe;
         uint64_t frame_index;
+        uint64_t video_frame_last_ms;
         uint64_t last_encode_ms;
-
+        AVPacket *video_last_packet;
+        std::list<AVPacket *> *video_packet_list;
         video::VideoType video_type;
         int venc_ch;
         PAYLOAD_TYPE_E venc_type;
@@ -402,6 +408,7 @@ namespace maix::video
             param->find_sps_pps = false;
             param->frame_index = 0;
             param->last_encode_ms = time::ticks_ms();
+            param->video_packet_list = new std::list<AVPacket *>;
             switch (video_type) {
                 case VIDEO_H264:
                     param->copy_sps_pps_per_iframe = true;
@@ -472,7 +479,7 @@ namespace maix::video
                 for (auto it = param->pcm_list->begin(); it != param->pcm_list->end(); ++it) {
                     Bytes *pcm = *it;
                     delete pcm;
-                    param->pcm_list->erase(it);
+                    it = param->pcm_list->erase(it);
                 }
                 delete param->pcm_list;
                 av_frame_free(&param->audio_frame);
@@ -1821,6 +1828,19 @@ _exit:
         return audio::FMT_NONE;
     }
 
+    static enum AVSampleFormat _audio_format_to_alsa(audio::Format format) {
+        switch (format) {
+            case audio::FMT_NONE: return AV_SAMPLE_FMT_NONE;
+            case audio::FMT_S8: return AV_SAMPLE_FMT_U8;
+            case audio::FMT_S16_LE: return AV_SAMPLE_FMT_S16;
+            case audio::FMT_S32_LE: return AV_SAMPLE_FMT_S32;
+            default: {
+                err::check_raise(err::ERR_NOT_IMPL);
+            }
+        }
+        return AV_SAMPLE_FMT_NONE;
+    }
+
     Decoder::Decoder(std::string path, image::Format format) {
         av_log_set_callback(custom_log_callback);
         err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Decoder only support FMT_YVU420SP format!");
@@ -1995,7 +2015,7 @@ _exit:
             for(iter=param->ctx_list->begin();iter!=param->ctx_list->end();iter++) {
                 video::Context *ctx = *iter;
                 delete ctx;
-                param->ctx_list->erase(iter);
+                iter = param->ctx_list->erase(iter);
             }
             delete param->ctx_list;
 
@@ -2170,7 +2190,7 @@ _retry:
                         video::Context *ctx = *iter;
                         if (curr_pts == ctx->pts()) {
                             play_ctx = ctx;
-                            ctx_list->erase(iter);
+                            iter = ctx_list->erase(iter);
                             break;
                         }
                     }
@@ -3055,5 +3075,974 @@ _exit:
             system("sync");
         }
         return err::ERR_NONE;
+    }
+
+    typedef enum {
+        VIDEO_RECORDER_IDLE = 0,
+        VIDEO_RECORDER_RECORD,           // record and display
+        VIDEO_RECORDER_UNKNOWN,
+        VIDEO_RECORDER_DISPLAY_ONLY,
+    } video_recoder_state_t;
+
+    typedef struct {
+        VideoRecorder *obj;
+        pthread_mutex_t lock;
+        video_recoder_state_t state;
+        std::string path;
+        bool snapshot_en;
+        std::vector<int> snapshot_res;
+        image::Format snapshot_fmt;
+        image::Image *snapshot_img;
+        int64_t seek_start_ms;
+        int64_t seek_ms;
+
+        encoder_param_t packager;
+        pthread_t thread;
+        bool thread_exit_flag;
+
+        struct {
+            int ch;
+            int fps;
+            int bitrate;
+            std::vector<int> resolution;
+        } venc;
+
+        struct {
+            camera::Camera *obj;
+            camera::Camera *obj2;
+        } camera;
+
+        struct {
+            display::Display *obj;
+            int fit;
+        } display;
+
+        struct {
+            audio::Recorder *obj;
+            bool mute;
+        } audio;
+    } video_recoder_param_t;
+
+    static void _video_recoder_config_default(video_recoder_param_t *param)
+    {
+        param->venc.ch = MMF_VENC_CHN;
+        param->venc.bitrate = 3000000;
+        param->venc.fps = 30;
+        param->seek_ms = 0;
+        param->snapshot_en = false;
+        param->snapshot_fmt = image::Format::FMT_YVU420SP;
+        param->state = VIDEO_RECORDER_IDLE;
+        param->thread_exit_flag = false;
+    }
+
+    VideoRecorder::VideoRecorder(bool open)
+    {
+        video_recoder_param_t *param = (video_recoder_param_t *)calloc(1, sizeof(video_recoder_param_t));
+        err::check_null_raise(param, "malloc param failed");
+
+        _is_opened = false;
+        _param = param;
+
+        if (open) {
+            this->open();
+        }
+    }
+
+    VideoRecorder::~VideoRecorder()
+    {
+        close();
+
+        if (_param) {
+            free(_param);
+            _param = nullptr;
+        }
+    }
+
+    static void *record_thread_handle(void *par)
+    {
+        video_recoder_param_t *param = (video_recoder_param_t *)par;
+        VideoRecorder *me = param->obj;
+        // uint64_t last_loop_ms = time::ticks_ms();
+        while (1) {
+            // log::info("[%s] last loop use:%lld ms", __func__, time::ticks_ms() - last_loop_ms);
+            // last_loop_ms = time::ticks_ms();
+            video_recoder_state_t state = VIDEO_RECORDER_UNKNOWN;
+            me->lock();
+            if (param->thread_exit_flag) {
+                me->unlock();
+                break;
+            }
+            state = param->state;
+
+            switch (state) {
+            case VIDEO_RECORDER_IDLE:
+            {
+                // log::info("VIDEO RECORDER IDLE");
+                camera::Camera *cam = param->camera.obj;
+                camera::Camera *cam2 = param->camera.obj2;
+                display::Display *disp = param->display.obj;
+                int disp_fit = param->display.fit;
+
+                if (cam && disp) {
+                    int vi_ch = 0;
+                    void *cam_frame;
+                    mmf_frame_info_t cam_frame_info;
+                    (void)cam_frame_info;
+                    if (cam) {
+                        vi_ch = cam->get_channel();
+
+                        // camera read
+                        if (!mmf_vi_frame_pop2(vi_ch, &cam_frame, &cam_frame_info)) {
+                            if (disp) {
+                                mmf_vo_frame_push2(0, 0, disp_fit, cam_frame);
+                            }
+                            mmf_vi_frame_free2(vi_ch, &cam_frame);
+                        }
+                    }
+
+                    if (cam2 && param->snapshot_en) {
+                        if (param->snapshot_img) {
+                            delete param->snapshot_img;
+                            param->snapshot_img = NULL;
+                        }
+                        try {
+                            param->snapshot_img = cam2->read();
+                        } catch (const std::exception &e) {
+                            param->snapshot_img = NULL;
+                        }
+                    }
+
+                    time::sleep_ms(5);
+                }
+                break;
+            }
+            case VIDEO_RECORDER_RECORD:
+            {
+                // log::info("VIDEO RECORDER RECORD");
+                camera::Camera *cam = param->camera.obj;
+                display::Display *disp = param->display.obj;
+                audio::Recorder *pcm_recorder = param->audio.obj;
+                int disp_fit = param->display.fit;
+                err::check_bool_raise(cam, "You need bind a camera or pass in an image!");
+
+                bool found_cam_frame = false;
+                bool found_pcm = false;
+                Bytes *pcm = NULL;
+                bool found_venc_stream = false;
+                int vi_ch = cam->get_channel();
+                int venc_ch = param->venc.ch;
+                void *cam_frame;
+                mmf_frame_info_t cam_frame_info;
+
+                // read pcm
+                if (pcm_recorder) {
+                    // uint64_t t = time::ticks_ms();
+                    std::list<Bytes *> *pcm_list = param->packager.pcm_list;
+                    AVFrame *audio_frame = param->packager.audio_frame;
+                    AVStream *audio_stream = param->packager.audio_stream;
+                    AVCodecContext *audio_codec_ctx = param->packager.audio_codec_ctx;
+                    SwrContext *swr_ctx = param->packager.swr_ctx;
+                    AVFormatContext *outputFormatContext = param->packager.outputFormatContext;
+                    AVPacket *audio_packet = param->packager.audio_packet;
+                    int pcm_size = audio_frame->sample_rate * audio_frame->channels * av_get_bytes_per_sample(param->packager.audio_format) / param->venc.fps;
+                    pcm = pcm_recorder->record_bytes(pcm_size);
+                    // log::info("[%s][%d] pcm read(%d) use %lld ms", __func__, __LINE__, pcm_size, time::ticks_ms() - t);
+                    if (pcm) {
+                        if (pcm->size() > 0) {
+                            found_pcm = true;
+
+                            // audio process
+                            if (found_pcm) {
+                                // uint64_t t = time::ticks_ms();
+                                size_t buffer_size = av_samples_get_buffer_size(NULL, audio_frame->channels, audio_frame->nb_samples, param->packager.audio_format, 1);
+                                size_t pcm_remain_len = pcm->data_len;
+                                // fill last pcm to buffer_size
+                                Bytes *last_pcm = pcm_list->back();
+                                if (last_pcm && last_pcm->data_len < buffer_size) {
+                                    int temp_size = pcm_remain_len + last_pcm->data_len >= buffer_size ? buffer_size : pcm_remain_len + last_pcm->data_len;
+                                    uint8_t *temp = (uint8_t *)malloc(temp_size);
+                                    err::check_null_raise(temp, "malloc failed!");
+                                    memcpy(temp, last_pcm->data, last_pcm->data_len);
+                                    if (pcm_remain_len + last_pcm->data_len < buffer_size) {
+                                        memcpy(temp + last_pcm->data_len, pcm->data, pcm_remain_len);
+                                        pcm_remain_len = 0;
+                                    } else {
+                                        memcpy(temp + last_pcm->data_len, pcm->data, buffer_size - last_pcm->data_len);
+                                        pcm_remain_len -= (buffer_size - last_pcm->data_len);
+                                    }
+
+                                    Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                                    pcm_list->pop_back();
+                                    delete last_pcm;
+                                    pcm_list->push_back(new_pcm);
+                                }
+
+                                // fill other pcm
+                                while (pcm_remain_len > 0) {
+                                    int temp_size = pcm_remain_len >= buffer_size ? buffer_size : pcm_remain_len;
+                                    uint8_t *temp = (uint8_t *)malloc(temp_size);
+                                    err::check_null_raise(temp, "malloc failed!");
+                                    memcpy(temp, pcm->data + pcm->data_len - pcm_remain_len, temp_size);
+                                    pcm_remain_len -= temp_size;
+
+                                    Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                                    pcm_list->push_back(new_pcm);
+                                }
+
+                                // audio process
+                                while (pcm_list->size() > 0) {
+                                    Bytes *pcm = pcm_list->front();
+                                    if (pcm) {
+                                        if (pcm->data_len == buffer_size) {
+                                            // save to mp4
+                                            // log::info("pcm data:%p size:%d list_size:%d", pcm->data, pcm->data_len, pcm_list->size());
+                                            const uint8_t *in[] = {pcm->data};
+                                            uint8_t *out[] = {audio_frame->data[0]};
+                                            swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
+                                            audio_frame->pts = param->packager.audio_last_pts;
+                                            if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
+                                                printf("Error sending audio_frame to encoder.\n");
+                                                break;
+                                            }
+
+                                            while (avcodec_receive_packet(audio_codec_ctx, audio_packet) == 0) {
+                                                audio_packet->stream_index = audio_stream->index;
+                                                audio_packet->pts = param->packager.audio_last_pts;
+                                                audio_packet->dts = audio_packet->pts;
+                                                audio_packet->duration = audio_codec_ctx->frame_size;
+                                                param->packager.audio_last_pts = audio_packet->pts + audio_packet->duration;
+
+                                                // std::vector<int> timebase = {audio_stream->time_base.num, audio_stream->time_base.den};
+                                                // log::info("[AUDIO] pts:%d duration:%d timebase:%d/%d time:%.2f", audio_packet->pts, audio_packet->duration, audio_stream->time_base.num, audio_stream->time_base.den, timebase_to_ms(timebase, audio_packet->pts) / 1000);
+                                                av_interleaved_write_frame(outputFormatContext, audio_packet);
+                                                av_packet_unref(audio_packet);
+                                            }
+                                            pcm_list->pop_front();
+                                            delete pcm;
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        err::check_raise(err::ERR_RUNTIME, "pcm data error");
+                                    }
+                                }
+                                // log::info("pcm process time:%d", time::ticks_ms() - t);
+                            }
+                        } else {
+                            delete pcm;
+                        }
+                    }
+                }
+
+                // camera read
+                if (mmf_vi_frame_pop2(vi_ch, &cam_frame, &cam_frame_info)) {
+                    log::error("read camera image failed!\r\n");
+                    found_cam_frame = false;
+                }
+                found_cam_frame = true;
+
+                // pop last result of venc
+                mmf_stream_t venc_stream;
+                if (0 != mmf_venc_pop(venc_ch, &venc_stream)) {
+                    found_venc_stream = false;
+                }
+                found_venc_stream = true;
+
+                // process result of venc
+                if (found_venc_stream) {
+                    int stream_size = 0;
+                    uint8_t *stream_buffer = NULL;
+                    encoder_param_t *packager = &param->packager;
+                    for (int i = 0; i < venc_stream.count; i ++) {
+                        // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
+                        stream_size += venc_stream.data_size[i];
+                    }
+
+                    if (stream_size != 0) {
+                        if (!packager->find_sps_pps && venc_stream.count > 2) {
+                            packager->find_sps_pps = true;
+                        }
+
+                        if (packager->find_sps_pps) {
+                            stream_buffer = (uint8_t *)malloc(stream_size);
+                            err::check_null_raise(stream_buffer, "recorder malloc failed");
+                            int copy_length = 0;
+                            for (int i = 0; i < venc_stream.count; i ++) {
+                                memcpy(stream_buffer + copy_length, venc_stream.data[i], venc_stream.data_size[i]);
+                                copy_length += venc_stream.data_size[i];
+                            }
+
+                            if (venc_stream.count > 0) {
+                                if (packager->video_packet_list->size() == 0) { // first
+                                    packager->video_frame_last_ms = time::ticks_ms();
+                                    AVPacket *packet = av_packet_alloc();
+                                    err::check_null_raise(packet, "malloc failed!");
+                                    packet->stream_index = packager->outputStream->index;
+                                    packet->duration = 0;   // determined by the next packet
+                                    packet->pts = 0;
+                                    packet->dts = 0;
+                                    packet->data = stream_buffer;
+                                    packet->size = copy_length;
+                                    packager->video_packet_list->push_back(packet);
+                                    param->seek_ms = 0;
+                                } else {
+                                    uint64_t curr_ms = time::ticks_ms();
+                                    uint64_t video_diff_ms = curr_ms - packager->video_frame_last_ms;
+                                    packager->video_frame_last_ms = curr_ms;
+                                    AVPacket *last_packet = packager->video_packet_list->back();
+                                    AVPacket *packet = av_packet_alloc();
+                                    err::check_null_raise(packet, "malloc failed!");
+                                    last_packet->duration = (packager->outputStream->time_base.den * video_diff_ms) / (packager->outputStream->time_base.num * 1000);
+                                    packet->stream_index = packager->outputStream->index;
+                                    packet->pts = last_packet->pts + last_packet->duration;
+                                    packet->dts = last_packet->pts + last_packet->duration;
+                                    packet->data = stream_buffer;
+                                    packet->size = copy_length;
+                                    packager->video_packet_list->push_back(packet);
+                                    param->seek_ms = timebase_to_ms({packager->outputStream->time_base.num, packager->outputStream->time_base.den}, packet->pts);
+                                }
+                            }
+
+                            if (packager->video_packet_list->size() > 1) {
+                                for (size_t i = 0; i < packager->video_packet_list->size() - 1; i ++) {
+                                    AVPacket *packet = packager->video_packet_list->front();
+                                    uint8_t *packet_data = packet->data;
+                                    err::check_bool_raise(av_interleaved_write_frame(packager->outputFormatContext, packet) >= 0, "av_interleaved_write_frame failed!");
+                                    if (packet_data) {
+                                        free(packet_data);
+                                    }
+                                    av_packet_unref(packet);
+                                    av_packet_free(&packet);
+                                    packager->video_packet_list->pop_front();
+                                }
+                            }
+                        }
+                    }
+
+                    if (0 != mmf_venc_free(venc_ch)) {
+                        log::error("mmf venc free error!");
+                    }
+                }
+
+                // push vi to venc
+                if (0 != mmf_venc_push2(venc_ch, cam_frame)) {
+                    log::error("mmf venc push error!");
+                }
+
+                // push image to vo
+                if (found_cam_frame && disp) {
+                    mmf_vo_frame_push2(0, 0, disp_fit, cam_frame);
+                }
+
+                if (found_cam_frame) {
+                    mmf_vi_frame_free2(vi_ch, &cam_frame);
+                }
+                break;
+            }
+            default:
+                sleep(1);
+                log::info("VIDEO RECORDER UNKNOWED");
+                break;
+            }
+            me->unlock();
+        }
+
+        return NULL;
+    }
+
+    err::Err VideoRecorder::open()
+    {
+        if (_is_opened)
+            return err::ERR_NONE;
+
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        _video_recoder_config_default(param);
+
+        err::check_bool_raise(0 == pthread_mutex_init(&param->lock, NULL), "pthread mutex init failed!");
+        pthread_mutex_unlock(&param->lock);
+
+        // init venc
+        if (0 != mmf_init_v2(true)) {
+            err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
+        }
+
+        param->obj = this;
+        param->thread_exit_flag = false;
+        param->state = VIDEO_RECORDER_IDLE;
+        err::check_bool_raise(!pthread_create((pthread_t *)&param->thread, NULL, record_thread_handle, param), "pthread create failed!");
+        _is_opened = true;
+        return err::ERR_NONE;
+    }
+
+    err::Err VideoRecorder::close()
+    {
+        if (!_is_opened)
+            return err::ERR_NONE;
+
+        reset();
+
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        param->thread_exit_flag = true;
+        if (param->camera.obj2) {
+            delete param->camera.obj2;
+            param->camera.obj2 = NULL;
+        }
+        unlock();
+
+        pthread_join(param->thread, NULL);
+        mmf_deinit_v2(false);
+
+        err::check_bool_raise(!pthread_mutex_destroy(&param->lock), "pthread mutex destroy failed!");
+        _is_opened = false;
+        return err::ERR_NONE;
+    }
+
+    err::Err VideoRecorder::lock(int64_t timeout)
+    {
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+
+        int res = -1;
+        if (timeout < 0) {
+            while (0 != (res = pthread_mutex_lock(&param->lock)));
+        } else {
+            uint64_t start_ms = time::ticks_ms();
+            while (0 != (res = pthread_mutex_lock(&param->lock))) {
+                if ((int64_t)(time::ticks_ms() - start_ms) >= timeout) {
+                    break;
+                } else {
+                    time::sleep_ms(1);
+                }
+            }
+        }
+
+        return res == 0 ? err::ERR_NONE : err::ERR_TIMEOUT;
+    }
+
+    err::Err VideoRecorder::unlock()
+    {
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int res = pthread_mutex_unlock(&param->lock);
+        return res == 0 ? err::ERR_NONE : err::ERR_RUNTIME;
+    }
+
+    err::Err VideoRecorder::bind_display(display::Display *display, image::Fit fit)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        param->display.obj = display;
+        int new_fit = 0;
+        switch (fit) {
+        case image::Fit::FIT_FILL: new_fit = 0; break;
+        case image::Fit::FIT_CONTAIN: new_fit = 1; break;
+        case image::Fit::FIT_COVER: new_fit = 2; break;
+        default: new_fit = 2; break;
+        }
+        param->display.fit = new_fit;
+        unlock();
+        return param->display.obj ? err::ERR_NONE : err::ERR_ARGS;
+    }
+
+    err::Err VideoRecorder::bind_camera(camera::Camera *camera)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        param->camera.obj = camera;
+
+        if (camera) {
+            err::check_bool_raise(camera->format() == image::FMT_YVU420SP, "camera format must be FMTYVU420SP");
+        }
+
+        unlock();
+        return param->camera.obj ? err::ERR_NONE : err::ERR_ARGS;
+    }
+
+    err::Err VideoRecorder::bind_audio(audio::Recorder *audio)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        param->audio.obj = audio;
+        unlock();
+        return param->audio.obj ? err::ERR_NONE : err::ERR_ARGS;
+    }
+
+    err::Err VideoRecorder::bind_imu()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::reset()
+    {
+        finish();
+
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        _video_recoder_config_default(param);
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    err::Err VideoRecorder::config_path(std::string path)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (param->state != VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_BUSY;
+        }
+
+        param->path = path;
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    std::string VideoRecorder::get_path()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        std::string path = param->path;
+        unlock();
+        return path;
+    }
+
+    err::Err VideoRecorder::config_snapshot(bool enable, std::vector<int> resolution, image::Format format)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (param->state != VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_BUSY;
+        }
+
+        camera::Camera *cam = param->camera.obj;
+        if (!cam) {
+            log::error("You must use the bind_camera interface to bind a Camera object.");
+            return err::ERR_RUNTIME;
+        }
+
+        if (enable) {
+            if (resolution.size() < 2) {
+                param->snapshot_res = {cam->width(), cam->height()};
+            } else {
+                param->snapshot_res = resolution;
+            }
+            param->snapshot_fmt = format;
+
+            if (param->snapshot_en) {
+                if (param->camera.obj2) {
+                    delete param->camera.obj2;
+                    param->camera.obj2 = NULL;
+                }
+            }
+            param->camera.obj2 = cam->add_channel(param->snapshot_res[0], param->snapshot_res[1], param->snapshot_fmt);
+            err::check_null_raise(param->camera.obj2, "camera add channel failed!");
+
+            param->snapshot_en = true;
+        } else {
+            if (param->camera.obj2) {
+                delete param->camera.obj2;
+                param->camera.obj2 = NULL;
+            }
+
+            if (param->snapshot_img) {
+                delete param->snapshot_img;
+                param->snapshot_img = NULL;
+            }
+            param->snapshot_en = false;
+        }
+
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    err::Err VideoRecorder::config_resolution(std::vector<int> resolution)
+    {
+        if (resolution.size() < 2) return err::ERR_ARGS;
+
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (param->state != VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_BUSY;
+        }
+
+        camera::Camera *cam = param->camera.obj;
+        if (!cam) {
+            log::error("You must use the bind_camera interface to bind a Camera object.");
+            return err::ERR_RUNTIME;
+        }
+
+        cam->set_resolution(resolution[0], resolution[1]);
+
+        param->venc.resolution = resolution;
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    std::vector<int> VideoRecorder::get_resolution()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        std::vector<int> resolution;
+        if (param) {
+            resolution = param->venc.resolution;
+            if (resolution.size() == 0) {
+                if (param->camera.obj) {
+                    resolution = {param->camera.obj->width(), param->camera.obj->height()};
+                }
+            }
+
+            err::check_bool_raise(resolution.size() == 2, "You need config resolution!");
+        }
+        unlock();
+
+        return resolution;
+    }
+
+    err::Err VideoRecorder::config_fps(int fps)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (param->state != VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_BUSY;
+        }
+
+        camera::Camera *cam = param->camera.obj;
+        if (!cam) {
+            log::error("You must use the bind_camera interface to bind a Camera object.");
+            return err::ERR_RUNTIME;
+        }
+
+        cam->set_fps(fps);
+
+        param->venc.fps = fps;
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    int VideoRecorder::get_fps()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int fps = param->venc.fps;
+        unlock();
+        return fps;
+    }
+
+    err::Err VideoRecorder::config_bitrate(int bitrate)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (param->state != VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_BUSY;
+        }
+
+        param->venc.bitrate = bitrate;
+        unlock();
+        return err::ERR_NONE;
+    }
+
+    int VideoRecorder::get_bitrate()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int bitrate = param->venc.bitrate;
+        unlock();
+        return bitrate;
+    }
+
+    int VideoRecorder::mute(int data)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int current_mute = 0;
+        if (param->audio.obj) {
+            if (data >= 0) {
+                current_mute = param->audio.obj->mute(data);
+            } else {
+                current_mute = param->audio.obj->mute();
+            }
+        }
+        unlock();
+
+        return current_mute;
+    }
+
+    int VideoRecorder::volume(int data)
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int current_volume = 0;
+        if (data >= 0) {
+            data = data >= 100 ? 100 : data;
+            param->audio.obj->volume(data);
+        } else {
+            current_volume = param->audio.obj->volume();
+        }
+        unlock();
+
+        return current_volume;
+    }
+
+    int64_t VideoRecorder::seek()
+    {
+        // Only read param, so don't lock
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        return param->seek_ms;
+    }
+
+    err::Err VideoRecorder::record()
+    {
+        auto resolution = this->get_resolution();
+
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        int width = resolution[0];
+        int height = resolution[1];
+        image::Format format = image::FMT_YVU420SP;
+        int framerate = param->venc.fps;
+        int bitrate = param->venc.bitrate;
+        std::string path = param->path;
+        VideoType type = VIDEO_H264;
+        video::VideoType video_type = _get_video_type(param->path.c_str(), type);
+        PAYLOAD_TYPE_E venc_type = _video_type_to_mmf(type);
+
+        // ffmpeg init
+        av_log_set_callback(custom_log_callback);
+
+
+        AVFormatContext *outputFormatContext = NULL;
+        if (0 != avformat_alloc_output_context2(&outputFormatContext, NULL, NULL, path.c_str())) {
+            log::error("Count not open file: %s", path.c_str());
+            err::check_raise(err::ERR_RUNTIME, "Could not open file");
+        }
+
+        /* video init */
+        AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
+        err::check_null_raise(outputStream, "create new stream failed");
+
+        outputStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
+        outputStream->codecpar->codec_id = _video_type_to_ffmpeg(video_type);
+        outputStream->codecpar->width = width;
+        outputStream->codecpar->height = height;
+        outputStream->codecpar->format = _image_format_to_ffmpeg(format);
+        outputStream->time_base = (AVRational){1, framerate};
+        outputStream->codecpar->bit_rate = bitrate;
+
+        if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+            if (avio_open(&outputFormatContext->pb, path.c_str(), AVIO_FLAG_WRITE) < 0) {
+                log::error("Count not open file: %s", path.c_str());
+                err::check_raise(err::ERR_RUNTIME, "Could not open file");
+            }
+        }
+
+        AVPacket *pPacket = av_packet_alloc();
+        err::check_null_raise(pPacket, "malloc failed!");
+
+        mmf_venc_cfg_t cfg = {
+            .type = 2,  //1, h265, 2, h264
+            .w = width,
+            .h = height,
+            .fmt = mmf_invert_format_to_mmf(image::FMT_YVU420SP),
+            .jpg_quality = 0,       // unused
+            .gop = 50,
+            .intput_fps = framerate,
+            .output_fps = framerate,
+            .bitrate = bitrate / 1000,
+        };
+
+        if (venc_type == PT_H265) {
+            cfg.type = 1;
+        } else if (venc_type == PT_H264) {
+            cfg.type = 2;
+        }
+
+        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
+            mmf_deinit_v2(false);
+            err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
+        }
+
+        /* audio init */
+        AVStream *audio_stream = NULL;
+        AVCodecContext *audio_codec_ctx = NULL;
+        AVCodec *audio_codec = NULL;
+        AVFrame *audio_frame = NULL;
+        SwrContext *swr_ctx = NULL;
+        AVPacket *audio_packet = NULL;
+        int audio_sample_rate = 48000;
+        int audio_channels = 1;
+        int audio_bitrate = 128000;
+        enum AVSampleFormat audio_format = AV_SAMPLE_FMT_S16;
+        audio::Recorder *audio_recorder = param->audio.obj;
+        if (audio_recorder) {
+            audio_sample_rate = audio_recorder->sample_rate();
+            audio_channels = audio_recorder->channel();
+            audio_format = _audio_format_to_alsa(audio_recorder->format());
+        }
+        audio_packet = av_packet_alloc();
+        err::check_null_raise(audio_packet, "av_packet_alloc");
+        audio_packet->data = NULL;
+        audio_packet->size = 0;
+
+        err::check_null_raise(audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
+        err::check_null_raise(audio_stream = avformat_new_stream(outputFormatContext, NULL), "Could not allocate stream");
+        err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
+        audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
+        audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
+        audio_codec_ctx->sample_rate = audio_sample_rate;
+        audio_codec_ctx->channels = audio_channels;
+        audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+        audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
+        audio_codec_ctx->time_base = (AVRational){1, audio_sample_rate};
+        audio_codec_ctx->bit_rate = bitrate;
+        audio_stream->time_base = audio_codec_ctx->time_base;
+        err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
+        err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
+
+        swr_ctx = swr_alloc();
+        av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
+        av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+        av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
+        av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
+        av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", audio_format, 0);
+        av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+        swr_init(swr_ctx);
+
+        int frame_size = audio_codec_ctx->frame_size;
+        audio_frame = av_frame_alloc();
+        audio_frame->nb_samples = frame_size;
+        audio_frame->channel_layout = audio_codec_ctx->channel_layout;
+        audio_frame->format = AV_SAMPLE_FMT_FLTP;
+        audio_frame->sample_rate = audio_codec_ctx->sample_rate;
+        av_frame_get_buffer(audio_frame, 0);
+
+        err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
+
+        /* param init */
+        encoder_param_t *packager = (encoder_param_t *)&param->packager;
+        packager->outputFormatContext = outputFormatContext;
+        packager->outputStream = outputStream;
+
+        // video init
+        packager->pPacket = pPacket;
+        packager->video_type = video_type;
+        packager->venc_ch = MMF_VENC_CHN;
+        packager->venc_type = venc_type;
+        packager->find_sps_pps = false;
+        packager->frame_index = 0;
+        packager->last_encode_ms = time::ticks_ms();
+        switch (video_type) {
+            case VIDEO_H264:
+                packager->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H264_MP4:
+                packager->copy_sps_pps_per_iframe = false;
+                break;
+            case VIDEO_H264_FLV:
+                packager->copy_sps_pps_per_iframe = false;
+            break;
+            case VIDEO_H265:
+                packager->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H265_MP4:
+                packager->copy_sps_pps_per_iframe = false;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+        }
+        packager->video_packet_list = new std::list<AVPacket *>;
+
+        // audio init
+        packager->audio_stream = audio_stream;
+        packager->audio_codec_ctx = audio_codec_ctx;
+        packager->audio_codec = audio_codec;
+        packager->audio_frame = audio_frame;
+        packager->swr_ctx = swr_ctx;
+        packager->audio_packet = audio_packet;
+        packager->audio_last_pts = 0;
+        packager->pcm_list = new std::list<Bytes *>;
+        packager->audio_sample_rate = audio_sample_rate;
+        packager->audio_channels = audio_channels;
+        packager->audio_bitrate = audio_bitrate;
+        packager->audio_format = audio_format;
+
+        param->state = VIDEO_RECORDER_RECORD;
+        unlock();
+
+        return err::ERR_NONE;
+    }
+
+    image::Image *VideoRecorder::snapshot()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        image::Image *new_image = NULL;
+        if (param->snapshot_img) {
+            new_image = param->snapshot_img->copy();
+            delete param->snapshot_img;
+            param->snapshot_img = NULL;
+        }
+        unlock();
+        return new_image;
+    }
+
+    err::Err VideoRecorder::finish()
+    {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        encoder_param_t *packager = &param->packager;
+
+        if (param->state == VIDEO_RECORDER_IDLE) {
+            unlock();
+            return err::ERR_NONE;
+        }
+        param->state = VIDEO_RECORDER_IDLE;
+
+        mmf_del_venc_channel(param->venc.ch);
+        av_write_trailer(packager->outputFormatContext);
+
+        for (auto it = packager->video_packet_list->begin(); it != packager->video_packet_list->end(); ++it) {
+            AVPacket *packet = *it;
+            if (packet) {
+                if (packet->data) {
+                    free(packet->data);
+                    packet->data = nullptr;
+                }
+                av_packet_unref(packet);
+                av_packet_free(&packet);
+            }
+            it = packager->video_packet_list->erase(it);
+        }
+        delete packager->video_packet_list;
+
+        for (auto it = packager->pcm_list->begin(); it != packager->pcm_list->end(); ++it) {
+            Bytes *pcm = *it;
+            delete pcm;
+            it = packager->pcm_list->erase(it);
+        }
+        delete packager->pcm_list;
+
+        av_frame_free(&packager->audio_frame);
+        swr_free(&packager->swr_ctx);
+        avcodec_free_context(&packager->audio_codec_ctx);
+
+        avformat_close_input(&packager->outputFormatContext);
+        if (packager->outputFormatContext && !(packager->outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
+            avio_closep(&packager->outputFormatContext->pb);
+        }
+        avformat_free_context(packager->outputFormatContext);
+        av_packet_unref(packager->pPacket);
+        av_packet_free(&packager->pPacket);
+
+        unlock();
+
+        return err::ERR_NONE;
+    }
+
+    err::Err VideoRecorder::draw_rect(int x, int y, int w, int h, image::Color color, int thickness)
+    {
+        return err::ERR_NOT_IMPL;
     }
 } // namespace maix::video

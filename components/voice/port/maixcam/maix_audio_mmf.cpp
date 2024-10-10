@@ -419,6 +419,12 @@ namespace maix::audio
         err::check_null_raise(_buffer, "record buffer init failed!");
         _buffer_size = (size_t)buffer_size;
 
+        char buffer[512];
+        snprintf(buffer, sizeof(buffer), "amixer -Dhw:0 cset name='ADC Capture Volume' %d &> /dev/zero", 12);
+        system(buffer);
+        snprintf(buffer, sizeof(buffer), "amixer sset 'ADC Capture Mute' off &> /dev/zero");
+        system(buffer);
+
         // file init
         _file = NULL;
     }
@@ -441,15 +447,55 @@ namespace maix::audio
         }
     }
 
+    bool Recorder::mute(int data) {
+        char buffer[512];
+        bool is_muted = false;
+        if (data < 0) {
+            // get
+            FILE *fp;
+            fp = popen("amixer sget 'ADC Capture Mute'", "r");
+            if (fp == NULL) {
+                return -1;
+            }
+
+            char temp[30];
+            while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+                if (strstr(buffer, "Front Left: Playback")) {
+                    sscanf(buffer, "  Front Left: Playback %s", temp);
+                    break;
+                }
+            }
+
+            if (!strncmp(temp, "[off]", sizeof(temp))) {
+                is_muted = false;
+            } else {
+                is_muted = true;
+            }
+            pclose(fp);
+        } else if (data == 0) {
+            snprintf(buffer, sizeof(buffer), "amixer sset 'ADC Capture Mute' off &> /dev/zero");
+            system(buffer);
+            is_muted = false;
+        } else {
+            snprintf(buffer, sizeof(buffer), "amixer sset 'ADC Capture Mute' on &> /dev/zero");
+            system(buffer);
+            is_muted = true;
+        }
+        return is_muted;
+    }
+
     int Recorder::volume(int value) {
         char buffer[512];
-        value = value < 0 ? 0 : value;
+        value = value > 100 ? 100 : value;
 
+        // set
         if (value != -1) {
+            value = (double)value * 24 / 100;
             snprintf(buffer, sizeof(buffer), "amixer -Dhw:0 cset name='ADC Capture Volume' %d &> /dev/zero", value);
             system(buffer);
         }
 
+        // get
         FILE *fp;
         fp = popen("amixer -Dhw:0 cget name='ADC Capture Volume'", "r");
         if (fp == NULL) {
@@ -463,6 +509,8 @@ namespace maix::audio
             }
         }
         pclose(fp);
+
+        read_value = read_value * 100 / 24;
 
         return read_value;
     }
@@ -573,6 +621,77 @@ namespace maix::audio
 
                     if (_file)
                         fwrite(buffer, len, 1, _file);
+                }
+            }
+
+            if (valid_len > 0) {
+                return new Bytes(&data[0], valid_len, true, true);
+            }
+            return new Bytes();
+        }
+
+        return new Bytes();
+    }
+
+    maix::Bytes *Recorder::record_bytes(int record_size) {
+        snd_pcm_t *handle = (snd_pcm_t *)_handle;
+        void *buffer = _buffer;
+        snd_pcm_uframes_t buffer_size = (snd_pcm_uframes_t)_buffer_size;
+        snd_pcm_format_t format = _alsa_format_from_maix(_format);
+        unsigned int channel = _channel;
+        int len = 0;
+
+        if (_file == NULL && _path.size() > 0) {
+            _file = fopen(_path.c_str(), "w+");
+            err::check_null_raise(_file, "Open file failed!");
+
+            if (fs::splitext(_path)[1] == ".wav") {
+                wav_header_t header = {
+                    .file_size = 44,
+                    .channel = _channel,
+                    .sample_rate = _sample_rate,
+                    .sample_bit = format_to_sample_bit(_format),
+                    .bitrate = _channel * _sample_rate * format_to_sample_bit(_format) / 8,
+                    .data_size = 0,
+                };
+
+                uint8_t buffer[44];
+                if (0 != _create_wav_header(&header, buffer, sizeof(buffer))) {
+                    err::check_raise(err::ERR_RUNTIME, "create wav failed!");
+                }
+
+                if (sizeof(buffer) != fwrite(buffer, 1, sizeof(buffer), _file)) {
+                    err::check_raise(err::ERR_RUNTIME, "write wav header failed!");
+                }
+            }
+        }
+
+        {
+            int add_len = 4096;
+            int valid_len = 0;
+            int remain_len = add_len;
+            std::vector<uint8_t> data(add_len);
+
+            while (len >= 0) {
+                len = _alsa_capture_pop(handle, format, channel, _period_size, buffer, buffer_size);
+                if (len > 0) {
+                    if (remain_len < len) {
+                        data.resize(data.size() + add_len);
+                        remain_len = remain_len + add_len;
+                    }
+
+                    if (remain_len >= len) {
+                        memcpy(&data[valid_len], buffer, len);
+                        remain_len -= len;
+                        valid_len += len;
+                    }
+
+                    if (_file)
+                        fwrite(buffer, len, 1, _file);
+
+                    if (valid_len >= record_size) {
+                        break;
+                    }
                 }
             }
 

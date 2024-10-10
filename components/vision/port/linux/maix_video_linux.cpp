@@ -137,4 +137,151 @@ namespace maix::video
         throw err::Exception(err::ERR_NOT_IMPL);
         return err::ERR_NOT_IMPL;
     }
+
+    VideoRecorder::VideoRecorder(bool open)
+    {
+        (void)open;
+    }
+
+    VideoRecorder::~VideoRecorder()
+    {
+    }
+
+    err::Err VideoRecorder::open()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::close()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::lock(int64_t timeout)
+    {
+        (void)timeout;
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::unlock()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::bind_display(display::Display *display, image::Fit fit)
+    {
+        (void)display;
+        (void)fit;
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::bind_camera(camera::Camera *camera)
+    {
+        (void)camera;
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::bind_audio(audio::Recorder *audio)
+    {
+        (void)audio;
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::bind_imu()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::reset()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::config_path(std::string path)
+    {
+        (void)path;
+        return err::ERR_NOT_IMPL;
+    }
+
+    std::string VideoRecorder::get_path()
+    {
+        return "";
+    }
+
+    err::Err VideoRecorder::config_snapshot(bool enable, std::vector<int> resolution, image::Format format)
+    {
+        (void)enable;
+        (void)resolution;
+        (void)format;
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::config_resolution(std::vector<int> resolution)
+    {
+        (void)resolution;
+        return err::ERR_NOT_IMPL;
+    }
+
+    std::vector<int> VideoRecorder::get_resolution()
+    {
+        return {};
+    }
+
+    err::Err VideoRecorder::config_fps(int fps)
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    int VideoRecorder::get_fps()
+    {
+        return 0;
+    }
+
+    err::Err VideoRecorder::config_bitrate(int bitrate)
+    {
+        (void)bitrate;
+        return err::ERR_NOT_IMPL;
+    }
+
+    int VideoRecorder::get_bitrate()
+    {
+        return 0;
+    }
+
+    int VideoRecorder::mute(int data)
+    {
+        (void)data;
+        return 0;
+    }
+
+    int VideoRecorder::volume(int data)
+    {
+        (void)data;
+        return 0;
+    }
+
+    int64_t VideoRecorder::seek()
+    {
+        return 0;
+    }
+
+    err::Err VideoRecorder::record()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    image::Image *VideoRecorder::snapshot()
+    {
+        return NULL;
+    }
+
+    err::Err VideoRecorder::finish()
+    {
+        return err::ERR_NOT_IMPL;
+    }
+
+    err::Err VideoRecorder::draw_rect(int x, int y, int w, int h, image::Color color, int thickness)
+    {
+        return err::ERR_NOT_IMPL;
+    }
 } // namespace maix::video

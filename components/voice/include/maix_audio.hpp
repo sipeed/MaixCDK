@@ -66,11 +66,20 @@ namespace maix::audio
         /**
          * Set/Get record volume
          * @param value volume value, If you use this parameter, audio will set the value to volume,
-         * if you don't, it will return the current volume.
+         * if you don't, it will return the current volume. range is [0, 100].
          * @return the current volume
          * @maixpy maix.audio.Recorder.volume
         */
         int volume(int value = -1);
+
+        /**
+         * Mute
+         * @param data mute data, If you set this parameter to true, audio will set the value to mute,
+         * if you don't, it will return the current mute status.
+         * @return Returns whether mute is currently enabled.
+         * @maixpy maix.audio.Recorder.mute
+        */
+        bool mute(int data = -1);
 
         /**
          * Record, Read all cached data in buffer and return. If there is no audio data in the buffer, may return empty data.
@@ -79,6 +88,15 @@ namespace maix::audio
          * @maixpy maix.audio.Recorder.record
         */
         maix::Bytes *record(int record_ms = -1);
+
+        /**
+         * Record, Read all cached data in buffer and return. If there is no audio data in the buffer, may return empty data.
+         * @note This interface is experimental and may be removed in the future.
+         * @param record_size Record audio data of size record_size.
+         * @return pcm data. datatype @see Bytes. If you pass in record_ms parameter, the return value is an empty Bytes object.
+         * @maixcdk maix.audio.Recorder.record_bytes
+        */
+        maix::Bytes *record_bytes(int record_size = -1);
 
         /**
          * Finish the record, if you have passed in the path, this api will save the audio data to file.

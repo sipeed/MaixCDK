@@ -1100,5 +1100,234 @@ namespace maix::video
         fs::File file;
         uint64_t _last_pts;
     };
+
+    /**
+     * Video Recorder class
+     * @maixpy maix.video.VideoRecorder
+     */
+    class VideoRecorder
+    {
+    public:
+        /**
+         * @brief Construct a new VideoRecorder object. This is an object that integrates recording, video capturing, and display functions, which can be used to achieve high-resolution video input when needed.
+         * @param open If true, video will automatically call open() after creation. default is true.
+         * @maixpy maix.video.VideoRecorder.__init__
+         * @maixcdk maix.video.VideoRecorder.VideoRecorder
+         */
+        VideoRecorder(bool open = true);
+        ~VideoRecorder();
+
+        /**
+         * @brief lock video
+         * @param timeout timeout in ms. unit:ms
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.lock
+        */
+        err::Err lock(int64_t timeout = -1);
+
+        /**
+         * @brief unlock video
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.unlock
+        */
+        err::Err unlock();
+
+        /**
+         * @brief Start a thread to handle the input function.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.open
+        */
+        err::Err open();
+
+        /**
+         * @brief Stop the thread, and reset the object.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.close
+        */
+        err::Err close();
+
+        /**
+         * @brief Check whether the object is opened.
+         * @maixpy maix.video.VideoRecorder.is_opened
+        */
+        bool is_opened() {return _is_opened;}
+
+        /**
+         * @brief Bind a Display object. if this object is not bound, it will not be displayed.
+         * @param display display object
+         * @param fit fit mode. It is recommended to fill in FIT_COVER or FIT_FILL. For maixcam, using FIT_CONTAIN may affect the
+         * functionality of the second layer created by add_channel() in the Display. default is FIT_COVER.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.bind_display
+        */
+        err::Err bind_display(display::Display *display, image::Fit fit = image::FIT_COVER);
+
+        /**
+         * @brief Bind a Camera object. if this object is not bound, images cannot be captured.
+         * @param camera camera object
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.bind_camera
+        */
+        err::Err bind_camera(camera::Camera *camera);
+
+        /**
+         * @brief Bind a AudioRecorder object. if this object is not bound, audio cannot be captured.
+         * @param audio audio recorder object
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.bind_audio
+        */
+        err::Err bind_audio(audio::Recorder *audio);
+
+        /**
+         * @brief Bind a IMU object. if this object is not bound, imu data cannot be captured.
+         * TODO: support IMU object
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.bind_imu
+        */
+        err::Err bind_imu();
+
+        /**
+         * @brief Reset the video recorder.
+         * @note It will not reset the bound object; if you have already bound the display using bind_display(), there is no need to rebind the display after calling reset().
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.reset
+        */
+        err::Err reset();
+
+        /**
+         * @brief The recorded video will be saved to this path, and this API cannot be called during runtime.
+         * @param path The path of the video file to be saved
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.config_path
+        */
+        err::Err config_path(std::string path);
+
+        /**
+         * @brief Get the path of the video file to be saved
+         * @return path
+         * @maixpy maix.video.VideoRecorder.get_path
+        */
+        std::string get_path();
+
+        /**
+         * @brief Set the snapshot parameters
+         * @note Enabling snapshot functionality may result in some performance loss.
+         * @param enable enable or disable snapshot
+         * @param resolution image resolution of snapshot
+         * @param format image format of snapshot
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.config_snapshot
+        */
+        err::Err config_snapshot(bool enable, std::vector<int> resolution = std::vector<int>(), image::Format format = image::Format::FMT_YVU420SP);
+
+        /**
+         * @brief Set the resolution of the video, and this API cannot be called during runtime.
+         * @note You must bind the camera first, and this interface will modify the camera's resolution. The width must be divisible by 32.
+         * @param resolution The resolution of the video
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.config_resolution
+        */
+        err::Err config_resolution(std::vector<int> resolution);
+
+        /**
+         * @brief Get the resolution of the video
+         * @return the resolution of the video
+         * @maixpy maix.video.VideoRecorder.get_resolution
+        */
+        std::vector<int> get_resolution();
+
+        /**
+         * @brief Set the fps of the video, and this API cannot be called during runtime.
+         * @note This interface only affect the fps of the encoded file.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.config_fps
+        */
+        err::Err config_fps(int fps);
+
+        /**
+         * @brief Get the fps of the video.
+         * @return fps value
+         * @maixpy maix.video.VideoRecorder.get_fps
+        */
+        int get_fps();
+
+        /**
+         * @brief Set the bitrate of the video, and this API cannot be called during runtime.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.config_bitrate
+        */
+        err::Err config_bitrate(int bitrate);
+
+        /**
+         * @brief Get the bitrate of the video.
+         * @return bitrate value
+         * @maixpy maix.video.VideoRecorder.get_bitrate
+        */
+        int get_bitrate();
+
+        /**
+         * @brief Set/Get the mute of the video
+         * @param data If the parameter is true, mute; if false, unmute; if no parameter is provided, return the mute status.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.mute
+        */
+        int mute(int data = -1);
+
+        /**
+         * @brief Set/Get the volume of the video
+         * @param data The volume of the video, the range is 0-100. if no parameter is provided, return the volume.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.volume
+        */
+        int volume(int data = -1);
+
+        /**
+         * @brief Get the current position of the video
+         * @return current position, unit: ms
+         * @maixpy maix.video.VideoRecorder.seek
+        */
+        int64_t seek();
+
+        /**
+         * @brief Start recording
+         * @note You must bind the camera at a minimum during input. Additionally,
+         * if you bind a display, the input image will be shown,
+         * if you bind a audio, audio will be recorded,
+         * if you bind a IMU, IMU data will be logged.
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.record
+        */
+        err::Err record();
+
+        /**
+         * @brief Take a snapshot
+         * @return image::Image
+         * @maixpy maix.video.VideoRecorder.snapshot
+        */
+        image::Image *snapshot();
+
+        /**
+         * @brief Stop recording and save the video
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.finish
+        */
+        err::Err finish();
+
+        /**
+         * @brief Draw a rect on the video
+         * @param x x coordinate
+         * @param y y coordinate
+         * @param w width
+         * @param h height
+         * @param color color
+         * @param tickness thickness
+         * @return error code
+         * @maixpy maix.video.VideoRecorder.draw_rect
+        */
+        err::Err draw_rect(int x, int y, int w, int h, image::Color color = image::COLOR_WHITE, int thickness = -1);
+    private:
+        bool _is_opened;
+        void *_param;
+    };
 }
 

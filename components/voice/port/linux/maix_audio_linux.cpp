@@ -35,6 +35,18 @@ namespace maix::audio
         return NULL;
     }
 
+    maix::Bytes *Recorder::record_bytes(int record_size) {
+        (void)record_size;
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+        return NULL;
+    }
+
+    bool Recorder::mute(int data) {
+        (void)data;
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+        return false;
+    }
+
     err::Err Recorder::finish() {
         err::check_raise(err::ERR_NOT_IMPL, "not support this function");
         return err::ERR_NOT_IMPL;

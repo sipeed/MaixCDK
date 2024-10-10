@@ -931,10 +931,18 @@ _error:
     }
 
     err::Err Camera::set_fps(int fps) {
+        float new_fps = fps;
+        camera_priv_t *priv = (camera_priv_t *)this->_param;
+        switch (priv->sns_type) {
+        case GCORE_GC4653_MIPI_720P_60FPS_10BIT:
+            new_fps = fps / 2;
+        break;
+        default:break;
+        }
         ISP_PUB_ATTR_S stPubAttr;
         memset(&stPubAttr, 0, sizeof(stPubAttr));
         err::check_bool_raise(0 == CVI_ISP_GetPubAttr(0, &stPubAttr), "CVI_ISP_GetPubAttr failed");
-        stPubAttr.f32FrameRate = fps;
+        stPubAttr.f32FrameRate = new_fps;
         err::check_bool_raise(0 == CVI_ISP_SetPubAttr(0, &stPubAttr), "CVI_ISP_SetPubAttr failed");
         return err::ERR_NONE;
     }
