@@ -1,7 +1,7 @@
 
 #include "maix_basic.hpp"
 #include "maix_vision.hpp"
-#include "maix_nn_yolov8.hpp"
+#include "maix_nn_yolo11.hpp"
 #include "main.h"
 
 using namespace maix;
@@ -31,10 +31,10 @@ int _main(int argc, char *argv[])
     bool dual_buff = true;
 
 
-    nn::YOLOv8 detector("", dual_buff);
+    nn::YOLO11 detector("", dual_buff);
     e = detector.load(model_path);
     err::check_raise(e, "load model failed");
-    log::info("load yolov8 model %s success", model_path);
+    log::info("load yolo11 model %s success", model_path);
 
     if (argc >= 3)
     {
@@ -60,6 +60,7 @@ int _main(int argc, char *argv[])
             img->draw_rect(r->x, r->y, r->w, r->h, maix::image::Color::from_rgb(255, 0, 0));
             snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f", detector.labels[r->class_id].c_str(), r->score);
             img->draw_string(r->x, r->y, detector.labels[r->class_id], maix::image::Color::from_rgb(255, 0, 0));
+            detector.draw_pose(*img, r->points, 4, image::COLOR_RED);
         }
         img->save("result.jpg");
         delete result;
@@ -85,11 +86,12 @@ int _main(int argc, char *argv[])
                 log::info("result: %s", r->to_str().c_str());
                 img->draw_rect(r->x, r->y, r->w, r->h, maix::image::Color::from_rgb(255, 0, 0));
                 img->draw_string(r->x, r->y, detector.labels[r->class_id], maix::image::Color::from_rgb(255, 0, 0));
+                detector.draw_pose(*img, r->points, 4, image::COLOR_RED);
             }
             disp.show(*img);
             delete result;
             delete img;
-            log::info("time: all %d ms, detect %d ms, fps: %.1f", time::ticks_ms() - t, t3 - t2, time::fps());
+            log::info("time: all %d ms, detect %d ms", time::ticks_ms() - t, t3 - t2);
         }
     }
 

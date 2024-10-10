@@ -2,7 +2,7 @@
  * @author neucrack@sipeed
  * @copyright Sipeed Ltd 2024-
  * @license Apache 2.0
- * @update 2024.6.7: Add yolov8 support.
+ * @update 2024.10.10: Add yolo11 support.
  */
 
 #pragma once
@@ -14,17 +14,17 @@
 
 namespace maix::nn
 {
-    enum class YOLOv8_Type
+    enum class YOLO11_Type
     {
         DETECT = 0,
         POSE = 1,
         SEG = 2
     };
 
-    class _KpInfo
+    class _KpInfoYolo11
     {
     public:
-        _KpInfo(int idx, int ax, int ay, float stride)
+        _KpInfoYolo11(int idx, int ax, int ay, float stride)
             : idx(idx), anchor_x(ax), anchor_y(ay), stride(stride)
         {
         }
@@ -35,26 +35,26 @@ namespace maix::nn
     };
 
     /**
-     * YOLOv8 class
-     * @maixpy maix.nn.YOLOv8
+     * YOLO11 class
+     * @maixpy maix.nn.YOLO11
      */
-    class YOLOv8
+    class YOLO11
     {
     public:
         /**
-         * Constructor of YOLOv8 class
+         * Constructor of YOLO11 class
          * @param model model path, default empty, you can load model later by load function.
          * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
          *                      If you want to ensure every time forward output the input's result, set this arg to false please.
          *                      Default true to ensure speed.
          * @throw If model arg is not empty and load failed, will throw err::Exception.
-         * @maixpy maix.nn.YOLOv8.__init__
-         * @maixcdk maix.nn.YOLOv8.YOLOv8
+         * @maixpy maix.nn.YOLO11.__init__
+         * @maixcdk maix.nn.YOLO11.YOLO11
          */
-        YOLOv8(const string &model = "", bool dual_buff = true)
+        YOLO11(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
-            _type = YOLOv8_Type::DETECT;
+            _type = YOLO11_Type::DETECT;
             _dual_buff = dual_buff;
             if (!model.empty())
             {
@@ -66,7 +66,7 @@ namespace maix::nn
             }
         }
 
-        ~YOLOv8()
+        ~YOLO11()
         {
             if (_model)
             {
@@ -84,7 +84,7 @@ namespace maix::nn
          * Load model from file
          * @param model Model path want to load
          * @return err::Err
-         * @maixpy maix.nn.YOLOv8.load
+         * @maixpy maix.nn.YOLO11.load
          */
         err::Err load(const string &model)
         {
@@ -221,11 +221,11 @@ namespace maix::nn
             {
                 if (_extra_info["type"] == "pose")
                 {
-                    _type = YOLOv8_Type::POSE;
+                    _type = YOLO11_Type::POSE;
                 }
                 else if (_extra_info["type"] == "seg")
                 {
-                    _type = YOLOv8_Type::SEG;
+                    _type = YOLO11_Type::SEG;
                 }
                 else if (_extra_info["type"] != "detector")
                 {
@@ -235,7 +235,7 @@ namespace maix::nn
             }
             else
             {
-                _type = YOLOv8_Type::DETECT;
+                _type = YOLO11_Type::DETECT;
             }
             std::vector<nn::LayerInfo> inputs = _model->inputs_info();
             _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
@@ -249,11 +249,11 @@ namespace maix::nn
          * @param conf_th Confidence threshold, default 0.5.
          * @param iou_th IoU threshold, default 0.45.
          * @param fit Resize method, default image.Fit.FIT_CONTAIN.
-         * @param keypoint_th keypoint threshold, default 0.5, only for yolov8-pose model.
+         * @param keypoint_th keypoint threshold, default 0.5, only for yolo11-pose model.
          * @throw If image format not match model input format, will throw err::Exception.
          * @return Object list. In C++, you should delete it after use.
-         *         If model is yolov8-pose, object's points have value, and if points' value < 0 means that point is invalid(conf < keypoint_th).
-         * @maixpy maix.nn.YOLOv8.detect
+         *         If model is yolo11-pose, object's points have value, and if points' value < 0 means that point is invalid(conf < keypoint_th).
+         * @maixpy maix.nn.YOLO11.detect
          */
         nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5)
         {
@@ -282,7 +282,7 @@ namespace maix::nn
         /**
          * Get model input size
          * @return model input size
-         * @maixpy maix.nn.YOLOv8.input_size
+         * @maixpy maix.nn.YOLO11.input_size
          */
         image::Size input_size()
         {
@@ -292,7 +292,7 @@ namespace maix::nn
         /**
          * Get model input width
          * @return model input size of width
-         * @maixpy maix.nn.YOLOv8.input_width
+         * @maixpy maix.nn.YOLO11.input_width
          */
         int input_width()
         {
@@ -302,7 +302,7 @@ namespace maix::nn
         /**
          * Get model input height
          * @return model input size of height
-         * @maixpy maix.nn.YOLOv8.input_height
+         * @maixpy maix.nn.YOLO11.input_height
          */
         int input_height()
         {
@@ -312,7 +312,7 @@ namespace maix::nn
         /**
          * Get input image format
          * @return input image format, image::Format type.
-         * @maixpy maix.nn.YOLOv8.input_format
+         * @maixpy maix.nn.YOLO11.input_format
          */
         image::Format input_format()
         {
@@ -326,7 +326,7 @@ namespace maix::nn
          * @param radius radius of points.
          * @param color color of points.
          * @param body true, if points' length is 17*2 and body is ture, will draw lines as human body, if set to false won't draw lines, default true.
-         * @maixpy maix.nn.YOLOv8.draw_pose
+         * @maixpy maix.nn.YOLO11.draw_pose
          */
         void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, bool body = true)
         {
@@ -368,7 +368,7 @@ namespace maix::nn
          * @param img image object, maix.image.Image type.
          * @param seg_mask segmentation mask image by detect method, a grayscale image
          * @param threshold only mask's value > threshold will be draw on image, value from 0 to 255.
-         * @maixpy maix.nn.YOLOv8.draw_seg_mask
+         * @maixpy maix.nn.YOLO11.draw_seg_mask
          */
         void draw_seg_mask(image::Image &img, int x, int y, image::Image &seg_mask, int threshold = 127)
         {
@@ -403,30 +403,30 @@ namespace maix::nn
     public:
         /**
          * Labels list
-         * @maixpy maix.nn.YOLOv8.labels
+         * @maixpy maix.nn.YOLO11.labels
          */
         std::vector<string> labels;
 
         /**
          * Label file path
-         * @maixpy maix.nn.YOLOv8.label_path
+         * @maixpy maix.nn.YOLO11.label_path
          */
         std::string label_path;
 
         /**
          * Get mean value, list type
-         * @maixpy maix.nn.YOLOv8.mean
+         * @maixpy maix.nn.YOLO11.mean
          */
         std::vector<float> mean;
 
         /**
          * Get scale value, list type
-         * @maixpy maix.nn.YOLOv8.scale
+         * @maixpy maix.nn.YOLO11.scale
          */
         std::vector<float> scale;
 
     protected:
-        std::string type_str = "yolov8";
+        std::string type_str = "yolo11";
 
     private:
         image::Size _input_size;
@@ -436,7 +436,7 @@ namespace maix::nn
         float _conf_th = 0.5;
         float _iou_th = 0.45;
         float _keypoint_th = 0.5;
-        YOLOv8_Type _type;
+        YOLO11_Type _type;
         bool _dual_buff;
 
     private:
@@ -483,11 +483,11 @@ namespace maix::nn
                 delete objects_total;
             }
             // decode keypoints
-            if (_type == YOLOv8_Type::POSE)
+            if (_type == YOLO11_Type::POSE)
             {
                 _decode_keypoints(*objects, kp_out);
             }
-            else if (_type == YOLOv8_Type::SEG)
+            else if (_type == YOLO11_Type::SEG)
             {
                 _decode_seg_points(*objects, kp_out, mask_out);
             }
@@ -561,7 +561,7 @@ namespace maix::nn
                         float bbox_y = (ay + 0.5 - dets_ptr[offset + total_box_num]) * stride[i];
                         float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
                         float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
-                        _KpInfo *kp_info = new _KpInfo(offset, ax, ay, stride[i]);
+                        _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
                         Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
                         obj.temp = (void *)kp_info;
                     }
@@ -618,7 +618,7 @@ namespace maix::nn
                 }
                 else
                 {
-                    delete (_KpInfo *)a->temp;
+                    delete (_KpInfoYolo11 *)a->temp;
                     a->temp = NULL;
                 }
             }
@@ -633,7 +633,7 @@ namespace maix::nn
             for (size_t i = 0; i < objs.size(); ++i)
             {
                 nn::Object &o = objs.at(i);
-                _KpInfo *kp_info = (_KpInfo *)o.temp;
+                _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
                 float *p = data + kp_info->idx;
                 for (int k = 0; k < keypoint_num; ++k)
                 {
@@ -648,7 +648,7 @@ namespace maix::nn
                     o.points.push_back(x);
                     o.points.push_back(y);
                 }
-                delete (_KpInfo *)o.temp;
+                delete (_KpInfoYolo11 *)o.temp;
                 o.temp = NULL;
             }
         }
@@ -670,7 +670,7 @@ namespace maix::nn
                 int mask_y = o.y * mask_h / _input_size.height();
                 int mask_x2 = (o.x + o.w) * mask_w / _input_size.width();
                 int mask_y2 = (o.y + o.h) * mask_h / _input_size.height();
-                _KpInfo *kp_info = (_KpInfo *)o.temp;
+                _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
                 float *p = data + kp_info->idx;
                 for (int k = 0; k < mask_num; ++k)
                 {
@@ -702,14 +702,14 @@ namespace maix::nn
                         *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
                     }
                 }
-                delete (_KpInfo *)o.temp;
+                delete (_KpInfoYolo11 *)o.temp;
                 o.temp = NULL;
             }
         }
 
         void _correct_bbox(nn::Objects &objs, int img_w, int img_h, maix::image::Fit fit, float *scale_w, float *scale_h)
         {
-#define CORRECT_BBOX_RANGE_YOLOV8(obj)      \
+#define CORRECT_BBOX_RANGE_YOLO11(obj)      \
     do                               \
     {                                \
         if (obj->x < 0)              \
@@ -736,13 +736,13 @@ namespace maix::nn
             {
                 if (obj->temp)
                 {
-                    delete (_KpInfo *)obj->temp;
+                    delete (_KpInfoYolo11 *)obj->temp;
                     obj->temp = NULL;
                 }
             }
             if (img_w == _input_size.width() && img_h == _input_size.height())
             {
-                if (_type == YOLOv8_Type::SEG)
+                if (_type == YOLO11_Type::SEG)
                 {
                     for (nn::Object *obj : objs)
                     {
@@ -771,8 +771,8 @@ namespace maix::nn
                         obj->points.at(i * 2) *= *scale_w;
                         obj->points.at(i * 2 + 1) *= *scale_h;
                     }
-                    CORRECT_BBOX_RANGE_YOLOV8(obj);
-                    if (_type == YOLOv8_Type::SEG)
+                    CORRECT_BBOX_RANGE_YOLO11(obj);
+                    if (_type == YOLO11_Type::SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
                         {
@@ -804,8 +804,8 @@ namespace maix::nn
                         obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
                         obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
                     }
-                    CORRECT_BBOX_RANGE_YOLOV8(obj);
-                    if (_type == YOLOv8_Type::SEG)
+                    CORRECT_BBOX_RANGE_YOLO11(obj);
+                    if (_type == YOLO11_Type::SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
                         {
@@ -837,8 +837,8 @@ namespace maix::nn
                         obj->points.at(i * 2) = (obj->points.at(i * 2) - pad_w) * scale_reverse;
                         obj->points.at(i * 2 + 1) = (obj->points.at(i * 2 + 1) - pad_h) * scale_reverse;
                     }
-                    CORRECT_BBOX_RANGE_YOLOV8(obj);
-                    if (_type == YOLOv8_Type::SEG)
+                    CORRECT_BBOX_RANGE_YOLO11(obj);
+                    if (_type == YOLO11_Type::SEG)
                     {
                         if (obj->w != obj->seg_mask->width() || obj->h != obj->seg_mask->height())
                         {
