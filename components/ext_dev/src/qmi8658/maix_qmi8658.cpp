@@ -81,20 +81,20 @@ void Qmi8658c::maix_qmi_deinit_i2c_bus(int bus)
 
 namespace maix::ext_dev::qmi8658 {
 
-static std::vector<float> make_read_result(const Mode& m, const priv::qmi_data_t& data)
+static std::vector<float> make_read_result(const imu::Mode& m, const priv::qmi_data_t& data)
 {
-    if (m == Mode::DUAL)
+    if (m == imu::Mode::DUAL)
         return {data.acc_xyz.x, data.acc_xyz.y, data.acc_xyz.z, data.gyro_xyz.x, data.gyro_xyz.y, data.gyro_xyz.z, data.temperature};
-    if (m == Mode::ACC_ONLY)
+    if (m == imu::Mode::ACC_ONLY)
         return {data.acc_xyz.x, data.acc_xyz.y, data.acc_xyz.z, data.temperature};
-    if (m == Mode::GYRO_ONLY)
+    if (m == imu::Mode::GYRO_ONLY)
         return {data.gyro_xyz.x, data.gyro_xyz.y, data.gyro_xyz.z, data.temperature};
     log::error("[%s] Unknown Mode, return empty", priv::TAG);
     return {};
 }
 
-QMI8658::QMI8658(int i2c_bus, int addr, int freq, qmi8658::Mode mode, qmi8658::AccScale acc_scale,
-                qmi8658::AccOdr acc_odr, qmi8658::GyroScale gyro_scale, qmi8658::GyroOdr gyro_odr, bool block)
+QMI8658::QMI8658(int i2c_bus, int addr, int freq, imu::Mode mode, imu::AccScale acc_scale,
+                imu::AccOdr acc_odr, imu::GyroScale gyro_scale, imu::GyroOdr gyro_odr, bool block)
 {
     auto qmi8658c = new priv::Qmi8658c(i2c_bus, (uint8_t)addr, freq);
     this->_data = (void*)qmi8658c;

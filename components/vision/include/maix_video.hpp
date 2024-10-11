@@ -1295,9 +1295,9 @@ namespace maix::video
          * if you bind a audio, audio will be recorded,
          * if you bind a IMU, IMU data will be logged.
          * @return error code
-         * @maixpy maix.video.VideoRecorder.record
+         * @maixpy maix.video.VideoRecorder.record_start
         */
-        err::Err record();
+        err::Err record_start();
 
         /**
          * @brief Take a snapshot
@@ -1309,9 +1309,9 @@ namespace maix::video
         /**
          * @brief Stop recording and save the video
          * @return error code
-         * @maixpy maix.video.VideoRecorder.finish
+         * @maixpy maix.video.VideoRecorder.record_finish
         */
-        err::Err finish();
+        err::Err record_finish();
 
         /**
          * @brief Draw a rect on the video

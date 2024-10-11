@@ -265,7 +265,7 @@ namespace maix::video
         return 0;
     }
 
-    err::Err VideoRecorder::record()
+    err::Err VideoRecorder::record_start()
     {
         return err::ERR_NOT_IMPL;
     }
@@ -275,7 +275,7 @@ namespace maix::video
         return NULL;
     }
 
-    err::Err VideoRecorder::finish()
+    err::Err VideoRecorder::record_finish()
     {
         return err::ERR_NOT_IMPL;
     }

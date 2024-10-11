@@ -3573,7 +3573,7 @@ _exit:
 
     err::Err VideoRecorder::reset()
     {
-        finish();
+        record_finish();
 
         lock();
         video_recoder_param_t *param = (video_recoder_param_t *)_param;
@@ -3793,7 +3793,7 @@ _exit:
         return param->seek_ms;
     }
 
-    err::Err VideoRecorder::record()
+    err::Err VideoRecorder::record_start()
     {
         auto resolution = this->get_resolution();
 
@@ -3988,7 +3988,7 @@ _exit:
         return new_image;
     }
 
-    err::Err VideoRecorder::finish()
+    err::Err VideoRecorder::record_finish()
     {
         lock();
         video_recoder_param_t *param = (video_recoder_param_t *)_param;
