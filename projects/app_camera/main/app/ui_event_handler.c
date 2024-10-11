@@ -281,7 +281,77 @@ void event_touch_ev_cb(lv_event_t * e)
     }
 }
 
+void event_touch_shutter_plus_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        double value;
+        ui_get_shutter_value(&value);
+        value += 10000;
+        ui_set_shutter_value(value);
 
+        priv.shutter_setting_flag = 1;
+        DEBUG_PRT("shutter value plus: %f\n", value);
+
+        // set to manual
+        DEBUG_PRT("set shutter to manual mode\n");
+        priv.shutter_auto_flag = 0;
+    }
+}
+
+void event_touch_shutter_minus_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        double value;
+        ui_get_shutter_value(&value);
+        if (value > 10000) value -= 10000;
+        ui_set_shutter_value(value);
+
+        priv.shutter_setting_flag = 1;
+        DEBUG_PRT("shutter value minus: %f\n", value);
+
+        // set to manual
+        DEBUG_PRT("set shutter to manual mode\n");
+        priv.shutter_auto_flag = 0;
+    }
+}
+
+void event_touch_iso_plus_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        int value;
+        ui_get_iso_value(&value);
+        value += 100;
+        ui_set_iso_value(value);
+
+        DEBUG_PRT("iso value update: %d\n", value);
+        priv.iso_setting_flag = 1;
+
+        // set to manual
+        DEBUG_PRT("set iso to manual mode\n");
+        priv.iso_auto_flag = 0;
+    }
+}
+
+void event_touch_iso_minus_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        int value;
+        ui_get_iso_value(&value);
+        if (value > 100) value -= 100;
+        ui_set_iso_value(value);
+
+        DEBUG_PRT("iso value update: %d\n", value);
+        priv.iso_setting_flag = 1;
+
+        // set to manual
+        DEBUG_PRT("set iso to manual mode\n");
+        priv.iso_auto_flag = 0;
+    }
+}
 void event_touch_wb_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -321,6 +391,34 @@ void event_touch_focus_cb(lv_event_t * e)
     }
 }
 
+static double shutter_bar_value_to_exp_s(lv_obj_t *obj, uint16_t shutter_bar_value)
+{
+    lv_bar_t * bar = (lv_bar_t *)obj;
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    shutter_bar_value = shutter_bar_value > bar->max_value ? bar->max_value : shutter_bar_value;
+    shutter_bar_value = shutter_bar_value < bar->min_value ? bar->min_value : shutter_bar_value;
+    shutter_bar_value -= bar->min_value;
+    int bar_range = abs(bar->max_value - bar->min_value);
+    int exp_range = abs(camera_config.exposure_time_max - camera_config.exposure_time_min);
+    double scale = (double)exp_range / bar_range;
+    return camera_config.exposure_time_min + shutter_bar_value * scale;
+}
+
+static uint16_t shutter_exp_s_to_bar_value(lv_obj_t *obj, double shutter_exp_s)
+{
+    lv_bar_t * bar = (lv_bar_t *)obj;
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    shutter_exp_s = shutter_exp_s > camera_config.exposure_time_max ? camera_config.exposure_time_max : shutter_exp_s;
+    shutter_exp_s = shutter_exp_s < camera_config.exposure_time_min ? camera_config.exposure_time_min : shutter_exp_s;
+    shutter_exp_s -= camera_config.exposure_time_min;
+    int bar_range = abs(bar->max_value - bar->min_value);
+    int exp_range = abs(camera_config.exposure_time_max - camera_config.exposure_time_min);
+    double scale = (double)exp_range / bar_range;
+    return (bar->min_value + (uint16_t)(shutter_exp_s / scale));
+}
+
 void event_shutter_bar_update_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -339,34 +437,18 @@ void event_shutter_bar_update_cb(lv_event_t * e)
         int val = bar->min_value + bar_max_val * h_oft / h;
         lv_bar_set_value((lv_obj_t *)bar, val, LV_ANIM_OFF);
 
-        double shutter_value = 0;
-        if (val > 0) {
-            shutter_value = val / 1000;
-        } else if (val < 0) {
-            shutter_value = 1.0 / -val;
-        } else {
-            shutter_value = 0;
-        }
-
-        ui_set_shutter_value(shutter_value);
+        double exp_s = shutter_bar_value_to_exp_s(obj, val);
+        ui_set_shutter_value(exp_s);
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value updating: %f\n", shutter_value);
+        DEBUG_PRT("shutter value bar updating: %f\n", exp_s);
     } else if (code == LV_EVENT_RELEASED) {
         int val = lv_bar_get_value(obj);
-        double shutter_value = 0;
-        if (val > 0) {
-            shutter_value = val / 1000;
-        } else if (val < 0) {
-            shutter_value = 1.0 / -val;
-        } else {
-            shutter_value = 0;
-        }
-
-        ui_set_shutter_value(shutter_value);
+        double exp_s = shutter_bar_value_to_exp_s(obj, val);
+        ui_set_shutter_value(exp_s);
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value update: %f\n", shutter_value);
+        DEBUG_PRT("shutter value bar update: %f\n", exp_s);
 
         // set to manual
         DEBUG_PRT("set shutter to manual mode\n");
@@ -750,20 +832,12 @@ int ui_get_resulution(int *w, int *h)
     return 0;
 }
 
-int ui_get_shutter_value(uint64_t *value)
+int ui_get_shutter_value(double *value)
 {
     if (!value) return -1;
     int *bar_val = (int *)lv_obj_get_user_data(g_shutter_setting);
     double val = *bar_val;
-    double shutter_value = 0;
-    if (val > 0) {
-        shutter_value = val / 1000;
-    } else if (val < 0) {
-        shutter_value = 1.0 / -val;
-    } else {
-        shutter_value = 0;
-    }
-    *value = shutter_value * 1000 * 1000;
+    *value = val;
     return 0;
 }
 
@@ -793,65 +867,37 @@ int ui_get_wb_value(int *value)
 }
 
 
-// shutter = 1/10000s ~ 5s
+// shutter value, unit: us
 void ui_set_shutter_value(double val)
 {
     if (val < 0) {
-        val = -1;
-    } else {
-        val = val < (1 / 10000) ? (1 / 10000) : val;
-        val = val > 5 ? 5 : val;
+        return;
+    }
+    char str[128];
+    lv_obj_t * shutter_setting_label = lv_obj_get_child(g_shutter_setting, 1);
+    lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 3);
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    val = val > camera_config.exposure_time_max ? camera_config.exposure_time_max : val;
+    val = val <= camera_config.exposure_time_min ? camera_config.exposure_time_min : val;
+    if (val < 0)
+        snprintf(str, sizeof(str), "auto");
+    else if (val < 1000000)
+        snprintf(str, sizeof(str), "1/%ds", (int)(1000000 / val));
+    else
+        snprintf(str, sizeof(str), "%ds", (int)(val/1000));
+    lv_label_set_text(shutter_setting_label, str);
+    uint16_t bar_val = shutter_exp_s_to_bar_value(shutter_setting_bar, val);
+    lv_bar_set_value(shutter_setting_bar, bar_val, LV_ANIM_OFF);
+    if (val > 0) { // update last val
+        int *bar_last_val = (int *)lv_obj_get_user_data(g_shutter_setting);
+        *bar_last_val = val;
     }
 
-    {
-        lv_obj_t * obj = lv_obj_get_child(g_menu_setting, 0);
-        lv_obj_t *label = lv_obj_get_child(obj, -1);
-        lv_obj_t *label2 = lv_obj_get_child(label, -1);
-
-        if (val == -1)
-            lv_label_set_text_fmt(label2, "auto");
-        else if (val == 0)
-            lv_label_set_text_fmt(label2, "1/2s");
-        else if (val < 1)
-            lv_label_set_text_fmt(label2, "1/%ds", (int)(1 / val));
-        else
-            lv_label_set_text_fmt(label2, "%ds", (int)val);
-    }
-
-    {
-        lv_obj_t * obj = g_shutter_setting;
-        lv_obj_t * label = lv_obj_get_child(obj, 1);
-        if (val == -1)
-            lv_label_set_text(label, "auto");
-        else if (val == 0)
-            lv_label_set_text_fmt(label, "1/2s");
-        else if (val < 1)
-            lv_label_set_text_fmt(label, "1/%ds", (int)(1 / val));
-        else
-            lv_label_set_text_fmt(label, "%ds", (int)val);
-
-        lv_obj_t * bar = lv_obj_get_child(obj, 2);
-        int bar_val;
-        if (val == -1) {
-            bar_val = lv_bar_get_min_value(bar);
-            lv_bar_set_value(bar, bar_val, LV_ANIM_OFF);
-        } else if (val == 0) {
-            bar_val = 0;
-            lv_bar_set_value(bar, bar_val, LV_ANIM_OFF);
-        } else if (val < 1) {
-            bar_val = -(1 / val);
-            lv_bar_set_value(bar, bar_val, LV_ANIM_OFF);
-        } else {
-            bar_val = val * 1000;
-            lv_bar_set_value(bar, bar_val, LV_ANIM_OFF);
-        }
-
-        if (val != -1) {
-            int *bar_last_val = (int *)lv_obj_get_user_data(obj);
-            *bar_last_val = bar_val;
-        }
-    }
-
+    lv_obj_t * menu_setting_child = lv_obj_get_child(g_menu_setting, 0);
+    lv_obj_t *menu_setting_child_label = lv_obj_get_child(menu_setting_child, -1);
+    lv_obj_t *menu_setting_child_label2 = lv_obj_get_child(menu_setting_child_label, -1);
+    lv_label_set_text(menu_setting_child_label2, str);
 }
 
 

@@ -34,7 +34,10 @@ int _main(int argc, char **argv)
     // main ui loop
     while (!app::need_exit())
     {
-        app_base_loop();
+        if (app_base_loop() < 0) {
+            log::info("find error, try exit");
+            break;
+        }
     }
 
     app_base_deinit();

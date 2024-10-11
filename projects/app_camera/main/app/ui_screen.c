@@ -100,8 +100,8 @@ static void priv_init(void)
     priv.wb_screen_w_pct = 10;          // %
 
     priv.cam_cfg.exposure_time_default = 3000;
-    priv.cam_cfg.exposure_time_max = 3333333;
-    priv.cam_cfg.exposure_time_min = 340;
+    priv.cam_cfg.exposure_time_max = 333333;
+    priv.cam_cfg.exposure_time_min = 33333;
     priv.cam_cfg.iso_max = 6400;
     priv.cam_cfg.iso_min = 100;
     priv.cam_cfg.iso_default = 100;
@@ -733,7 +733,7 @@ void ui_set_iso_value(int val)
         lv_label_set_text_fmt(label, "%d", val);
 
 
-        lv_obj_t * bar = lv_obj_get_child(obj, 2);
+        lv_obj_t * bar = lv_obj_get_child(obj, 3);
         lv_bar_set_value(bar, val, LV_ANIM_OFF);
 
         int *bar_last_val = (int *)lv_obj_get_user_data(obj);
@@ -754,42 +754,70 @@ static void screen_shutter_init(void)
     lv_obj_set_style_radius(scr, 0, 0);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x2e2e2e), 0);
     lv_obj_set_style_pad_hor(scr, 0, 0);
+    lv_obj_set_style_pad_row(scr, 0, 0);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
     static int bar_last_val;
     lv_obj_set_user_data(scr, &bar_last_val);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(scr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     g_shutter_setting = scr;
 
     {
         lv_obj_t *label, *label2;
         label = lv_label_create(scr);
-        lv_obj_set_pos(label, 10, 0);
         lv_label_set_text(label, "Shutter");
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
 
         label2 = lv_label_create(scr);
-        lv_obj_align_to(label2, label, LV_ALIGN_OUT_BOTTOM_MID, -8, 0);
         lv_label_set_text_fmt(label2, "1/%ds", 1000);
         lv_obj_set_style_text_color(label2, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_12, 0);
 
+        {
+            lv_obj_t *btn, *icon;
+            btn = lv_button_create(scr);
+            lv_obj_set_size(btn, lv_pct(100), lv_pct(10));
+            lv_obj_set_style_bg_opa(btn, LV_OPA_0, 0);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_50, LV_STATE_PRESSED);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
+            lv_obj_add_event_cb(btn, event_touch_shutter_plus_cb, LV_EVENT_CLICKED, NULL);
+
+            icon = lv_label_create(btn);
+            lv_obj_center(icon);
+            lv_label_set_text(icon, LV_SYMBOL_PLUS);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xffffff), 0);
+        }
+
         lv_obj_t * bar = lv_bar_create(scr);
         lv_obj_set_align(bar, LV_ALIGN_CENTER);
         lv_obj_set_size(bar, 20, lv_pct(60));
-        lv_obj_center(bar);
-        lv_bar_set_range(bar, -10000, 5000);
+        lv_bar_set_range(bar, 1, 10000);
         lv_obj_add_event_cb(bar, event_shutter_bar_update_cb, LV_EVENT_PRESSING, NULL);
         lv_obj_add_event_cb(bar, event_shutter_bar_update_cb, LV_EVENT_RELEASED, NULL);
         lv_bar_set_value(bar, 20, LV_ANIM_OFF);
         lv_obj_set_user_data(bar, label2);
+
+        {
+            lv_obj_t *btn, *icon;
+            btn = lv_button_create(scr);
+            lv_obj_set_size(btn, lv_pct(100), lv_pct(10));
+            lv_obj_set_style_bg_opa(btn, LV_OPA_0, 0);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_50, LV_STATE_PRESSED);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
+            lv_obj_add_event_cb(btn, event_touch_shutter_minus_cb, LV_EVENT_CLICKED, NULL);
+            icon = lv_label_create(btn);
+            lv_obj_center(icon);
+            lv_label_set_text(icon, LV_SYMBOL_MINUS);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xffffff), 0);
+        }
     }
 
     {
         lv_obj_t *obj = lv_obj_create(scr);
-        lv_obj_set_pos(obj, 0, lv_pct(85));
-        lv_obj_set_size(obj, lv_pct(100), lv_pct(15));
+        lv_obj_set_size(obj, lv_pct(100), lv_pct(10));
         lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
         lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
         lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
@@ -821,41 +849,68 @@ static void screen_iso_init(void)
     lv_obj_set_style_radius(scr, 0, 0);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x2e2e2e), 0);
     lv_obj_set_style_pad_hor(scr, 0, 0);
+    lv_obj_set_style_pad_row(scr, 0, 0);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
     static int bar_last_val;
     lv_obj_set_user_data(scr, &bar_last_val);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(scr, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     g_iso_setting = scr;
-
     {
         lv_obj_t *label, *label2;
         label = lv_label_create(scr);
-        lv_obj_set_pos(label, 15, 0);
         lv_label_set_text(label, "ISO");
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
 
         label2 = lv_label_create(scr);
-        lv_obj_align_to(label2, label, LV_ALIGN_OUT_BOTTOM_MID, 4, 0);
         lv_label_set_text_fmt(label2, "%d", cam_cfg->iso_default);
         lv_obj_set_style_text_color(label2, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_12, 0);
 
+        {
+            lv_obj_t *btn, *icon;
+            btn = lv_button_create(scr);
+            lv_obj_set_size(btn, lv_pct(100), lv_pct(10));
+            lv_obj_set_style_bg_opa(btn, LV_OPA_0, 0);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_50, LV_STATE_PRESSED);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
+            lv_obj_add_event_cb(btn, event_touch_iso_plus_cb, LV_EVENT_CLICKED, NULL);
+
+            icon = lv_label_create(btn);
+            lv_obj_center(icon);
+            lv_label_set_text(icon, LV_SYMBOL_PLUS);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xffffff), 0);
+        }
+
         lv_obj_t * bar = lv_bar_create(scr);
         lv_obj_set_align(bar, LV_ALIGN_CENTER);
         lv_obj_set_size(bar, 20, lv_pct(60));
-        lv_obj_center(bar);
         lv_bar_set_range(bar, cam_cfg->iso_min, cam_cfg->iso_max);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_PRESSING, NULL);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_RELEASED, NULL);
         lv_bar_set_value(bar, 100, LV_ANIM_OFF);
         lv_obj_set_user_data(bar, label2);
+
+        {
+            lv_obj_t *btn, *icon;
+            btn = lv_button_create(scr);
+            lv_obj_set_size(btn, lv_pct(100), lv_pct(10));
+            lv_obj_set_style_bg_opa(btn, LV_OPA_0, 0);
+            lv_obj_set_style_bg_opa(btn, LV_OPA_50, LV_STATE_PRESSED);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
+            lv_obj_add_event_cb(btn, event_touch_iso_minus_cb, LV_EVENT_CLICKED, NULL);
+            icon = lv_label_create(btn);
+            lv_obj_center(icon);
+            lv_label_set_text(icon, LV_SYMBOL_MINUS);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xffffff), 0);
+        }
     }
 
     {
         lv_obj_t *obj = lv_obj_create(scr);
-        lv_obj_set_pos(obj, 0, lv_pct(85));
         lv_obj_set_size(obj, lv_pct(100), lv_pct(15));
         lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
         lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_PRESSED);
@@ -1017,7 +1072,7 @@ void ui_show_center_image(uint8_t *data, int data_size, int width, int height)
         lv_obj_delete(img);
         img = NULL;
         if (img_dsc.data) {
-            free(img_dsc.data);
+            free((uint8_t *)img_dsc.data);
             img_dsc.data = NULL;
         }
     }
@@ -1033,7 +1088,7 @@ void ui_show_center_image(uint8_t *data, int data_size, int width, int height)
         printf("malloc failed\n");
         return;
     }
-    memcpy(img_dsc.data, data, img_dsc.data_size);
+    memcpy((uint8_t *)img_dsc.data, data, img_dsc.data_size);
     lv_img_set_src(img, &img_dsc);
     lv_obj_center(img);
 }

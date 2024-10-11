@@ -31,6 +31,10 @@ void event_touch_wb_to_auto_cb(lv_event_t * e);
 void event_touch_select_delay_cb(lv_event_t * e);
 void event_touch_select_resolution_cb(lv_event_t * e);
 void event_touch_big_img_cb(lv_event_t * e);
+void event_touch_shutter_plus_cb(lv_event_t *e);
+void event_touch_shutter_minus_cb(lv_event_t *e);
+void event_touch_iso_plus_cb(lv_event_t *e);
+void event_touch_iso_minus_cb(lv_event_t *e);
 
 bool ui_get_cam_snap_flag(void);
 bool ui_get_cam_video_start_flag(void);
@@ -48,7 +52,7 @@ bool ui_get_wb_setting_flag(void);
 
 int ui_get_photo_delay(int *delay_ms);
 int ui_get_resulution(int *w, int *h);
-int ui_get_shutter_value(uint64_t *value);
+int ui_get_shutter_value(double *value);
 int ui_get_iso_value(int *value);
 int ui_get_ev_value(double *value);
 int ui_get_wb_value(int *value);

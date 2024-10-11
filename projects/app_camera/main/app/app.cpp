@@ -167,7 +167,7 @@ int app_base_init(void)
     mmf_deinit_v2(true);
 
     // init camera
-    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP);
+    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, 30);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
     // init display
@@ -322,7 +322,7 @@ int app_init(void)
     priv.sensor_shutter_value = exposure_time;
     priv.sensor_iso_value = iso_num;
     priv.sensor_ae_mode = mmf_get_exp_mode(0);
-    ui_set_shutter_value((double)exposure_time / 1000000);
+    ui_set_shutter_value((double)exposure_time);
     ui_set_iso_value(iso_num);
     ui_set_select_option(priv.resolution_index);
     return 0;
@@ -410,13 +410,13 @@ static int app_config_param(void)
                 priv.sensor_ae_mode = 1;
             }
 
-            uint64_t shutter_value;
+            double shutter_value;
             ui_get_shutter_value(&shutter_value);
-            printf("Shutter setting: %ld us\n", shutter_value);
+            printf("Shutter setting: %f s\n", shutter_value);
             if (shutter_value != 0) {
                 mmf_set_exptime_and_iso(0, shutter_value, priv.sensor_iso_value);
             }
-            priv.sensor_shutter_value = shutter_value;
+            priv.sensor_shutter_value = (uint32_t)shutter_value;
         }
     }
 
@@ -490,13 +490,12 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
     uint32_t exposure_time = 0, iso_num = 0;
     mmf_get_exptime_and_iso(0, &exposure_time, &iso_num);
     // log::info("exp:%d iso:%d", exposure_time, iso_num);
-    if (ui_get_shutter_auto_flag()) {
-        ui_set_shutter_value((double)exposure_time / 1000000);
-    }
-    if (ui_get_iso_auto_flag()) {
-        ui_set_iso_value(iso_num);
-    }
-
+    // if (ui_get_shutter_auto_flag()) {
+    //     ui_set_shutter_value((double)exposure_time);
+    // }
+    // if (ui_get_iso_auto_flag()) {
+    //     ui_set_iso_value(iso_num);
+    // }
 
     if (priv.cam_start_snap_flag) {
         if (priv.cam_snap_delay_s == 0 || (priv.cam_snap_delay_s > 0 && ui_get_photo_delay_anim_stop_flag())) {
