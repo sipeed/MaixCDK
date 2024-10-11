@@ -85,6 +85,28 @@ int app_init(void)
     return 0;
 }
 
+static void ui_show_left_or_right(int x, int y, bool left, bool show) {
+    static lv_obj_t *obj = NULL;
+    if (obj) {
+        lv_obj_del(obj);
+        obj = NULL;
+    }
+
+    if (!show) {
+        return;
+    }
+
+    obj = lv_label_create(lv_layer_top());
+    lv_obj_set_style_text_color(obj, lv_color_hex(0xffff00), 0);
+    lv_obj_set_style_transform_scale(obj, 812, 0);
+    lv_obj_set_pos(obj, x, y);
+    if (left) {
+        lv_label_set_text(obj, LV_SYMBOL_LEFT);
+    } else {
+        lv_label_set_text(obj, LV_SYMBOL_RIGHT);
+    }
+}
+
 int app_loop(maix::image::Image *img)
 {
     if (ui_get_exit_flag()) {
@@ -176,6 +198,12 @@ int app_loop(maix::image::Image *img)
         } else {
             theta = 90 - theta;
         }
+
+        if (theta > 0 && theta < 90) {
+            ui_show_left_or_right(abs(x2 + x1) / 2 + 50, abs(y2 + y1) / 2, false, true);
+        } else {
+            ui_show_left_or_right(abs(x2 + x1) / 2 - 50, abs(y2 + y1) / 2, true, true);
+        }
         img->draw_line(x1, y1, x2, y2, maix::image::Color::from_rgb(0, 255, 0), 2);
 
         uint8_t data[10];
@@ -194,6 +222,10 @@ int app_loop(maix::image::Image *img)
         log::info("p1(%d, %d) p2(%d, %d) theta:%d\n", x1, y1, x2, y2, theta);
         maix::Bytes bytes(data, sizeof(data));
         priv.ptl->report(APP_CMD_REPORT_FIND_LINES, &bytes);
+    }
+
+    if (lines.size() == 0) {
+        ui_show_left_or_right(0, 0, false, false);
     }
 
     return 0;
