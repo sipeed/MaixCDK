@@ -7,6 +7,12 @@
 
 using namespace maix;
 
+bool is_in_button(int x, int y, std::vector<int> btn_pos)
+{
+    return x > btn_pos[0] && x < btn_pos[0] + btn_pos[2] && y > btn_pos[1] && y < btn_pos[1] + btn_pos[3];
+}
+
+
 int _main(int argc, char *argv[])
 {
     log::info("Program start");
@@ -41,10 +47,13 @@ int _main(int argc, char *argv[])
     log::info("open camera success");
     display::Display disp = display::Display();
     uint64_t t, t2, t3, t_show, t_all = 0;
+    int exit_btn_pos[4] = {0, 0, ret_img->width(), ret_img->height()};
+    std::vector<int> exit_btn_disp_pos = maix::image::resize_map_pos(cam.width(), cam.height(), disp.width(), disp.height(), image::FIT_CONTAIN, exit_btn_pos[0], exit_btn_pos[1], exit_btn_pos[2], exit_btn_pos[3]);
+
     while (!app::need_exit())
     {
         ts.read(ts_x, ts_y, ts_pressed);
-        if (ts_pressed && ts_x < 64 && ts_y < 40)
+        if (ts_pressed && is_in_button(ts_x, ts_y, exit_btn_disp_pos))
         {
             break;
         }
