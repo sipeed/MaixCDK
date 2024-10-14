@@ -1106,7 +1106,7 @@ namespace maix::camera
         return NULL;
     }
 
-    err::Err Camera::set_fps(int fps) {
+    err::Err Camera::set_fps(double fps) {
         return err::ERR_NOT_IMPL;
     }
 
@@ -1158,7 +1158,7 @@ namespace maix::camera
     }
 
     static CameraV4L2 *_impl;
-    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open, bool raw)
+    Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
     {
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");
@@ -1224,7 +1224,7 @@ namespace maix::camera
         }
     }
 
-    err::Err Camera::open(int width, int height, image::Format format, int fps, int buff_num)
+    err::Err Camera::open(int width, int height, image::Format format, double fps, int buff_num)
     {
         if (_impl == NULL)
             return err::Err::ERR_RUNTIME;
@@ -1279,7 +1279,7 @@ namespace maix::camera
             return;
     }
 
-    camera::Camera *Camera::add_channel(int width, int height, image::Format format, int fps, int buff_num, bool open)
+    camera::Camera *Camera::add_channel(int width, int height, image::Format format, double fps, int buff_num, bool open)
     {
         return NULL;
     }
@@ -1289,8 +1289,9 @@ namespace maix::camera
         return _is_opened;
     }
 
-    image::Image *Camera::read(void *buff, size_t buff_size, bool block)
+    image::Image *Camera::read(void *buff, size_t buff_size, bool block, int block_ms)
     {
+        (void)block_ms;
         if (!this->is_opened()) {
             err::Err e = open(_width, _height, _format, _buff_num);
             err::check_raise(e, "open camera failed");
@@ -1400,6 +1401,21 @@ namespace maix::camera
 
     std::vector<int> Camera::get_sensor_size() {
         return {0, 0};
+    }
+
+    err::Err Camera::write_reg(int addr, int data, int bit_width)
+    {
+        (void)addr;
+        (void)data;
+        (void)bit_width;
+        return err::ERR_NOT_IMPL;
+    }
+
+    int Camera::read_reg(int addr, int bit_width)
+    {
+        (void)addr;
+        (void)bit_width;
+        return -1;
     }
 }
 

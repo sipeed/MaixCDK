@@ -67,10 +67,11 @@ namespace maix::camera
         int dev;
         SAMPLE_SNS_TYPE_E sns_type;
         ISP_BAYER_FORMAT_E bayer_fmt;
+        int i2c_addr;
         bool raw;
     } camera_priv_t;
 
-    Camera::Camera(int width, int height, image::Format format, const char *device, int fps, int buff_num, bool open, bool raw)
+    Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
     {
         err::Err e;
         err::check_bool_raise(_check_format(format), "Format not support");
@@ -215,7 +216,7 @@ namespace maix::camera
         return name;
     }
 
-    static void _config_sensor_env(int fps)
+    static void _config_sensor_env(double fps)
     {
         char *env_value = getenv(MMF_SENSOR_NAME);
         if (!env_value) {
@@ -229,7 +230,7 @@ namespace maix::camera
         env_value = getenv(MAIX_SENSOR_FPS);
         if (!env_value) {
             char new_value[10];
-            snprintf(new_value, sizeof(new_value), "%d", fps);
+            snprintf(new_value, sizeof(new_value), "%d", (int)fps);      // only gc4653 used
             setenv(MAIX_SENSOR_FPS, new_value, 0);
         } else {
             log::info("Find MMF_SENSOR_FPS=%s", env_value);
@@ -309,7 +310,7 @@ namespace maix::camera
         return poolIdCount;
     }
 
-    static int _mmf_vi_init(char *board_name, int width, int height, int fps, camera_priv_t *priv)
+    static int _mmf_vi_init(char *board_name, int width, int height, double fps, camera_priv_t *priv)
     {
         SIZE_S stSize;
         PIC_SIZE_E enPicSize;
@@ -330,6 +331,7 @@ namespace maix::camera
             std::vector<int> pn_swap = std::vector<int>(5);
             int mclk_en = 1;
             int mclk = 1;
+            int i2c_addr;
         } sensor_cfg;
 
         if (!strcmp(board_name, "maixcam_pro")) {
@@ -341,6 +343,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {0, 1, 2, -1, -1};
                 sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x30;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_YUV_400;
             } else if (!strcmp(sensor_name, "ov_ov2685")) {
@@ -348,6 +351,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {0, 1, 2, -1, -1};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x3c;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
@@ -356,6 +360,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {2, 0, 1, 3, 4};
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
                 sensor_cfg.mclk_en = 0;
+                sensor_cfg.i2c_addr = 0x2b;
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
@@ -363,6 +368,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {2, 3, 1, 4, 0};
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
                 sensor_cfg.mclk_en = 0;
+                sensor_cfg.i2c_addr = 0x36;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -375,6 +381,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {0, 1, 2, -1, -1};
                 sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x29;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
@@ -387,6 +394,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {4, 3, 2, -1, -1};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x30;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_YUV_400;
             } else if (!strcmp(sensor_name, "ov_ov2685")) {
@@ -394,6 +402,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {4, 3, 2, -1, -1};
                 sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x3c;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
@@ -402,6 +411,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {2, 4, 3, 1, 0};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 0;
+                sensor_cfg.i2c_addr = 0x2b;
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
@@ -409,6 +419,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {2, 1, 3, 0, 4};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 0;
+                sensor_cfg.i2c_addr = 0x36;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -421,6 +432,7 @@ namespace maix::camera
                 sensor_cfg.lane_id = {4, 3, 2, -1, -1};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
+                sensor_cfg.i2c_addr = 0x29;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
@@ -443,6 +455,7 @@ namespace maix::camera
         SAMPLE_COMM_SNS_GetIspAttrBySns(sensor_cfg.sns_type, &stPubAttr);
         priv->sns_type = sensor_cfg.sns_type;
         priv->bayer_fmt = stPubAttr.enBayer;
+        priv->i2c_addr = sensor_cfg.i2c_addr;
 
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
@@ -465,12 +478,12 @@ namespace maix::camera
         return  0;
     }
 
-    err::Err Camera::open(int width, int height, image::Format format, int fps, int buff_num)
+    err::Err Camera::open(int width, int height, image::Format format, double fps, int buff_num)
     {
         int width_tmp = (width == -1) ? _width : width;
         int height_tmp = (height == -1) ? _height : height;
         image::Format format_tmp = (format == image::FMT_INVALID) ? _format : format;
-        int fps_tmp = (fps == -1) ? _fps : fps;
+        double fps_tmp = (fps == -1) ? _fps : fps;
         int buff_num_tmp =( buff_num == -1) ? _buff_num : buff_num;
         camera_priv_t *priv = (camera_priv_t *)_param;
 
@@ -566,14 +579,14 @@ namespace maix::camera
         mmf_deinit_v2(false);
     }
 
-    camera::Camera *Camera::add_channel(int width, int height, image::Format format, int fps, int buff_num, bool open)
+    camera::Camera *Camera::add_channel(int width, int height, image::Format format, double fps, int buff_num, bool open)
     {
         err::check_bool_raise(_check_format(format), "Format not support");
 
         int width_tmp = (width == -1) ? _width : width;
         int height_tmp = (height == -1) ? _height : height;
         image::Format format_tmp = (format == image::Format::FMT_INVALID) ? _format : format;
-        int fps_tmp = (fps == -1) ? _fps : fps;
+        double fps_tmp = (fps == -1) ? _fps : fps;
         int buff_num_tmp = buff_num == -1 ? _buff_num : buff_num;
 
         Camera *cam = new Camera(width_tmp, height_tmp, format_tmp, _device.c_str(), fps_tmp, buff_num_tmp, true);
@@ -585,18 +598,80 @@ namespace maix::camera
         return _is_opened;
     }
 
-    static image::Image *_mmf_read(int ch, int width_out, int height_out, image::Format format_out, void *buff = NULL, size_t buff_size = 0)
+    static int _mmf_vi_frame_pop(int ch, void **frame_info,  mmf_frame_info_t *frame_info_mmap, int block_ms) {
+        if (frame_info == NULL || frame_info_mmap == NULL) {
+            printf("invalid param\n");
+            return -1;
+        }
+
+        int ret = -1;
+        VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)malloc(sizeof(VIDEO_FRAME_INFO_S));
+        memset(frame, 0, sizeof(VIDEO_FRAME_INFO_S));
+        if ((ret = CVI_VPSS_GetChnFrame(0, ch, frame, (CVI_S32)block_ms)) == 0) {
+            int image_size = frame->stVFrame.u32Length[0]
+                            + frame->stVFrame.u32Length[1]
+                            + frame->stVFrame.u32Length[2];
+            CVI_VOID *vir_addr;
+            vir_addr = CVI_SYS_MmapCache(frame->stVFrame.u64PhyAddr[0], image_size);
+            CVI_SYS_IonInvalidateCache(frame->stVFrame.u64PhyAddr[0], vir_addr, image_size);
+
+            frame->stVFrame.pu8VirAddr[0] = (CVI_U8 *)vir_addr;		// save virtual address for munmap
+            frame_info_mmap->data = vir_addr;
+            frame_info_mmap->len = image_size;
+            frame_info_mmap->w = frame->stVFrame.u32Width;
+            frame_info_mmap->h = frame->stVFrame.u32Height;
+            frame_info_mmap->fmt = frame->stVFrame.enPixelFormat;
+        } else {
+            free(frame);
+            frame = NULL;
+        }
+
+        if (frame_info) {
+            *frame_info = frame;
+        }
+        return ret;
+    }
+
+    static void _mmf_vi_frame_free(int ch, void **frame_info)
+    {
+        if (!frame_info || !*frame_info) {
+            return;
+        }
+
+        VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)*frame_info;
+        int image_size = frame->stVFrame.u32Length[0]
+                            + frame->stVFrame.u32Length[1]
+                            + frame->stVFrame.u32Length[2];
+        CVI_SYS_Munmap(frame->stVFrame.pu8VirAddr[0], image_size);
+        if (CVI_VPSS_ReleaseChnFrame(0, ch, frame) != 0) {
+            SAMPLE_PRT("CVI_VI_ReleaseChnFrame NG\n");
+        }
+
+        free(*frame_info);
+        *frame_info = NULL;
+    }
+
+    static image::Image *_mmf_read(int ch, int width_out, int height_out, image::Format format_out, void *buff = NULL, size_t buff_size = 0, int block_ms = 1000)
     {
         image::Image *img = NULL;
         uint8_t *image_data = NULL;
         image::Format pop_fmt;
 
+        void *pframe = NULL;
+        mmf_frame_info_t frame_info;
+
+
         void *buffer = NULL;
-        int buffer_len = 0, width = 0, height = 0, format = 0;
-        if (0 == mmf_vi_frame_pop(ch, &buffer, &buffer_len, &width, &height, &format)) {
+        int width = 0, height = 0, format = 0;
+        if (0 == _mmf_vi_frame_pop(ch, &pframe, &frame_info, block_ms)) {
+            VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)pframe;
+            buffer = frame->stVFrame.pu8VirAddr[0];
+            width = frame->stVFrame.u32Width;
+            height = frame->stVFrame.u32Height;
+            format = frame->stVFrame.enPixelFormat;
             int need_align = (width_out % mmf_vi_aligned_width(ch) == 0) ? false : true;
             if (buffer == NULL) {
-                mmf_vi_frame_free(ch);
+                _mmf_vi_frame_free(ch, &pframe);
                 return NULL;
             }
 
@@ -724,24 +799,26 @@ namespace maix::camera
                 default:
                     printf("Read failed, unknown format:%d\n", img->format());
                     delete img;
-                    mmf_vi_frame_free(ch);
+                    _mmf_vi_frame_free(ch, &pframe);
                     return NULL;
             }
-            mmf_vi_frame_free(ch);
+            _mmf_vi_frame_free(ch, &pframe);
             return img;
 _error:
             if (img) {
                 delete img;
                 img = NULL;
             }
-            mmf_vi_frame_free(ch);
+            _mmf_vi_frame_free(ch, &pframe);
             return NULL;
+        } else {
+            log::error("camera read timeout");
         }
 
         return img;
     } // read
 
-    image::Image *Camera::read(void *buff, size_t buff_size, bool block)
+    image::Image *Camera::read(void *buff, size_t buff_size, bool block, int block_ms)
     {
         if (!this->is_opened()) {
             err::Err e = open(_width, _height, _format, _fps, _buff_num);
@@ -754,7 +831,7 @@ _error:
             err::check_null_raise(img, "camera read failed");
             return img;
         } else {
-            image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size);
+            image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, 1000.0 / _fps * 3);
             err::check_null_raise(img, "camera read failed");
 
             // FIXME: delete me and fix driver bug
@@ -930,12 +1007,25 @@ _error:
         return err::ERR_NONE;
     }
 
-    err::Err Camera::set_fps(int fps) {
-        float new_fps = fps;
+    err::Err Camera::set_fps(double fps) {
+        double new_fps = fps;
         camera_priv_t *priv = (camera_priv_t *)this->_param;
         switch (priv->sns_type) {
         case GCORE_GC4653_MIPI_720P_60FPS_10BIT:
             new_fps = fps / 2;
+        break;
+        case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+        {
+            if (fps <= 1) {
+                char cmd[128];
+                double scale = 1.587;       // (0x0c68 - 0x0635) / 1000
+                double exp_time_ms = 1000 / fps;
+                uint64_t reg_val = (uint16_t)((exp_time_ms - 1000) * scale) + 0x0635;
+                reg_val = reg_val > 0xffff ? 0xffff : reg_val;
+                snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+                system(cmd);
+            }
+        }
         break;
         default:break;
         }
@@ -944,6 +1034,7 @@ _error:
         err::check_bool_raise(0 == CVI_ISP_GetPubAttr(0, &stPubAttr), "CVI_ISP_GetPubAttr failed");
         stPubAttr.f32FrameRate = new_fps;
         err::check_bool_raise(0 == CVI_ISP_SetPubAttr(0, &stPubAttr), "CVI_ISP_SetPubAttr failed");
+        _fps = fps;
         return err::ERR_NONE;
     }
 
@@ -1225,6 +1316,34 @@ _error:
         SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize);
 
         return {(int)stSize.u32Width, (int)stSize.u32Height};
+    }
+
+    err::Err Camera::write_reg(int addr, int data, int bit_width)
+    {
+        camera_priv_t *priv = (camera_priv_t *)_param;
+        (void)bit_width;
+        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+        uint8_t temp[1];
+        temp[0] = (uint8_t)data;
+        i2c_obj.writeto_mem(priv->i2c_addr, addr, temp, sizeof(temp), 16);
+        return err::ERR_NONE;
+    }
+
+    int Camera::read_reg(int addr, int bit_width)
+    {
+        camera_priv_t *priv = (camera_priv_t *)_param;
+        (void)bit_width;
+        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+        Bytes *data = i2c_obj.readfrom_mem(priv->i2c_addr, addr, 1, 16);
+        int out = -1;log::info("addr:%#x", priv->i2c_addr);
+        if (data) {
+            if (data->size() > 0) {
+                out = data->data[0];
+            }
+            delete data;
+        }
+
+        return out;
     }
 }
 

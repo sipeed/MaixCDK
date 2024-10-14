@@ -59,7 +59,7 @@ namespace maix::camera
          * @maixpy maix.camera.Camera.__init__
          * @maixcdk maix.camera.Camera.Camera
          */
-        Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, int fps = -1, int buff_num = 3, bool open = true, bool raw = false);
+        Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, double fps = -1, int buff_num = 3, bool open = true, bool raw = false);
         ~Camera();
 
         /**
@@ -80,7 +80,7 @@ namespace maix::camera
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.open
          */
-        err::Err open(int width = -1, int height = -1, image::Format format = image::FMT_INVALID, int fps = -1, int buff_num = -1);
+        err::Err open(int width = -1, int height = -1, image::Format format = image::FMT_INVALID, double fps = -1, int buff_num = -1);
 
         /**
          * Get one frame image from camera buffer, must call open method before read.
@@ -90,10 +90,11 @@ namespace maix::camera
          *             In MaixPy, default to None, you can create a image.Image object, then pass img.data() to buff.
          * @param block block read, default is true, means block util read image successfully,
          *              if set to false, will return nullptr if no image in buffer
+         * @param block_ms block read timeout
          * @return image::Image object, if failed, return nullptr, you should delete if manually in C++
          * @maixpy maix.camera.Camera.read
         */
-        image::Image *read(void *buff = nullptr, size_t buff_size = 0, bool block = true);
+        image::Image *read(void *buff = nullptr, size_t buff_size = 0, bool block = true, int block_ms = -1);
 
         /**
          * Read the raw image and obtain the width, height, and format of the raw image through the returned Image object.
@@ -134,7 +135,7 @@ namespace maix::camera
          * @return new Camera object
          * @maixpy maix.camera.Camera.add_channel
         */
-        camera::Camera *add_channel(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, int fps = -1, int buff_num = 3, bool open = true);
+        camera::Camera *add_channel(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, double fps = -1, int buff_num = 3, bool open = true);
 
         /**
          * Check if camera is opened
@@ -175,7 +176,7 @@ namespace maix::camera
          * @return camera fps
          * @maixpy maix.camera.Camera.fps
         */
-        int fps()
+        double fps()
         {
             return _fps;
         }
@@ -232,10 +233,7 @@ namespace maix::camera
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.write_reg
          */
-        err::Err write_reg(int addr, int data, int bit_width = 8)
-        {
-            return err::ERR_NONE;
-        }
+        err::Err write_reg(int addr, int data, int bit_width = 8);
 
         /**
          * Read camera register
@@ -244,10 +242,7 @@ namespace maix::camera
          * @param bit_width register data bit width, default is 8
          * @maixpy maix.camera.Camera.read_reg
          */
-        int read_reg(int addr, int bit_width = 8)
-        {
-            return -1;
-        }
+        int read_reg(int addr, int bit_width = 8);
 
         /**
          * Camera output color bar image for test
@@ -279,7 +274,7 @@ namespace maix::camera
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.set_fps
         */
-        err::Err set_fps(int fps);
+        err::Err set_fps(double fps);
 
         /**
          * Set/Get camera exposure
@@ -384,7 +379,7 @@ namespace maix::camera
         int _ch;
         int _width;
         int _height;
-        int _fps;
+        double _fps;
         int _buff_num;
         image::Format _format;
         image::Format _format_impl; // used by implement code and need convert to _format

@@ -164,6 +164,8 @@ static int cmd_init(void)
             "15 <enable>: set disolay vflip, 1:enable;0:disable\r\n"
             "16 : dump raw data to file, default save in: /root/dump_bayer.raw\r\n"
             "17 <fps>: set fps\r\n"
+            "18 <addr> <data>: set reg\r\n"
+            "19 <addr>: get reg\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -173,6 +175,8 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
 {
     uint64_t t1;
     uint64_t value = -1, value2 = -1, value3 = -1, value4 = -1;
+    double value_f = -1, value_f2 = -1, value_f3 = -1, value_f4 = -1;
+    uint64_t value_h = -1, value_h2 = -1, value_h3 = -1, value_h4 = -1;
     int cmd = -1;
 
     if (!cam) {
@@ -180,9 +184,15 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         return -1;
     }
 
-    int len = scanf("%d %ld %ld %ld %ld\r\n", &cmd, &value, &value2, &value3, &value4);
-    if (len > 0) {
-        log::info("len:%d cmd:%d value:%ld %ld %ld %ld", len, cmd, value, value2, value3, value4);
+    char buf[256] = {0};
+    if (fgets(buf, sizeof(buf), stdin) != NULL) {
+        log::info("input:%s", buf);
+        sscanf(buf, "%d %ld %ld %ld %ld\r\n", &cmd, &value, &value2, &value3, &value4);
+        sscanf(buf, "%d %lf %lf %lf %lf", &cmd, &value_f, &value_f2, &value_f3, &value_f4);
+        sscanf(buf, "%d %lx %lx %lx %lx", &cmd, &value_h, &value_h2, &value_h3, &value_h4);
+        // log::info("int cmd:%d value:%ld %ld %ld %ld", cmd, value, value2, value3, value4);
+        // log::info("double cmd:%d value:%f %f %f %f", cmd, value_f, value_f2, value_f3, value_f4);
+        // log::info("hex cmd:%d value:%#x %#x %#x %#x", cmd, value_h, value_h2, value_h3, value_h4);
         fflush(stdin);
         t1 = time::ticks_ms();
         switch (cmd) {
@@ -333,8 +343,22 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         }
         case 17:
         {
-            int fps = value;
+            double fps = value_f;
+            log::info("set fps %f", fps);
             err::check_raise(cam->set_fps(fps), "set fps error");
+            break;
+        }
+        case 18:
+        {
+            log::info("i2c write addr:%#x data:%#x", value_h, value_h2);
+            cam->write_reg(value_h, value_h2);
+            break;
+        }
+        case 19:
+        {
+            log::info("i2c read addr:%#x", value_h);
+            int data = cam->read_reg(value_h);
+            log::info("i2c read data:%#x", data);
             break;
         }
         default:printf("Find not cmd!\r\n"); break;
