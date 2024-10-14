@@ -86,13 +86,15 @@ namespace maix
             uint8_t version;
 
             /**
-             * @brief Is success response or not, (only for response msg)
+             * @brief Indicate response message type, true means CMD valid and the CMD processed correctly, (only for response msg)
              * @maixpy maix.protocol.MSG.resp_ok
             */
             uint8_t resp_ok;
 
             /**
-             * @brief Whether or not it has been replied to.
+             * @brief Flag whether CMD has been processed and responded to CMD sender.
+             *        E.g. CMD CMD_START_APP will be automatically processed in CommProtocol.get_msg function,
+             *             so the return msg will set this flag to true.
              * @maixpy maix.protocol.MSG.has_been_replied
              */
             bool has_been_replied{false};

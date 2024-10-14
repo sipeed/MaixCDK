@@ -369,7 +369,7 @@ namespace maix::peripheral::uart
 					{
 						data = uart->read(-1, -1);
 					}
-					catch(err::Exception)
+					catch(const err::Exception& e)
 					{
 						log::error("read file failed");
 						break;
@@ -527,8 +527,13 @@ namespace maix::peripheral::uart
 				{
 					int wait_time = _one_byte_time_us * 30; // system maybe use some time
 					time::sleep_us(wait_time > 50000 ? 50000: wait_time);
-					if (available(0) > 0 || (timeout < 0 && read_len == 0))
+					if (available(0) > 0)
 						continue;
+					if (timeout < 0 && read_len == 0) // block read
+					{
+						available(-1);
+						continue;
+					}
 					break;
 				}
 			}

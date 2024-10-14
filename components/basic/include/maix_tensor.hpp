@@ -509,7 +509,7 @@ namespace maix
             {
                 if(copy)
                 {
-                    tensor::Tensor *t = new tensor::Tensor(*tensor);
+                    tensor::Tensor *t = new tensor::Tensor(tensor->shape(), tensor->dtype(), tensor->data(), true);
                     tensors[key] = t;
                     _auto_delete[key] = true;
                 }

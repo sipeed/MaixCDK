@@ -37,7 +37,7 @@ update:
 
 ## 数据帧
 
-|               | header(4B LE) |  data len(4B LE)(version+cmd+body+crc) |flags(1B)  | cmd(1B) | body(nB)     | CRC16_IBM(2B LE)(前面所有) |
+|               | header(4B LE) |  data len(4B LE)(flags+cmd+body+crc) |flags(1B)  | cmd(1B) | body(nB)     | CRC16_IBM(2B LE)(前面所有) |
 | ------------- | ---------- | ---------------------------- | ------------------ | ------- | ---------------- | ---------------------- |
 | 十进制示例      | 3148663466 | 9                            | 0                  | 1       | hello            | 17451        |
 | 十六进制示例    | 0xBBACCAAA | 0x00000009                   |  0x00              | 0x01    | hello             | 0x442B       |
@@ -48,7 +48,7 @@ update:
 > 这里的例子，最终发送数据： `AA CA AC BB 09 00 00 00 00 01 68 65 6c 6c 6F 2B 44`。
 
 * `header`: 头，4 字节，用来标识一帧的开始，固定为 4 字节 `0xAA 0xCA 0xAC 0xBB`, 先发`0xAA`
-* `data len`: 数据长度， 4 字节， 包含了 `version` `cmd` + `body` + `CRC` 的长度。
+* `data len`: 数据长度， 4 字节， 包含了 `flags` `cmd` + `body` + `CRC` 的长度。
 * `flags`: 一个字节，各个位分别表示：
   * 最高位 `is_resp`:  是否是响应，`0`代表发送请求，`1`代表 响应 或者 主动上报（第三高位需要置`1`）。
   * 第二高位 `resp_ok`:

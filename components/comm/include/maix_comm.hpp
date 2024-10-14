@@ -38,12 +38,11 @@ namespace maix
         /**
          * @brief Remove default CommProtocol listener.
          *
-         * @param blocking True means blocking and false means non-blocking.
          * @return bool type.
          *
          * @maixpy maix.comm.rm_default_comm_listener
          */
-        bool rm_default_comm_listener(bool blocking=false);
+        bool rm_default_comm_listener();
 
         /**
          * Class for communication protocol
@@ -63,11 +62,12 @@ namespace maix
 
             /**
              * Read data to buffer, and try to decode it as maix.protocol.MSG object
+             * @param timeout unit ms, 0 means return immediatly, -1 means block util have msg, >0 means block until have msg or timeout.
              * @return decoded data, if nullptr, means no valid frame found.
              *         Attentioin, delete it after use in C++.
              * @maixpy maix.comm.CommProtocol.get_msg
              */
-            protocol::MSG *get_msg();
+            protocol::MSG *get_msg(int timeout = 0);
 
             /**
              * Send response ok(success) message
