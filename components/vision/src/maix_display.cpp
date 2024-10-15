@@ -61,6 +61,7 @@ namespace maix::display
         delete (SDL_Display *)_impl;
 #endif
 #ifdef PLATFORM_MAIXCAM
+        this->close();
         delete (DisplayCviMmf *)_impl;
 #endif
     }

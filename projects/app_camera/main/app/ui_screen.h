@@ -14,6 +14,8 @@ void ui_update_small_img(void *data, int data_size);
 void ui_refresh(void);
 void ui_set_select_option(int idx);
 void ui_show_center_image(uint8_t *data, int data_size, int width, int height);
+void ui_click_raw_button();
+
 #ifdef __cplusplus
 } /*extern "C"*/
 #endif

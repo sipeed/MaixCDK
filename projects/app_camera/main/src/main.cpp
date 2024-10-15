@@ -34,8 +34,9 @@ int _main(int argc, char **argv)
     // main ui loop
     while (!app::need_exit())
     {
-        if (app_base_loop() < 0) {
-            log::info("find error, try exit");
+        int res = 0;
+        if ((res = app_base_loop()) < 0) {
+            log::info("find some error(%d), try to exit..", res);
             break;
         }
     }

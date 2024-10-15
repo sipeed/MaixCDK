@@ -32,6 +32,9 @@ extern lv_obj_t *g_small_img;
 extern lv_obj_t *g_big_img;
 extern lv_obj_t *g_video_running_screen;
 extern lv_obj_t *g_focus_button;
+extern lv_obj_t *g_shutter_plus_minus_button;
+extern lv_obj_t *g_iso_plus_minus_button;
+extern lv_obj_t *g_raw_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -54,6 +57,8 @@ static struct {
     unsigned int photo_delay_anim_stop_flag : 1;
     unsigned int focus_btn_touched : 1;
     unsigned int focus_btn_update_flag : 1;
+    unsigned int raw_btn_touched : 1;
+    unsigned int raw_btn_update_flag : 1;
 
     unsigned int resolution_setting_idx;
 } priv = {
@@ -104,6 +109,28 @@ void event_touch_resolution_cb(lv_event_t * e)
     }
 }
 
+static void _shutter_setting_set_hidden(bool hidden)
+{
+    if (hidden) {
+        lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(g_shutter_plus_minus_button, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(g_shutter_plus_minus_button, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void _iso_setting_set_hidden(bool hidden)
+{
+    if (hidden) {
+        lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(g_iso_plus_minus_button, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_remove_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(g_iso_plus_minus_button, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 void event_touch_option_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -113,11 +140,11 @@ void event_touch_option_cb(lv_event_t * e)
         } else {
             lv_obj_add_flag(g_menu_setting, LV_OBJ_FLAG_HIDDEN);
 
-            lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(true);
             if (lv_obj_get_state(g_shutter_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_shutter_button, LV_EVENT_RELEASED, NULL);
             }
-            lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(true);
             if (lv_obj_get_state(g_iso_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_iso_button, LV_EVENT_RELEASED, NULL);
             }
@@ -211,9 +238,9 @@ void event_touch_shutter_cb(lv_event_t * e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_get_state(g_shutter_button) != LV_STATE_FOCUSED) {
-            lv_obj_remove_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(false);
 
-            lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(true);
             if (lv_obj_get_state(g_iso_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_iso_button, LV_EVENT_RELEASED, NULL);
             }
@@ -226,7 +253,7 @@ void event_touch_shutter_cb(lv_event_t * e)
                 lv_obj_send_event(g_wb_button, LV_EVENT_RELEASED, NULL);
             }
         } else {
-            lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(true);
         }
     }
 }
@@ -236,9 +263,9 @@ void event_touch_iso_cb(lv_event_t * e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_get_state(g_iso_button) != LV_STATE_FOCUSED) {
-            lv_obj_remove_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(false);
 
-            lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(true);
             if (lv_obj_get_state(g_shutter_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_shutter_button, LV_EVENT_RELEASED, NULL);
             }
@@ -251,7 +278,7 @@ void event_touch_iso_cb(lv_event_t * e)
                 lv_obj_send_event(g_wb_button, LV_EVENT_RELEASED, NULL);
             }
         } else {
-            lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(true);
         }
     }
 }
@@ -263,11 +290,11 @@ void event_touch_ev_cb(lv_event_t * e)
         if (lv_obj_get_state(g_ev_button) != LV_STATE_FOCUSED) {
             lv_obj_remove_flag(g_ev_setting, LV_OBJ_FLAG_HIDDEN);
 
-            lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(true);
             if (lv_obj_get_state(g_shutter_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_shutter_button, LV_EVENT_RELEASED, NULL);
             }
-            lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(true);
             if (lv_obj_get_state(g_iso_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_iso_button, LV_EVENT_RELEASED, NULL);
             }
@@ -359,11 +386,11 @@ void event_touch_wb_cb(lv_event_t * e)
         if (lv_obj_get_state(g_wb_button) != LV_STATE_FOCUSED) {
             lv_obj_remove_flag(g_wb_setting, LV_OBJ_FLAG_HIDDEN);
 
-            lv_obj_add_flag(g_shutter_setting, LV_OBJ_FLAG_HIDDEN);
+            _shutter_setting_set_hidden(true);
             if (lv_obj_get_state(g_shutter_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_shutter_button, LV_EVENT_RELEASED, NULL);
             }
-            lv_obj_add_flag(g_iso_setting, LV_OBJ_FLAG_HIDDEN);
+            _iso_setting_set_hidden(true);
             if (lv_obj_get_state(g_iso_button) == LV_STATE_CHECKED) {
                 lv_obj_send_event(g_iso_button, LV_EVENT_RELEASED, NULL);
             }
@@ -387,6 +414,30 @@ void event_touch_focus_cb(lv_event_t * e)
         } else {
             priv.focus_btn_touched = 0;
             priv.focus_btn_update_flag = 1;
+        }
+    }
+}
+
+void event_touch_raw_cb(lv_event_t * e)
+{
+    intptr_t param = (intptr_t)lv_event_get_param(e);
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        lv_obj_t *on_off = lv_obj_get_child(g_raw_button, -1);
+        if (lv_obj_get_state(g_raw_button) != LV_STATE_FOCUSED) {
+            if (param != -1) {
+                priv.raw_btn_touched = 1;
+                priv.raw_btn_update_flag = 1;
+            }
+            lv_obj_set_style_text_color(on_off, lv_color_hex(0x00ff00), 0);
+            lv_label_set_text(on_off, "ON");
+        } else {
+            if (param != -1) {
+                priv.raw_btn_touched = 0;
+                priv.raw_btn_update_flag = 1;
+            }
+            lv_obj_set_style_text_color(on_off, lv_color_hex(0xff0000), 0);
+            lv_label_set_text(on_off, "OFF");
         }
     }
 }
@@ -573,6 +624,8 @@ void event_touch_shutter_to_auto_cb(lv_event_t * e)
         DEBUG_PRT("set exposure time to auto mode\n");
         priv.shutter_setting_flag = 1;
         priv.shutter_auto_flag = 1;
+        lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
+        lv_bar_set_value((lv_obj_t *)shutter_setting_bar, 0, LV_ANIM_OFF);
     }
 }
 
@@ -583,6 +636,8 @@ void event_touch_iso_to_auto_cb(lv_event_t * e)
         DEBUG_PRT("set iso to auto mode\n");
         priv.shutter_setting_flag = 1;
         priv.iso_auto_flag = 1;
+        lv_obj_t * iso_setting_bar = lv_obj_get_child(g_iso_setting, 2);
+        lv_bar_set_value((lv_obj_t *)iso_setting_bar, 0, LV_ANIM_OFF);
     }
 }
 
@@ -875,7 +930,7 @@ void ui_set_shutter_value(double val)
     }
     char str[128];
     lv_obj_t * shutter_setting_label = lv_obj_get_child(g_shutter_setting, 1);
-    lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 3);
+    lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
     ui_camera_config_t camera_config;
     ui_camera_config_read(&camera_config);
     val = val > camera_config.exposure_time_max ? camera_config.exposure_time_max : val;
@@ -1182,4 +1237,14 @@ bool ui_get_focus_btn_update_flag() {
 
 bool ui_get_focus_btn_touched() {
     return priv.focus_btn_touched ? true : false;
+}
+
+bool ui_get_raw_btn_update_flag() {
+    bool flag = priv.raw_btn_update_flag ? true : false;
+    priv.raw_btn_update_flag = false;
+    return flag;
+}
+
+bool ui_get_raw_btn_touched() {
+    return priv.raw_btn_touched ? true : false;
 }

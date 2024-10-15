@@ -559,6 +559,15 @@ namespace maix::camera
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
         }
 
+        // wait camera is ready
+        VIDEO_FRAME_INFO_S frame;
+        CVI_U32 s32Ret;
+        if ((s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3))) != CVI_SUCCESS) {
+            SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
+            return err::ERR_RUNTIME;
+        }
+        CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
+
         _is_opened = true;
         return err::ERR_NONE;
     }

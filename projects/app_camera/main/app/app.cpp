@@ -19,12 +19,15 @@ using namespace maix;
 #define MMF_VENC_CHN            (1)
 static struct {
     uint32_t cam_start_snap_flag : 1;
+    uint32_t cam_snap_flag : 1;
     uint32_t video_prepare_is_ok : 1;
     uint32_t video_start_flag : 1;
     uint32_t video_stop_flag : 1;
 
     uint32_t sensor_ae_mode : 1;    // 0,auto; 1,manual
     uint32_t sensor_awb_mode : 1;   // 0,auto; 1,manual
+
+    uint32_t capture_raw_enable : 1;
 
     uint32_t sensor_shutter_value;  // us
     int sensor_iso_value;           // 100~800
@@ -48,6 +51,8 @@ static struct {
     touchscreen::TouchScreen *touchscreen;
     video::Encoder *encoder;
 } priv;
+
+static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
 
 static int save_buff_to_file(char *filename, uint8_t *filebuf, uint32_t filebuf_len)
 {
@@ -167,7 +172,7 @@ int app_base_init(void)
     mmf_deinit_v2(true);
 
     // init camera
-    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, 30);
+    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, 30, 3, true, priv.capture_raw_enable);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
     // init display
@@ -232,7 +237,7 @@ int app_base_loop(void)
     lv_timer_handler();
 
     // app loop
-    app_loop(*priv.camera, img, *priv.disp, priv.other_disp);
+    app_loop(*priv.camera, *priv.disp, priv.other_disp);
 
     delete img;
 #else
@@ -254,14 +259,6 @@ int app_base_loop(void)
         return -1;
     }
 
-    image::Format fmt = image::Format::FMT_YVU420SP;
-    image::Image *img = new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, false);
-    if (!img) {
-        printf("create image failed!\r\n");
-        mmf_vi_frame_free2(ch, &frame);
-        return -1;
-    }
-
     // Push frame to encoder
     int enc_h265_ch = 1;
 
@@ -276,11 +273,26 @@ int app_base_loop(void)
 
     // Run ui rocess, must run after disp.show
     lv_timer_handler();
-    app_loop(*priv.camera, img, *priv.disp, priv.other_disp);
-    delete img;
 
-    // Free the vi frame
-    mmf_vi_frame_free2(ch, &frame);
+    if (priv.cam_snap_flag) {
+        priv.cam_snap_flag = false;
+
+        image::Format fmt = image::Format::FMT_YVU420SP;
+        image::Image *img = new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, true);
+        if (!img) {
+            printf("create image failed!\r\n");
+            mmf_vi_frame_free2(ch, &frame);
+            return -1;
+        }
+
+        mmf_vi_frame_free2(ch, &frame);
+
+        _capture_image(*priv.camera, img);
+        delete img;
+    } else {
+        // Free the vi frame
+        mmf_vi_frame_free2(ch, &frame);
+    }
 
     // Pop stream from encoder
     mmf_stream_t stream = {0};
@@ -299,6 +311,7 @@ int app_base_loop(void)
     }
 #endif
 
+    app_loop(*priv.camera, *priv.disp, priv.other_disp);
     if (priv.camera_resolution_update_flag) {
         priv.camera_resolution_update_flag = false;
         app_base_deinit();
@@ -325,6 +338,10 @@ int app_init(void)
     ui_set_shutter_value((double)exposure_time);
     ui_set_iso_value(iso_num);
     ui_set_select_option(priv.resolution_index);
+
+    if (priv.capture_raw_enable) {
+        ui_click_raw_button();
+    }
     return 0;
 }
 
@@ -460,6 +477,18 @@ static int app_config_param(void)
         }
     }
 
+    if (ui_get_raw_btn_update_flag()) {
+        if (ui_get_raw_btn_touched()) {
+            log::info("camera enable capture raw");
+            priv.capture_raw_enable = 1;
+        } else {
+            log::info("camera disable capture raw");
+            priv.capture_raw_enable = 0;
+        }
+        app_base_deinit();
+        app_base_init();
+    }
+
     if (ui_get_ev_setting_flag()) {
         if (ui_get_ev_auto_flag()) {
             printf("EV setting: Auto\n");
@@ -483,7 +512,67 @@ static int app_config_param(void)
     return 0;
 }
 
-int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::display::Display &disp, maix::display::Display *disp2)
+static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img)
+{
+    char *date = ui_get_sys_date();
+    if (date) {
+        string picture_root_path = maix::app::get_picture_path();
+        string picture_date(date);
+        string picture_path = picture_root_path + "/" + picture_date;
+        printf("picture_path path:%s\n", picture_path.c_str());
+        if (!fs::exists(picture_path)) {
+            fs::mkdir(picture_path);
+        }
+        std::vector<std::string> *file_list = fs::listdir(picture_path);
+        printf("file_list_cnt:%ld\n", file_list->size());
+        string picture_save_path = picture_path + "/" + std::to_string(file_list->size()) +".jpg";
+        std::string thumbnail_path = picture_path + "/.thumbnail/" + std::to_string(file_list->size()) +".jpg";
+        printf("picture_path path:%s  picture_save_path:%s\n", picture_path.c_str(), picture_save_path.c_str());
+
+        if (img) {
+            maix::image::Image *jpg_img = img->to_format(maix::image::FMT_JPEG);
+            if (jpg_img) {
+                save_buff_to_file((char *)picture_save_path.c_str(), (uint8_t *)jpg_img->data(), jpg_img->data_size());
+                delete jpg_img;
+
+                image::Image *load_img = image::load((char *)picture_save_path.c_str());
+                maix::image::Image *thumbnail_img = load_img->resize(128, 128, image::Fit::FIT_COVER);
+                thumbnail_img->save(thumbnail_path.c_str());
+                delete(thumbnail_img);
+
+                system("sync");
+
+                printf("update small and big img\n");
+                maix::image::Image *new_img = maix::image::load((char *)picture_save_path.c_str(), maix::image::FMT_RGB888);
+                ui_anim_run_save_img();
+                _ui_update_pic_img(new_img);
+                delete new_img;
+            } else {
+                printf("encode nv21 to jpg failed!\n");
+            }
+        } else {
+            printf("Found not image..\n");
+        }
+
+        if (priv.capture_raw_enable) {
+            printf("save raw photo\n");
+            image::Image *raw = camera.read_raw();
+            if (raw) {
+                string raw_save_path = picture_path + "/" + std::to_string(file_list->size()) + "_" + image::fmt_names[raw->format()] + ".raw";
+                log::info("save raw to %s", raw_save_path.c_str());
+                save_buff_to_file((char *)raw_save_path.c_str(), (uint8_t *)raw->data(), raw->data_size());
+                delete raw;
+            }
+        }
+
+        free(file_list);
+        free(date);
+    } else {
+        printf("get date failed!\n");
+    }
+}
+
+int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::display::Display *disp2)
 {
     app_config_param();
 
@@ -499,50 +588,10 @@ int app_loop(maix::camera::Camera &camera, maix::image::Image *img, maix::displa
 
     if (priv.cam_start_snap_flag) {
         if (priv.cam_snap_delay_s == 0 || (priv.cam_snap_delay_s > 0 && ui_get_photo_delay_anim_stop_flag())) {
-            printf("save photo\n");
             priv.cam_start_snap_flag = false;
-            char *date = ui_get_sys_date();
-            if (date) {
-                string picture_root_path = maix::app::get_picture_path();
-                string picture_date(date);
-                string picture_path = picture_root_path + "/" + picture_date;
-                printf("picture_path path:%s\n", picture_path.c_str());
-                if (!fs::exists(picture_path)) {
-                    fs::mkdir(picture_path);
-                }
-                std::vector<std::string> *file_list = fs::listdir(picture_path);
-                printf("file_list_cnt:%ld\n", file_list->size());
-                string picture_save_path = picture_path + "/" + std::to_string(file_list->size()) +".jpg";
-                std::string thumbnail_path = picture_path + "/.thumbnail/" + std::to_string(file_list->size()) +".jpg";
-                printf("picture_path path:%s  picture_save_path:%s\n", picture_path.c_str(), picture_save_path.c_str());
-                maix::image::Image *jpg_img = img->to_format(maix::image::FMT_JPEG);
-                if (jpg_img) {
-                    save_buff_to_file((char *)picture_save_path.c_str(), (uint8_t *)jpg_img->data(), jpg_img->data_size());
-                    delete jpg_img;
-
-                    image::Image *load_img = image::load((char *)picture_save_path.c_str());
-                    maix::image::Image *thumbnail_img = load_img->resize(128, 128, image::Fit::FIT_COVER);
-                    thumbnail_img->save(thumbnail_path.c_str());
-                    delete(thumbnail_img);
-
-                    system("sync");
-
-                    printf("update small and big img\n");
-                    maix::image::Image *new_img = maix::image::load((char *)picture_save_path.c_str(), maix::image::FMT_RGB888);
-                    ui_anim_run_save_img();
-                    _ui_update_pic_img(new_img);
-                    delete new_img;
-                } else {
-                    printf("encode nv21 to jpg failed!\n");
-                }
-                free(file_list);
-                free(date);
-            } else {
-                printf("get date failed!\n");
-            }
+            priv.cam_snap_flag = true;
         }
     }
-
     if (priv.video_start_flag && !priv.video_prepare_is_ok) {
         printf("Prepare record video\n");
         char *date = ui_get_sys_date();
