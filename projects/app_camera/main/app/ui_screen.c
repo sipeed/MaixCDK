@@ -798,11 +798,11 @@ static lv_obj_t *ui_plus_and_minus_button(lv_event_cb_t plus_btn_cb, lv_event_cb
         lv_obj_set_style_radius(btn, 90, 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x5fbeef), 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x016697), LV_STATE_PRESSED);
-        lv_obj_add_event_cb(btn, plus_btn_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(btn, minus_btn_cb, LV_EVENT_CLICKED, NULL);
 
         lv_obj_t *txt = lv_label_create(btn);
         lv_obj_set_style_text_color(txt, lv_color_hex(0xffffff), 0);
-        lv_label_set_text(txt, LV_SYMBOL_PLUS);
+        lv_label_set_text(txt, LV_SYMBOL_MINUS);
         lv_obj_align(txt, LV_ALIGN_CENTER, 0, 0);
     }
 
@@ -813,11 +813,11 @@ static lv_obj_t *ui_plus_and_minus_button(lv_event_cb_t plus_btn_cb, lv_event_cb
         lv_obj_set_style_radius(btn, 90, 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x5fbeef), 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x016697), LV_STATE_PRESSED);
-        lv_obj_add_event_cb(btn, minus_btn_cb, LV_EVENT_CLICKED, NULL);
+        lv_obj_add_event_cb(btn, plus_btn_cb, LV_EVENT_CLICKED, NULL);
 
         lv_obj_t *txt = lv_label_create(btn);
         lv_obj_set_style_text_color(txt, lv_color_hex(0xffffff), 0);
-        lv_label_set_text(txt, LV_SYMBOL_MINUS);
+        lv_label_set_text(txt, LV_SYMBOL_PLUS);
         lv_obj_align(txt, LV_ALIGN_CENTER, 0, 0);
     }
 
