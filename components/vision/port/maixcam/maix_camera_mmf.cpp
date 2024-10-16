@@ -69,6 +69,7 @@ namespace maix::camera
         ISP_BAYER_FORMAT_E bayer_fmt;
         int i2c_addr;
         bool raw;
+        double fps;
     } camera_priv_t;
 
     Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
@@ -93,6 +94,7 @@ namespace maix::camera
         memset(priv, 0, sizeof(camera_priv_t));
         priv->dev = 0;
         priv->raw = raw;
+        priv->fps = fps;
         _param = priv;
 
 
@@ -340,8 +342,8 @@ namespace maix::camera
             sensor_cfg.mclk = 0;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
-                sensor_cfg.lane_id = {0, 1, 2, -1, -1};
-                sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
+                sensor_cfg.lane_id = {0, 1, -1, -1, -1};
+                sensor_cfg.pn_swap = {1, 1, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x30;
                 vi_format = PIXEL_FORMAT_NV21;
@@ -391,7 +393,7 @@ namespace maix::camera
             sensor_cfg.mclk = 1;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
-                sensor_cfg.lane_id = {4, 3, 2, -1, -1};
+                sensor_cfg.lane_id = {4, 3, -1, -1, -1};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x30;
@@ -548,12 +550,31 @@ namespace maix::camera
             _invert_mirror = false;
         }
 
+        if (!strcmp(getenv(MMF_SENSOR_NAME), "sms_sc035gs")) {
+            _fps = priv->fps;
+            if (_fps == -1 && _width <= 640 && _height <= 480) {
+                _fps = 90;
+            } else if (_fps == -1) {
+                _fps = 60;
+            }
+            if ((_width > 640 || _height > 480) && _fps > 60) {
+                log::warn("Current fps is too high, will be be updated to 60fps! Currently only supported up to 480p 180fps.\r\n");
+                _fps = 60;
+            } else if (_width <= 640 && _height <= 480 && _fps > 180)  {
+                log::warn("Current fps is too high, will be be updated to 180fps! Currently only supported up to 480p 180fps.\r\n");
+                _fps = 180;
+            }
+            char new_value[10];
+            snprintf(new_value, sizeof(new_value), "%d", (int)_fps);
+            setenv(MAIX_SENSOR_FPS, new_value, 0);
+        }
+
         // mmf init
         err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps, priv), "mmf vi init failed");
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
         mmf_set_vi_vflip(_ch, _invert_flip);
         mmf_set_vi_hmirror(_ch, _invert_mirror);
-        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 3)) {
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 4)) {
             mmf_vi_deinit();
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
@@ -1035,6 +1056,9 @@ _error:
                 system(cmd);
             }
         }
+        break;
+        case SMS_SC035GS_MIPI_480P_120FPS_12BIT:
+            err::check_raise(err::ERR_NOT_IMPL, "SC035GS set_fps not support");
         break;
         default:break;
         }
