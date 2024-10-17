@@ -1,0 +1,13 @@
+id: speech
+name: Speech Recognition
+name[zh]: 语音识别
+version: 1.0.0
+icon: assets/speech.png
+author: Sipeed Ltd
+desc: AI speech recognition
+desc[zh]: AI 语音识别
+files:
+  app.yaml: app.yaml
+  assets: assets
+  locales: locales
+  README.md: README.md
