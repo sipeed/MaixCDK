@@ -600,7 +600,12 @@ namespace maix::camera
         err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
         mmf_set_vi_vflip(_ch, _invert_flip);
         mmf_set_vi_hmirror(_ch, _invert_mirror);
-        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, 4)) {
+
+        int pool_num = 3;
+        if (priv->sns_type == SMS_SC035GS_MIPI_480P_120FPS_12BIT) {
+            pool_num = 4;
+        }
+        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
             mmf_vi_deinit();
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
