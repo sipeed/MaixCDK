@@ -316,11 +316,11 @@ static void *_imu_thread_process(void *arg) {
 
     // qmi init
     ext_dev::qmi8658::QMI8658 qmi8658(4, 0x6B, 400000,
-                    maix::ext_dev::qmi8658::Mode::DUAL,
-                    maix::ext_dev::qmi8658::AccScale::ACC_SCALE_16G,
-                    maix::ext_dev::qmi8658::AccOdr::ACC_ODR_8000,
-                    maix::ext_dev::qmi8658::GyroScale::GYRO_SCALE_1024DPS,
-                    maix::ext_dev::qmi8658::GyroOdr::GYRO_ODR_8000);
+                    maix::ext_dev::imu::Mode::DUAL,
+                    maix::ext_dev::imu::AccScale::ACC_SCALE_16G,
+                    maix::ext_dev::imu::AccOdr::ACC_ODR_8000,
+                    maix::ext_dev::imu::GyroScale::GYRO_SCALE_1024DPS,
+                    maix::ext_dev::imu::GyroOdr::GYRO_ODR_8000);
     time::sleep_ms(1000);
     // bias init
     float gyro_x_bias = 0, gyro_y_bias = 0, gyro_z_bias = 0;

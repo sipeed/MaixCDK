@@ -17,7 +17,7 @@ namespace maix::ext_dev::imu {
  * @brief imu mode
  * @maixpy maix.ext_dev.imu.Mode
  */
-enum Mode {
+enum class Mode {
     ACC_ONLY = 0,
     GYRO_ONLY,
     DUAL
@@ -27,7 +27,7 @@ enum Mode {
  * @brief imu acc scale
  * @maixpy maix.ext_dev.imu.AccScale
  */
-enum AccScale {
+enum class AccScale {
     ACC_SCALE_2G = 0,
     ACC_SCALE_4G,
     ACC_SCALE_8G,
@@ -38,7 +38,7 @@ enum AccScale {
  * @brief imu acc output data rate
  * @maixpy maix.ext_dev.imu.AccOdr
  */
-enum AccOdr {
+enum class AccOdr {
     ACC_ODR_8000,      // Accelerometer ODR set to 8000 Hz.
     ACC_ODR_4000,      // Accelerometer ODR set to 4000 Hz.
     ACC_ODR_2000,      // Accelerometer ODR set to 2000 Hz.
@@ -58,7 +58,7 @@ enum AccOdr {
  * @brief imu gyro scale
  * @maixpy maix.ext_dev.imu.GyroScale
  */
-enum GyroScale {
+enum class GyroScale {
     GYRO_SCALE_16DPS = 0,       // Gyroscope scale set to ±16 degrees per second.
     GYRO_SCALE_32DPS,            // Gyroscope scale set to ±32 degrees per second.
     GYRO_SCALE_64DPS,            // Gyroscope scale set to ±64 degrees per second.
@@ -73,7 +73,7 @@ enum GyroScale {
  * @brief imu gyro output data rate
  * @maixpy maix.ext_dev.imu.GyroOdr
  */
-enum GyroOdr {
+enum class GyroOdr {
     GYRO_ODR_8000,     // Gyroscope ODR set to 8000 Hz.
     GYRO_ODR_4000,     // Gyroscope ODR set to 4000 Hz.
     GYRO_ODR_2000,     // Gyroscope ODR set to 2000 Hz.
