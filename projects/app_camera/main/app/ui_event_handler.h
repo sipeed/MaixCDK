@@ -63,13 +63,9 @@ bool ui_get_shutter_auto_flag(void);
 bool ui_get_iso_auto_flag(void);
 bool ui_get_ev_auto_flag(void);
 
-// shutter = 1/10000s ~ 5s, -1 means auto
 void ui_set_shutter_value(double val);
-// iso = 100~800, -1 means auto
 void ui_set_iso_value(int val);
-// ev = -400~400, -1000 means auto
 void ui_set_ev_value(int val);
-// wb = 1000K~10000K, -1 means auto
 void ui_set_wb_value(int val);
 
 void ui_update_small_img(void *data, int data_size);
@@ -92,6 +88,8 @@ typedef struct {
     unsigned int iso_max;
     unsigned int iso_min;
     unsigned int iso_default;
+    double exposure_time_table[31];
+    double iso_table[19];
 } ui_camera_config_t;
 void ui_camera_config_read(ui_camera_config_t *cfg);
 void ui_camera_config_update(ui_camera_config_t *cfg);

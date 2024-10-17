@@ -1,5 +1,6 @@
 #include "lvgl.h"
 #include "stdio.h"
+#include "ui_utils.h"
 #include "ui_screen.h"
 #include "ui_event_handler.h"
 
@@ -103,11 +104,16 @@ static void priv_init(void)
     priv.ev_screen_w_pct = 10;          // %
     priv.wb_screen_w_pct = 10;          // %
 
+    double exposure_time_table[] = {1.0/960,1.0/720,1.0/480, 1.0/360, 1.0/240, 1.0/180, 1.0/120, 1.0/90, 1.0/60, 1.0/40, 1.0/30, 1.0/20, 1.0/15, 1.0/10, 1.0/8, 1.0/5, 1.0/3, 1.0/2, 2.0/3, 1, 1.5, 2, 3, 5, 8, 10, 15, 20, 30, 40, 60};
+    memcpy(priv.cam_cfg.exposure_time_table, exposure_time_table, sizeof(priv.cam_cfg.exposure_time_table));
     priv.cam_cfg.exposure_time_default = 3000;
-    priv.cam_cfg.exposure_time_max = 333333;
-    priv.cam_cfg.exposure_time_min = 33333;
-    priv.cam_cfg.iso_max = 6400;
-    priv.cam_cfg.iso_min = 100;
+    priv.cam_cfg.exposure_time_max = priv.cam_cfg.exposure_time_table[sizeof(priv.cam_cfg.exposure_time_table) / sizeof(priv.cam_cfg.exposure_time_table[0]) - 1] * 1000000;
+    priv.cam_cfg.exposure_time_min = priv.cam_cfg.exposure_time_table[0] * 1000000;
+
+    double iso_table[] = {100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400};
+    memcpy(priv.cam_cfg.iso_table, iso_table, sizeof(priv.cam_cfg.iso_table));
+    priv.cam_cfg.iso_max = priv.cam_cfg.iso_table[sizeof(priv.cam_cfg.iso_table) / sizeof(priv.cam_cfg.iso_table[0]) - 1];
+    priv.cam_cfg.iso_min = priv.cam_cfg.iso_table[0];
     priv.cam_cfg.iso_default = 100;
 }
 
@@ -751,35 +757,6 @@ static void screen_resolution_init(void)
     }
 }
 
-// iso = 100~800
-void ui_set_iso_value(int val)
-{
-    if (val < 0) return;
-    ui_camera_config_t *cam_cfg = &priv.cam_cfg;
-    val = val < cam_cfg->iso_min ? cam_cfg->iso_min : val;
-    val = val > cam_cfg->iso_max ? cam_cfg->iso_max : val;
-
-    {
-        lv_obj_t * obj = lv_obj_get_child(g_menu_setting, 1);
-        lv_obj_t *label = lv_obj_get_child(obj, -1);
-        lv_obj_t *label2 = lv_obj_get_child(label, -1);
-        lv_label_set_text_fmt(label2, "%d", val);
-    }
-
-    {
-        lv_obj_t *obj = g_iso_setting;
-        lv_obj_t * label = lv_obj_get_child(obj, 1);
-        lv_label_set_text_fmt(label, "%d", val);
-
-
-        lv_obj_t * bar = lv_obj_get_child(obj, 2);
-        lv_bar_set_value(bar, val, LV_ANIM_OFF);
-
-        int *bar_last_val = (int *)lv_obj_get_user_data(obj);
-        *bar_last_val = val;
-    }
-}
-
 static lv_obj_t *ui_plus_and_minus_button(lv_event_cb_t plus_btn_cb, lv_event_cb_t minus_btn_cb)
 {
     lv_obj_t *base = lv_obj_create(lv_scr_act());
@@ -859,10 +836,14 @@ static void screen_shutter_init(void)
         lv_obj_set_style_text_color(label2, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_12, 0);
 
+        ui_camera_config_t camera_config;
+        ui_camera_config_read(&camera_config);
+        int number_of_table = sizeof(camera_config.exposure_time_table) / sizeof(camera_config.exposure_time_table[0]);
+
         lv_obj_t * bar = lv_bar_create(scr);
         lv_obj_set_align(bar, LV_ALIGN_CENTER);
         lv_obj_set_size(bar, 20, lv_pct(60));
-        lv_bar_set_range(bar, 1, 10000);
+        lv_bar_set_range(bar, 0, number_of_table - 1);
         lv_obj_add_event_cb(bar, event_shutter_bar_update_cb, LV_EVENT_PRESSING, NULL);
         lv_obj_add_event_cb(bar, event_shutter_bar_update_cb, LV_EVENT_RELEASED, NULL);
         lv_bar_set_value(bar, 20, LV_ANIM_OFF);
@@ -928,10 +909,14 @@ static void screen_iso_init(void)
         lv_obj_set_style_text_color(label2, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label2, &lv_font_montserrat_12, 0);
 
+        ui_camera_config_t camera_config;
+        ui_camera_config_read(&camera_config);
+        int number_of_table = sizeof(camera_config.iso_table) / sizeof(camera_config.iso_table[0]);
+
         lv_obj_t * bar = lv_bar_create(scr);
         lv_obj_set_align(bar, LV_ALIGN_CENTER);
         lv_obj_set_size(bar, 20, lv_pct(60));
-        lv_bar_set_range(bar, cam_cfg->iso_min, cam_cfg->iso_max);
+        lv_bar_set_range(bar, 0, number_of_table - 1);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_PRESSING, NULL);
         lv_obj_add_event_cb(bar, event_iso_bar_update_cb, LV_EVENT_RELEASED, NULL);
         lv_bar_set_value(bar, 100, LV_ANIM_OFF);

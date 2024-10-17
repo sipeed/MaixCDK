@@ -15,7 +15,7 @@
 #include "maix_lvgl.hpp"
 
 int app_pre_init(void);
-int app_init(void);
+int app_init(maix::camera::Camera &camera);
 int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::display::Display *disp2);
 int app_deinit(void);
 

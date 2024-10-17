@@ -40,6 +40,7 @@ static struct {
     int video_save_fd;
 
     uint64_t loop_last_ms;
+    void *loop_last_frame;
 
     bool camera_resolution_update_flag;
     int camera_resolution_w;
@@ -84,6 +85,12 @@ int app_pre_init(void)
 
 static int _mmf_set_exp_mode(int ch, int mode)
 {
+    if (mode == 0) {
+        if (priv.camera) {
+            priv.camera->exp_mode(0);
+        }
+    }
+
 	CVI_U32 ret;
 	ISP_EXPOSURE_ATTR_S stExpAttr;
 
@@ -128,6 +135,14 @@ static int _mmf_set_exp_mode(int ch, int mode)
 	return 0;
 }
 
+static void _mmf_set_exptime_and_iso(int ch, int exp_time, int iso)
+{
+    mmf_set_exptime_and_iso(ch, exp_time, iso);
+    if (priv.camera) {
+        priv.camera->exposure(exp_time);
+    }
+}
+
 static void _ui_update_pic_img(maix::image::Image *img)
 {
     printf("update small img\n");
@@ -166,6 +181,59 @@ static void _ui_update_new_image_from_maix_path(void)
     printf("pic_path: %s\n", pic_path.c_str());
 }
 
+static int _mmf_vi_frame_pop(int ch, void **frame_info,  mmf_frame_info_t *frame_info_mmap, int block_ms) {
+    if (frame_info == NULL || frame_info_mmap == NULL) {
+        printf("invalid param\n");
+        return -1;
+    }
+
+    int ret = -1;
+    VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)malloc(sizeof(VIDEO_FRAME_INFO_S));
+    memset(frame, 0, sizeof(VIDEO_FRAME_INFO_S));
+    if ((ret = CVI_VPSS_GetChnFrame(0, ch, frame, (CVI_S32)block_ms)) == 0) {
+        int image_size = frame->stVFrame.u32Length[0]
+                        + frame->stVFrame.u32Length[1]
+                        + frame->stVFrame.u32Length[2];
+        CVI_VOID *vir_addr;
+        vir_addr = CVI_SYS_MmapCache(frame->stVFrame.u64PhyAddr[0], image_size);
+        CVI_SYS_IonInvalidateCache(frame->stVFrame.u64PhyAddr[0], vir_addr, image_size);
+
+        frame->stVFrame.pu8VirAddr[0] = (CVI_U8 *)vir_addr;		// save virtual address for munmap
+        frame_info_mmap->data = vir_addr;
+        frame_info_mmap->len = image_size;
+        frame_info_mmap->w = frame->stVFrame.u32Width;
+        frame_info_mmap->h = frame->stVFrame.u32Height;
+        frame_info_mmap->fmt = frame->stVFrame.enPixelFormat;
+    } else {
+        free(frame);
+        frame = NULL;
+    }
+
+    if (frame_info) {
+        *frame_info = frame;
+    }
+    return ret;
+}
+
+static void _mmf_vi_frame_free(int ch, void **frame_info)
+{
+    if (!frame_info || !*frame_info) {
+        return;
+    }
+
+    VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)*frame_info;
+    int image_size = frame->stVFrame.u32Length[0]
+                        + frame->stVFrame.u32Length[1]
+                        + frame->stVFrame.u32Length[2];
+    CVI_SYS_Munmap(frame->stVFrame.pu8VirAddr[0], image_size);
+    if (CVI_VPSS_ReleaseChnFrame(0, ch, frame) != 0) {
+        SAMPLE_PRT("CVI_VI_ReleaseChnFrame NG\n");
+    }
+
+    free(*frame_info);
+    *frame_info = NULL;
+}
+
 int app_base_init(void)
 {
     // FIXME: camera can't switch to other sensor config online.
@@ -181,7 +249,7 @@ int app_base_init(void)
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
     // init h265 encoder
-    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
@@ -189,7 +257,7 @@ int app_base_init(void)
 
     // init gui
     maix::lvgl_init(priv.other_disp, priv.touchscreen);
-    app_init();
+    app_init(*priv.camera);
 
     priv.loop_last_ms = time::ticks_ms();
     return 0;
@@ -220,6 +288,10 @@ int app_base_deinit(void)
     }
 
     if (priv.camera) {
+        if (priv.loop_last_frame) {
+            _mmf_vi_frame_free(priv.camera->get_channel(), &priv.loop_last_frame);
+            priv.loop_last_frame = NULL;
+        }
         delete priv.camera;
         priv.camera = NULL;
     }
@@ -230,18 +302,8 @@ int app_base_deinit(void)
 
 int app_base_loop(void)
 {
-#if 0
-    maix::image::Image *img = priv.camera->read();
-    priv.disp->show(*img, image::Fit::FIT_COVER);
-    // Must run after disp.show
-    lv_timer_handler();
-
-    // app loop
-    app_loop(*priv.camera, *priv.disp, priv.other_disp);
-
-    delete img;
-#else
-    void *frame;
+    void *frame = NULL;
+    bool found_camera_frame = false;
     mmf_frame_info_t f;
     if (priv.camera->width() % 64 != 0) {
         printf("camera width must be multiple of 64!\r\n");
@@ -254,18 +316,61 @@ int app_base_loop(void)
     }
 
     int ch = priv.camera->get_channel();
-    if (0 != mmf_vi_frame_pop2(ch, &frame, &f) || frame == NULL) {
-        printf("mmf vi frame pop failed!\r\n");
-        return -1;
+    int res = _mmf_vi_frame_pop(ch, &frame, &f, 40);
+    if (res == 0 && frame != NULL) {
+        found_camera_frame = true;
     }
 
-    // Push frame to encoder
-    int enc_h265_ch = 1;
+    if (found_camera_frame) {
+        if (priv.loop_last_frame) {
+            _mmf_vi_frame_free(ch, &priv.loop_last_frame);
+            priv.loop_last_frame = NULL;
+        }
 
-    if (priv.video_start_flag && priv.video_prepare_is_ok) {
-        uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
-        mmf_enc_h265_push2(enc_h265_ch, frame);
-        ui_set_record_time(record_time);
+        // Push frame to encoder
+        int enc_h265_ch = 1;
+
+        if (priv.video_start_flag && priv.video_prepare_is_ok) {
+            uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
+            mmf_enc_h265_push2(enc_h265_ch, frame);
+            ui_set_record_time(record_time);
+        }
+
+        // Snap picture
+        if (priv.cam_snap_flag) {
+            priv.cam_snap_flag = false;
+
+            image::Format fmt = image::Format::FMT_YVU420SP;
+            image::Image *img = new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, true);
+            if (!img) {
+                printf("create image failed!\r\n");
+                _mmf_vi_frame_free(ch, &frame);
+                return -1;
+            }
+
+            _capture_image(*priv.camera, img);
+            delete img;
+        }
+
+        // Pop stream from encoder
+        mmf_stream_t stream = {0};
+        if (0 == mmf_enc_h265_pop(enc_h265_ch, &stream)) {
+            for (int i = 0; i < stream.count; i++) {
+                printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
+
+                if (priv.video_save_fd > 0) {
+                    int size = write(priv.video_save_fd, stream.data[i], stream.data_size[i]);
+                    if (size != stream.data_size[i]) {
+                        printf("write file failed! need %d bytes, write %d bytes\r\n", stream.data_size[i], size);
+                    }
+                }
+            }
+            mmf_enc_h265_free(enc_h265_ch);
+        }
+
+        priv.loop_last_frame = frame;
+    } else {
+        frame = priv.loop_last_frame;
     }
 
     // Push frame to vo
@@ -274,59 +379,21 @@ int app_base_loop(void)
     // Run ui rocess, must run after disp.show
     lv_timer_handler();
 
-    if (priv.cam_snap_flag) {
-        priv.cam_snap_flag = false;
-
-        image::Format fmt = image::Format::FMT_YVU420SP;
-        image::Image *img = new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, true);
-        if (!img) {
-            printf("create image failed!\r\n");
-            mmf_vi_frame_free2(ch, &frame);
-            return -1;
-        }
-
-        mmf_vi_frame_free2(ch, &frame);
-
-        _capture_image(*priv.camera, img);
-        delete img;
-    } else {
-        // Free the vi frame
-        mmf_vi_frame_free2(ch, &frame);
-    }
-
-    // Pop stream from encoder
-    mmf_stream_t stream = {0};
-    if (0 == mmf_enc_h265_pop(enc_h265_ch, &stream)) {
-        for (int i = 0; i < stream.count; i++) {
-            printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
-
-            if (priv.video_save_fd > 0) {
-                int size = write(priv.video_save_fd, stream.data[i], stream.data_size[i]);
-                if (size != stream.data_size[i]) {
-                    printf("write file failed! need %d bytes, write %d bytes\r\n", stream.data_size[i], size);
-                }
-            }
-        }
-        mmf_enc_h265_free(enc_h265_ch);
-    }
-#endif
-
     app_loop(*priv.camera, *priv.disp, priv.other_disp);
-    if (priv.camera_resolution_update_flag) {
-        priv.camera_resolution_update_flag = false;
-        app_base_deinit();
-        app_base_init();
-    }
-
     // printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
     // priv.loop_last_ms = time::ticks_ms();
     return 0;
 }
 
-int app_init(void)
+int app_init(camera::Camera &cam)
 {
     ui_all_screen_init();
-
+    ui_camera_config_t ui_camera_cfg;
+    ui_camera_config_read(&ui_camera_cfg);
+    // auto exptime_range = cam.get_exposure_time_range();
+    // ui_camera_cfg.exposure_time_max = exptime_range[0];             // 0.0024fps
+    // ui_camera_cfg.exposure_time_min = exptime_range[1];             // 240fps
+    ui_camera_config_update(&ui_camera_cfg);
     _ui_update_new_image_from_maix_path();
 
     usleep(1000 * 1000); // wait sensor init
@@ -431,7 +498,7 @@ static int app_config_param(void)
             ui_get_shutter_value(&shutter_value);
             printf("Shutter setting: %f s\n", shutter_value);
             if (shutter_value != 0) {
-                mmf_set_exptime_and_iso(0, shutter_value, priv.sensor_iso_value);
+                _mmf_set_exptime_and_iso(0, shutter_value, priv.sensor_iso_value);
             }
             priv.sensor_shutter_value = (uint32_t)shutter_value;
         }
@@ -456,7 +523,7 @@ static int app_config_param(void)
             int iso_value;
             ui_get_iso_value(&iso_value);
             printf("ISO setting: %d\n", iso_value);
-            mmf_set_exptime_and_iso(0, priv.sensor_shutter_value, iso_value);
+            _mmf_set_exptime_and_iso(0, priv.sensor_shutter_value, iso_value);
             priv.sensor_iso_value = iso_value;
         }
     }
@@ -538,7 +605,8 @@ static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img
                 image::Image *load_img = image::load((char *)picture_save_path.c_str());
                 maix::image::Image *thumbnail_img = load_img->resize(128, 128, image::Fit::FIT_COVER);
                 thumbnail_img->save(thumbnail_path.c_str());
-                delete(thumbnail_img);
+                delete thumbnail_img;
+                delete load_img;
 
                 system("sync");
 
@@ -562,6 +630,7 @@ static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img
                 log::info("save raw to %s", raw_save_path.c_str());
                 save_buff_to_file((char *)raw_save_path.c_str(), (uint8_t *)raw->data(), raw->data_size());
                 delete raw;
+                system("sync");
             }
         }
 
@@ -650,6 +719,12 @@ int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::d
         priv.video_prepare_is_ok = false;
         priv.video_start_flag = false;
         priv.video_start_ms = 0;
+    }
+
+    if (priv.camera_resolution_update_flag) {
+        priv.camera_resolution_update_flag = false;
+        app_base_deinit();
+        app_base_init();
     }
     return 0;
 }

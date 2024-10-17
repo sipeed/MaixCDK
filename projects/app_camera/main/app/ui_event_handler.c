@@ -4,10 +4,17 @@
 #include "ui_utils.h"
 #include "ui_event_handler.h"
 
-#define DEBUG_EN
-#ifdef DEBUG_EN
-#define DEBUG_PRT(fmt, ...) printf("[ui event]: "fmt, ##__VA_ARGS__)
+// #define DEBUG_ENABLE
+#ifdef DEBUG_ENABLE
+#define DEBUG_EN(x)                                                         \
+    bool g_debug_flag = x;
+
+#define DEBUG_PRT(fmt, ...) do {                                            \
+    if (g_debug_flag)                                                       \
+        printf("[%s][%d]: "fmt"\r\n", __func__, __LINE__, ##__VA_ARGS__);   \
+} while(0)
 #else
+#define DEBUG_EN(fmt, ...)
 #define DEBUG_PRT(fmt, ...)
 #endif
 
@@ -68,6 +75,7 @@ static struct {
 
 void event_touch_exit_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         DEBUG_PRT("try to exit\n");
@@ -162,6 +170,7 @@ void event_touch_option_cb(lv_event_t * e)
 
 void event_touch_video_camera_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_has_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE)) {
@@ -186,6 +195,7 @@ void event_touch_video_camera_cb(lv_event_t * e)
 
 void event_touch_start_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_get_state(g_camera_video_button) == LV_STATE_CHECKED) {
@@ -216,6 +226,7 @@ void event_touch_start_cb(lv_event_t * e)
 
 void event_touch_small_img_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         DEBUG_PRT("View big photo\n");
@@ -226,6 +237,7 @@ void event_touch_small_img_cb(lv_event_t * e)
 
 void event_touch_big_img_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         DEBUG_PRT("Hidden big photo\n");
@@ -308,17 +320,81 @@ void event_touch_ev_cb(lv_event_t * e)
     }
 }
 
+
+static double get_index_of_exptime_table(double exposure_time_us)
+{
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    int number_of_table = sizeof(camera_config.exposure_time_table) / sizeof(camera_config.exposure_time_table[0]);
+    double shutter_exp_s = exposure_time_us / 1000000;
+    int index_of_table = 0;
+    for (int i = 0; i < number_of_table; i++) {
+        // DEBUG_PRT("%f < %f ?", shutter_exp_s, camera_config.exposure_time_table[i]);
+        if (shutter_exp_s <= camera_config.exposure_time_table[i]) {
+            break;
+        }
+        index_of_table ++;
+    }
+    index_of_table = index_of_table >= number_of_table ? number_of_table - 1 : index_of_table;
+    return index_of_table;
+}
+
+static double get_exptime_from_exptime_table(int index_of_table)
+{
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    int number_of_table = sizeof(camera_config.exposure_time_table) / sizeof(camera_config.exposure_time_table[0]);
+    index_of_table = index_of_table < 0 ? 0 : index_of_table;
+    index_of_table = index_of_table >= number_of_table ? number_of_table - 1 : index_of_table;
+    double exposure_time_us = camera_config.exposure_time_table[index_of_table] * 1000000;
+    return exposure_time_us;
+}
+
+
+static double get_index_of_iso_table(int iso)
+{
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    int number_of_table = sizeof(camera_config.iso_table) / sizeof(camera_config.iso_table[0]);
+    int index_of_table = 0;
+    for (int i = 0; i < number_of_table; i++) {
+        // DEBUG_PRT("%f < %f ?", iso, camera_config.iso_table[i]);
+        if (iso <= camera_config.iso_table[i]) {
+            break;
+        }
+        index_of_table ++;
+    }
+    index_of_table = index_of_table >= number_of_table ? number_of_table - 1 : index_of_table;
+    return index_of_table;
+}
+
+static int get_iso_from_iso_table(int index_of_table)
+{
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    int number_of_table = sizeof(camera_config.iso_table) / sizeof(camera_config.iso_table[0]);
+    index_of_table = index_of_table < 0 ? 0 : index_of_table;
+    index_of_table = index_of_table >= number_of_table ? number_of_table - 1 : index_of_table;
+    int iso = camera_config.iso_table[index_of_table];
+    return iso;
+}
+
 void event_touch_shutter_plus_cb(lv_event_t *e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
-        double value;
-        ui_get_shutter_value(&value);
-        value += 10000;
-        ui_set_shutter_value(value);
+        double exposure_time_us;
+        ui_get_shutter_value(&exposure_time_us);
+        DEBUG_PRT("get exposure time us: %f us\n", exposure_time_us);
+        int index_of_table = get_index_of_exptime_table(exposure_time_us);
+        DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
+        index_of_table += 1;
+        exposure_time_us = get_exptime_from_exptime_table(index_of_table);
+        DEBUG_PRT("caculated exposure_time_us: %f us\n", exposure_time_us);
+        ui_set_shutter_value(exposure_time_us);
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value plus: %f\n", value);
 
         // set to manual
         DEBUG_PRT("set shutter to manual mode\n");
@@ -328,15 +404,21 @@ void event_touch_shutter_plus_cb(lv_event_t *e)
 
 void event_touch_shutter_minus_cb(lv_event_t *e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
-        double value;
-        ui_get_shutter_value(&value);
-        if (value > 10000) value -= 10000;
-        ui_set_shutter_value(value);
+        double exposure_time_us;
+        ui_get_shutter_value(&exposure_time_us);
+        DEBUG_PRT("get exposure time us: %f us\n", exposure_time_us);
+        int index_of_table = get_index_of_exptime_table(exposure_time_us);
+        DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
+        index_of_table -= 1;
+        exposure_time_us = get_exptime_from_exptime_table(index_of_table);
+        DEBUG_PRT("caculated exposure_time_us: %f us\n", exposure_time_us);
+        ui_set_shutter_value(exposure_time_us);
+
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value minus: %f\n", value);
 
         // set to manual
         DEBUG_PRT("set shutter to manual mode\n");
@@ -346,14 +428,19 @@ void event_touch_shutter_minus_cb(lv_event_t *e)
 
 void event_touch_iso_plus_cb(lv_event_t *e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
-        int value;
-        ui_get_iso_value(&value);
-        value += 100;
-        ui_set_iso_value(value);
+        int iso;
+        ui_get_iso_value(&iso);
+        DEBUG_PRT("get iso: %d\n", iso);
+        int index_of_table = get_index_of_iso_table(iso);
+        DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
+        index_of_table += 1;
+        iso = get_iso_from_iso_table(index_of_table);
+        DEBUG_PRT("caculated iso: %f\n", iso);
+        ui_set_iso_value(iso);
 
-        DEBUG_PRT("iso value update: %d\n", value);
         priv.iso_setting_flag = 1;
 
         // set to manual
@@ -364,14 +451,19 @@ void event_touch_iso_plus_cb(lv_event_t *e)
 
 void event_touch_iso_minus_cb(lv_event_t *e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
-        int value;
-        ui_get_iso_value(&value);
-        if (value > 100) value -= 100;
-        ui_set_iso_value(value);
+        int iso;
+        ui_get_iso_value(&iso);
+        DEBUG_PRT("get iso: %d\n", iso);
+        int index_of_table = get_index_of_iso_table(iso);
+        DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
+        index_of_table -= 1;
+        iso = get_iso_from_iso_table(index_of_table);
+        DEBUG_PRT("caculated iso: %d\n", iso);
+        ui_set_iso_value(iso);
 
-        DEBUG_PRT("iso value update: %d\n", value);
         priv.iso_setting_flag = 1;
 
         // set to manual
@@ -442,32 +534,76 @@ void event_touch_raw_cb(lv_event_t * e)
     }
 }
 
-static double shutter_bar_value_to_exp_s(lv_obj_t *obj, uint16_t shutter_bar_value)
+static double bar_value_to_exp_us(lv_obj_t *obj, uint16_t shutter_bar_value)
 {
+    DEBUG_EN(0);
     lv_bar_t * bar = (lv_bar_t *)obj;
     ui_camera_config_t camera_config;
     ui_camera_config_read(&camera_config);
+    DEBUG_PRT("input shutter_bar_value: %d", shutter_bar_value);
     shutter_bar_value = shutter_bar_value > bar->max_value ? bar->max_value : shutter_bar_value;
     shutter_bar_value = shutter_bar_value < bar->min_value ? bar->min_value : shutter_bar_value;
     shutter_bar_value -= bar->min_value;
-    int bar_range = abs(bar->max_value - bar->min_value);
-    int exp_range = abs(camera_config.exposure_time_max - camera_config.exposure_time_min);
-    double scale = (double)exp_range / bar_range;
-    return camera_config.exposure_time_min + shutter_bar_value * scale;
+
+    int number_of_table = sizeof(camera_config.exposure_time_table) / sizeof(camera_config.exposure_time_table[0]);
+    DEBUG_PRT("caculated number_of_table:%d\n", number_of_table);
+    int index_of_table = shutter_bar_value / (double)((bar->max_value - bar->min_value) / (number_of_table - 1));
+    DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
+    double exposure_time = camera_config.exposure_time_table[index_of_table] * 1000000;
+    DEBUG_PRT("found exposure time:%f\n", exposure_time);
+    return exposure_time;
 }
 
-static uint16_t shutter_exp_s_to_bar_value(lv_obj_t *obj, double shutter_exp_s)
+static uint16_t exp_us_to_bar_value(lv_obj_t *obj, double exposure_time_us)
 {
+    DEBUG_EN(0);
     lv_bar_t * bar = (lv_bar_t *)obj;
     ui_camera_config_t camera_config;
     ui_camera_config_read(&camera_config);
-    shutter_exp_s = shutter_exp_s > camera_config.exposure_time_max ? camera_config.exposure_time_max : shutter_exp_s;
-    shutter_exp_s = shutter_exp_s < camera_config.exposure_time_min ? camera_config.exposure_time_min : shutter_exp_s;
-    shutter_exp_s -= camera_config.exposure_time_min;
-    int bar_range = abs(bar->max_value - bar->min_value);
-    int exp_range = abs(camera_config.exposure_time_max - camera_config.exposure_time_min);
-    double scale = (double)exp_range / bar_range;
-    return (bar->min_value + (uint16_t)(shutter_exp_s / scale));
+    DEBUG_PRT("input shutter_exp_us: %f s", exposure_time_us);
+    int number_of_table = sizeof(camera_config.exposure_time_table) / sizeof(camera_config.exposure_time_table[0]);
+    DEBUG_PRT("caculated number_of_table:%d\n", number_of_table);
+    int index_of_table = get_index_of_exptime_table(exposure_time_us);
+    DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
+    uint16_t bar_value = index_of_table * (double)(bar->max_value - bar->min_value) / (number_of_table - 1);
+    DEBUG_PRT("found bar_value:%d\n", bar_value);
+    return bar_value;
+}
+
+static int bar_value_to_iso(lv_obj_t *obj, uint16_t bar_value)
+{
+    DEBUG_EN(0);
+    lv_bar_t * bar = (lv_bar_t *)obj;
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    DEBUG_PRT("input bar_value: %d", bar_value);
+    bar_value = bar_value > bar->max_value ? bar->max_value : bar_value;
+    bar_value = bar_value < bar->min_value ? bar->min_value : bar_value;
+    bar_value -= bar->min_value;
+
+    int number_of_table = sizeof(camera_config.iso_table) / sizeof(camera_config.iso_table[0]);
+    DEBUG_PRT("caculated number_of_table:%d\n", number_of_table);
+    int index_of_table = bar_value / (double)((bar->max_value - bar->min_value) / (number_of_table - 1));
+    DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
+    int iso = camera_config.iso_table[index_of_table];
+    DEBUG_PRT("found iso:%d\n", iso);
+    return iso;
+}
+
+static uint16_t iso_to_bar_value(lv_obj_t *obj, int iso)
+{
+    DEBUG_EN(0);
+    lv_bar_t * bar = (lv_bar_t *)obj;
+    ui_camera_config_t camera_config;
+    ui_camera_config_read(&camera_config);
+    DEBUG_PRT("input iso: %d", iso);
+    int number_of_table = sizeof(camera_config.iso_table) / sizeof(camera_config.iso_table[0]);
+    DEBUG_PRT("caculated number_of_table:%d\n", number_of_table);
+    int index_of_table = get_index_of_iso_table(iso);
+    DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
+    uint16_t bar_value = index_of_table * (double)(bar->max_value - bar->min_value) / (number_of_table - 1);
+    DEBUG_PRT("found bar_value:%d\n", bar_value);
+    return bar_value;
 }
 
 void event_shutter_bar_update_cb(lv_event_t * e)
@@ -488,18 +624,19 @@ void event_shutter_bar_update_cb(lv_event_t * e)
         int val = bar->min_value + bar_max_val * h_oft / h;
         lv_bar_set_value((lv_obj_t *)bar, val, LV_ANIM_OFF);
 
-        double exp_s = shutter_bar_value_to_exp_s(obj, val);
-        ui_set_shutter_value(exp_s);
+        double exposure_time_us = bar_value_to_exp_us(obj, val);
+        ui_set_shutter_value(exposure_time_us);
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value bar updating: %f\n", exp_s);
     } else if (code == LV_EVENT_RELEASED) {
+        DEBUG_EN(0);
         int val = lv_bar_get_value(obj);
-        double exp_s = shutter_bar_value_to_exp_s(obj, val);
-        ui_set_shutter_value(exp_s);
+        DEBUG_PRT("found bar value: %d", val);
+        double exposure_time_us = bar_value_to_exp_us(obj, val);
+        DEBUG_PRT("caculated exposure_time_us: %f us", exposure_time_us);
+        ui_set_shutter_value(exposure_time_us);
 
         priv.shutter_setting_flag = 1;
-        DEBUG_PRT("shutter value bar update: %f\n", exp_s);
 
         // set to manual
         DEBUG_PRT("set shutter to manual mode\n");
@@ -509,6 +646,7 @@ void event_shutter_bar_update_cb(lv_event_t * e)
 
 void event_iso_bar_update_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
     if (code == LV_EVENT_PRESSING) {
@@ -525,22 +663,19 @@ void event_iso_bar_update_cb(lv_event_t * e)
         int val = bar->min_value + bar_max_val * h_oft / h;
         lv_bar_set_value((lv_obj_t *)bar, val, LV_ANIM_OFF);
 
-        int iso_value = 0;
-        iso_value = (val / 100) * 100;
-
-        ui_set_iso_value(iso_value);
-
-        DEBUG_PRT("iso value updating: %d\n", iso_value);
+        DEBUG_PRT("found bar value: %d", val);
+        int iso = bar_value_to_iso(obj, val);
+        DEBUG_PRT("caculated iso: %d", iso);
+        ui_set_iso_value(iso);
 
         priv.iso_setting_flag = 1;
     } else if (code == LV_EVENT_RELEASED) {
         int val = lv_bar_get_value(obj);
-        int iso_value = 0;
-        iso_value = (val / 100) * 100;
+        DEBUG_PRT("found bar value: %d", val);
+        int iso = bar_value_to_iso(obj, val);
+        DEBUG_PRT("caculated iso: %d", iso);
+        ui_set_iso_value(iso);
 
-        ui_set_iso_value(iso_value);
-
-        DEBUG_PRT("iso value update: %d\n", iso_value);
         priv.iso_setting_flag = 1;
 
         // set to manual
@@ -551,6 +686,7 @@ void event_iso_bar_update_cb(lv_event_t * e)
 
 void event_ev_bar_update_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
     if (code == LV_EVENT_PRESSING) {
@@ -585,6 +721,7 @@ void event_ev_bar_update_cb(lv_event_t * e)
 
 void event_wb_bar_update_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
     if (code == LV_EVENT_PRESSING) {
@@ -619,30 +756,31 @@ void event_wb_bar_update_cb(lv_event_t * e)
 
 void event_touch_shutter_to_auto_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         DEBUG_PRT("set exposure time to auto mode\n");
         priv.shutter_setting_flag = 1;
         priv.shutter_auto_flag = 1;
-        lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
-        lv_bar_set_value((lv_obj_t *)shutter_setting_bar, 0, LV_ANIM_OFF);
+        ui_set_shutter_value(-1);
     }
 }
 
 void event_touch_iso_to_auto_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         DEBUG_PRT("set iso to auto mode\n");
         priv.shutter_setting_flag = 1;
         priv.iso_auto_flag = 1;
-        lv_obj_t * iso_setting_bar = lv_obj_get_child(g_iso_setting, 2);
-        lv_bar_set_value((lv_obj_t *)iso_setting_bar, 0, LV_ANIM_OFF);
+        ui_set_iso_value(-1);
     }
 }
 
 void event_touch_ev_to_auto_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
@@ -666,6 +804,7 @@ void event_touch_ev_to_auto_cb(lv_event_t * e)
 
 void event_touch_wb_to_auto_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
@@ -689,6 +828,7 @@ void event_touch_wb_to_auto_cb(lv_event_t * e)
 
 void event_touch_select_delay_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
@@ -714,6 +854,7 @@ void event_touch_select_delay_cb(lv_event_t * e)
 
 void event_touch_select_resolution_cb(lv_event_t * e)
 {
+    DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
@@ -925,36 +1066,106 @@ int ui_get_wb_value(int *value)
 // shutter value, unit: us
 void ui_set_shutter_value(double val)
 {
-    if (val < 0) {
-        return;
-    }
-    char str[128];
-    lv_obj_t * shutter_setting_label = lv_obj_get_child(g_shutter_setting, 1);
-    lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
-    ui_camera_config_t camera_config;
-    ui_camera_config_read(&camera_config);
-    val = val > camera_config.exposure_time_max ? camera_config.exposure_time_max : val;
-    val = val <= camera_config.exposure_time_min ? camera_config.exposure_time_min : val;
-    if (val < 0)
-        snprintf(str, sizeof(str), "auto");
-    else if (val < 1000000)
-        snprintf(str, sizeof(str), "1/%ds", (int)(1000000 / val));
-    else
-        snprintf(str, sizeof(str), "%ds", (int)(val/1000));
-    lv_label_set_text(shutter_setting_label, str);
-    uint16_t bar_val = shutter_exp_s_to_bar_value(shutter_setting_bar, val);
-    lv_bar_set_value(shutter_setting_bar, bar_val, LV_ANIM_OFF);
-    if (val > 0) { // update last val
-        int *bar_last_val = (int *)lv_obj_get_user_data(g_shutter_setting);
-        *bar_last_val = val;
-    }
+    DEBUG_EN(0);
+    DEBUG_PRT("input value: %lf us", val);
+    if (val >= 0) {
+        char str[128];
+        double exptime_us = val;
+        DEBUG_PRT("caculated exposure time: %lf us", exptime_us);
+        lv_obj_t * shutter_setting_label = lv_obj_get_child(g_shutter_setting, 1);
+        lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
+        ui_camera_config_t camera_config;
+        ui_camera_config_read(&camera_config);
+        int index_of_table = get_index_of_exptime_table(exptime_us);
+        exptime_us = camera_config.exposure_time_table[index_of_table] * 1000000;
+        if (exptime_us < 0)
+            snprintf(str, sizeof(str), "auto");
+        else if (exptime_us >= 666666.0 && exptime_us <= 666667.0)
+            snprintf(str, sizeof(str), "2/3s");
+        else if (exptime_us < 1000000.0)
+            snprintf(str, sizeof(str), "1/%ds", (int)((1000000.0 / exptime_us) + 0.5));
+        else
+            snprintf(str, sizeof(str), "%ds", (int)(exptime_us/1000000.0));
+        lv_label_set_text(shutter_setting_label, str);
+        DEBUG_PRT("caculated exposure time: %lf us", exptime_us);
+        uint16_t bar_val = exp_us_to_bar_value(shutter_setting_bar, exptime_us);
+        DEBUG_PRT("caculated bar val: %d", bar_val);
+        lv_bar_set_value(shutter_setting_bar, bar_val, LV_ANIM_OFF);
+        if (val > 0) { // update last val
+            int *bar_last_val = (int *)lv_obj_get_user_data(g_shutter_setting);
+            *bar_last_val = val;
+        }
 
-    lv_obj_t * menu_setting_child = lv_obj_get_child(g_menu_setting, 0);
-    lv_obj_t *menu_setting_child_label = lv_obj_get_child(menu_setting_child, -1);
-    lv_obj_t *menu_setting_child_label2 = lv_obj_get_child(menu_setting_child_label, -1);
-    lv_label_set_text(menu_setting_child_label2, str);
+        lv_obj_t * menu_setting_child = lv_obj_get_child(g_menu_setting, 0);
+        lv_obj_t *menu_setting_child_label = lv_obj_get_child(menu_setting_child, -1);
+        lv_obj_t *menu_setting_child_label2 = lv_obj_get_child(menu_setting_child_label, -1);
+        lv_label_set_text(menu_setting_child_label2, str);
+    } else {
+        char *str = "auto";
+        lv_obj_t * shutter_setting_label = lv_obj_get_child(g_shutter_setting, 1);
+        lv_obj_t * shutter_setting_bar = lv_obj_get_child(g_shutter_setting, 2);
+        lv_label_set_text(shutter_setting_label, str);
+        lv_bar_set_value(shutter_setting_bar, 0, LV_ANIM_OFF);
+
+        lv_obj_t * menu_setting_child = lv_obj_get_child(g_menu_setting, 0);
+        lv_obj_t *menu_setting_child_label = lv_obj_get_child(menu_setting_child, -1);
+        lv_obj_t *menu_setting_child_label2 = lv_obj_get_child(menu_setting_child_label, -1);
+        lv_label_set_text(menu_setting_child_label2, str);
+    }
 }
 
+// iso = 100~800
+void ui_set_iso_value(int val)
+{
+    DEBUG_EN(0);
+    DEBUG_PRT("input value: %d", val);
+    if (val >= 0)
+    {
+        int iso = val;
+        DEBUG_PRT("caculated iso:%d", iso);
+        ui_camera_config_t camera_config;
+        ui_camera_config_read(&camera_config);
+        int index_of_table = get_index_of_iso_table(iso);
+        iso = camera_config.iso_table[index_of_table];
+        DEBUG_PRT("caculated iso:%d", iso);
+        {
+            lv_obj_t * obj = lv_obj_get_child(g_menu_setting, 1);
+            lv_obj_t *label = lv_obj_get_child(obj, -1);
+            lv_obj_t *label2 = lv_obj_get_child(label, -1);
+            lv_label_set_text_fmt(label2, "%d", iso);
+        }
+
+        {
+            lv_obj_t *obj = g_iso_setting;
+            lv_obj_t * label = lv_obj_get_child(obj, 1);
+            lv_label_set_text_fmt(label, "%d", iso);
+
+            lv_obj_t * bar = lv_obj_get_child(obj, 2);
+            uint16_t bar_val = iso_to_bar_value(bar, iso);
+            lv_bar_set_value(bar, bar_val, LV_ANIM_OFF);
+            DEBUG_PRT("caculated bar_val:%d", bar_val);
+            int *bar_last_val = (int *)lv_obj_get_user_data(obj);
+            *bar_last_val = iso;
+        }
+    } else {
+        char *str = "auto";
+        {
+            lv_obj_t * obj = lv_obj_get_child(g_menu_setting, 1);
+            lv_obj_t *label = lv_obj_get_child(obj, -1);
+            lv_obj_t *label2 = lv_obj_get_child(label, -1);
+            lv_label_set_text_fmt(label2, str);
+        }
+
+        {
+            lv_obj_t *obj = g_iso_setting;
+            lv_obj_t * label = lv_obj_get_child(obj, 1);
+            lv_label_set_text_fmt(label, str);
+
+            lv_obj_t * bar = lv_obj_get_child(obj, 2);
+            lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+        }
+    }
+}
 
 // ev = -400~400
 void ui_set_ev_value(int val)

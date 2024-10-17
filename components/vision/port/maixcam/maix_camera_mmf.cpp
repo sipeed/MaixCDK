@@ -70,6 +70,8 @@ namespace maix::camera
         int i2c_addr;
         bool raw;
         double fps;
+        int exptime_max;    // unit:us
+        int exptime_min;
     } camera_priv_t;
 
     Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
@@ -334,6 +336,8 @@ namespace maix::camera
             int mclk_en = 1;
             int mclk = 1;
             int i2c_addr;
+            uint32_t exptime_max;      // unit:us
+            uint32_t exptime_min;
         } sensor_cfg;
 
         if (!strcmp(board_name, "maixcam_pro")) {
@@ -346,6 +350,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {1, 1, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x30;
+                sensor_cfg.exptime_max = 800000;
+                sensor_cfg.exptime_min = 8333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_YUV_400;
             } else if (!strcmp(sensor_name, "ov_ov2685")) {
@@ -354,6 +360,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x3c;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
@@ -363,6 +371,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
                 sensor_cfg.mclk_en = 0;
                 sensor_cfg.i2c_addr = 0x2b;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
@@ -371,6 +381,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
                 sensor_cfg.mclk_en = 0;
                 sensor_cfg.i2c_addr = 0x36;
+                sensor_cfg.exptime_max = 40000000;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -384,6 +396,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x29;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
@@ -397,6 +411,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x30;
+                sensor_cfg.exptime_max = 800000;
+                sensor_cfg.exptime_min = 8333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_YUV_400;
             } else if (!strcmp(sensor_name, "ov_ov2685")) {
@@ -405,6 +421,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {1, 1, 1, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x3c;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.ov2685"), "set config path failed!");
@@ -414,6 +432,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 0;
                 sensor_cfg.i2c_addr = 0x2b;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
@@ -422,6 +442,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 0;
                 sensor_cfg.i2c_addr = 0x36;
+                sensor_cfg.exptime_max = 40000000;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -435,6 +457,8 @@ namespace maix::camera
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 1;
                 sensor_cfg.i2c_addr = 0x29;
+                sensor_cfg.exptime_max = 363636;
+                sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
@@ -458,6 +482,8 @@ namespace maix::camera
         priv->sns_type = sensor_cfg.sns_type;
         priv->bayer_fmt = stPubAttr.enBayer;
         priv->i2c_addr = sensor_cfg.i2c_addr;
+        priv->exptime_max = sensor_cfg.exptime_max;
+        priv->exptime_min = sensor_cfg.exptime_min;
 
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
@@ -861,7 +887,8 @@ _error:
             err::check_null_raise(img, "camera read failed");
             return img;
         } else {
-            image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, 1000.0 / _fps * 3);
+            int read_block_ms = block_ms < 0 ? (1000.0 / _fps * 3) : block_ms;
+            image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, read_block_ms);
             err::check_null_raise(img, "camera read failed");
 
             // FIXME: delete me and fix driver bug
@@ -1037,6 +1064,23 @@ _error:
         return err::ERR_NONE;
     }
 
+    static void _config_extern_register_of_os04a10(int exptime_ms)
+    {
+        char cmd[128];
+        if (exptime_ms >= 1 * 1000) {
+            double scale = 1.587;       // (0x0c68 - 0x0635) / 1000
+            double exp_time_ms = exptime_ms;
+            uint64_t reg_val = (uint16_t)((exp_time_ms - 1000) * scale) + 0x0635;
+            reg_val = reg_val > 0xffff ? 0xffff : reg_val;
+            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+            system(cmd);
+        } else {
+            uint64_t reg_val = 0x05cc;
+            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+            system(cmd);
+        }
+    }
+
     err::Err Camera::set_fps(double fps) {
         double new_fps = fps;
         camera_priv_t *priv = (camera_priv_t *)this->_param;
@@ -1046,15 +1090,8 @@ _error:
         break;
         case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
         {
-            if (fps <= 1) {
-                char cmd[128];
-                double scale = 1.587;       // (0x0c68 - 0x0635) / 1000
-                double exp_time_ms = 1000 / fps;
-                uint64_t reg_val = (uint16_t)((exp_time_ms - 1000) * scale) + 0x0635;
-                reg_val = reg_val > 0xffff ? 0xffff : reg_val;
-                snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
-                system(cmd);
-            }
+            int exp_time_ms = (int)(1000.0 / fps);
+            _config_extern_register_of_os04a10(exp_time_ms);
         }
         break;
         case SMS_SC035GS_MIPI_480P_120FPS_12BIT:
@@ -1075,14 +1112,23 @@ _error:
         if (!this->is_opened()) {
             return err::ERR_NOT_OPEN;
         }
-
+        camera_priv_t *priv = (camera_priv_t *)this->_param;
         uint32_t out;
         if (value == -1) {
             mmf_get_exptime(_ch, &out);
         } else {
-            mmf_set_exptime(_ch, value);
+            switch (priv->sns_type) {
+            case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+                mmf_set_exptime(_ch, value);
+                _config_extern_register_of_os04a10(value / 1000);
+            break;
+            default:
+                mmf_set_exptime(_ch, value);
+            break;
+            }
             out = value;
         }
+
         return out;
     }
 
@@ -1283,11 +1329,20 @@ _error:
         if (!this->is_opened()) {
             return err::ERR_NOT_OPEN;
         }
-
+        camera_priv_t *priv = (camera_priv_t *)this->_param;
         uint32_t out;
         if (value == -1) {
             out = mmf_get_exp_mode(_ch);
         } else {
+            switch (priv->sns_type) {
+            case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+                if (value == 0) {
+                    _config_extern_register_of_os04a10(0);  // revert exposure time register of os04a10
+                }
+            break;
+            default:
+            break;
+            }
             _mmf_set_exp_mode(_ch, value);
             out = value;
         }
