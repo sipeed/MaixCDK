@@ -36,6 +36,7 @@ void event_touch_shutter_minus_cb(lv_event_t *e);
 void event_touch_iso_plus_cb(lv_event_t *e);
 void event_touch_iso_minus_cb(lv_event_t *e);
 void event_touch_raw_cb(lv_event_t * e);
+void event_touch_light_cb(lv_event_t * e);
 
 bool ui_get_cam_snap_flag(void);
 bool ui_get_cam_video_start_flag(void);
@@ -80,6 +81,8 @@ bool ui_get_focus_btn_update_flag();
 bool ui_get_focus_btn_touched();
 bool ui_get_raw_btn_update_flag();
 bool ui_get_raw_btn_touched();
+bool ui_get_light_btn_update_flag();
+bool ui_get_light_btn_touched();
 
 typedef struct {
     unsigned int exposure_time_max;

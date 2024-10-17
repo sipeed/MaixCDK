@@ -4,7 +4,7 @@
 #include "ui_utils.h"
 #include "ui_event_handler.h"
 
-// #define DEBUG_ENABLE
+#define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
 #define DEBUG_EN(x)                                                         \
     bool g_debug_flag = x;
@@ -17,6 +17,9 @@
 #define DEBUG_EN(fmt, ...)
 #define DEBUG_PRT(fmt, ...)
 #endif
+
+LV_IMG_DECLARE(img_light_on);
+LV_IMG_DECLARE(img_light_off);
 
 extern lv_obj_t *g_camera_video_button;
 extern lv_obj_t *g_start_snap_button;
@@ -42,6 +45,7 @@ extern lv_obj_t *g_focus_button;
 extern lv_obj_t *g_shutter_plus_minus_button;
 extern lv_obj_t *g_iso_plus_minus_button;
 extern lv_obj_t *g_raw_button;
+extern lv_obj_t *g_light_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -66,6 +70,8 @@ static struct {
     unsigned int focus_btn_update_flag : 1;
     unsigned int raw_btn_touched : 1;
     unsigned int raw_btn_update_flag : 1;
+    unsigned int light_btn_touched : 1;
+    unsigned int light_btn_update_flag : 1;
 
     unsigned int resolution_setting_idx;
 } priv = {
@@ -433,7 +439,7 @@ void event_touch_iso_plus_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) {
         int iso;
         ui_get_iso_value(&iso);
-        DEBUG_PRT("get iso: %d\n", iso);
+        DEBUG_PRT("get iso: %f\n", iso);
         int index_of_table = get_index_of_iso_table(iso);
         DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
         index_of_table += 1;
@@ -456,12 +462,12 @@ void event_touch_iso_minus_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) {
         int iso;
         ui_get_iso_value(&iso);
-        DEBUG_PRT("get iso: %d\n", iso);
+        DEBUG_PRT("get iso: %f\n", iso);
         int index_of_table = get_index_of_iso_table(iso);
         DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
         index_of_table -= 1;
         iso = get_iso_from_iso_table(index_of_table);
-        DEBUG_PRT("caculated iso: %d\n", iso);
+        DEBUG_PRT("caculated iso: %f\n", iso);
         ui_set_iso_value(iso);
 
         priv.iso_setting_flag = 1;
@@ -534,6 +540,26 @@ void event_touch_raw_cb(lv_event_t * e)
     }
 }
 
+void event_touch_light_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (lv_obj_get_state(g_light_button) != LV_STATE_FOCUSED) {
+            priv.light_btn_touched = 1;
+            priv.light_btn_update_flag = 1;
+
+            lv_obj_t *img = lv_obj_get_child(g_light_button, -1);
+            lv_image_set_src(img, &img_light_on);
+        } else {
+            priv.light_btn_touched = 0;
+            priv.light_btn_update_flag = 1;
+
+            lv_obj_t *img = lv_obj_get_child(g_light_button, -1);
+            lv_image_set_src(img, &img_light_off);
+        }
+    }
+}
+
 static double bar_value_to_exp_us(lv_obj_t *obj, uint16_t shutter_bar_value)
 {
     DEBUG_EN(0);
@@ -586,7 +612,7 @@ static int bar_value_to_iso(lv_obj_t *obj, uint16_t bar_value)
     int index_of_table = bar_value / (double)((bar->max_value - bar->min_value) / (number_of_table - 1));
     DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
     int iso = camera_config.iso_table[index_of_table];
-    DEBUG_PRT("found iso:%d\n", iso);
+    DEBUG_PRT("found iso:%f\n", iso);
     return iso;
 }
 
@@ -1458,4 +1484,14 @@ bool ui_get_raw_btn_update_flag() {
 
 bool ui_get_raw_btn_touched() {
     return priv.raw_btn_touched ? true : false;
+}
+
+bool ui_get_light_btn_update_flag() {
+    bool flag = priv.light_btn_update_flag ? true : false;
+    priv.light_btn_update_flag = false;
+    return flag;
+}
+
+bool ui_get_light_btn_touched() {
+    return priv.light_btn_touched ? true : false;
 }

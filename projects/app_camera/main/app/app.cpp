@@ -6,6 +6,8 @@
 #include "maix_util.hpp"
 #include "maix_image.hpp"
 #include "maix_app.hpp"
+#include "maix_pinmap.hpp"
+#include "maix_gpio.hpp"
 #include "maix_fs.hpp"
 #include "maix_vision.hpp"
 #include "sophgo_middleware.hpp"
@@ -16,6 +18,8 @@
 #include <unistd.h>
 
 using namespace maix;
+using namespace maix::peripheral;
+
 #define MMF_VENC_CHN            (1)
 static struct {
     uint32_t cam_start_snap_flag : 1;
@@ -51,6 +55,7 @@ static struct {
     display::Display *other_disp;
     touchscreen::TouchScreen *touchscreen;
     video::Encoder *encoder;
+    gpio::GPIO *light;
 } priv;
 
 static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
@@ -255,6 +260,12 @@ int app_base_init(void)
     priv.touchscreen = new touchscreen::TouchScreen();
     err::check_bool_raise(priv.touchscreen->is_opened(), "touchscreen open failed");
 
+    // init light
+    pinmap::set_pin_function("B3", "GPIOB3");
+    priv.light = new gpio::GPIO("B3", gpio::Mode::OUT);
+    priv.light->low();
+    err::check_null_raise(priv.light, "light gpio open failed");
+
     // init gui
     maix::lvgl_init(priv.other_disp, priv.touchscreen);
     app_init(*priv.camera);
@@ -266,6 +277,11 @@ int app_base_init(void)
 int app_base_deinit(void)
 {
     maix::lvgl_destroy();
+
+    if (priv.light) {
+        delete priv.light;
+        priv.light = NULL;
+    }
 
     if (priv.touchscreen) {
         delete priv.touchscreen;
@@ -555,6 +571,21 @@ static int app_config_param(void)
         app_base_deinit();
         app_base_init();
     }
+
+    if (ui_get_light_btn_update_flag()) {
+        if (ui_get_light_btn_touched()) {
+            log::info("light on");
+            if (priv.light) {
+                priv.light->high();
+            }
+        } else {
+            log::info("light off");
+            if (priv.light) {
+                priv.light->low();
+            }
+        }
+    }
+
 
     if (ui_get_ev_setting_flag()) {
         if (ui_get_ev_auto_flag()) {
