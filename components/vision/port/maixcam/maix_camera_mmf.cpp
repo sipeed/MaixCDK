@@ -562,7 +562,6 @@ namespace maix::camera
         }
 
         // config sensor env
-        _config_sensor_env(_fps);
         char *board_name = _get_board_name();
         if (!strcmp(board_name, "maixcam_pro")) {
             system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
@@ -575,6 +574,7 @@ namespace maix::camera
             _invert_flip = false;
             _invert_mirror = false;
         }
+        _config_sensor_env(_fps);
 
         if (!strcmp(getenv(MMF_SENSOR_NAME), "sms_sc035gs")) {
             _fps = priv->fps;
