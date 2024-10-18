@@ -341,8 +341,6 @@ namespace maix::camera
         } sensor_cfg;
 
         if (!strcmp(board_name, "maixcam_pro")) {
-            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
-            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
             sensor_cfg.mclk = 0;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
@@ -402,8 +400,6 @@ namespace maix::camera
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
         } else if (!strcmp(board_name, "maixcam")) {
-            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
-            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
             sensor_cfg.mclk = 1;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
@@ -569,9 +565,13 @@ namespace maix::camera
         _config_sensor_env(_fps);
         char *board_name = _get_board_name();
         if (!strcmp(board_name, "maixcam_pro")) {
+            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
             _invert_flip = true;
             _invert_mirror = true;
         } else {
+            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
             _invert_flip = false;
             _invert_mirror = false;
         }
