@@ -380,6 +380,7 @@ namespace maix::nn
          * @param box_points list type, length must be 8 or 0, default empty means not transfer image to standard image.
          *                   4 points postiion, format: [x1, y1, x2, y2, x3, y3, x4, y4], point 1 at the left-top, point 2 right-top...
          * @param char_box Calculate every charactor's box, default false, if true then you can get charactor's box by nn.OCR_Object's char_boxes attribute.
+         * @maixpy maix.nn.PP_OCR.recognize
         */
         nn::OCR_Object *recognize(image::Image &img, const std::vector<int> &box_points = std::vector<int>())
         {
