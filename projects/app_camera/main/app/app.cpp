@@ -279,6 +279,7 @@ int app_base_deinit(void)
     maix::lvgl_destroy();
 
     if (priv.light) {
+        priv.light->low();
         delete priv.light;
         priv.light = NULL;
     }
