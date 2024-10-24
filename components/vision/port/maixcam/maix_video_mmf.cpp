@@ -268,13 +268,25 @@ namespace maix::video
             }
             case VIDEO_H265:
             {
+                mmf_venc_cfg_t cfg = {
+                    .type = 1,  //1, h265, 2, h264
+                    .w = _width,
+                    .h = _height,
+                    .fmt = mmf_invert_format_to_mmf(_format),
+                    .jpg_quality = 0,       // unused
+                    .gop = _gop,
+                    .intput_fps = _framerate,
+                    .output_fps = _framerate,
+                    .bitrate = _bitrate / 1000,
+                };
+
                 if (0 != mmf_init_v2(true)) {
                     err::check_raise(err::ERR_RUNTIME, "init mmf failed!");
                 }
 
-                if (0 != mmf_enc_h265_init(MMF_VENC_CHN, _width, _height)) {
+                if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
                     mmf_deinit_v2(false);
-                    err::check_raise(err::ERR_RUNTIME, "init mmf enc failed!");
+                    err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!");
                 }
                 break;
             }
@@ -456,7 +468,7 @@ namespace maix::video
             }
             case VIDEO_H265:
             {
-                mmf_enc_h265_deinit(MMF_VENC_CHN);
+                mmf_del_venc_channel(MMF_VENC_CHN);
                 mmf_deinit_v2(false);
                 break;
             }
@@ -3084,6 +3096,18 @@ _exit:
         VIDEO_RECORDER_DISPLAY_ONLY,
     } video_recoder_state_t;
 
+    class rect_info {
+    public:
+        int id;
+        int x;
+        int y;
+        int w;
+        int h;
+        image::Color color = image::Color(255);
+        int thickness;
+        bool show = false;
+    };
+
     typedef struct {
         VideoRecorder *obj;
         pthread_mutex_t lock;
@@ -3121,6 +3145,15 @@ _exit:
             audio::Recorder *obj;
             bool mute;
         } audio;
+
+        struct {
+            ext_dev::imu::IMU *obj;
+            ext_dev::imu::Gcsv *gcsv;
+            std::string gcsv_path;
+            pthread_t imu_thread;
+        } imu;
+
+        std::vector<rect_info> rect;
     } video_recoder_param_t;
 
     static void _video_recoder_config_default(video_recoder_param_t *param)
@@ -3133,6 +3166,8 @@ _exit:
         param->snapshot_fmt = image::Format::FMT_YVU420SP;
         param->state = VIDEO_RECORDER_IDLE;
         param->thread_exit_flag = false;
+        param->rect.clear();
+        param->rect.resize(16);
     }
 
     VideoRecorder::VideoRecorder(bool open)
@@ -3155,6 +3190,101 @@ _exit:
         if (_param) {
             free(_param);
             _param = nullptr;
+        }
+    }
+
+
+    static void nv21_fill_rect(uint8_t *yuv, int width, int height, int x1, int y1, int rect_w, int rect_h, uint8_t y_value, uint8_t u_value, uint8_t v_value)
+    {
+        for (int h = y1; h < y1 + rect_h; h++) {
+            for (int w = x1; w < x1 + rect_w; w++) {
+                int index = h * width + w;
+                yuv[index] = y_value;
+            }
+        }
+
+        for (int h = y1; h < y1 + rect_h; h+=2) {
+            for (int w = x1; w < x1 + rect_w; w+=2) {
+                int uv_index = width * height + (h / 2) * width + w;
+                yuv[uv_index] = v_value;
+                yuv[uv_index + 1] = u_value;
+            }
+        }
+    }
+
+    static void nv21_draw_rectangle(uint8_t *yuv, int width, int height, int x, int y, int rect_width, int rect_height, uint8_t y_value, uint8_t u_value, uint8_t v_value, int thickness) {
+
+        int tmp_x = 0, tmp_y = 0, tmp_rect_width = 0, tmp_rect_height = 0;
+        x = (x % 2 == 0) ? x : x - 1;
+        x = x < 0 ? 0 : x;
+        x = x >= width ? width - 2 : x;
+        y = (y % 2 == 0) ? y : y - 1;
+        y = y < 0 ? 0 : y;
+        y = y >= height ? height - 2 : y;
+        rect_width = (rect_width % 2 == 0) ? rect_width : rect_width - 1;
+        rect_width = (rect_width + x) < width ? rect_width : width - x;
+        rect_width = rect_width < 0 ? 0 : rect_width;
+        rect_height = (rect_height % 2 == 0) ? rect_height : rect_height - 1;
+        rect_height = (rect_height + y) < height ? rect_height : height - y;
+        rect_height = rect_height < 0 ? 0 : rect_height;
+
+        if (thickness < 0) {
+            tmp_x = x;
+            tmp_y = y;
+            tmp_rect_width = rect_width;
+            tmp_rect_height = rect_height;
+            nv21_fill_rect(yuv, width, height, x, y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
+        } else {
+            thickness = (thickness % 2 == 0) ? thickness : thickness + 1;
+            thickness = thickness < 0 ? 0 : thickness;
+
+            tmp_x = x;
+            tmp_y = y;
+            tmp_rect_width = rect_width;
+            tmp_rect_height = thickness;
+            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
+
+            tmp_x = x;
+            tmp_y = (y + rect_height - thickness) >= 0 ? (y + rect_height - thickness) : 0;
+            tmp_rect_width = rect_width;
+            tmp_rect_height = thickness;
+            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// lower
+
+            tmp_x = x;
+            tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
+            tmp_rect_width = thickness;
+            tmp_rect_height = rect_height - thickness * 2;
+            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// left
+
+
+            tmp_x = (x + rect_width - thickness) < width ? (x + rect_width - thickness) : width - thickness;
+            tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
+            tmp_rect_width = thickness;
+            tmp_rect_height = rect_height - thickness * 2;
+            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// right
+        }
+    }
+
+    static void _draw_rect_on_nv21(uint8_t *yuv, int width, int height, video_recoder_param_t *param)
+    {
+        for (size_t i = 0; i < param->rect.size(); i++) {
+            if (!param->rect[i].show) {
+                continue;
+            }
+
+            int x = param->rect[i].x;
+            int y = param->rect[i].y;
+            int w = param->rect[i].w;
+            int h = param->rect[i].h;
+            int thickness = param->rect[i].thickness;
+
+            int r = param->rect[i].color.r;
+            int g = param->rect[i].color.g;
+            int b = param->rect[i].color.b;
+            int y_value = (int)(0.299 * r + 0.587 * g + 0.114 * b);
+            int u_value = (int)(-0.14713 * r - 0.28886 * g + 0.436 * b) + 128;
+            int v_value = (int)(0.615 * r - 0.51499 * g - 0.10001 * b) + 128;
+            nv21_draw_rectangle(yuv, width, height, x, y, w, h, y_value, u_value, v_value, thickness);
         }
     }
 
@@ -3193,6 +3323,9 @@ _exit:
 
                         // camera read
                         if (!mmf_vi_frame_pop2(vi_ch, &cam_frame, &cam_frame_info)) {
+                            if (cam_frame_info.fmt == PIXEL_FORMAT_NV21) {
+                                _draw_rect_on_nv21((uint8_t *)cam_frame_info.data, cam_frame_info.w, cam_frame_info.h, param);
+                            }
                             if (disp) {
                                 mmf_vo_frame_push2(0, 0, disp_fit, cam_frame);
                             }
@@ -3340,6 +3473,13 @@ _exit:
                     found_cam_frame = false;
                 }
                 found_cam_frame = true;
+
+                // draw rect
+                if (found_cam_frame) {
+                    if (cam_frame_info.fmt == PIXEL_FORMAT_NV21) {
+                        _draw_rect_on_nv21((uint8_t *)cam_frame_info.data, cam_frame_info.w, cam_frame_info.h, param);
+                    }
+                }
 
                 // pop last result of venc
                 mmf_stream_t venc_stream;
@@ -3566,9 +3706,15 @@ _exit:
         return param->audio.obj ? err::ERR_NONE : err::ERR_ARGS;
     }
 
-    err::Err VideoRecorder::bind_imu()
+    err::Err VideoRecorder::bind_imu(ext_dev::imu::IMU *imu)
     {
-        return err::ERR_NOT_IMPL;
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        param->imu.obj = imu;
+        param->imu.gcsv = new ext_dev::imu::Gcsv();
+        err::check_null_raise(param->imu.gcsv, "create gcsv failed!");
+        unlock();
+        return param->imu.obj ? err::ERR_NONE : err::ERR_ARGS;
     }
 
     err::Err VideoRecorder::reset()
@@ -3793,6 +3939,39 @@ _exit:
         return param->seek_ms;
     }
 
+    static void *_imu_thread_process(void *arg) {
+        video_recoder_param_t *param = (video_recoder_param_t *)arg;
+        ext_dev::imu::IMU *imu = param->imu.obj;
+        ext_dev::imu::Gcsv *gcsv = param->imu.gcsv;
+        uint64_t first_write_ms = time::ticks_ms();
+        while (!app::need_exit()) {
+            if (param->state == VIDEO_RECORDER_IDLE) {
+                break;
+            }
+
+            if (imu && gcsv) {
+                auto res = imu->read();
+                // log::info("------------------------");
+                // printf("acc x:  %f\t", res[0]);
+                // printf("acc y:  %f\t", res[1]);
+                // printf("acc z:  %f\n", res[2]);
+                // printf("gyro x: %f\t", res[3]);
+                // printf("gyro y: %f\t", res[4]);
+                // printf("gyro z: %f\n", res[5]);
+                // printf("temp:   %f\n", res[6]);
+                // log::info("------------------------\n");
+
+                double t = (double)(time::ticks_ms() - first_write_ms);
+                std::vector<double> g = {res[3] * M_PI / 180, res[4] * M_PI / 180, res[5] * M_PI / 180};
+                std::vector<double> a = {res[0], res[1], res[2]};
+                gcsv->write(t, g, a);
+            }
+
+            time::sleep_ms(1);
+        }
+        return NULL;
+    }
+
     err::Err VideoRecorder::record_start()
     {
         auto resolution = this->get_resolution();
@@ -3969,6 +4148,26 @@ _exit:
         packager->audio_format = audio_format;
 
         param->state = VIDEO_RECORDER_RECORD;
+        // imu thread init
+        if (param->imu.gcsv) {
+            double t_scale = 0.001;
+            double g_scale = ((double)1024 * M_PI / 180) / 32768;
+            double a_scale = ((double)16 / 32768);
+            std::string::size_type pos = param->path.find('.');
+            if (pos != std::string::npos) {
+                param->imu.gcsv_path = param->path.substr(0, pos) + ".gcsv";
+            } else {
+                param->imu.gcsv_path = param->path + ".gcsv";
+            }
+            param->imu.gcsv->open(param->imu.gcsv_path, t_scale, g_scale, a_scale);
+            // struct sched_param thread_param;
+			// pthread_attr_t thread_attr;
+			// pthread_attr_init(&thread_attr);
+			// pthread_attr_setschedpolicy(&thread_attr, SCHED_RR);
+			// pthread_attr_setschedparam(&thread_attr, &thread_param);
+			// pthread_attr_setinheritsched(&thread_attr, PTHREAD_EXPLICIT_SCHED);
+            err::check_bool_raise(!pthread_create((pthread_t *)&param->imu.imu_thread, NULL, _imu_thread_process, param), "imu thread create failed!");
+        }
         unlock();
 
         return err::ERR_NONE;
@@ -3999,6 +4198,11 @@ _exit:
             return err::ERR_NONE;
         }
         param->state = VIDEO_RECORDER_IDLE;
+
+        if (param->imu.gcsv) {
+            pthread_join(param->imu.imu_thread, NULL);
+            param->imu.gcsv->close();
+        }
 
         mmf_del_venc_channel(param->venc.ch);
         av_write_trailer(packager->outputFormatContext);
@@ -4035,14 +4239,35 @@ _exit:
         avformat_free_context(packager->outputFormatContext);
         av_packet_unref(packager->pPacket);
         av_packet_free(&packager->pPacket);
-
         unlock();
 
         return err::ERR_NONE;
     }
 
-    err::Err VideoRecorder::draw_rect(int x, int y, int w, int h, image::Color color, int thickness)
+    err::Err VideoRecorder::draw_rect(int id, int x, int y, int w, int h, image::Color color, int thickness, bool hidden)
     {
+        lock();
+        video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        if (id < 0 || id >= (int)param->rect.size()) {
+            log::error("draw_rect id %d out of range", id);
+            return err::ERR_ARGS;
+        }
+
+        if (!param->camera.obj || param->camera.obj->format() != image::Format::FMT_YVU420SP) {
+            log::error("Drawing the box is only effective in NV21 format. Ensure that the camera's image format is set to image::Format::FMT_YVU420SP");
+            return err::ERR_ARGS;
+        }
+
+        param->rect[id].id = id;
+        param->rect[id].x = x;
+        param->rect[id].y = y;
+        param->rect[id].w = w;
+        param->rect[id].h = h;
+        param->rect[id].color = color;
+        param->rect[id].thickness = thickness;
+        param->rect[id].show = !hidden;
+
+        unlock();
         return err::ERR_NOT_IMPL;
     }
 } // namespace maix::video

@@ -11,6 +11,7 @@
 #include "maix_display.hpp"
 #include "maix_camera.hpp"
 #include "maix_audio.hpp"
+#include "maix_imu.hpp"
 #include <memory>
 
 /**
@@ -1180,11 +1181,11 @@ namespace maix::video
 
         /**
          * @brief Bind a IMU object. if this object is not bound, imu data cannot be captured.
-         * TODO: support IMU object
+         * @param imu imu object
          * @return error code
          * @maixpy maix.video.VideoRecorder.bind_imu
         */
-        err::Err bind_imu();
+        err::Err bind_imu(ext_dev::imu::IMU *imu);
 
         /**
          * @brief Reset the video recorder.
@@ -1315,16 +1316,18 @@ namespace maix::video
 
         /**
          * @brief Draw a rect on the video
+         * @param id id of the rect, range is [0, 15]
          * @param x x coordinate
          * @param y y coordinate
          * @param w width
          * @param h height
          * @param color color
-         * @param tickness thickness
+         * @param tickness The line width of the rectangular box; if set to -1, it indicates that the rectangular box will be filled.
+         * @param hidden Hide or show the rectangular box
          * @return error code
          * @maixpy maix.video.VideoRecorder.draw_rect
         */
-        err::Err draw_rect(int x, int y, int w, int h, image::Color color = image::COLOR_WHITE, int thickness = -1);
+        err::Err draw_rect(int id, int x, int y, int w, int h, image::Color color = image::COLOR_WHITE, int thickness = -1, bool hidden = false);
     private:
         bool _is_opened;
         void *_param;

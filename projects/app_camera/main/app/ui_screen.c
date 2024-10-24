@@ -28,9 +28,12 @@ lv_obj_t *g_exit_button;
 lv_obj_t *g_delay_button;
 lv_obj_t *g_resolution_button;
 lv_obj_t *g_menu_button;
+lv_obj_t *g_bitrate_button;
 lv_obj_t *g_delay_setting;
 lv_obj_t *g_resolution_setting;
 lv_obj_t *g_menu_setting;
+lv_obj_t *g_bitrate_setting;
+
 
 lv_obj_t *g_shutter_button;
 lv_obj_t *g_iso_button;
@@ -68,6 +71,7 @@ LV_IMG_DECLARE(img_focus);
 LV_IMG_DECLARE(img_raw);
 LV_IMG_DECLARE(img_light_on);
 LV_IMG_DECLARE(img_light_off);
+LV_IMG_DECLARE(img_bitrate);
 
 extern void event_touch_exit_cb(lv_event_t * e);
 extern void event_touch_delay_cb(lv_event_t * e);
@@ -107,7 +111,7 @@ static void priv_init(void)
     priv.ev_screen_w_pct = 10;          // %
     priv.wb_screen_w_pct = 10;          // %
 
-    double exposure_time_table[] = {1.0/960,1.0/720,1.0/480, 1.0/360, 1.0/240, 1.0/180, 1.0/120, 1.0/90, 1.0/60, 1.0/40, 1.0/30, 1.0/20, 1.0/15, 1.0/10, 1.0/8, 1.0/5, 1.0/3, 1.0/2, 2.0/3, 1, 1.5, 2, 3, 5, 8, 10, 15, 20, 30, 40, 60};
+    double exposure_time_table[] = {1.0/960,1.0/720,1.0/480, 1.0/360, 1.0/240, 1.0/180, 1.0/120, 1.0/90, 1.0/60, 1.0/40, 1.0/30, 1.0/20, 1.0/15, 1.0/10, 1.0/8, 1.0/5, 1.0/3, 1.0/2, 2.0/3, 1, 3.0/2, 2, 3, 5, 8, 10, 15, 20, 30, 40, 60};
     memcpy(priv.cam_cfg.exposure_time_table, exposure_time_table, sizeof(priv.cam_cfg.exposure_time_table));
     priv.cam_cfg.exposure_time_default = 3000;
     priv.cam_cfg.exposure_time_max = priv.cam_cfg.exposure_time_table[sizeof(priv.cam_cfg.exposure_time_table) / sizeof(priv.cam_cfg.exposure_time_table[0]) - 1] * 1000000;
@@ -290,6 +294,33 @@ static void left_screen_init(void)
         img = lv_image_create(obj);
         lv_image_set_src(img, &img_light_off);
         lv_obj_center(img);
+    }
+
+    {
+        lv_obj_t *obj = lv_obj_create(scr);
+        lv_obj_set_size(obj, lv_pct(100), lv_pct(25));
+        lv_obj_set_pos(obj, 0, lv_pct(175));
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0), 0);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), LV_STATE_PRESSED);
+        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
+        lv_obj_set_style_radius(obj, 0, 0);
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_event_cb(obj, event_touch_bitrate_cb, LV_EVENT_CLICKED, NULL);
+        g_bitrate_button = obj;
+        lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(obj, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(obj, 0, 0);
+
+        img = lv_image_create(obj);
+        lv_image_set_src(img, &img_bitrate);
+        lv_obj_center(img);
+
+        lv_obj_t *label = lv_label_create(obj);
+        // lv_obj_set_style_text_color(label, lv_color_hex(0xff0000), 0);
+        lv_label_set_text(label, "kbps");
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        lv_obj_center(label);
     }
 }
 
@@ -778,6 +809,62 @@ static void screen_resolution_init(void)
     }
 }
 
+static void screen_bitrate_init(void)
+{
+    int left_screen_w = priv.left_screen_w_pct;
+    int w = priv.resolution_screen_w_pct;
+    lv_obj_t *scr = lv_obj_create(lv_scr_act());
+    lv_obj_set_pos(scr, lv_pct(left_screen_w), 0);
+    lv_obj_set_size(scr, lv_pct(w), lv_pct(100));
+    lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_radius(scr, 0, 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x2e2e2e), 0);
+    lv_obj_set_style_pad_hor(scr, 0, 0);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
+    // lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
+
+    g_bitrate_setting = scr;
+
+    // return;
+    lv_obj_t *obj, *label;
+    int obj_w = lv_pct(100);
+    int obj_h = lv_pct(15);
+
+    int bitrate_list[] = {1 * 1000 * 1000,
+                            2 * 1000 * 1000,
+                            3 * 1000 * 1000,
+                            4 * 1000 * 1000,
+                            5 * 1000 * 1000,
+                            6 * 1000 * 1000,
+                            7 * 1000 * 1000,
+                            8 * 1000 * 1000,
+                            9 * 1000 * 1000,
+                            10 * 1000 * 1000};
+    for (size_t i = 0; i < sizeof(bitrate_list) / sizeof(bitrate_list[0]); i ++) {
+        {
+            obj = lv_obj_create(scr);
+            lv_obj_set_size(obj, obj_w, obj_h);
+            lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
+            lv_obj_set_style_radius(obj, 0, 0);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
+            lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_CHECKED);
+            lv_obj_set_style_pad_all(obj, 0, 0);
+            lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
+            lv_obj_add_event_cb(obj, event_touch_select_bitrate_cb, LV_EVENT_CLICKED, NULL);
+
+            label = lv_label_create(obj);
+            lv_obj_set_pos(label, 0, 0);
+            lv_obj_set_align(label, LV_ALIGN_CENTER);
+            lv_label_set_text_fmt(label, "%d kbps", bitrate_list[i] / 1000);
+            lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+        }
+    }
+}
+
 static lv_obj_t *ui_plus_and_minus_button(lv_event_cb_t plus_btn_cb, lv_event_cb_t minus_btn_cb)
 {
     lv_obj_t *base = lv_obj_create(lv_scr_act());
@@ -1224,51 +1311,13 @@ void ui_all_screen_init(void)
     adjust_screen_init();
     screen_delay_init();
     screen_resolution_init();
+    screen_bitrate_init();
     screen_shutter_init();
     screen_iso_init();
     screen_ev_init();
     screen_wb_init();
     screen_big_image();
     screen_video_running();
-
-    // ui_set_shutter_value((double)1/1000);
-    // ui_set_iso_value(400);
-    // ui_set_ev_value(0);
-    // ui_set_wb_value(2000);
-
-    // ui_set_shutter_value((double)1/1000);
-    // ui_set_iso_value(400);
-    // ui_set_ev_value(0);
-    // ui_set_wb_value(2000);
-
-    // {
-    //     int width = 48, height = 48;
-    //     uint8_t *img_data = (uint8_t *)malloc(width * height * 4);
-    //     for (int h = 0; h < height; h ++) {
-    //         for (int w = 0; w < width; w ++) {
-    //             img_data[(h * width + w) * 4 + 0] = 0x00;
-    //             img_data[(h * width + w) * 4 + 1] = 0x00;
-    //             img_data[(h * width + w) * 4 + 2] = 0xFF;
-    //             img_data[(h * width + w) * 4 + 3] = 0xff;
-    //         }
-    //     }
-    //     ui_update_small_img(img_data, width * height * 4);
-    //     free(img_data);
-    // }
-    // {
-    //     int width = 552, height = 368;
-    //     uint8_t *img_data = (uint8_t *)malloc(width * height * 4);
-    //     for (int h = 0; h < height; h ++) {
-    //         for (int w = 0; w < width; w ++) {
-    //             img_data[(h * width + w) * 4 + 0] = 0x00;
-    //             img_data[(h * width + w) * 4 + 1] = 0x00;
-    //             img_data[(h * width + w) * 4 + 2] = 0xFF;
-    //             img_data[(h * width + w) * 4 + 3] = 0xff;
-    //         }
-    //     }
-    //     ui_update_big_img(img_data, width * height * 4);
-    //     free(img_data);
-    // }
 
     ui_set_record_time(2000 * 1000);
 }

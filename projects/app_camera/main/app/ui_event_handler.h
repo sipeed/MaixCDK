@@ -12,6 +12,7 @@ void event_touch_exit_cb(lv_event_t * e);
 void event_touch_delay_cb(lv_event_t * e);
 void event_touch_resolution_cb(lv_event_t * e);
 void event_touch_option_cb(lv_event_t * e);
+void event_touch_bitrate_cb(lv_event_t * e);
 void event_touch_video_camera_cb(lv_event_t * e);
 void event_touch_start_cb(lv_event_t * e);
 void event_touch_small_img_cb(lv_event_t * e);
@@ -30,6 +31,7 @@ void event_touch_ev_to_auto_cb(lv_event_t * e);
 void event_touch_wb_to_auto_cb(lv_event_t * e);
 void event_touch_select_delay_cb(lv_event_t * e);
 void event_touch_select_resolution_cb(lv_event_t * e);
+void event_touch_select_bitrate_cb(lv_event_t * e);
 void event_touch_big_img_cb(lv_event_t * e);
 void event_touch_shutter_plus_cb(lv_event_t *e);
 void event_touch_shutter_minus_cb(lv_event_t *e);
@@ -83,6 +85,10 @@ bool ui_get_raw_btn_update_flag();
 bool ui_get_raw_btn_touched();
 bool ui_get_light_btn_update_flag();
 bool ui_get_light_btn_touched();
+
+bool ui_get_bitrate_update_flag();
+void ui_set_bitrate(int bitrate, bool need_update);
+int ui_get_bitrate();
 
 typedef struct {
     unsigned int exposure_time_max;

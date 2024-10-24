@@ -56,6 +56,7 @@ static struct {
     touchscreen::TouchScreen *touchscreen;
     video::Encoder *encoder;
     gpio::GPIO *light;
+    int encoder_bitrate;
 } priv;
 
 static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
@@ -85,6 +86,7 @@ int app_pre_init(void)
     priv.camera_resolution_w = 640;
     priv.camera_resolution_h = 480;
     priv.resolution_index = 3;  // 0: 2560x1440; 1: 1920x1080; 2: 1280x720; 3: 640x480
+    priv.encoder_bitrate = 3 * 1000 * 1000;
     return 0;
 }
 
@@ -254,7 +256,7 @@ int app_base_init(void)
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
     // init h265 encoder
-    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265, 30, 50, priv.encoder_bitrate);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
@@ -349,7 +351,7 @@ int app_base_loop(void)
 
         if (priv.video_start_flag && priv.video_prepare_is_ok) {
             uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
-            mmf_enc_h265_push2(enc_h265_ch, frame);
+            mmf_venc_push2(enc_h265_ch, frame);
             ui_set_record_time(record_time);
         }
 
@@ -371,7 +373,7 @@ int app_base_loop(void)
 
         // Pop stream from encoder
         mmf_stream_t stream = {0};
-        if (0 == mmf_enc_h265_pop(enc_h265_ch, &stream)) {
+        if (0 == mmf_venc_pop(enc_h265_ch, &stream)) {
             for (int i = 0; i < stream.count; i++) {
                 printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
 
@@ -382,7 +384,7 @@ int app_base_loop(void)
                     }
                 }
             }
-            mmf_enc_h265_free(enc_h265_ch);
+            mmf_venc_free(enc_h265_ch);
         }
 
         priv.loop_last_frame = frame;
@@ -422,7 +424,7 @@ int app_init(camera::Camera &cam)
     ui_set_shutter_value((double)exposure_time);
     ui_set_iso_value(iso_num);
     ui_set_select_option(priv.resolution_index);
-
+    ui_set_bitrate(priv.encoder_bitrate, false);
     if (priv.capture_raw_enable) {
         ui_click_raw_button();
     }
@@ -605,6 +607,21 @@ static int app_config_param(void)
             int wb_value;
             ui_get_wb_value(&wb_value);
             printf("WB setting: %d\n", wb_value);
+        }
+    }
+
+    if (ui_get_bitrate_update_flag()) {
+        if (priv.video_start_flag || priv.video_prepare_is_ok) {
+            ui_set_bitrate(priv.encoder_bitrate, false);
+            log::warn("video is busy!");
+        } else {
+            priv.encoder_bitrate = ui_get_bitrate();
+            printf("Bitrate changed to %d\n", priv.encoder_bitrate);
+            if (priv.encoder) {
+                delete priv.encoder;
+                priv.encoder = nullptr;
+                priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265, 30, 50, priv.encoder_bitrate);
+            }
         }
     }
 

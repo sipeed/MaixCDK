@@ -29,6 +29,7 @@ extern lv_obj_t *g_resolution_button;
 extern lv_obj_t *g_menu_button;
 extern lv_obj_t *g_delay_setting;
 extern lv_obj_t *g_resolution_setting;
+extern lv_obj_t *g_bitrate_setting;
 extern lv_obj_t *g_menu_setting;
 extern lv_obj_t *g_shutter_button;
 extern lv_obj_t *g_iso_button;
@@ -46,6 +47,7 @@ extern lv_obj_t *g_shutter_plus_minus_button;
 extern lv_obj_t *g_iso_plus_minus_button;
 extern lv_obj_t *g_raw_button;
 extern lv_obj_t *g_light_button;
+extern lv_obj_t *g_bitrate_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -74,6 +76,8 @@ static struct {
     unsigned int light_btn_update_flag : 1;
 
     unsigned int resolution_setting_idx;
+    unsigned int bitrate;
+    unsigned int bitrate_update_flag : 1;
 } priv = {
     .iso_auto_flag = 1,
     .shutter_auto_flag = 1,
@@ -89,6 +93,34 @@ void event_touch_exit_cb(lv_event_t * e)
     }
 }
 
+static void _set_hidden_and_clear_checked(lv_obj_t *without_obj)
+{
+    lv_obj_t *list[] = {
+        g_delay_button,
+        g_resolution_button,
+        g_bitrate_button,
+    };
+    lv_obj_t *list2[] = {
+        g_delay_setting,
+        g_resolution_setting,
+        g_bitrate_setting,
+    };
+
+    for (size_t i = 0; i < 3; i ++) {
+        lv_obj_t *button = list[i];
+        lv_obj_t *setting = list2[i];
+
+        if (button == without_obj) {
+            continue;;
+        }
+
+        lv_obj_add_flag(setting, LV_OBJ_FLAG_HIDDEN);
+        if (lv_obj_get_state(button) == LV_STATE_CHECKED) {
+            lv_obj_send_event(button, LV_EVENT_RELEASED, NULL);
+        }
+    }
+}
+
 void event_touch_delay_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -96,10 +128,7 @@ void event_touch_delay_cb(lv_event_t * e)
         if (lv_obj_get_state(g_delay_button) != LV_STATE_FOCUSED) {
             lv_obj_remove_flag(g_delay_setting, LV_OBJ_FLAG_HIDDEN);
 
-            lv_obj_add_flag(g_resolution_setting, LV_OBJ_FLAG_HIDDEN);
-            if (lv_obj_get_state(g_resolution_button) == LV_STATE_CHECKED) {
-                lv_obj_send_event(g_resolution_button, LV_EVENT_RELEASED, NULL);
-            }
+            _set_hidden_and_clear_checked(g_delay_button);
         } else {
             lv_obj_add_flag(g_delay_setting, LV_OBJ_FLAG_HIDDEN);
         }
@@ -113,12 +142,23 @@ void event_touch_resolution_cb(lv_event_t * e)
         if (lv_obj_get_state(g_resolution_button) != LV_STATE_FOCUSED) {
             lv_obj_remove_flag(g_resolution_setting, LV_OBJ_FLAG_HIDDEN);
 
-            lv_obj_add_flag(g_delay_setting, LV_OBJ_FLAG_HIDDEN);
-            if (lv_obj_get_state(g_delay_button) == LV_STATE_CHECKED) {
-                lv_obj_send_event(g_delay_button, LV_EVENT_RELEASED, NULL);
-            }
+            _set_hidden_and_clear_checked(g_resolution_button);
         } else {
             lv_obj_add_flag(g_resolution_setting, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void event_touch_bitrate_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (lv_obj_get_state(g_bitrate_button) != LV_STATE_FOCUSED) {
+            lv_obj_remove_flag(g_bitrate_setting, LV_OBJ_FLAG_HIDDEN);
+
+            _set_hidden_and_clear_checked(g_bitrate_button);
+        } else {
+            lv_obj_add_flag(g_bitrate_setting, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -439,12 +479,12 @@ void event_touch_iso_plus_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) {
         int iso;
         ui_get_iso_value(&iso);
-        DEBUG_PRT("get iso: %f\n", iso);
+        DEBUG_PRT("get iso: %d\n", iso);
         int index_of_table = get_index_of_iso_table(iso);
         DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
         index_of_table += 1;
         iso = get_iso_from_iso_table(index_of_table);
-        DEBUG_PRT("caculated iso: %f\n", iso);
+        DEBUG_PRT("caculated iso: %d\n", iso);
         ui_set_iso_value(iso);
 
         priv.iso_setting_flag = 1;
@@ -462,12 +502,12 @@ void event_touch_iso_minus_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) {
         int iso;
         ui_get_iso_value(&iso);
-        DEBUG_PRT("get iso: %f\n", iso);
+        DEBUG_PRT("get iso: %d\n", iso);
         int index_of_table = get_index_of_iso_table(iso);
         DEBUG_PRT("caculated index_of_table: %d\n", index_of_table);
         index_of_table -= 1;
         iso = get_iso_from_iso_table(index_of_table);
-        DEBUG_PRT("caculated iso: %f\n", iso);
+        DEBUG_PRT("caculated iso: %d\n", iso);
         ui_set_iso_value(iso);
 
         priv.iso_setting_flag = 1;
@@ -612,7 +652,7 @@ static int bar_value_to_iso(lv_obj_t *obj, uint16_t bar_value)
     int index_of_table = bar_value / (double)((bar->max_value - bar->min_value) / (number_of_table - 1));
     DEBUG_PRT("caculated index_of_table:%d\n", index_of_table);
     int iso = camera_config.iso_table[index_of_table];
-    DEBUG_PRT("found iso:%f\n", iso);
+    DEBUG_PRT("found iso:%d\n", iso);
     return iso;
 }
 
@@ -907,6 +947,35 @@ void event_touch_select_resolution_cb(lv_event_t * e)
     }
 }
 
+void event_touch_select_bitrate_cb(lv_event_t * e)
+{
+    DEBUG_EN(1);
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
+        if (lv_obj_get_state(obj) != LV_STATE_FOCUSED) {
+            lv_obj_t *parent = lv_obj_get_parent(obj);
+            for (size_t i = 0; i < lv_obj_get_child_count(parent); i++) {
+                lv_obj_t *child = lv_obj_get_child(parent, i);
+                if (child != obj) {
+                    lv_obj_remove_state(child, LV_STATE_CHECKED);
+                }
+            }
+
+            lv_obj_t *label = lv_obj_get_child(obj, -1);
+            char *text = lv_label_get_text(label);
+            lv_obj_set_user_data(parent, text);
+            LV_UNUSED(text);
+
+            priv.bitrate = atoi(text) * 1000;
+            priv.bitrate_update_flag = 1;
+            DEBUG_PRT("select bitrate: %s (%d)\n", text, priv.bitrate);
+        } else {
+            lv_obj_add_state(obj, LV_STATE_CHECKED);
+        }
+    }
+}
+
 bool ui_get_cam_snap_flag(void)
 {
     bool ret = priv.camera_snap_start_flag;
@@ -1106,6 +1175,8 @@ void ui_set_shutter_value(double val)
         exptime_us = camera_config.exposure_time_table[index_of_table] * 1000000;
         if (exptime_us < 0)
             snprintf(str, sizeof(str), "auto");
+        else if (exptime_us == 1500000.0)
+            snprintf(str, sizeof(str), "3/2s");
         else if (exptime_us >= 666666.0 && exptime_us <= 666667.0)
             snprintf(str, sizeof(str), "2/3s");
         else if (exptime_us < 1000000.0)
@@ -1494,4 +1565,59 @@ bool ui_get_light_btn_update_flag() {
 
 bool ui_get_light_btn_touched() {
     return priv.light_btn_touched ? true : false;
+}
+
+bool ui_get_bitrate_update_flag() {
+    bool flag = priv.bitrate_update_flag ? true : false;
+    priv.bitrate_update_flag = false;
+    return flag;
+}
+
+int ui_get_bitrate() {
+    return priv.bitrate;
+}
+
+void ui_set_bitrate(int bitrate, bool need_update)
+{
+    DEBUG_EN(0);
+    lv_obj_t *scr = g_bitrate_setting;
+    int child_num_of_scr = lv_obj_get_child_count(scr);
+    int child_bitrate = 0;
+    // find the index of the bitrate
+    size_t i = 0;
+    for (;i < child_num_of_scr; i++) {
+        lv_obj_t *child = lv_obj_get_child(scr, i);
+        if (child) {
+            lv_obj_t *label = lv_obj_get_child(child, -1);
+            if (label) {
+                int value = atoi(lv_label_get_text(label)) * 1000;
+                if (value >= bitrate) {
+                    child_bitrate = value;
+                    break;
+                }
+            }
+        }
+    }
+
+    // clear all of checked flag
+    for (size_t i = 0; i < child_num_of_scr; i++) {
+        lv_obj_t *child = lv_obj_get_child(scr, i);
+        if (child) {
+            lv_obj_remove_state(child, LV_STATE_CHECKED);
+        }
+    }
+
+    // set bitrate
+    i = i >= child_num_of_scr ? child_num_of_scr - 1 : i;
+    DEBUG_PRT("select child index: %ld", i);
+
+    lv_obj_t *child = lv_obj_get_child(scr, i);
+    if (child) {
+        lv_obj_t *label = lv_obj_get_child(child, -1);
+        if (label) {
+            lv_obj_add_state(child, LV_STATE_CHECKED);
+            priv.bitrate = child_bitrate;
+            priv.bitrate_update_flag = need_update;
+        }
+    }
 }
