@@ -55,9 +55,16 @@ int _main(int argc, char* argv[])
         display::Display disp = display::Display();
         audio::Recorder audio_recorder = audio::Recorder();
         video::VideoRecorder video_recorder = video::VideoRecorder();
+        // ext_dev::imu::IMU imu = ext_dev::imu::IMU("qmi8658", 4, 0x6B, 400000,
+        //                                         ext_dev::imu::Mode::DUAL,
+        //                                         ext_dev::imu::AccScale::ACC_SCALE_16G,
+        //                                         ext_dev::imu::AccOdr::ACC_ODR_8000,
+        //                                         ext_dev::imu::GyroScale::GYRO_SCALE_1024DPS,
+        //                                         ext_dev::imu::GyroOdr::GYRO_ODR_8000);
         video_recorder.bind_display(&disp);
         video_recorder.bind_camera(&cam);
         video_recorder.bind_audio(&audio_recorder);
+        // video_recorder.bind_imu(&imu);
 
         video_recorder.reset();
         video_recorder.mute(false);
@@ -79,15 +86,16 @@ int _main(int argc, char* argv[])
                 video_recorder.get_bitrate(),
                 video_recorder.mute(),
                 video_recorder.volume());
-        video_recorder.record();
+        video_recorder.record_start();
 
         while(!app::need_exit()) {
             auto seek = video_recorder.seek();
             log::info("record time:%ld\r\n", seek);
+            video_recorder.draw_rect(0, 50, 50, 500, 300, image::COLOR_WHITE, 2);
             time::sleep(1);
         }
         log::info("record time total:%ld\r\n", video_recorder.seek());
-        video_recorder.finish();
+        video_recorder.record_finish();
 
         app::set_exit_flag(false);
         log::info("Enter idle status..");
@@ -99,6 +107,8 @@ int _main(int argc, char* argv[])
             } else {
                 log::info("Not found image.");
             }
+
+            video_recorder.draw_rect(0, 50, 50, 300, 100, image::COLOR_RED, 4);
             time::sleep_ms(100);
         }
         break;

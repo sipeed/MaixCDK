@@ -187,8 +187,9 @@ namespace maix::video
         return err::ERR_NOT_IMPL;
     }
 
-    err::Err VideoRecorder::bind_imu()
+    err::Err VideoRecorder::bind_imu(void *imu)
     {
+        (void)imu;
         return err::ERR_NOT_IMPL;
     }
 
@@ -280,8 +281,16 @@ namespace maix::video
         return err::ERR_NOT_IMPL;
     }
 
-    err::Err VideoRecorder::draw_rect(int x, int y, int w, int h, image::Color color, int thickness)
+    err::Err VideoRecorder::draw_rect(int id, int x, int y, int w, int h, image::Color color, int thickness, bool hidden)
     {
+        (void)id;
+        (void)x;
+        (void)y;
+        (void)w;
+        (void)h;
+        (void)color;
+        (void)thickness;
+        (void)hidden;
         return err::ERR_NOT_IMPL;
     }
 } // namespace maix::video

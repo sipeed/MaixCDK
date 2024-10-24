@@ -3147,8 +3147,8 @@ _exit:
         } audio;
 
         struct {
-            ext_dev::imu::IMU *obj;
-            ext_dev::imu::Gcsv *gcsv;
+            void *obj;
+            void *gcsv;
             std::string gcsv_path;
             pthread_t imu_thread;
         } imu;
@@ -3706,15 +3706,16 @@ _exit:
         return param->audio.obj ? err::ERR_NONE : err::ERR_ARGS;
     }
 
-    err::Err VideoRecorder::bind_imu(ext_dev::imu::IMU *imu)
+    err::Err VideoRecorder::bind_imu(void *imu)
     {
-        lock();
-        video_recoder_param_t *param = (video_recoder_param_t *)_param;
-        param->imu.obj = imu;
-        param->imu.gcsv = new ext_dev::imu::Gcsv();
-        err::check_null_raise(param->imu.gcsv, "create gcsv failed!");
-        unlock();
-        return param->imu.obj ? err::ERR_NONE : err::ERR_ARGS;
+        err::check_raise(err::Err::ERR_NOT_IMPL, "Not supported");
+        // lock();
+        // video_recoder_param_t *param = (video_recoder_param_t *)_param;
+        // param->imu.obj = imu;
+        // param->imu.gcsv = new ext_dev::imu::Gcsv();
+        // err::check_null_raise(param->imu.gcsv, "create gcsv failed!");
+        // unlock();
+        // return param->imu.obj ? err::ERR_NONE : err::ERR_ARGS;
     }
 
     err::Err VideoRecorder::reset()
@@ -3939,38 +3940,38 @@ _exit:
         return param->seek_ms;
     }
 
-    static void *_imu_thread_process(void *arg) {
-        video_recoder_param_t *param = (video_recoder_param_t *)arg;
-        ext_dev::imu::IMU *imu = param->imu.obj;
-        ext_dev::imu::Gcsv *gcsv = param->imu.gcsv;
-        uint64_t first_write_ms = time::ticks_ms();
-        while (!app::need_exit()) {
-            if (param->state == VIDEO_RECORDER_IDLE) {
-                break;
-            }
+    // static void *_imu_thread_process(void *arg) {
+    //     video_recoder_param_t *param = (video_recoder_param_t *)arg;
+    //     ext_dev::imu::IMU *imu = param->imu.obj;
+    //     ext_dev::imu::Gcsv *gcsv = param->imu.gcsv;
+    //     uint64_t first_write_ms = time::ticks_ms();
+    //     while (!app::need_exit()) {
+    //         if (param->state == VIDEO_RECORDER_IDLE) {
+    //             break;
+    //         }
 
-            if (imu && gcsv) {
-                auto res = imu->read();
-                // log::info("------------------------");
-                // printf("acc x:  %f\t", res[0]);
-                // printf("acc y:  %f\t", res[1]);
-                // printf("acc z:  %f\n", res[2]);
-                // printf("gyro x: %f\t", res[3]);
-                // printf("gyro y: %f\t", res[4]);
-                // printf("gyro z: %f\n", res[5]);
-                // printf("temp:   %f\n", res[6]);
-                // log::info("------------------------\n");
+    //         if (imu && gcsv) {
+    //             auto res = imu->read();
+    //             // log::info("------------------------");
+    //             // printf("acc x:  %f\t", res[0]);
+    //             // printf("acc y:  %f\t", res[1]);
+    //             // printf("acc z:  %f\n", res[2]);
+    //             // printf("gyro x: %f\t", res[3]);
+    //             // printf("gyro y: %f\t", res[4]);
+    //             // printf("gyro z: %f\n", res[5]);
+    //             // printf("temp:   %f\n", res[6]);
+    //             // log::info("------------------------\n");
 
-                double t = (double)(time::ticks_ms() - first_write_ms);
-                std::vector<double> g = {res[3] * M_PI / 180, res[4] * M_PI / 180, res[5] * M_PI / 180};
-                std::vector<double> a = {res[0], res[1], res[2]};
-                gcsv->write(t, g, a);
-            }
+    //             double t = (double)(time::ticks_ms() - first_write_ms);
+    //             std::vector<double> g = {res[3] * M_PI / 180, res[4] * M_PI / 180, res[5] * M_PI / 180};
+    //             std::vector<double> a = {res[0], res[1], res[2]};
+    //             gcsv->write(t, g, a);
+    //         }
 
-            time::sleep_ms(1);
-        }
-        return NULL;
-    }
+    //         time::sleep_ms(1);
+    //     }
+    //     return NULL;
+    // }
 
     err::Err VideoRecorder::record_start()
     {
@@ -4148,26 +4149,26 @@ _exit:
         packager->audio_format = audio_format;
 
         param->state = VIDEO_RECORDER_RECORD;
-        // imu thread init
-        if (param->imu.gcsv) {
-            double t_scale = 0.001;
-            double g_scale = ((double)1024 * M_PI / 180) / 32768;
-            double a_scale = ((double)16 / 32768);
-            std::string::size_type pos = param->path.find('.');
-            if (pos != std::string::npos) {
-                param->imu.gcsv_path = param->path.substr(0, pos) + ".gcsv";
-            } else {
-                param->imu.gcsv_path = param->path + ".gcsv";
-            }
-            param->imu.gcsv->open(param->imu.gcsv_path, t_scale, g_scale, a_scale);
-            // struct sched_param thread_param;
-			// pthread_attr_t thread_attr;
-			// pthread_attr_init(&thread_attr);
-			// pthread_attr_setschedpolicy(&thread_attr, SCHED_RR);
-			// pthread_attr_setschedparam(&thread_attr, &thread_param);
-			// pthread_attr_setinheritsched(&thread_attr, PTHREAD_EXPLICIT_SCHED);
-            err::check_bool_raise(!pthread_create((pthread_t *)&param->imu.imu_thread, NULL, _imu_thread_process, param), "imu thread create failed!");
-        }
+        // // imu thread init
+        // if (param->imu.gcsv) {
+        //     double t_scale = 0.001;
+        //     double g_scale = ((double)1024 * M_PI / 180) / 32768;
+        //     double a_scale = ((double)16 / 32768);
+        //     std::string::size_type pos = param->path.find('.');
+        //     if (pos != std::string::npos) {
+        //         param->imu.gcsv_path = param->path.substr(0, pos) + ".gcsv";
+        //     } else {
+        //         param->imu.gcsv_path = param->path + ".gcsv";
+        //     }
+        //     param->imu.gcsv->open(param->imu.gcsv_path, t_scale, g_scale, a_scale);
+        //     // struct sched_param thread_param;
+		// 	// pthread_attr_t thread_attr;
+		// 	// pthread_attr_init(&thread_attr);
+		// 	// pthread_attr_setschedpolicy(&thread_attr, SCHED_RR);
+		// 	// pthread_attr_setschedparam(&thread_attr, &thread_param);
+		// 	// pthread_attr_setinheritsched(&thread_attr, PTHREAD_EXPLICIT_SCHED);
+        //     err::check_bool_raise(!pthread_create((pthread_t *)&param->imu.imu_thread, NULL, _imu_thread_process, param), "imu thread create failed!");
+        // }
         unlock();
 
         return err::ERR_NONE;
@@ -4199,10 +4200,10 @@ _exit:
         }
         param->state = VIDEO_RECORDER_IDLE;
 
-        if (param->imu.gcsv) {
-            pthread_join(param->imu.imu_thread, NULL);
-            param->imu.gcsv->close();
-        }
+        // if (param->imu.gcsv) {
+        //     pthread_join(param->imu.imu_thread, NULL);
+        //     param->imu.gcsv->close();
+        // }
 
         mmf_del_venc_channel(param->venc.ch);
         av_write_trailer(packager->outputFormatContext);
