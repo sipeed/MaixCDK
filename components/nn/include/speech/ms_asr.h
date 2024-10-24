@@ -19,6 +19,7 @@ extern "C" {
 #define INFER_V83X      1
 #define INFER_CPU0      2
 #define INFER_CPU1      3
+#define INFER_SOPHGO    4
 
 /******************************* MARCO ************************************/
 
