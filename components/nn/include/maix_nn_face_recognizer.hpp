@@ -12,8 +12,51 @@
 #include "maix_nn_F.hpp"
 #include "maix_nn_object.hpp"
 #include <tuple>
-// #include "maix_nn_face_detector.hpp"
+#include "maix_nn_face_detector.hpp"
 #include "maix_nn_retinaface.hpp"
+#include "maix_nn_yolov8.hpp"
+
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+
+static std::string _get_detect_model(const std::string &path)
+{
+    std::string model_type = "";
+
+    // 判断 path 是否是 .mud 格式
+    if (path.substr(path.find_last_of(".") + 1) != "mud") {
+        return model_type;
+    }
+
+    // 打开文件
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return model_type;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // 查找以 "model_type" 开头的行
+        if (line.find("model_type") == 0) {
+            // 查找等号的位置
+            size_t pos = line.find("=");
+            if (pos != std::string::npos) {
+                // 获取等号后面的部分
+                model_type = line.substr(pos + 1);
+
+                // 去掉前后的空白字符（空格、回车等）
+                model_type.erase(std::remove_if(model_type.begin(), model_type.end(), ::isspace), model_type.end());
+
+                break;  // 找到之后直接退出
+            }
+        }
+    }
+
+    file.close();
+    return model_type;
+}
 
 namespace maix::nn
 {
@@ -132,6 +175,8 @@ namespace maix::nn
             _model_feature = nullptr;
             labels.push_back("unknown");
             _facedetector = nullptr;
+            _facedetector_retina = nullptr;
+            _facedetector_yolov8 = nullptr;
             _dual_buff = dual_buff;
             if (!detect_model.empty() && !feature_model.empty())
             {
@@ -150,6 +195,16 @@ namespace maix::nn
                 delete _facedetector;
                 _facedetector = nullptr;
             }
+            if (_facedetector_retina)
+            {
+                delete _facedetector_retina;
+                _facedetector_retina = nullptr;
+            }
+            if (_facedetector_yolov8)
+            {
+                delete _facedetector_yolov8;
+                _facedetector_yolov8 = nullptr;
+            }
             if (_model_feature)
             {
                 delete _model_feature;
@@ -166,14 +221,45 @@ namespace maix::nn
          */
         err::Err load(const string &detect_model, const string &feature_model)
         {
-            _facedetector = new Retinaface("", _dual_buff);
-            err::Err e = _facedetector->load(detect_model);
-            if (e != err::ERR_NONE)
+            std::string model_type = _get_detect_model(detect_model);
+            if(model_type == "retinaface")
             {
-                log::info("load detect model failed");
-                return e;
+                _facedetector_retina = new Retinaface("", _dual_buff);
+                err::Err e = _facedetector_retina->load(detect_model);
+                if (e != err::ERR_NONE)
+                {
+                    log::info("load detect model failed");
+                    return e;
+                }
+                _input_size = _facedetector_retina->input_size();
             }
-            _input_size = _facedetector->input_size();
+            else if(model_type == "face_detector")
+            {
+                _facedetector = new FaceDetector("", _dual_buff);
+                err::Err e = _facedetector->load(detect_model);
+                if (e != err::ERR_NONE)
+                {
+                    log::info("load detect model failed");
+                    return e;
+                }
+                _input_size = _facedetector->input_size();
+            }
+            else if(model_type == "yolov8")
+            {
+                _facedetector_yolov8 = new YOLOv8("", _dual_buff);
+                err::Err e = _facedetector_yolov8->load(detect_model);
+                if (e != err::ERR_NONE)
+                {
+                    log::info("load detect model failed");
+                    return e;
+                }
+                _input_size = _facedetector_yolov8->input_size();
+            }
+            else
+            {
+                log::error("model %s not support, only support retinaface and yolov8", model_type.c_str());
+                return err::ERR_ARGS;
+            }
 
             // feature extract model
             if (_model_feature)
@@ -184,8 +270,21 @@ namespace maix::nn
             _model_feature = new nn::NN(feature_model, _dual_buff);
             if (!_model_feature)
             {
-                delete _facedetector;
-                _facedetector = nullptr;
+                if(_facedetector)
+                {
+                    delete _facedetector;
+                    _facedetector = nullptr;
+                }
+                if(_facedetector_retina)
+                {
+                    delete _facedetector_retina;
+                    _facedetector_retina = nullptr;
+                }
+                if(_facedetector_yolov8)
+                {
+                    delete _facedetector_yolov8;
+                    _facedetector_yolov8 = nullptr;
+                }
                 return err::ERR_NO_MEM;
             }
             _extra_info2 = _model_feature->extra_info();
@@ -311,12 +410,21 @@ namespace maix::nn
         {
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
-            std::vector<nn::Object> *objs = _facedetector->detect(img, _conf_th, _iou_th, fit);
+            std::vector<nn::Object> *objs;
+            nn::Objects *objs2 = nullptr;
+            if(_facedetector)
+                objs = _facedetector->detect(img, _conf_th, _iou_th, fit);
+            else if (_facedetector_retina)
+                objs = _facedetector_retina->detect(img, _conf_th, _iou_th, fit);
+            else if (_facedetector_yolov8)
+                objs2 = _facedetector_yolov8->detect(img, _conf_th, _iou_th, fit);
             std::vector<nn::FaceObject> *faces = new std::vector<nn::FaceObject>();
-            for (size_t i = 0; i < objs->size(); ++i)
+            size_t size = objs2 ? objs2->size() : objs->size();
+            for (size_t i = 0; i < size; ++i)
             {
+                nn::Object *obj = objs2 ? &objs2->at(i) : &objs->at(i);
                 // get std face
-                image::Image *std_img = img.affine(objs->at(i).points, _std_points, _feature_input_size, _feature_input_size);
+                image::Image *std_img = img.affine(obj->points, _std_points, _feature_input_size, _feature_input_size);
                 // img.save("/root/test0.jpg");
                 // std_img->save("/root/test.jpg");
                 tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false, get_feature || get_face);
@@ -340,11 +448,10 @@ namespace maix::nn
                         max_i = i;
                     }
                 }
-                nn::Object &obj = objs->at(i);
-                nn::FaceObject face(obj.x, obj.y, obj.w, obj.h, max_i + 1, max_score);
+                nn::FaceObject face(obj->x, obj->y, obj->w, obj->h, max_i + 1, max_score);
                 faces->push_back(face);
                 nn::FaceObject &face1 = faces->at(faces->size() - 1);
-                face1.points = obj.points;
+                face1.points = obj->points;
                 if(get_feature)
                 {
                     face1.feature = std::vector<float>(feature, feature + fea_len);
@@ -594,7 +701,9 @@ namespace maix::nn
         float _iou_th = 0.45;
         std::vector<std::vector<float>> _anchor; // [[dense_cx, dense_cy, s_kx, s_ky],]
         std::vector<float> _variance;
-        Retinaface *_facedetector;
+        Retinaface *_facedetector_retina;
+        YOLOv8 *_facedetector_yolov8;
+        FaceDetector *_facedetector;
         int _feature_input_size;
         bool _dual_buff;
         std::vector<int> _std_points;
