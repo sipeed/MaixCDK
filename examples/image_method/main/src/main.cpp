@@ -28,6 +28,8 @@ typedef struct {
     int cam_buffnum;
     int image_method_idx;
     std::vector<image_method_t> method_list;
+    std::string picture_path;
+    bool use_picture;
 } priv_t;
 
 static priv_t priv;
@@ -36,18 +38,31 @@ static int cmd_init(int argc, char* argv[]);
 int _main(int argc, char* argv[])
 {
     err::check_bool_raise(!cmd_init(argc, argv), "cmd get init param failed!");
-
-    camera::Camera cam = camera::Camera(priv.cam_w ,priv.cam_h, priv.cam_fmt, nullptr, priv.cam_fps, priv.cam_buffnum);
+    camera::Camera *cam = NULL;
+    image::Image *picture = NULL;
+    if (!priv.use_picture) {
+        cam = new camera::Camera(priv.cam_w ,priv.cam_h, priv.cam_fmt, nullptr, priv.cam_fps, priv.cam_buffnum);
+        log::info("camera size: %dx%d\n", cam->width(), cam->height());
+    } else {
+        picture = image::load(priv.picture_path.c_str(), priv.cam_fmt);
+        image::Image *new_picture = picture->resize(priv.cam_w, priv.cam_h);
+        delete picture;
+        picture = new_picture;
+        log::info("picture path:%s size: %dx%d format:%s\n", priv.picture_path.c_str(), picture->width(), picture->height(), image::fmt_names[picture->format()]);
+    }
     display::Display disp = display::Display();
-    log::info("camera and display open success\n");
-    log::info("camera size: %dx%d\n", cam.width(), cam.height());
     log::info("disp size: %dx%d\n", disp.width(), disp.height());
+    log::info("camera and display open success\n");
 
     uint64_t last_ms = time::time_ms();
     uint64_t last_loop_used_ms = 0;
-    while(!app::need_exit())
-    {
-        image::Image *img = cam.read();
+    do {
+        image::Image *img = NULL;
+        if (!priv.use_picture) {
+            img = cam->read();
+        } else {
+            img = picture;
+        }
         err::check_null_raise(img, "camera read failed");
 
         if (priv.method_list[priv.image_method_idx].func) {
@@ -60,8 +75,20 @@ int _main(int argc, char* argv[])
         log::info("loop used: %ld (ms), fps: %.2f", last_loop_used_ms, 1000.0f / last_loop_used_ms);
         last_loop_used_ms = time::ticks_ms() - last_ms;
         last_ms = time::ticks_ms();
+    } while(!app::need_exit() && !priv.use_picture);
+
+    if (priv.use_picture) {
+        log::info("Press ctrl+c to exit");
+        while (!app::need_exit()) {
+            time::sleep_ms(100);
+        }
+        delete picture;
     }
 
+    if (cam) {
+        delete cam;
+        cam = NULL;
+    }
     return 0;
 }
 
@@ -84,9 +111,10 @@ static void cmd_helper(void)
     }
 
     log::info("Input <image method index> <camera width> <camera height> <camera format> <camera fps> <camera buffnum>");
+    log::info("Input <image method index> <camera width> <camera height> <camera format> <jpeg_path>");
     log::info("<camera format> = 0, measn image::FMT_RGB888");
     log::info("<camera format> = 12, measn image::FMT_GRAYSCALE");
-    log::info("Example: ./image_method 0 320 240 0 60 2 // test gaussion");
+    log::info("Example: ./image_method 0 320 240 0 60 3 // test gaussion");
 }
 
 static int cmd_init(int argc, char* argv[])
@@ -95,12 +123,13 @@ static int cmd_init(int argc, char* argv[])
     priv.cam_h = 240;
     priv.cam_fmt = image::FMT_RGB888;
     priv.cam_fps = 60;
-    priv.cam_buffnum = 2;
+    priv.cam_buffnum = 3;
 
     // Config image method
     priv.method_list.push_back(image_method_t{"no method(default)", NULL});
     priv.method_list.push_back(image_method_t{"gaussian", test_gaussion});
     priv.method_list.push_back(image_method_t{"find_blobs", test_find_blobs});
+    priv.method_list.push_back(image_method_t{"zbar", test_find_qrcode});
 
     // Get init param
     if (argc > 1) {
@@ -111,7 +140,6 @@ static int cmd_init(int argc, char* argv[])
             priv.image_method_idx = atoi(argv[1]);
 
         }
-
     }
 
     if (argc > 2) {
@@ -128,6 +156,12 @@ static int cmd_init(int argc, char* argv[])
 
     if (argc > 5) {
         priv.cam_fps = atoi(argv[5]);
+        if (priv.cam_fps == 0) {
+            if (strlen(argv[5]) > 0) {
+                priv.use_picture = true;
+                priv.picture_path = argv[5];
+            }
+        }
     }
 
     if (argc > 6) {
@@ -142,6 +176,12 @@ static int cmd_init(int argc, char* argv[])
     } else {
         log::info("Use method: %d %s", priv.image_method_idx, priv.method_list[priv.image_method_idx].name);
     }
-    log::info("Use width:%d hieght:%d format:%d fps:%d buffer number:%d", priv.cam_w, priv.cam_h, priv.cam_fmt, priv.cam_fps, priv.cam_buffnum);
+
+    if (!priv.use_picture) {
+        log::info("Use width:%d hieght:%d format:%d fps:%d buffer number:%d", priv.cam_w, priv.cam_h, priv.cam_fmt, priv.cam_fps, priv.cam_buffnum);
+    } else {
+        log::info("Use width:%d hieght:%d format:%d path:%s", priv.cam_w, priv.cam_h, priv.cam_fmt, priv.picture_path.c_str());
+    }
+
     return 0;
 }

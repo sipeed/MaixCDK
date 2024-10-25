@@ -994,6 +994,15 @@ namespace maix::image
     }; // class Blob
 
     /**
+     * QRCode decode type class
+     * @maixpy maix.image.QRCodeDecoderType
+    */
+    enum class QRCodeDecoderType {
+        QRCODE_DECODER_TYPE_ZBAR,
+        QRCODE_DECODER_TYPE_QUIRC
+    };
+
+    /**
      * QRCode class
      * @maixpy maix.image.QRCode
      */

@@ -7,5 +7,6 @@ using namespace maix;
 
 int test_find_blobs(image::Image *img);
 int test_gaussion(image::Image *img);
+int test_find_qrcode(image::Image *img);
 
 #endif

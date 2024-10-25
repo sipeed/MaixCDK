@@ -1320,10 +1320,13 @@ namespace maix::image
          * @brief Finds all qrcodes in the image.
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.
          * default is None, means whole image.
+         * @param decoder_type Select the QR code decoding method. Choosing QRCODE_DECODER_TYPE_QUIRC allows for retrieving QR code version, ECC level, mask, data type, and other details,
+         * though it may decode slower at lower resolutions. Opting for QRCODE_DECODER_TYPE_ZBAR enables faster decoding at lower resolutions but may slow down at higher resolutions,
+         * providing only the QR code content and position information. default is QRCODE_DECODER_TYPE_ZBAR.
          * @return Returns the qrcodes of the image
          * @maixpy maix.image.Image.find_qrcodes
         */
-        std::vector<image::QRCode> find_qrcodes(std::vector<int> roi = std::vector<int>());
+        std::vector<image::QRCode> find_qrcodes(std::vector<int> roi = std::vector<int>(), QRCodeDecoderType decoder_type = QRCodeDecoderType::QRCODE_DECODER_TYPE_ZBAR);
 
         /**
          * @brief Finds all apriltags in the image.

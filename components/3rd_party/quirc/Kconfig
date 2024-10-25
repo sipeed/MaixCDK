@@ -1,0 +1,14 @@
+# quirc version major minor patch
+menu "quirc version"
+config QUIRC_VERSION_MAJOR
+    int "quirc package major version"
+    default 1
+    help
+      quirc package major version, 0 means auto select according to board
+
+config QUIRC_VERSION_MINOR
+    int "quirc package minor version"
+    default 2
+    help
+      quirc package minor version
+endmenu

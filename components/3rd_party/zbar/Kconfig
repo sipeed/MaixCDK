@@ -1,0 +1,14 @@
+# zbar version major minor patch
+menu "zbar version"
+config ZBAR_VERSION_MAJOR
+    int "zbar package major version"
+    default 0
+    help
+      zbar package major version, 0 means auto select according to board
+
+config ZBAR_VERSION_MINOR
+    int "zbar package minor version"
+    default 10
+    help
+      zbar package minor version
+endmenu
