@@ -442,10 +442,11 @@ namespace maix::nn
                 for (size_t i = 0; i < features.size(); ++i)
                 {
                     float score = _feature_compare(feature, features[i].data(), fea_len);
-                    if (score > max_score && score > compare_th)
+                    if (score > max_score)
                     {
                         max_score = score;
-                        max_i = i;
+                        if(score > compare_th)
+                            max_i = i;
                     }
                 }
                 nn::FaceObject face(obj->x, obj->y, obj->w, obj->h, max_i + 1, max_score);
