@@ -1326,7 +1326,7 @@ namespace maix::image
          * @return Returns the qrcodes of the image
          * @maixpy maix.image.Image.find_qrcodes
         */
-        std::vector<image::QRCode> find_qrcodes(std::vector<int> roi = std::vector<int>(), QRCodeDecoderType decoder_type = QRCodeDecoderType::QRCODE_DECODER_TYPE_ZBAR);
+        std::vector<image::QRCode> find_qrcodes(std::vector<int> roi = std::vector<int>(), image::QRCodeDecoderType decoder_type = image::QRCodeDecoderType::QRCODE_DECODER_TYPE_ZBAR);
 
         /**
          * @brief Finds all apriltags in the image.

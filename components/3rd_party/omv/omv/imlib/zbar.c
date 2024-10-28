@@ -227,7 +227,7 @@ typedef enum zbar_modifier_e {
  * @returns the static string name for the specified symbol type,
  * or "UNKNOWN" if the encoding is not recognized
  */
-extern const char *zbar_get_symbol_name(zbar_symbol_type_t sym);
+static const char *zbar_get_symbol_name(zbar_symbol_type_t sym);
 
 /** retrieve string name for addon encoding.
  * @param sym symbol type encoding
@@ -235,21 +235,21 @@ extern const char *zbar_get_symbol_name(zbar_symbol_type_t sym);
  * if no addons were decoded
  * @deprecated in 0.11
  */
-extern const char *zbar_get_addon_name(zbar_symbol_type_t sym);
+static const char *zbar_get_addon_name(zbar_symbol_type_t sym);
 
 /** retrieve string name for configuration setting.
  * @param config setting to name
  * @returns static string name for config,
  * or the empty string if value is not a known config
  */
-extern const char *zbar_get_config_name(zbar_config_t config);
+static const char *zbar_get_config_name(zbar_config_t config);
 
 /** retrieve string name for modifier.
  * @param modifier flag to name
  * @returns static string name for modifier,
  * or the empty string if the value is not a known flag
  */
-extern const char *zbar_get_modifier_name(zbar_modifier_t modifier);
+static const char *zbar_get_modifier_name(zbar_modifier_t modifier);
 
 /** retrieve string name for orientation.
  * @param orientation orientation encoding
@@ -257,7 +257,7 @@ extern const char *zbar_get_modifier_name(zbar_modifier_t modifier);
  * or "UNKNOWN" if the orientation is not recognized
  * @since 0.11
  */
-extern const char *zbar_get_orientation_name(zbar_orientation_t orientation);
+static const char *zbar_get_orientation_name(zbar_orientation_t orientation);
 
 /** parse a configuration string of the form "[symbology.]config[=value]".
  * the config must match one of the recognized names.
@@ -267,7 +267,7 @@ extern const char *zbar_get_orientation_name(zbar_orientation_t orientation);
  * @returns 0 if the config is parsed successfully, 1 otherwise
  * @since 0.4
  */
-extern int zbar_parse_config(const char *config_string,
+static int zbar_parse_config(const char *config_string,
                              zbar_symbol_type_t *symbology,
                              zbar_config_t *config,
                              int *value);
@@ -326,37 +326,37 @@ typedef struct zbar_symbol_set_s zbar_symbol_set_t;
  * destroyed or reused.
  * @since 0.9
  */
-extern void zbar_symbol_ref(const zbar_symbol_t *symbol,
+static void zbar_symbol_ref(const zbar_symbol_t *symbol,
                             int refs);
 
 /** retrieve type of decoded symbol.
  * @returns the symbol type
  */
-extern zbar_symbol_type_t zbar_symbol_get_type(const zbar_symbol_t *symbol);
+static zbar_symbol_type_t zbar_symbol_get_type(const zbar_symbol_t *symbol);
 
 /** retrieve symbology boolean config settings.
  * @returns a bitmask indicating which configs were set for the detected
  * symbology during decoding.
  * @since 0.11
  */
-extern unsigned int zbar_symbol_get_configs(const zbar_symbol_t *symbol);
+static unsigned int zbar_symbol_get_configs(const zbar_symbol_t *symbol);
 
 /** retrieve symbology modifier flag settings.
  * @returns a bitmask indicating which characteristics were detected
  * during decoding.
  * @since 0.11
  */
-extern unsigned int zbar_symbol_get_modifiers(const zbar_symbol_t *symbol);
+static unsigned int zbar_symbol_get_modifiers(const zbar_symbol_t *symbol);
 
 /** retrieve data decoded from symbol.
  * @returns the data string
  */
-extern const char *zbar_symbol_get_data(const zbar_symbol_t *symbol);
+static const char *zbar_symbol_get_data(const zbar_symbol_t *symbol);
 
 /** retrieve length of binary data.
  * @returns the length of the decoded data
  */
-extern unsigned int zbar_symbol_get_data_length(const zbar_symbol_t *symbol);
+static unsigned int zbar_symbol_get_data_length(const zbar_symbol_t *symbol);
 
 /** retrieve a symbol confidence metric.
  * @returns an unscaled, relative quantity: larger values are better
@@ -367,7 +367,7 @@ extern unsigned int zbar_symbol_get_data_length(const zbar_symbol_t *symbol);
  * between two values is defined and will remain stable in the future
  * @since 0.9
  */
-extern int zbar_symbol_get_quality(const zbar_symbol_t *symbol);
+static int zbar_symbol_get_quality(const zbar_symbol_t *symbol);
 
 /** retrieve current cache count.  when the cache is enabled for the
  * image_scanner this provides inter-frame reliability and redundancy
@@ -376,7 +376,7 @@ extern int zbar_symbol_get_quality(const zbar_symbol_t *symbol);
  * @returns 0 if symbol is newly verified.
  * @returns > 0 for duplicate symbols
  */
-extern int zbar_symbol_get_count(const zbar_symbol_t *symbol);
+static int zbar_symbol_get_count(const zbar_symbol_t *symbol);
 
 /** retrieve the number of points in the location polygon.  the
  * location polygon defines the image area that the symbol was
@@ -385,14 +385,14 @@ extern int zbar_symbol_get_count(const zbar_symbol_t *symbol);
  * @note this is currently not a polygon, but the scan locations
  * where the symbol was decoded
  */
-extern unsigned zbar_symbol_get_loc_size(const zbar_symbol_t *symbol);
+static unsigned zbar_symbol_get_loc_size(const zbar_symbol_t *symbol);
 
 /** retrieve location polygon x-coordinates.
  * points are specified by 0-based index.
  * @returns the x-coordinate for a point in the location polygon.
  * @returns -1 if index is out of range
  */
-extern int zbar_symbol_get_loc_x(const zbar_symbol_t *symbol,
+static int zbar_symbol_get_loc_x(const zbar_symbol_t *symbol,
                                  unsigned index);
 
 /** retrieve location polygon y-coordinates.
@@ -400,7 +400,7 @@ extern int zbar_symbol_get_loc_x(const zbar_symbol_t *symbol,
  * @returns the y-coordinate for a point in the location polygon.
  * @returns -1 if index is out of range
  */
-extern int zbar_symbol_get_loc_y(const zbar_symbol_t *symbol,
+static int zbar_symbol_get_loc_y(const zbar_symbol_t *symbol,
                                  unsigned index);
 
 /** retrieve general orientation of decoded symbol.
@@ -408,21 +408,21 @@ extern int zbar_symbol_get_loc_y(const zbar_symbol_t *symbol,
  * ::ZBAR_ORIENT_UNKNOWN if unknown
  * @since 0.11
  */
-extern zbar_orientation_t
+static zbar_orientation_t
 zbar_symbol_get_orientation(const zbar_symbol_t *symbol);
 
 /** iterate the set to which this symbol belongs (there can be only one).
  * @returns the next symbol in the set, or
  * @returns NULL when no more results are available
  */
-extern const zbar_symbol_t *zbar_symbol_next(const zbar_symbol_t *symbol);
+static const zbar_symbol_t *zbar_symbol_next(const zbar_symbol_t *symbol);
 
 /** retrieve components of a composite result.
  * @returns the symbol set containing the components
  * @returns NULL if the symbol is already a physical symbol
  * @since 0.10
  */
-extern const zbar_symbol_set_t*
+static const zbar_symbol_set_t*
 zbar_symbol_get_components(const zbar_symbol_t *symbol);
 
 /** iterate components of a composite result.
@@ -430,7 +430,7 @@ zbar_symbol_get_components(const zbar_symbol_t *symbol);
  * @returns NULL if the symbol is already a physical symbol
  * @since 0.10
  */
-extern const zbar_symbol_t*
+static const zbar_symbol_t*
 zbar_symbol_first_component(const zbar_symbol_t *symbol);
 
 /** print XML symbol element representation to user result buffer.
@@ -442,7 +442,7 @@ zbar_symbol_first_component(const zbar_symbol_t *symbol);
  * @returns the buffer pointer
  * @since 0.6
  */
-extern char *zbar_symbol_xml(const zbar_symbol_t *symbol,
+static char *zbar_symbol_xml(const zbar_symbol_t *symbol,
                              char **buffer,
                              unsigned *buflen);
 
@@ -467,21 +467,21 @@ extern char *zbar_symbol_xml(const zbar_symbol_t *symbol,
  * the object any longer once references have been released.
  * @since 0.10
  */
-extern void zbar_symbol_set_ref(const zbar_symbol_set_t *symbols,
+static void zbar_symbol_set_ref(const zbar_symbol_set_t *symbols,
                                 int refs);
 
 /** retrieve set size.
  * @returns the number of symbols in the set.
  * @since 0.10
  */
-extern int zbar_symbol_set_get_size(const zbar_symbol_set_t *symbols);
+static int zbar_symbol_set_get_size(const zbar_symbol_set_t *symbols);
 
 /** set iterator.
  * @returns the first decoded symbol result in a set
  * @returns NULL if the set is empty
  * @since 0.10
  */
-extern const zbar_symbol_t*
+static const zbar_symbol_t*
 zbar_symbol_set_first_symbol(const zbar_symbol_set_t *symbols);
 
 /** raw result iterator.
@@ -489,7 +489,7 @@ zbar_symbol_set_first_symbol(const zbar_symbol_set_t *symbols);
  * @returns NULL if the set is empty
  * @since 0.11
  */
-extern const zbar_symbol_t*
+static const zbar_symbol_t*
 zbar_symbol_set_first_unfiltered(const zbar_symbol_set_t *symbols);
 
 /*@}*/
@@ -531,10 +531,10 @@ struct zbar_image_scanner_s;
 typedef struct zbar_image_scanner_s zbar_image_scanner_t;
 
 /** constructor. */
-extern zbar_image_scanner_t *zbar_image_scanner_create(void);
+static zbar_image_scanner_t *zbar_image_scanner_create(void);
 
 /** destructor. */
-extern void zbar_image_scanner_destroy(zbar_image_scanner_t *scanner);
+static void zbar_image_scanner_destroy(zbar_image_scanner_t *scanner);
 
 /** setup result handler callback.
  * the specified function will be called by the scanner whenever
@@ -542,7 +542,7 @@ extern void zbar_image_scanner_destroy(zbar_image_scanner_t *scanner);
  * pass a NULL value to disable callbacks.
  * @returns the previously registered handler
  */
-extern zbar_image_data_handler_t*
+static zbar_image_data_handler_t*
 zbar_image_scanner_set_data_handler(zbar_image_scanner_t *scanner,
                                     zbar_image_data_handler_t *handler,
                                     const void *userdata);
@@ -554,7 +554,7 @@ zbar_image_scanner_set_data_handler(zbar_image_scanner_t *scanner,
  * @see zbar_decoder_set_config()
  * @since 0.4
  */
-extern int zbar_image_scanner_set_config(zbar_image_scanner_t *scanner,
+static int zbar_image_scanner_set_config(zbar_image_scanner_t *scanner,
                                          zbar_symbol_type_t symbology,
                                          zbar_config_t config,
                                          int value);
@@ -583,7 +583,7 @@ zbar_image_scanner_parse_config (zbar_image_scanner_t *scanner,
  * consistency checking and hysteresis to the results.
  * this interface also clears the cache
  */
-extern void zbar_image_scanner_enable_cache(zbar_image_scanner_t *scanner,
+static void zbar_image_scanner_enable_cache(zbar_image_scanner_t *scanner,
                                             int enable);
 
 /** remove any previously decoded results from the image scanner and the
@@ -592,7 +592,7 @@ extern void zbar_image_scanner_enable_cache(zbar_image_scanner_t *scanner,
  * subsequent decodes
  * @since 0.10
  */
-extern void zbar_image_scanner_recycle_image(zbar_image_scanner_t *scanner,
+static void zbar_image_scanner_recycle_image(zbar_image_scanner_t *scanner,
                                              zbar_image_t *image);
 
 /** retrieve decode results for last scanned image.
@@ -603,7 +603,7 @@ extern void zbar_image_scanner_recycle_image(zbar_image_scanner_t *scanner,
  * after the next image is scanned
  * @since 0.10
  */
-extern const zbar_symbol_set_t*
+static const zbar_symbol_set_t*
 zbar_image_scanner_get_results(const zbar_image_scanner_t *scanner);
 
 /** scan for symbols in provided image.  The image format must be
@@ -613,7 +613,7 @@ zbar_image_scanner_get_results(const zbar_image_scanner_t *scanner);
  * @see zbar_image_convert()
  * @since 0.9 - changed to only accept grayscale images
  */
-extern int zbar_scan_image(zbar_image_scanner_t *scanner,
+static int zbar_scan_image(zbar_image_scanner_t *scanner,
                            zbar_image_t *image);
 
 /*@}*/
@@ -636,17 +636,17 @@ typedef struct zbar_decoder_s zbar_decoder_t;
 typedef void (zbar_decoder_handler_t)(zbar_decoder_t *decoder);
 
 /** constructor. */
-extern zbar_decoder_t *zbar_decoder_create(void);
+static zbar_decoder_t *zbar_decoder_create(void);
 
 /** destructor. */
-extern void zbar_decoder_destroy(zbar_decoder_t *decoder);
+static void zbar_decoder_destroy(zbar_decoder_t *decoder);
 
 /** set config for indicated symbology (0 for all) to specified value.
  * @returns 0 for success, non-0 for failure (config does not apply to
  * specified symbology, or value out of range)
  * @since 0.4
  */
-extern int zbar_decoder_set_config(zbar_decoder_t *decoder,
+static int zbar_decoder_set_config(zbar_decoder_t *decoder,
                                    zbar_symbol_type_t symbology,
                                    zbar_config_t config,
                                    int value);
@@ -673,19 +673,19 @@ static inline int zbar_decoder_parse_config (zbar_decoder_t *decoder,
  * specified symbology.
  * @since 0.11
  */
-extern unsigned int zbar_decoder_get_configs(const zbar_decoder_t *decoder,
+static unsigned int zbar_decoder_get_configs(const zbar_decoder_t *decoder,
                                              zbar_symbol_type_t symbology);
 
 /** clear all decoder state.
  * any partial symbols are flushed
  */
-extern void zbar_decoder_reset(zbar_decoder_t *decoder);
+static void zbar_decoder_reset(zbar_decoder_t *decoder);
 
 /** mark start of a new scan pass.
  * clears any intra-symbol state and resets color to ::ZBAR_SPACE.
  * any partially decoded symbol state is retained
  */
-extern void zbar_decoder_new_scan(zbar_decoder_t *decoder);
+static void zbar_decoder_new_scan(zbar_decoder_t *decoder);
 
 /** process next bar/space width from input stream.
  * the width is in arbitrary relative units.  first value of a scan
@@ -695,12 +695,12 @@ extern void zbar_decoder_new_scan(zbar_decoder_t *decoder);
  * @returns ::ZBAR_PARTIAL as a hint if part of a symbol was decoded
  * @returns ::ZBAR_NONE (0) if no new symbol data is available
  */
-extern zbar_symbol_type_t zbar_decode_width(zbar_decoder_t *decoder,
+static zbar_symbol_type_t zbar_decode_width(zbar_decoder_t *decoder,
                                             unsigned width);
 
 /** retrieve color of @em next element passed to
  * zbar_decode_width(). */
-extern zbar_color_t zbar_decoder_get_color(const zbar_decoder_t *decoder);
+static zbar_color_t zbar_decoder_get_color(const zbar_decoder_t *decoder);
 
 /** retrieve last decoded data.
  * @returns the data string or NULL if no new data available.
@@ -708,19 +708,19 @@ extern zbar_color_t zbar_decoder_get_color(const zbar_decoder_t *decoder);
  * valid between non-0 return from zbar_decode_width and next library
  * call
  */
-extern const char *zbar_decoder_get_data(const zbar_decoder_t *decoder);
+static const char *zbar_decoder_get_data(const zbar_decoder_t *decoder);
 
 /** retrieve length of binary data.
  * @returns the length of the decoded data or 0 if no new data
  * available.
  */
-extern unsigned int
+static unsigned int
 zbar_decoder_get_data_length(const zbar_decoder_t *decoder);
 
 /** retrieve last decoded symbol type.
  * @returns the type or ::ZBAR_NONE if no new data available
  */
-extern zbar_symbol_type_t
+static zbar_symbol_type_t
 zbar_decoder_get_type(const zbar_decoder_t *decoder);
 
 /** retrieve modifier flags for the last decoded symbol.
@@ -728,14 +728,14 @@ zbar_decoder_get_type(const zbar_decoder_t *decoder);
  * during decoding.
  * @since 0.11
  */
-extern unsigned int zbar_decoder_get_modifiers(const zbar_decoder_t *decoder);
+static unsigned int zbar_decoder_get_modifiers(const zbar_decoder_t *decoder);
 
 /** retrieve last decode direction.
  * @returns 1 for forward and -1 for reverse
  * @returns 0 if the decode direction is unknown or does not apply
  * @since 0.11
  */
-extern int zbar_decoder_get_direction(const zbar_decoder_t *decoder);
+static int zbar_decoder_get_direction(const zbar_decoder_t *decoder);
 
 /** setup data handler callback.
  * the registered function will be called by the decoder
@@ -743,16 +743,16 @@ extern int zbar_decoder_get_direction(const zbar_decoder_t *decoder);
  * pass a NULL value to disable callbacks.
  * @returns the previously registered handler
  */
-extern zbar_decoder_handler_t*
+static zbar_decoder_handler_t*
 zbar_decoder_set_handler(zbar_decoder_t *decoder,
                          zbar_decoder_handler_t *handler);
 
 /** associate user specified data value with the decoder. */
-extern void zbar_decoder_set_userdata(zbar_decoder_t *decoder,
+static void zbar_decoder_set_userdata(zbar_decoder_t *decoder,
                                       void *userdata);
 
 /** return user specified data value associated with the decoder. */
-extern void *zbar_decoder_get_userdata(const zbar_decoder_t *decoder);
+static void *zbar_decoder_get_userdata(const zbar_decoder_t *decoder);
 
 /*@}*/
 
@@ -775,15 +775,15 @@ typedef struct zbar_scanner_s zbar_scanner_t;
  * current color is initialized to ::ZBAR_SPACE
  * (so an initial BAR->SPACE transition may be discarded)
  */
-extern zbar_scanner_t *zbar_scanner_create(zbar_decoder_t *decoder);
+static zbar_scanner_t *zbar_scanner_create(zbar_decoder_t *decoder);
 
 /** destructor. */
-extern void zbar_scanner_destroy(zbar_scanner_t *scanner);
+static void zbar_scanner_destroy(zbar_scanner_t *scanner);
 
 /** clear all scanner state.
  * also resets an associated decoder
  */
-extern zbar_symbol_type_t zbar_scanner_reset(zbar_scanner_t *scanner);
+static zbar_symbol_type_t zbar_scanner_reset(zbar_scanner_t *scanner);
 
 /** mark start of a new scan pass. resets color to ::ZBAR_SPACE.
  * also updates an associated decoder.
@@ -793,7 +793,7 @@ extern zbar_symbol_type_t zbar_scanner_reset(zbar_scanner_t *scanner);
  * @note call zbar_scanner_flush() at least twice before calling this
  * method to ensure no decode results are lost
  */
-extern zbar_symbol_type_t zbar_scanner_new_scan(zbar_scanner_t *scanner);
+static zbar_symbol_type_t zbar_scanner_new_scan(zbar_scanner_t *scanner);
 
 /** flush scanner processing pipeline.
  * forces current scanner position to be a scan boundary.
@@ -803,7 +803,7 @@ extern zbar_symbol_type_t zbar_scanner_new_scan(zbar_scanner_t *scanner);
  * be checked the same as zbar_scan_y()
  * @since 0.9
  */
-extern zbar_symbol_type_t zbar_scanner_flush(zbar_scanner_t *scanner);
+static zbar_symbol_type_t zbar_scanner_flush(zbar_scanner_t *scanner);
 
 /** process next sample intensity value.
  * intensity (y) is in arbitrary relative units.
@@ -811,7 +811,7 @@ extern zbar_symbol_type_t zbar_scanner_flush(zbar_scanner_t *scanner);
  * otherwise @returns (::ZBAR_PARTIAL) when new edge is detected
  * or 0 (::ZBAR_NONE) if no new edge is detected
  */
-extern zbar_symbol_type_t zbar_scan_y(zbar_scanner_t *scanner,
+static zbar_symbol_type_t zbar_scan_y(zbar_scanner_t *scanner,
                                       int y);
 
 /** process next sample from RGB (or BGR) triple. */
@@ -822,17 +822,17 @@ static inline zbar_symbol_type_t zbar_scan_rgb24 (zbar_scanner_t *scanner,
 }
 
 /** retrieve last scanned width. */
-extern unsigned zbar_scanner_get_width(const zbar_scanner_t *scanner);
+static unsigned zbar_scanner_get_width(const zbar_scanner_t *scanner);
 
 /** retrieve sample position of last edge.
  * @since 0.10
  */
-extern unsigned zbar_scanner_get_edge(const zbar_scanner_t *scn,
+static unsigned zbar_scanner_get_edge(const zbar_scanner_t *scn,
                                       unsigned offset,
                                       int prec);
 
 /** retrieve last scanned color. */
-extern zbar_color_t zbar_scanner_get_color(const zbar_scanner_t *scanner);
+static zbar_color_t zbar_scanner_get_color(const zbar_scanner_t *scanner);
 
 /*@}*/
 
@@ -1080,7 +1080,7 @@ static inline int _zbar_refcnt (refcnt_t *cnt,
     return(rc);
 }
 
-void _zbar_refcnt_init(void);
+// void _zbar_refcnt_init(void);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "refcnt.c"
@@ -1109,9 +1109,9 @@ void _zbar_refcnt_init(void);
  *  http://sourceforge.net/projects/zbar
  *------------------------------------------------------------------------*/
 
-void _zbar_refcnt_init ()
-{
-}
+// void _zbar_refcnt_init ()
+// {
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "symbol.h"
@@ -1174,12 +1174,12 @@ struct zbar_symbol_s {
     int quality;                /* relative symbol reliability metric */
 };
 
-extern int _zbar_get_symbol_hash(zbar_symbol_type_t);
+static int _zbar_get_symbol_hash(zbar_symbol_type_t);
 
-extern void _zbar_symbol_free(zbar_symbol_t*);
+static void _zbar_symbol_free(zbar_symbol_t*);
 
-extern zbar_symbol_set_t *_zbar_symbol_set_create(void);
-extern void _zbar_symbol_set_free(zbar_symbol_set_t*);
+static zbar_symbol_set_t *_zbar_symbol_set_create(void);
+static void _zbar_symbol_set_free(zbar_symbol_set_t*);
 
 static inline void sym_add_point (zbar_symbol_t *sym,
                                   int x,
@@ -1494,12 +1494,12 @@ zbar_symbol_set_first_unfiltered (const zbar_symbol_set_t *syms)
 
 /* internal image scanner APIs for 2D readers */
 
-extern zbar_symbol_t *_zbar_image_scanner_alloc_sym(zbar_image_scanner_t*,
+static zbar_symbol_t *_zbar_image_scanner_alloc_sym(zbar_image_scanner_t*,
                                                     zbar_symbol_type_t,
                                                     int);
-extern void _zbar_image_scanner_add_sym(zbar_image_scanner_t*,
+static void _zbar_image_scanner_add_sym(zbar_image_scanner_t*,
                                         zbar_symbol_t*);
-extern void _zbar_image_scanner_recycle_syms(zbar_image_scanner_t*,
+static void _zbar_image_scanner_recycle_syms(zbar_image_scanner_t*,
                                              zbar_symbol_t*);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1607,7 +1607,7 @@ struct zbar_image_scanner_s {
 #endif
 };
 
-void _zbar_image_scanner_recycle_syms (zbar_image_scanner_t *iscn,
+static void _zbar_image_scanner_recycle_syms (zbar_image_scanner_t *iscn,
                                        zbar_symbol_t *sym)
 {
     zbar_symbol_t *next = NULL;
@@ -1667,7 +1667,7 @@ static inline int recycle_syms (zbar_image_scanner_t *iscn,
     return(0);
 }
 
-inline void zbar_image_scanner_recycle_image (zbar_image_scanner_t *iscn,
+static inline void zbar_image_scanner_recycle_image (zbar_image_scanner_t *iscn,
                                               zbar_image_t *img)
 {
     zbar_symbol_set_t *syms = iscn->syms;
@@ -1695,7 +1695,7 @@ inline void zbar_image_scanner_recycle_image (zbar_image_scanner_t *iscn,
     }
 }
 
-inline zbar_symbol_t*
+static inline zbar_symbol_t*
 _zbar_image_scanner_alloc_sym (zbar_image_scanner_t *iscn,
                                zbar_symbol_type_t type,
                                int datalen)
@@ -1814,7 +1814,7 @@ static inline void cache_sym (zbar_image_scanner_t *iscn,
         sym->cache_count = 0;
 }
 
-void _zbar_image_scanner_add_sym(zbar_image_scanner_t *iscn,
+static void _zbar_image_scanner_add_sym(zbar_image_scanner_t *iscn,
                                  zbar_symbol_t *sym)
 {
     zbar_symbol_set_t *syms;
@@ -1839,7 +1839,7 @@ void _zbar_image_scanner_add_sym(zbar_image_scanner_t *iscn,
 }
 
 #ifdef ENABLE_QRCODE
-extern qr_finder_line *_zbar_decoder_get_qr_finder_line(zbar_decoder_t*);
+static qr_finder_line *_zbar_decoder_get_qr_finder_line(zbar_decoder_t*);
 
 # define QR_FIXED(v, rnd) ((((v) << 1) + (rnd)) << (QR_FINDER_SUBPREC - 1))
 # define PRINT_FIXED(val, prec) \
@@ -1953,7 +1953,7 @@ static void symbol_handler (zbar_decoder_t *dcode)
     _zbar_image_scanner_add_sym(iscn, sym);
 }
 
-zbar_image_scanner_t *zbar_image_scanner_create ()
+static zbar_image_scanner_t *zbar_image_scanner_create ()
 {
     zbar_image_scanner_t *iscn = calloc(1, sizeof(zbar_image_scanner_t));
     if(!iscn)
@@ -2001,7 +2001,7 @@ static inline void dump_stats (const zbar_image_scanner_t *iscn)
 }
 #endif
 
-void zbar_image_scanner_destroy (zbar_image_scanner_t *iscn)
+static void zbar_image_scanner_destroy (zbar_image_scanner_t *iscn)
 {
     int i;
     dump_stats(iscn);
@@ -2034,7 +2034,7 @@ void zbar_image_scanner_destroy (zbar_image_scanner_t *iscn)
     free(iscn);
 }
 
-zbar_image_data_handler_t*
+static zbar_image_data_handler_t*
 zbar_image_scanner_set_data_handler (zbar_image_scanner_t *iscn,
                                      zbar_image_data_handler_t *handler,
                                      const void *userdata)
@@ -2045,7 +2045,7 @@ zbar_image_scanner_set_data_handler (zbar_image_scanner_t *iscn,
     return(result);
 }
 
-int zbar_image_scanner_set_config (zbar_image_scanner_t *iscn,
+static int zbar_image_scanner_set_config (zbar_image_scanner_t *iscn,
                                    zbar_symbol_type_t sym,
                                    zbar_config_t cfg,
                                    int val)
@@ -2096,7 +2096,7 @@ int zbar_image_scanner_set_config (zbar_image_scanner_t *iscn,
     return(0);
 }
 
-void zbar_image_scanner_enable_cache (zbar_image_scanner_t *iscn,
+static void zbar_image_scanner_enable_cache (zbar_image_scanner_t *iscn,
                                       int enable)
 {
     if(iscn->cache) {
@@ -2107,7 +2107,7 @@ void zbar_image_scanner_enable_cache (zbar_image_scanner_t *iscn,
     iscn->enable_cache = (enable) ? 1 : 0;
 }
 
-const zbar_symbol_set_t *
+static const zbar_symbol_set_t *
 zbar_image_scanner_get_results (const zbar_image_scanner_t *iscn)
 {
     return(iscn->syms);
@@ -2128,7 +2128,7 @@ static inline void quiet_border (zbar_image_scanner_t *iscn)
         p += (dx) + ((uintptr_t)(dy) * w);       \
     } while(0);
 
-int zbar_scan_image (zbar_image_scanner_t *iscn,
+static int zbar_scan_image (zbar_image_scanner_t *iscn,
                      zbar_image_t *img)
 {
     zbar_symbol_set_t *syms;
@@ -2478,7 +2478,7 @@ static inline unsigned ean_get_config (ean_decoder_t *ean,
 }
 
 /* decode EAN/UPC symbols */
-zbar_symbol_type_t _zbar_decode_ean(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_ean(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "i25.h"
@@ -2530,7 +2530,7 @@ static inline void i25_reset (i25_decoder_t *i25)
 }
 
 /* decode interleaved 2 of 5 symbols */
-zbar_symbol_type_t _zbar_decode_i25(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_i25(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "databar.h"
@@ -2663,7 +2663,7 @@ static inline void codabar_reset (codabar_decoder_t *codabar)
 }
 
 /* decode Codabar symbols */
-zbar_symbol_type_t _zbar_decode_codabar(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_codabar(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "code39.h"
@@ -2714,7 +2714,7 @@ static inline void code39_reset (code39_decoder_t *dcode39)
 }
 
 /* decode Code 39 symbols */
-zbar_symbol_type_t _zbar_decode_code39(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_code39(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "code93.h"
@@ -2816,7 +2816,7 @@ static inline void code128_reset (code128_decoder_t *dcode128)
 }
 
 /* decode Code 128 symbols */
-zbar_symbol_type_t _zbar_decode_code128(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_code128(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "pdf417.h"
@@ -2866,7 +2866,7 @@ static inline void pdf417_reset (pdf417_decoder_t *pdf417)
 }
 
 /* decode PDF417 symbols */
-zbar_symbol_type_t _zbar_decode_pdf417(zbar_decoder_t *dcode);
+static zbar_symbol_type_t _zbar_decode_pdf417(zbar_decoder_t *dcode);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //////// "decoder.h"
@@ -3835,7 +3835,7 @@ static inline void ean_postprocess (zbar_decoder_t *dcode,
     dbprintf(2, " base=%d j=%d (%s)", base, j, dcode->buf);
 }
 
-zbar_symbol_type_t _zbar_decode_ean (zbar_decoder_t *dcode)
+static zbar_symbol_type_t _zbar_decode_ean (zbar_decoder_t *dcode)
 {
     /* process upto 4 separate passes */
     zbar_symbol_type_t sym = ZBAR_NONE;
@@ -4072,7 +4072,7 @@ static inline signed char i25_decode_end (zbar_decoder_t *dcode)
     return(ZBAR_I25);
 }
 
-zbar_symbol_type_t _zbar_decode_i25 (zbar_decoder_t *dcode)
+static zbar_symbol_type_t _zbar_decode_i25 (zbar_decoder_t *dcode)
 {
     i25_decoder_t *dcode25 = &dcode->i25;
 
@@ -4468,7 +4468,7 @@ codabar_postprocess (zbar_decoder_t *dcode)
     return(ZBAR_CODABAR);
 }
 
-zbar_symbol_type_t
+static zbar_symbol_type_t
 _zbar_decode_codabar (zbar_decoder_t *dcode)
 {
     codabar_decoder_t *codabar = &dcode->codabar;
@@ -6090,7 +6090,7 @@ c39_check_width (unsigned ref,
     return(ref - dref <= w && w <= ref + dref);
 }
 
-zbar_symbol_type_t _zbar_decode_code39 (zbar_decoder_t *dcode)
+static zbar_symbol_type_t _zbar_decode_code39 (zbar_decoder_t *dcode)
 {
     code39_decoder_t *dcode39 = &dcode->code39;
 
@@ -7025,7 +7025,7 @@ static inline unsigned char postprocess (zbar_decoder_t *dcode)
     return(0);
 }
 
-zbar_symbol_type_t _zbar_decode_code128 (zbar_decoder_t *dcode)
+static zbar_symbol_type_t _zbar_decode_code128 (zbar_decoder_t *dcode)
 {
     code128_decoder_t *dcode128 = &dcode->code128;
     signed char c;
@@ -7848,7 +7848,7 @@ static inline signed char pdf417_decode_start(zbar_decoder_t *dcode)
     return(ZBAR_PARTIAL);
 }
 
-zbar_symbol_type_t _zbar_decode_pdf417 (zbar_decoder_t *dcode)
+static zbar_symbol_type_t _zbar_decode_pdf417 (zbar_decoder_t *dcode)
 {
     pdf417_decoder_t *dcode417 = &dcode->pdf417;
 
@@ -7930,7 +7930,7 @@ zbar_symbol_type_t _zbar_decode_pdf417 (zbar_decoder_t *dcode)
  *  http://sourceforge.net/projects/zbar
  *------------------------------------------------------------------------*/
 
-zbar_decoder_t *zbar_decoder_create ()
+static zbar_decoder_t *zbar_decoder_create ()
 {
     zbar_decoder_t *dcode = calloc(1, sizeof(zbar_decoder_t));
     dcode->buf_alloc = BUFFER_MIN;
@@ -7989,7 +7989,7 @@ zbar_decoder_t *zbar_decoder_create ()
     return(dcode);
 }
 
-void zbar_decoder_destroy (zbar_decoder_t *dcode)
+static void zbar_decoder_destroy (zbar_decoder_t *dcode)
 {
 #ifdef ENABLE_DATABAR
     if(dcode->databar.segs)
@@ -8000,7 +8000,7 @@ void zbar_decoder_destroy (zbar_decoder_t *dcode)
     free(dcode);
 }
 
-void zbar_decoder_reset (zbar_decoder_t *dcode)
+static void zbar_decoder_reset (zbar_decoder_t *dcode)
 {
     memset(dcode, 0, (long)&dcode->buf_alloc - (long)dcode);
 #ifdef ENABLE_EAN
@@ -8032,7 +8032,7 @@ void zbar_decoder_reset (zbar_decoder_t *dcode)
 #endif
 }
 
-void zbar_decoder_new_scan (zbar_decoder_t *dcode)
+static void zbar_decoder_new_scan (zbar_decoder_t *dcode)
 {
     /* soft reset decoder */
     memset(dcode->w, 0, sizeof(dcode->w));
@@ -8069,27 +8069,27 @@ void zbar_decoder_new_scan (zbar_decoder_t *dcode)
 }
 
 
-zbar_color_t zbar_decoder_get_color (const zbar_decoder_t *dcode)
+static zbar_color_t zbar_decoder_get_color (const zbar_decoder_t *dcode)
 {
     return(get_color(dcode));
 }
 
-const char *zbar_decoder_get_data (const zbar_decoder_t *dcode)
+static const char *zbar_decoder_get_data (const zbar_decoder_t *dcode)
 {
     return((char*)dcode->buf);
 }
 
-unsigned int zbar_decoder_get_data_length (const zbar_decoder_t *dcode)
+static unsigned int zbar_decoder_get_data_length (const zbar_decoder_t *dcode)
 {
     return(dcode->buflen);
 }
 
-int zbar_decoder_get_direction (const zbar_decoder_t *dcode)
+static int zbar_decoder_get_direction (const zbar_decoder_t *dcode)
 {
     return(dcode->direction);
 }
 
-zbar_decoder_handler_t *
+static zbar_decoder_handler_t *
 zbar_decoder_set_handler (zbar_decoder_t *dcode,
                           zbar_decoder_handler_t *handler)
 {
@@ -8098,28 +8098,28 @@ zbar_decoder_set_handler (zbar_decoder_t *dcode,
     return(result);
 }
 
-void zbar_decoder_set_userdata (zbar_decoder_t *dcode,
+static void zbar_decoder_set_userdata (zbar_decoder_t *dcode,
                                 void *userdata)
 {
     dcode->userdata = userdata;
 }
 
-void *zbar_decoder_get_userdata (const zbar_decoder_t *dcode)
+static void *zbar_decoder_get_userdata (const zbar_decoder_t *dcode)
 {
     return(dcode->userdata);
 }
 
-zbar_symbol_type_t zbar_decoder_get_type (const zbar_decoder_t *dcode)
+static zbar_symbol_type_t zbar_decoder_get_type (const zbar_decoder_t *dcode)
 {
     return(dcode->type);
 }
 
-unsigned int zbar_decoder_get_modifiers (const zbar_decoder_t *dcode)
+static unsigned int zbar_decoder_get_modifiers (const zbar_decoder_t *dcode)
 {
     return(dcode->modifiers);
 }
 
-zbar_symbol_type_t zbar_decode_width (zbar_decoder_t *dcode,
+static zbar_symbol_type_t zbar_decode_width (zbar_decoder_t *dcode,
                                       unsigned w)
 {
     zbar_symbol_type_t tmp, sym = ZBAR_NONE;
@@ -8287,7 +8287,7 @@ decoder_get_configp (const zbar_decoder_t *dcode,
     return(config);
 }
 
-unsigned int zbar_decoder_get_configs (const zbar_decoder_t *dcode,
+static unsigned int zbar_decoder_get_configs (const zbar_decoder_t *dcode,
                                        zbar_symbol_type_t sym)
 {
     const unsigned *config = decoder_get_configp(dcode, sym);
@@ -8371,7 +8371,7 @@ static inline int decoder_set_config_int (zbar_decoder_t *dcode,
     return(0);
 }
 
-int zbar_decoder_set_config (zbar_decoder_t *dcode,
+static int zbar_decoder_set_config (zbar_decoder_t *dcode,
                              zbar_symbol_type_t sym,
                              zbar_config_t cfg,
                              int val)
@@ -8467,7 +8467,7 @@ struct zbar_scanner_s {
     unsigned width;         /* last element width */
 };
 
-zbar_scanner_t *zbar_scanner_create (zbar_decoder_t *dcode)
+static zbar_scanner_t *zbar_scanner_create (zbar_decoder_t *dcode)
 {
     zbar_scanner_t *scn = malloc(sizeof(zbar_scanner_t));
     scn->decoder = dcode;
@@ -8476,12 +8476,12 @@ zbar_scanner_t *zbar_scanner_create (zbar_decoder_t *dcode)
     return(scn);
 }
 
-void zbar_scanner_destroy (zbar_scanner_t *scn)
+static void zbar_scanner_destroy (zbar_scanner_t *scn)
 {
     free(scn);
 }
 
-zbar_symbol_type_t zbar_scanner_reset (zbar_scanner_t *scn)
+static zbar_symbol_type_t zbar_scanner_reset (zbar_scanner_t *scn)
 {
     memset(&scn->x, 0, sizeof(zbar_scanner_t) - offsetof(zbar_scanner_t, x));
     scn->y1_thresh = scn->y1_min_thresh;
@@ -8490,12 +8490,12 @@ zbar_symbol_type_t zbar_scanner_reset (zbar_scanner_t *scn)
     return(ZBAR_NONE);
 }
 
-unsigned zbar_scanner_get_width (const zbar_scanner_t *scn)
+static unsigned zbar_scanner_get_width (const zbar_scanner_t *scn)
 {
     return(scn->width);
 }
 
-unsigned zbar_scanner_get_edge (const zbar_scanner_t *scn,
+static unsigned zbar_scanner_get_edge (const zbar_scanner_t *scn,
                                 unsigned offset,
                                 int prec)
 {
@@ -8509,7 +8509,7 @@ unsigned zbar_scanner_get_edge (const zbar_scanner_t *scn,
         return(edge << -prec);
 }
 
-zbar_color_t zbar_scanner_get_color (const zbar_scanner_t *scn)
+static zbar_color_t zbar_scanner_get_color (const zbar_scanner_t *scn)
 {
     return((scn->y1_sign <= 0) ? ZBAR_SPACE : ZBAR_BAR);
 }
@@ -8565,7 +8565,7 @@ static inline zbar_symbol_type_t process_edge (zbar_scanner_t *scn,
     return(ZBAR_PARTIAL);
 }
 
-inline zbar_symbol_type_t zbar_scanner_flush (zbar_scanner_t *scn)
+static inline zbar_symbol_type_t zbar_scanner_flush (zbar_scanner_t *scn)
 {
     unsigned x;
     if(!scn->y1_sign)
@@ -8587,7 +8587,7 @@ inline zbar_symbol_type_t zbar_scanner_flush (zbar_scanner_t *scn)
     return(ZBAR_PARTIAL);
 }
 
-zbar_symbol_type_t zbar_scanner_new_scan (zbar_scanner_t *scn)
+static zbar_symbol_type_t zbar_scanner_new_scan (zbar_scanner_t *scn)
 {
     zbar_symbol_type_t edge = ZBAR_NONE;
     while(scn->y1_sign) {
@@ -8604,7 +8604,7 @@ zbar_symbol_type_t zbar_scanner_new_scan (zbar_scanner_t *scn)
     return(edge);
 }
 
-zbar_symbol_type_t zbar_scan_y (zbar_scanner_t *scn,
+static zbar_symbol_type_t zbar_scan_y (zbar_scanner_t *scn,
                                 int y)
 {
     /* FIXME calc and clip to max y range... */
@@ -8683,7 +8683,7 @@ zbar_symbol_type_t zbar_scan_y (zbar_scanner_t *scn,
 }
 
 /* undocumented API for drawing cutesy debug graphics */
-void zbar_scanner_get_state (const zbar_scanner_t *scn,
+static void zbar_scanner_get_state (const zbar_scanner_t *scn,
                              unsigned *x,
                              unsigned *cur_edge,
                              unsigned *last_edge,

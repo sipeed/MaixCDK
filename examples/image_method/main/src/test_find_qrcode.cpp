@@ -86,11 +86,11 @@ int test_find_qrcode(image::Image *img) {
 #endif
 
     t = time::ticks_ms();
-    auto imlib_res = img->find_qrcodes();
-    log::info("imlib scan use %lld ms, fps:%f", time::ticks_ms() - t, 1000.0 / (time::ticks_ms() - t));
-    for (auto &i : imlib_res)
+    auto res = img->find_qrcodes();
+    log::info("find_qrcodes scan use %lld ms, fps:%f", time::ticks_ms() - t, 1000.0 / (time::ticks_ms() - t));
+    for (auto &i : res)
     {
-        log::info("imlib scan result: %s", i.payload().c_str());
+        log::info("find_qrcodes scan result: %s", i.payload().c_str());
         std::vector<std::vector<int>> corners = i.corners();
         for (int i = 0; i < 4; i ++) {
             img->draw_line(corners[i][0], corners[i][1], corners[(i + 1) % 4][0], corners[(i + 1) % 4][1], maix::image::Color::from_rgb(0, 255, 0), 2);
