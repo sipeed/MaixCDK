@@ -1157,6 +1157,11 @@ namespace maix::camera
         }
     }
 
+    std::string get_device_name() {
+        std::string device_name = "";
+        return device_name;
+    }
+
     static CameraV4L2 *_impl;
     Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
     {

@@ -45,7 +45,7 @@ int _main(int argc, char* argv[])
     if (argc > 4) cam_fps = atoi(argv[4]);
     if (argc > 5) cam_buffer_num = atoi(argv[5]);
     if (argc > 6) raw = atoi(argv[6]) ? true : false;
-    log::info("Camera width:%d height:%d format:%s fps:%d buffer_num:%d raw:%d",
+    log::info("Camera(%s) width:%d height:%d format:%s fps:%d buffer_num:%d raw:%d", camera::get_device_name().c_str(),
         cam_w, cam_h, image::fmt_names[cam_fmt].c_str(), cam_fps, cam_buffer_num, raw);
 
     camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num, true, raw);

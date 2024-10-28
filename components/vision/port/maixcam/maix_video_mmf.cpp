@@ -3716,6 +3716,7 @@ _exit:
         // err::check_null_raise(param->imu.gcsv, "create gcsv failed!");
         // unlock();
         // return param->imu.obj ? err::ERR_NONE : err::ERR_ARGS;
+        return err::ERR_NOT_IMPL;
     }
 
     err::Err VideoRecorder::reset()

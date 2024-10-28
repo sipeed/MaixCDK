@@ -38,6 +38,12 @@ namespace maix::camera
     void set_regs_enable(bool enable = true);
 
     /**
+     * Get device name. Most of the time, the returned name is the name of the sensor.
+     * @maixpy maix.camera.get_device_name
+    */
+    std::string get_device_name();
+
+    /**
      * Camera class
      * @maixpy maix.camera.Camera
      */

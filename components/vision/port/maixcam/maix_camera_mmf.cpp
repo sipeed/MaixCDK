@@ -175,56 +175,74 @@ namespace maix::camera
         return name;
     }
 
-    static char* _get_sensor_name(void)
+    static std::pair<bool, std::string> _get_sensor_name(void)
     {
         // TODO: supports dual sensor
         int res = CVI_MIPI_SetSensorReset(0, 0);
 		if (res != CVI_SUCCESS) {
 			log::error("sensor 0 unreset failed!\n");
-			return NULL;
+			return {false, std::string()};
 		}
 
-        static char name[30];
+        char name[30];
         peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
         std::vector<int> addr_list = i2c_obj.scan();
         for (size_t i = 0; i < addr_list.size(); i++) {
             log::info("i2c4 addr: 0x%02x", addr_list[i]);
             switch (addr_list[i]) {
                 case 0x29:
-                    log::info("find gcore_gc4653, addr %#x", addr_list[i]);
+                    // log::info("find gcore_gc4653, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "gcore_gc4653");
-                    return name;
+                    return {true, name};
                 case 0x30:
-                    log::info("find sms_sc035gs, addr %#x", addr_list[i]);
+                    // log::info("find sms_sc035gs, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "sms_sc035gs");
-                    return name;
+                    return {true, name};
                 case 0x2b:
-                    log::info("find lt6911, addr %#x", addr_list[i]);
+                    // log::info("find lt6911, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "lt6911");
-                    return name;
+                    return {true, name};
                 case 0x36:
-                    log::info("find ov_os04a10, addr %#x", addr_list[i]);
+                    // log::info("find ov_os04a10, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "ov_os04a10");
-                    return name;
+                    return {true, name};
                 case 0x48:// fall through
                 case 0x3c:
-                    log::info("find ov_ov2685, addr %#x", addr_list[i]);
+                    // log::info("find ov_ov2685, addr %#x", addr_list[i]);
                     snprintf(name, sizeof(name), "ov_ov2685");
-                    return name;
+                    return {true, name};
                 default: break;
             }
         }
 
-        log::info("sensor address not found , use gcore_gc4653\n" );
+        // log::info("sensor address not found , use gcore_gc4653\n" );
         snprintf(name, sizeof(name), "gcore_gc4653");
-        return name;
+        return {false, name};
+    }
+
+    std::string get_device_name()
+    {
+        std::string device_name;
+        std::pair<bool, std::string> res = _get_sensor_name();
+        if (res.first == false) {
+            log::info("sensor name not found, retry..\n" );
+            camera::Camera * cam = new camera::Camera();
+            delete cam;
+            std::pair<bool, std::string> res = _get_sensor_name();
+            err::check_bool_raise(res.first, "sensor name not found!");
+            device_name = res.second;
+        } else {
+            device_name = res.second;
+        }
+        return device_name;
     }
 
     static void _config_sensor_env(double fps)
     {
         char *env_value = getenv(MMF_SENSOR_NAME);
         if (!env_value) {
-            char *sensor_name = _get_sensor_name();
+            std::pair<bool, std::string> res = _get_sensor_name();
+            char *sensor_name = (char *)res.second.c_str();
             err::check_null_raise(sensor_name, "sensor name not found!");
             setenv(MMF_SENSOR_NAME, sensor_name, 0);
         } else {
