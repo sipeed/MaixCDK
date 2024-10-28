@@ -95,6 +95,9 @@ int test_find_qrcode(image::Image *img) {
         for (int i = 0; i < 4; i ++) {
             img->draw_line(corners[i][0], corners[i][1], corners[(i + 1) % 4][0], corners[(i + 1) % 4][1], maix::image::Color::from_rgb(0, 255, 0), 2);
         }
+
+        auto rect = i.rect();
+        img->draw_rect(rect[0], rect[1], rect[2], rect[3], maix::image::Color::from_rgb(255, 0, 0));
     }
     return 0;
 }

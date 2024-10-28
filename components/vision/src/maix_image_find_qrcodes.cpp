@@ -12,6 +12,26 @@
 
 namespace maix::image
 {
+    static void calculate_rect(const std::vector<int>& vec, int &x, int &y, int &width, int &height) {
+        int min_x = 0xffff, min_y = 0xffff;
+        int max_x = 0, max_y = 0;
+
+        for (size_t i = 0; i < vec.size(); i += 2) {
+            min_x = min_x < vec[i] ? min_x : vec[i];
+            max_x = max_x > vec[i] ? max_x : vec[i];
+        }
+
+        for (size_t i = 1; i < vec.size(); i += 2) {
+            min_y = min_y < vec[i] ? min_y : vec[i];
+            max_y = max_y > vec[i] ? max_y : vec[i];
+        }
+
+        x = min_x;
+        y = min_y;
+        width = max_x - min_x;
+        height = max_y - min_y;
+    }
+
     std::vector<image::QRCode> Image::find_qrcodes(std::vector<int> roi, QRCodeDecoderType decoder_type)
     {
         std::vector<image::QRCode> qrcodes;
@@ -115,11 +135,15 @@ namespace maix::image
             zbar_qrcode_result_t result;
             zbar_scan_qrcode_in_gray((uint8_t *)new_img->data(), new_img->width(), new_img->height(), &result);
             for (int i = 0; i < result.counter; i ++) {
-                int w = sqrt((abs(result.corners[i][2] - result.corners[i][0]) ^ 2 + abs(result.corners[i][3] - result.corners[i][1]) ^ 2));
-                int h = sqrt((abs(result.corners[i][6] - result.corners[i][0]) ^ 2 + abs(result.corners[i][7] - result.corners[i][1]) ^ 2));
+                for (size_t j = 0; j < result.corners[i].size(); j += 2) {
+                    result.corners[i][j] += avail_roi[0];
+                    result.corners[i][j + 1] += avail_roi[1];
+                }
+                int x, y, w, h;
+                calculate_rect(result.corners[i], x, y, w, h);
                 std::vector<int> rect = {
-                    (int)result.corners[i][0],
-                    (int)result.corners[i][1],
+                    (int)x,
+                    (int)y,
                     (int)w,
                     (int)h,
                 };
