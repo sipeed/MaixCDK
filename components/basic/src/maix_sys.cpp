@@ -122,6 +122,8 @@ namespace maix::sys
                 if(model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
                 {
                     fclose(file);
+                    if(fs::exists("/boot/board.maixcam_pro"))
+                        return "MaixCAM-Pro";
                     return "MaixCAM";
                 }
 #else
