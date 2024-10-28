@@ -188,7 +188,7 @@ namespace maix::camera
         peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
         std::vector<int> addr_list = i2c_obj.scan();
         for (size_t i = 0; i < addr_list.size(); i++) {
-            log::info("i2c4 addr: 0x%02x", addr_list[i]);
+            // log::info("i2c4 addr: 0x%02x", addr_list[i]);
             switch (addr_list[i]) {
                 case 0x29:
                     // log::info("find gcore_gc4653, addr %#x", addr_list[i]);
@@ -223,14 +223,18 @@ namespace maix::camera
     std::string get_device_name()
     {
         std::string device_name;
+        char *board_name = _get_board_name();
+        if (!strcmp(board_name, "maixcam_pro")) {
+            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
+        } else {
+            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
+        }
         std::pair<bool, std::string> res = _get_sensor_name();
         if (res.first == false) {
-            log::info("sensor name not found, retry..\n" );
-            camera::Camera * cam = new camera::Camera();
-            delete cam;
-            std::pair<bool, std::string> res = _get_sensor_name();
-            err::check_bool_raise(res.first, "sensor name not found!");
-            device_name = res.second;
+            device_name = "";
+            return device_name;
         } else {
             device_name = res.second;
         }
