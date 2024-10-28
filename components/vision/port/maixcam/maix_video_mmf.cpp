@@ -2004,19 +2004,21 @@ _exit:
         param->next_pts = 0;
 
         // audio
-        _audio_channels = resample_channels;
-        _audio_format = _audio_format_from_alsa(resample_format);
-        _audio_sample_rate = resample_sample_rate;
-        param->audio_stream_index = audio_stream_index;
-        param->sample_rate = audio_codec_ctx->sample_rate;
-        param->channels = audio_codec_ctx->channels;
-        param->resample_channels = resample_channels;
-        param->resample_sample_rate = resample_sample_rate;
-        param->resample_sample_format = resample_format;
-        param->sample_fmt = audio_codec_ctx->sample_fmt;
-        param->audio_codec_ctx = audio_codec_ctx;
-        param->audio_frame = audio_frame;
-        param->swr_ctx = swr_ctx;
+        if (_has_audio) {
+            _audio_channels = resample_channels;
+            _audio_format = _audio_format_from_alsa(resample_format);
+            _audio_sample_rate = resample_sample_rate;
+            param->audio_stream_index = audio_stream_index;
+            param->sample_rate = audio_codec_ctx->sample_rate;
+            param->channels = audio_codec_ctx->channels;
+            param->resample_channels = resample_channels;
+            param->resample_sample_rate = resample_sample_rate;
+            param->resample_sample_format = resample_format;
+            param->sample_fmt = audio_codec_ctx->sample_fmt;
+            param->audio_codec_ctx = audio_codec_ctx;
+            param->audio_frame = audio_frame;
+            param->swr_ctx = swr_ctx;
+        }
     }
 
     Decoder::~Decoder() {
@@ -2214,7 +2216,9 @@ _retry:
             }
         }
 
-        param->next_pts += context->duration();
+        if (context) {
+            param->next_pts += context->duration();
+        }
         return context;
     }
 
@@ -2423,7 +2427,9 @@ _retry:
         }
 
         if (is_video) {
-            param->next_pts += context->duration();
+            if (context) {
+                param->next_pts += context->duration();
+            }
             return context;
         } else if (is_audio) {
             return context;
