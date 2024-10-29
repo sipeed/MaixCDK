@@ -8,6 +8,7 @@ extern "C" {
 #include "lvgl.h"
 #include "stdint.h"
 
+void event_left_screen_scroll_cb(lv_event_t * e);
 void event_touch_exit_cb(lv_event_t * e);
 void event_touch_delay_cb(lv_event_t * e);
 void event_touch_resolution_cb(lv_event_t * e);

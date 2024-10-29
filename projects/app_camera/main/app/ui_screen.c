@@ -55,6 +55,8 @@ lv_obj_t *g_raw_button;
 lv_obj_t *g_shutter_plus_minus_button;
 lv_obj_t *g_iso_plus_minus_button;
 
+lv_obj_t *g_drop_down_img;
+
 LV_IMG_DECLARE(img_delay);
 LV_IMG_DECLARE(img_exit);
 LV_IMG_DECLARE(img_option);
@@ -72,6 +74,7 @@ LV_IMG_DECLARE(img_raw);
 LV_IMG_DECLARE(img_light_on);
 LV_IMG_DECLARE(img_light_off);
 LV_IMG_DECLARE(img_bitrate);
+LV_IMG_DECLARE(img_drop_down);
 
 extern void event_touch_exit_cb(lv_event_t * e);
 extern void event_touch_delay_cb(lv_event_t * e);
@@ -154,10 +157,13 @@ static void left_screen_init(void)
     lv_obj_set_size(scr, lv_pct(w), lv_pct(100));
     lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
     lv_obj_set_style_radius(scr, 0, 0);
+    lv_obj_set_style_line_width(scr, 0, 0);
+    lv_obj_set_style_outline_width(scr, 0, 0);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
     // lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_hor(scr, 1, 0);
+    lv_obj_add_event_cb(scr, event_left_screen_scroll_cb, LV_EVENT_SCROLL, NULL);
 
     lv_obj_t *img;
     {
@@ -177,6 +183,12 @@ static void left_screen_init(void)
         lv_image_set_src(img, &img_exit);
         lv_obj_center(img);
     }
+
+    lv_obj_t *down_icon = lv_img_create(lv_scr_act());
+    lv_obj_set_style_bg_color(down_icon, lv_color_hex(0x2e2e2e), 0);
+    lv_obj_align(down_icon, LV_ALIGN_BOTTOM_LEFT, (lv_pct_to_px(lv_pct(w), lv_disp_get_hor_res(NULL)) - img_drop_down.header.w) / 2, 0);
+    lv_img_set_src(down_icon, &img_drop_down);
+    g_drop_down_img = down_icon;
 
     {
         lv_obj_t *obj = lv_obj_create(scr);

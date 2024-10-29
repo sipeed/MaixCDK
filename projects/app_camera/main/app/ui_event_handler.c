@@ -48,6 +48,7 @@ extern lv_obj_t *g_iso_plus_minus_button;
 extern lv_obj_t *g_raw_button;
 extern lv_obj_t *g_light_button;
 extern lv_obj_t *g_bitrate_button;
+extern lv_obj_t *g_drop_down_img;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -117,6 +118,26 @@ static void _set_hidden_and_clear_checked(lv_obj_t *without_obj)
         lv_obj_add_flag(setting, LV_OBJ_FLAG_HIDDEN);
         if (lv_obj_get_state(button) == LV_STATE_CHECKED) {
             lv_obj_send_event(button, LV_EVENT_RELEASED, NULL);
+        }
+    }
+}
+
+void event_left_screen_scroll_cb(lv_event_t * e)
+{
+    DEBUG_EN(0);
+    lv_event_code_t code = lv_event_get_code(e);
+    DEBUG_PRT("code:%d\n", code);
+
+    if (code == LV_EVENT_SCROLL) {
+        int oft_y = lv_obj_get_scroll_y(lv_event_get_target(e));
+        DEBUG_PRT("scroll number:%d\n", oft_y);
+
+        if (g_drop_down_img) {
+            if (oft_y > 0) {
+                lv_obj_add_flag(g_drop_down_img, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_clear_flag(g_drop_down_img, LV_OBJ_FLAG_HIDDEN);
+            }
         }
     }
 }
