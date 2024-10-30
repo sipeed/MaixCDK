@@ -1,7 +1,7 @@
 id: self_learn_tracker
 name: Self Learn Tracker
 name[zh]: 自学习检测器
-version: 1.0.0
+version: 1.0.1
 icon: assets/icon.png
 author: Sipeed Ltd
 desc: Learn and detect and track any object

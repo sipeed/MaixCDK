@@ -1,7 +1,7 @@
 id: detector
 name: AI Detector
 name[zh]: AI 检测器
-version: 1.0.2
+version: 1.0.3
 icon: assets/detector.png
 author: Sipeed Ltd
 desc: AI object detection
