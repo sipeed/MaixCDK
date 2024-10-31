@@ -173,7 +173,6 @@ namespace maix::camera
 
     static int _get_mclk_id(void) {
         char path[64];
-        char line[1024];
         int mclk_id = 0;
 
         err::check_bool_raise(_get_board_config_path(path, sizeof(path)), "Can't find board config file");
@@ -732,16 +731,16 @@ _retry:
             }
         }
 
-        bool vi_need_deinit = true;
-        for (int i = 0; i < this->get_ch_nums(); i ++) {
-            if (mmf_vi_chn_is_open(i)) {
-                vi_need_deinit = false;
-            }
-        }
+        // bool vi_need_deinit = true;
+        // for (int i = 0; i < this->get_ch_nums(); i ++) {
+        //     if (mmf_vi_chn_is_open(i)) {
+        //         vi_need_deinit = false;
+        //     }
+        // }
 
-        if (vi_need_deinit) {
-            mmf_vi_deinit();
-        }
+        // if (vi_need_deinit) {
+        //     mmf_vi_deinit();
+        // }
 
         mmf_deinit_v2(false);
     }
