@@ -24,31 +24,12 @@ using namespace maix::peripheral;
 
 namespace maix::display
 {
-    static char* _get_board_name(void)
-    {
-        static char name[30];
-        if (fs::exists("/boot/board.maixcam_pro")) {
-            snprintf(name, sizeof(name), "maixcam_pro");
-        } else {
-            snprintf(name, sizeof(name), "maixcam");
-        }
-
-        log::info("find board: %s", name);
-        return name;
-    }
-
     static int _get_board_config_path(char *path, int path_size)
     {
-        if (fs::exists("/boot/board.maixcam_pro")) {
-            snprintf(path, path_size, "/boot/board.maixcam_pro");
+        if (fs::exists("/boot/board")) {
+            snprintf(path, path_size, "/boot/board");
             return 0;
         }
-
-        if (fs::exists("/boot/board.maixcam")) {
-            snprintf(path, path_size, "/boot/board.maixcam");
-            return 0;
-        }
-
         return -1;
     }
 
@@ -166,8 +147,8 @@ namespace maix::display
         if (flip_is_found && strlen(flip_str) > 0) {
             flip = atoi(flip_str);
         } else {
-            char *board_name = _get_board_name();
-            if (!strcmp(board_name, "maixcam_pro")) {
+            std::string board_id = sys::device_id();
+            if (board_id == "maixcam_pro") {
                 flip = true;
             } else {
                 flip = false;

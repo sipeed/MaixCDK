@@ -28,8 +28,15 @@ namespace maix::sys
     std::string maixpy_version();
 
     /**
+     * Get device id
+     * @return device id, e.g. "maixcam" "maixcam_pro"
+     * @maixpy maix.sys.device_id
+     */
+    std::string device_id();
+
+    /**
      * Get device name
-     * @return device name, e.g. "MaixCAM"
+     * @return device name, e.g. "MaixCAM" "MaixCAM-Pro"
      * @maixpy maix.sys.device_name
      */
     std::string device_name();

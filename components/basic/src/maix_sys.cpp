@@ -5,7 +5,6 @@
  * @update 2023.9.8: Add framework, create this file.
  */
 
-
 #include "maix_basic.hpp"
 #include <sys/statvfs.h>
 #include <sys/ioctl.h>
@@ -52,62 +51,68 @@ namespace maix::sys
 
     std::string maixpy_version()
     {
-        #if PLATFORM_MAIXCAM
-            // fast way, read /usr/lib/python3.11/site-packages/maix/version.py
-            // find key value:
-            //      version_major = 4
-            //      version_minor = 4
-            //      version_patch = 20
-            // return $version_major.$version_minor.$version_patch
-            std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
-            if (!version_file.is_open()) {
-                log::warn("Failed to open version file.");
-                return "";
-            }
-
-            std::string line;
-            int version_major = -1, version_minor = -1, version_patch = -1;
-
-            while (std::getline(version_file, line)) {
-                if (line.find("version_major") != std::string::npos) {
-                    std::string num = line.substr(line.find("=") + 1);
-                    version_major = std::stoi(num);
-                }
-                else if (line.find("version_minor") != std::string::npos) {
-                    std::string num = line.substr(line.find("=") + 1);
-                    version_minor = std::stoi(num);
-                }
-                else if (line.find("version_patch") != std::string::npos) {
-                    std::string num = line.substr(line.find("=") + 1);
-                    version_patch = std::stoi(num);
-                }
-                if(version_major >=0 && version_minor >= 0 && version_patch >=0)
-                    break;
-            }
-
-            version_file.close();
-
-            if (version_major == -1 || version_minor == -1 || version_patch == -1) {
-                log::warn("Version information incomplete or not found.");
-                return "";
-            }
-
-            std::ostringstream version_stream;
-            version_stream << version_major << "." << version_minor << "." << version_patch;
-            return version_stream.str();
-        #else
-            log::warn("maixpy_version() not implemented for this platform");
+#if PLATFORM_MAIXCAM
+        // fast way, read /usr/lib/python3.11/site-packages/maix/version.py
+        // find key value:
+        //      version_major = 4
+        //      version_minor = 4
+        //      version_patch = 20
+        // return $version_major.$version_minor.$version_patch
+        std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
+        if (!version_file.is_open())
+        {
+            log::warn("Failed to open version file.");
             return "";
-        #endif
+        }
+
+        std::string line;
+        int version_major = -1, version_minor = -1, version_patch = -1;
+
+        while (std::getline(version_file, line))
+        {
+            if (line.find("version_major") != std::string::npos)
+            {
+                std::string num = line.substr(line.find("=") + 1);
+                version_major = std::stoi(num);
+            }
+            else if (line.find("version_minor") != std::string::npos)
+            {
+                std::string num = line.substr(line.find("=") + 1);
+                version_minor = std::stoi(num);
+            }
+            else if (line.find("version_patch") != std::string::npos)
+            {
+                std::string num = line.substr(line.find("=") + 1);
+                version_patch = std::stoi(num);
+            }
+            if (version_major >= 0 && version_minor >= 0 && version_patch >= 0)
+                break;
+        }
+
+        version_file.close();
+
+        if (version_major == -1 || version_minor == -1 || version_patch == -1)
+        {
+            log::warn("Version information incomplete or not found.");
+            return "";
+        }
+
+        std::ostringstream version_stream;
+        version_stream << version_major << "." << version_minor << "." << version_patch;
+        return version_stream.str();
+#else
+        log::warn("maixpy_version() not implemented for this platform");
+        return "";
+#endif
     }
 
-    std::string device_name()
+    std::string device_id()
     {
         FILE *file = NULL;
         char line[128];
         std::string model = "";
         file = fopen("/proc/device-tree/model", "r");
-        if(file)
+        if (file)
         {
             if (fgets(line, sizeof(line), file))
             {
@@ -119,28 +124,112 @@ namespace maix::sys
                 // 包含 maixcam 或者 licheerv nano (不区分大小写，先把 model 转换为小写)
                 std::string model_lower = model;
                 std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
-                if(model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
+                if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
                 {
                     fclose(file);
-                    if(fs::exists("/boot/board.maixcam_pro"))
-                        return "MaixCAM-Pro";
+                    if (fs::exists("/boot/board"))
+                    {
+                        fs::File *f = fs::open("/boot/board", "r");
+                        while (1)
+                        {
+                            std::string *line = f->readline();
+                            if (!line)
+                                break;
+                            std::string prefix = "id";
+                            size_t pos = line->find(prefix);
+
+                            if (pos >= 0 && line->find('=', pos + prefix.length()) != std::string::npos)
+                            {
+                                size_t eq_pos = line->find('=', pos + prefix.length());
+                                std::string value = line->substr(eq_pos + 1);
+
+                                value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch)
+                                                                        { return !std::isspace(ch); }));
+                                value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch)
+                                                         { return !std::isspace(ch); })
+                                                .base(),
+                                            value.end());
+
+                                delete line;
+                                delete f;
+                                return value;
+                            }
+                            delete line;
+                        }
+                        delete f;
+                    }
+                    return "maixcam";
+                }
+#else
+                fclose(file);
+                return model;
+#endif
+            }
+            fclose(file);
+        }
+        std::string model_lower = model;
+        std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
+        return model_lower;
+    }
+
+    std::string device_name()
+    {
+        FILE *file = NULL;
+        char line[128];
+        std::string model = "";
+        file = fopen("/proc/device-tree/model", "r");
+        if (file)
+        {
+            if (fgets(line, sizeof(line), file))
+            {
+                model = line;
+                model.erase(0, model.find_first_not_of(" \t\n"));
+                model.erase(model.find_last_not_of(" \t\n") + 1);
+#if PLATFORM_MAIXCAM
+                // if(model.find("MaixCAM") != std::string::npos || model.find("LicheeRv Nano") != std::string::npos)
+                // 包含 maixcam 或者 licheerv nano (不区分大小写，先把 model 转换为小写)
+                std::string model_lower = model;
+                std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
+                if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
+                {
+                    fclose(file);
+                    if (fs::exists("/boot/board"))
+                    {
+                        fs::File *f = fs::open("/boot/board", "r");
+                        while (1)
+                        {
+                            std::string *line = f->readline();
+                            if (!line)
+                                break;
+                            std::string prefix = "name";
+                            size_t pos = line->find(prefix);
+
+                            if (pos >= 0 && line->find('=', pos + prefix.length()) != std::string::npos)
+                            {
+                                size_t eq_pos = line->find('=', pos + prefix.length());
+                                std::string value = line->substr(eq_pos + 1);
+
+                                value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch)
+                                                                        { return !std::isspace(ch); }));
+                                value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch)
+                                                         { return !std::isspace(ch); })
+                                                .base(),
+                                            value.end());
+
+                                delete line;
+                                delete f;
+                                return value;
+                            }
+                            delete line;
+                        }
+                        delete f;
+                    }
                     return "MaixCAM";
                 }
 #else
                 fclose(file);
                 return model;
 #endif
-
-            }
-            fclose(file);
-        }
-        file = fopen("/boot/device_name", "r");
-        if (file)
-        {
-            char line[128];
-            if (fgets(line, sizeof(line), file))
-            {
-                model = line;
             }
             fclose(file);
         }
