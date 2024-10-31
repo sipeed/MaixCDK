@@ -1,6 +1,7 @@
 #include "maix_basic.hpp"
 #include "main.h"
 #include "maix_bm8563.hpp"
+#include "maix_i2c.hpp"
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
@@ -278,7 +279,8 @@ static void setup(int argc, char** argv)
     ::close(STDERR_FILENO);
 
     std::string filename(argv[0]);
-    filename = "./" + filename + ".log";
+    // filename = "./" + filename + ".log";
+    filename = "/var/log/maixapp-cache/" + filename + ".log";
 
     std::streamsize filesize = FileHandler::size(filename);
     if (filesize < 0 || LOG_FILE_MAX_BYTES <= static_cast<uint64_t>(filesize))
@@ -293,6 +295,21 @@ static void setup(int argc, char** argv)
     ::dup2(fd, STDOUT_FILENO);
     ::dup2(fd, STDERR_FILENO);
     ::close(fd);
+}
+
+static std::pair<bool,uint8_t> bm8563_is_exist()
+{
+    const auto i2c_bus_devices = maix::peripheral::i2c::list_devices();
+
+    for (auto bus : i2c_bus_devices) {
+        maix::peripheral::i2c::I2C i2c(bus, maix::peripheral::i2c::Mode::MASTER);
+        if (!i2c.scan(0x51).empty()) {
+            maix::log::info("Found bm8563 in i2c bus<%d>", bus);
+            return {true, static_cast<uint8_t>(bus)};
+        }
+    }
+
+    return {false, 0};
 }
 
 
@@ -310,31 +327,48 @@ static void deamon()
     bool use_config_file = file_is_exists(LOG_FILE_PATH);
     (void)((use_config_file) ?
         (maix::log::info("[%s] Use config file: %s", get_time_string_from_system().c_str(), LOG_FILE_PATH), use_config_file) :
-        (maix::log::info("[%s] Use static config."), use_config_file));
+        (maix::log::info("[%s] Use static config.", get_time_string_from_system().c_str()), use_config_file));
 
-    maix::log::info("[%s] Init BM5863 START...", get_time_string_from_system().c_str());
-    drv::bm8563::BM8563 rtc(BM8563_I2CBUS_NUM);
-    maix::log::info("[%s] Init BM8653 FINISH...", get_time_string_from_system().c_str());
+    auto [bm8563_flag, bus_id] = bm8563_is_exist();
+    std::unique_ptr<drv::bm8563::BM8563> rtc;
 
-    print_sys_and_rtc_time(rtc);
+    if (bm8563_flag) {
+        maix::log::info("[%s] Init bm8563 START...", get_time_string_from_system().c_str());
+        // drv::bm8563::BM8563 rtc(BM8563_I2CBUS_NUM);
+        rtc = std::make_unique<drv::bm8563::BM8563>(bus_id);
+        maix::log::info("[%s] Init bm8563 FINISH...", get_time_string_from_system().c_str());
+        print_sys_and_rtc_time(*rtc);
+    } else {
+        maix::log::info("[%s] Not found bm8563", get_time_string_from_system().c_str());
+    }
 
     static constexpr int MAX_RETRY_NUM = 10;
     int retry = 0;
     for (; retry < MAX_RETRY_NUM;) {
-        maix::log::info("[%s][%d] Sync RTC -> system", get_time_string_from_system().c_str(), retry);
-        if (err::Err::ERR_NONE != rtc.hctosys()) {
-            maix::log::error("[%s][%d] Sync RTC -> system FAILED!!!", get_time_string_from_system().c_str(), retry);
-            ++retry;
-            continue;
+        if (bm8563_flag) {
+            maix::log::info("[%s][%d] Sync RTC -> system", get_time_string_from_system().c_str(), retry);
+            if (err::Err::ERR_NONE != rtc->hctosys()) {
+                maix::log::error("[%s][%d] Sync RTC -> system FAILED!!!", get_time_string_from_system().c_str(), retry);
+                ++retry;
+                continue;
+            }
         }
+
         uint8_t print_flag = 0;
         const uint8_t print_flag_max = 3;
+        constexpr int MAX_INTERNET_TRY = 10;
+        int internet_try = 0;
         while (!is_internet_connected(addrs)) {
             if (++print_flag >= print_flag_max) {
                 print_flag = 0;
                 maix::log::info("[%s] Waiting for network connect...", get_time_string_from_system().c_str());
             }
             maix::time::sleep(1);
+            ++internet_try;
+            if (internet_try >= MAX_INTERNET_TRY) {
+                maix::log::info("[%s] Not network. Exit", get_time_string_from_system().c_str());
+                return;
+            }
         }
         maix::log::info("[%s] Network connected...", get_time_string_from_system().c_str());
 
@@ -342,15 +376,17 @@ static void deamon()
 
         maix::log::info("[%s] Sync NTP -> system Succ...", get_time_string_from_system().c_str());
 
-        maix::log::info("[%s] Wait for the system time to reach the whole second", get_time_string_from_system().c_str());
-        waiting_sys_time(50);
+        if (bm8563_flag) {
+            maix::log::info("[%s] Wait for the system time to reach the whole second", get_time_string_from_system().c_str());
+            waiting_sys_time(50);
 
-        if (err::Err::ERR_NONE != rtc.systohc()) {
-            maix::log::error("[%s][%d] Sync system -> RTC FAILED!!!", get_time_string_from_system().c_str(), retry);
-            ++retry;
-            continue;
+            if (err::Err::ERR_NONE != rtc->systohc()) {
+                maix::log::error("[%s][%d] Sync system -> RTC FAILED!!!", get_time_string_from_system().c_str(), retry);
+                ++retry;
+                continue;
+            }
+            maix::log::info("[%s] Sync system -> RTC Succ...", get_time_string_from_system().c_str());
         }
-        maix::log::info("[%s] Sync system -> RTC Succ...", get_time_string_from_system().c_str());
         maix::log::info("[%s] Sync FINISH...", get_time_string_from_system().c_str());
         break;
     }
@@ -358,10 +394,12 @@ static void deamon()
         maix::log::error("[%s] ALL retry FAILED!!!", get_time_string_from_system().c_str());
     auto rtime = maix::time::ticks_ms() - ltime;
     maix::log::info("[%s] EXIT, total time: %llu ms", get_time_string_from_system().c_str(), rtime);
-    print_sys_and_rtc_time(rtc);
+    if (bm8563_flag)
+        print_sys_and_rtc_time(*rtc);
     maix::log::info("----------------------------------------\n\n\n");
 }
 
+[[maybe_unused]]
 int check(void)
 {
     namespace drv = maix::ext_dev;
@@ -421,7 +459,9 @@ int _main(int argc, char* argv[])
     }
 
     if (result["debug"].as<bool>()) {
-        return check();
+        // return check();
+        maix::log::warn("Unsupport");
+        return 1;
     }
 
     if (result["blocking"].as<bool>()) {

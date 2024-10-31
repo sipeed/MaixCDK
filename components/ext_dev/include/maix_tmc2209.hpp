@@ -14,15 +14,20 @@ public:
     SlideErrorHandler() : prev_error(T{}), target_(0), prev_err_flag(true) {}
     ~SlideErrorHandler() {}
 
-    T target(T now) {
+    T target(T now) noexcept {
         this->target_ = (this->prev_err_flag) ? (now + this->prev_error) : (now - this->prev_error);
         return this->target_;
     }
 
-    T save_error(T result) {
+    T save_error(T result) noexcept {
         this->prev_err_flag = (result <= this->target_);
         this->prev_error = (this->prev_err_flag) ? (this->target_ - result) : (result - this->target_);
         return this->prev_error;
+    }
+
+    void clear(T now) noexcept {
+        this->prev_error = T{};
+        this->target_ = now;
     }
 public:
     T prev_error;
