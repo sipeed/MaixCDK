@@ -354,7 +354,7 @@ namespace maix::fs
         char buf[1024] = {0};
         if (std::fgets(buf, 1024, (FILE *)_fp) == nullptr)
         {
-            return new std::string();
+            return nullptr;
         }
         std::string *line = new std::string(buf);
         return line;

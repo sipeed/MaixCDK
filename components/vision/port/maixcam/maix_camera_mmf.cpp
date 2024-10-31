@@ -162,123 +162,79 @@ namespace maix::camera
         }
     }
 
-    static char* _get_board_name(void)
+    static bool _get_board_config_path(char *path, int path_size)
     {
-        static char name[30];
-        if (fs::exists("/boot/board.maixcam_pro")) {
-            snprintf(name, sizeof(name), "maixcam_pro");
-        } else {
-            snprintf(name, sizeof(name), "maixcam");
+        if (fs::exists("/boot/board")) {
+            snprintf(path, path_size, "/boot/board");
+            return true;
         }
-
-        log::info("find board: %s", name);
-        return name;
-    }
-
-    static int _get_board_config_path(char *path, int path_size)
-    {
-        if (fs::exists("/boot/board.maixcam_pro")) {
-            snprintf(path, path_size, "/boot/board.maixcam_pro");
-            return 0;
-        }
-
-        if (fs::exists("/boot/board.maixcam")) {
-            snprintf(path, path_size, "/boot/board.maixcam");
-            return 0;
-        }
-
-        return -1;
+        return false;
     }
 
     static int _get_mclk_id(void) {
         char path[64];
         char line[1024];
-        char mclk_id_str[256] = {0};
         int mclk_id = 0;
 
-        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
-        FILE *file = fopen(path, "r");
-        if (file == NULL) {
-            perror("Error opening file");
-            return 1;
+        err::check_bool_raise(_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+
+        std::string mclk_id_str;
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("cam_mclk");
+        if (it != device_configs.end()) {
+            mclk_id_str = it->second;
         }
-
-        while (fgets(line, sizeof(line), file)) {
-            if (strncmp(line, "cam_mclk=", 9) == 0) {
-                strcpy(mclk_id_str, line + 9);
-                mclk_id_str[strcspn(mclk_id_str, "\n")] = '\0';
-                break;
-            }
-        }
-
-        fclose(file);
-
-        if (strlen(mclk_id_str) > 0) {
-            mclk_id = atoi(mclk_id_str);
+        if (!mclk_id_str.empty()) {
+            mclk_id = atoi(mclk_id_str.c_str());
         } else {
-            char *board_name = _get_board_name();
-            if (!strcmp(board_name, "maixcam_pro")) {
+            std::string board_id = sys::device_id();
+            if (board_id == "maixcam_pro") {
                 mclk_id = 0;
             } else {
                 mclk_id = 1;
             }
         }
-
         return mclk_id;
     }
 
     static std::vector<bool> _get_cam_flip_mirror(void) {
         char path[64];
-        char line[1024];
-        char flip_str[128] = {0};
-        char mirror_str[128] = {0};
         bool flip = 0, mirror = 0;
         bool flip_is_found = false, mirror_is_found = false;
 
-        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
-        FILE *file = fopen(path, "r");
-        if (file == NULL) {
-            perror("Error opening file");
-            return std::vector<bool>{false, false};
+        err::check_bool_raise(_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+
+        std::string flip_str;
+        std::string mirror_str;
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("cam_flip");
+        if (it != device_configs.end()) {
+            flip_str = it->second;
+            flip_is_found = true;
+        }
+        auto it2 = device_configs.find("cam_mirror");
+        if (it2 != device_configs.end()) {
+            mirror_str = it2->second;
+            mirror_is_found = true;
         }
 
-        while (fgets(line, sizeof(line), file)) {
-            if (strncmp(line, "cam_flip=", 9) == 0) {
-                strcpy(flip_str, line + 9);
-                flip_str[strcspn(flip_str, "\n")] = '\0';
-                flip_is_found = true;
-            }
-
-            if (strncmp(line, "cam_mirror=", 11) == 0) {
-                strcpy(mirror_str, line + 11);
-                mirror_str[strcspn(mirror_str, "\n")] = '\0';
-                mirror_is_found = true;
-            }
-
-            if (flip_is_found && mirror_is_found) {
-                break;
-            }
-        }
-
-        fclose(file);
-
+        std::string board_id = sys::device_id();
         // log::info("cam flip=%s, cam mirror=%s", flip_str, mirror_str);
-        if (flip_is_found && strlen(flip_str) > 0) {
-            flip = atoi(flip_str);
+        if (flip_is_found && !flip_str.empty()) {
+            flip = atoi(flip_str.c_str());
         } else {
-            char *board_name = _get_board_name();
-            if (!strcmp(board_name, "maixcam_pro")) {
+            if (board_id == "maixcam_pro") {
                 flip = true;
             } else {
                 flip = false;
             }
         }
 
-        if (mirror_is_found && strlen(mirror_str) > 0) {
-            mirror = atoi(mirror_str);
+        if (mirror_is_found && !mirror_str.empty()) {
+            mirror = atoi(mirror_str.c_str());
         } else {
-            char *board_name = _get_board_name();
-            if (!strcmp(board_name, "maixcam_pro")) {
+            std::string board_id = sys::device_id();
+            if (board_id == "maixcam_pro") {
                 mirror = true;
             } else {
                 mirror = false;
@@ -456,7 +412,7 @@ _retry:
         return poolIdCount;
     }
 
-    static int _mmf_vi_init(char *board_name, int width, int height, double fps, camera_priv_t *priv)
+    static int _mmf_vi_init(const char *board_id, int width, int height, double fps, camera_priv_t *priv)
     {
         SIZE_S stSize;
         PIC_SIZE_E enPicSize;
@@ -482,7 +438,7 @@ _retry:
             uint32_t exptime_min;
         } sensor_cfg;
 
-        if (!strcmp(board_name, "maixcam_pro")) {
+        if (!strcmp(board_id, "maixcam_pro")) {
             sensor_cfg.mclk = 0;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
@@ -541,7 +497,7 @@ _retry:
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
             }
-        } else if (!strcmp(board_name, "maixcam")) {
+        } else if (!strcmp(board_id, "maixcam")) {
             sensor_cfg.mclk = 1;
             if (!strcmp(sensor_name, "sms_sc035gs")) {
                 sensor_cfg.sns_type = SMS_SC035GS_MIPI_480P_120FPS_12BIT;
@@ -701,7 +657,7 @@ _retry:
         _invert_mirror = flip_and_mirror[1];
         _config_sensor_env(_fps);
 
-        char *board_name = _get_board_name();
+        const char *board_id = sys::device_id().c_str();
         if (!strcmp(getenv(MMF_SENSOR_NAME), "sms_sc035gs")) {
             _fps = priv->fps;
             if (_fps == -1 && _width <= 640 && _height <= 480) {
@@ -740,7 +696,7 @@ _retry:
             }
         } else {
             // mmf init
-            err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps, priv), "mmf vi init failed");
+            err::check_bool_raise(!_mmf_vi_init(board_id, _width, _height, _fps, priv), "mmf vi init failed");
             err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
             mmf_set_vi_vflip(_ch, _invert_flip);
             mmf_set_vi_hmirror(_ch, _invert_mirror);

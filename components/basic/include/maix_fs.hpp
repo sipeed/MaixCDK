@@ -247,7 +247,7 @@ namespace maix::fs
 
         /**
          * Read line from file
-         * @return line if success, empty string if failed. You need to delete the returned object manually in C/C++.
+         * @return line if success, None(nullptr in C++) if failed. You need to delete the returned object manually in C/C++.
          * @maixpy maix.fs.File.readline
         */
         std::string *readline();

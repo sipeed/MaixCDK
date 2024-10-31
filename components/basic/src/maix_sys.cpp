@@ -4,8 +4,6 @@
  * @license Apache 2.0
  * @update 2023.9.8: Add framework, create this file.
  */
-
-#include "maix_basic.hpp"
 #include <sys/statvfs.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -25,6 +23,7 @@
 #include <iomanip>
 #include <iterator>
 #include <iostream>
+#include "maix_basic.hpp"
 
 namespace maix::sys
 {
@@ -106,11 +105,67 @@ namespace maix::sys
 #endif
     }
 
-    std::string device_id()
+    static std::map<std::string, std::string> _device_configs;
+    std::map<std::string, std::string> device_configs(bool cache)
     {
+        if (cache && !_device_configs.empty())
+            return _device_configs;
+
+        if (!fs::exists("/boot/board"))
+        {
+            return _device_configs;
+        }
+        fs::File *f = fs::open("/boot/board", "r");
+        if (!f)
+        {
+            log::error("open /boot/board failed");
+            return _device_configs;
+        }
+
+        _device_configs.clear();
+        // log::info("device configs:");
+        while (1)
+        {
+            std::string line;
+            int num = f->readline(line);
+            if (num <= 0)
+                break;
+
+            line.erase(0, line.find_first_not_of(" \t\r\n"));
+            line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+            size_t pos = line.find('=');
+            if (pos != std::string::npos)
+            {
+                std::string key = line.substr(0, pos);
+                std::string value = line.substr(pos + 1);
+
+                key.erase(0, key.find_first_not_of(" \t\r\n"));
+                key.erase(key.find_last_not_of(" \t\r\n") + 1);
+                value.erase(0, value.find_first_not_of(" \t\r\n"));
+                value.erase(value.find_last_not_of(" \t\r\n") + 1);
+
+                // log::print("\t%s: %s\n", key.c_str(), value.c_str());
+                _device_configs[key] = value;
+            }
+        }
+        // log::print("\n");
+
+        delete f;
+        return _device_configs;
+    }
+
+    static std::string _device_id;
+    std::string device_id(bool cache)
+    {
+        if(cache && !_device_id.empty())
+        {
+            return _device_id;
+        }
         FILE *file = NULL;
         char line[128];
         std::string model = "";
+        device_configs();
         file = fopen("/proc/device-tree/model", "r");
         if (file)
         {
@@ -127,53 +182,37 @@ namespace maix::sys
                 if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
                 {
                     fclose(file);
-                    if (fs::exists("/boot/board"))
-                    {
-                        fs::File *f = fs::open("/boot/board", "r");
-                        while (1)
-                        {
-                            std::string *line = f->readline();
-                            if (!line)
-                                break;
-                            std::string prefix = "id";
-                            size_t pos = line->find(prefix);
-
-                            if (pos >= 0 && line->find('=', pos + prefix.length()) != std::string::npos)
-                            {
-                                size_t eq_pos = line->find('=', pos + prefix.length());
-                                std::string value = line->substr(eq_pos + 1);
-
-                                value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch)
-                                                                        { return !std::isspace(ch); }));
-                                value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch)
-                                                         { return !std::isspace(ch); })
-                                                .base(),
-                                            value.end());
-
-                                delete line;
-                                delete f;
-                                return value;
-                            }
-                            delete line;
-                        }
-                        delete f;
+                    auto it = _device_configs.find("id");
+                    if (it != _device_configs.end()) {
+                        _device_id = it->second;
                     }
-                    return "maixcam";
+                    else
+                        _device_id = "maixcam";
+                    return _device_id;
                 }
 #else
                 fclose(file);
-                return model;
+                std::string model_lower = model;
+                std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
+                _device_id = model_lower;
+                return _device_id;
 #endif
             }
             fclose(file);
         }
         std::string model_lower = model;
         std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
-        return model_lower;
+        _device_id = model_lower;
+        return _device_id;
     }
 
-    std::string device_name()
+    static std::string _device_name;
+    std::string device_name(bool cache)
     {
+        if(cache && !_device_name.empty())
+        {
+            return _device_name;
+        }
         FILE *file = NULL;
         char line[128];
         std::string model = "";
@@ -193,38 +232,13 @@ namespace maix::sys
                 if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
                 {
                     fclose(file);
-                    if (fs::exists("/boot/board"))
-                    {
-                        fs::File *f = fs::open("/boot/board", "r");
-                        while (1)
-                        {
-                            std::string *line = f->readline();
-                            if (!line)
-                                break;
-                            std::string prefix = "name";
-                            size_t pos = line->find(prefix);
-
-                            if (pos >= 0 && line->find('=', pos + prefix.length()) != std::string::npos)
-                            {
-                                size_t eq_pos = line->find('=', pos + prefix.length());
-                                std::string value = line->substr(eq_pos + 1);
-
-                                value.erase(value.begin(), std::find_if(value.begin(), value.end(), [](unsigned char ch)
-                                                                        { return !std::isspace(ch); }));
-                                value.erase(std::find_if(value.rbegin(), value.rend(), [](unsigned char ch)
-                                                         { return !std::isspace(ch); })
-                                                .base(),
-                                            value.end());
-
-                                delete line;
-                                delete f;
-                                return value;
-                            }
-                            delete line;
-                        }
-                        delete f;
+                    auto it = _device_configs.find("name");
+                    if (it != _device_configs.end()) {
+                        _device_name = it->second;
                     }
-                    return "MaixCAM";
+                    else
+                        _device_name = "MaixCAM";
+                    return _device_name;
                 }
 #else
                 fclose(file);
@@ -233,6 +247,7 @@ namespace maix::sys
             }
             fclose(file);
         }
+        _device_name = model;
         return model;
     }
 

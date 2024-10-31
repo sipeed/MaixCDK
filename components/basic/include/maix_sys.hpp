@@ -28,18 +28,31 @@ namespace maix::sys
     std::string maixpy_version();
 
     /**
-     * Get device id
+     * Get device configs, we also say board configs. e.g. for MaixCAM it read form /boot/board
+     * @param cache read id from cache(if exists, or will call device_configs first internally) if true,
+     * if false, always read fron config file.
      * @return device id, e.g. "maixcam" "maixcam_pro"
      * @maixpy maix.sys.device_id
      */
-    std::string device_id();
+    std::map<std::string, std::string> device_configs(bool cache = true);
+
+    /**
+     * Get device id
+     * @param cache read id from cache(if exists, or will call device_configs first internally) if true,
+     * if false, always read fron config file.
+     * @return device id, e.g. "maixcam" "maixcam_pro"
+     * @maixpy maix.sys.device_id
+     */
+    std::string device_id(bool cache = true);
 
     /**
      * Get device name
+     * @param cache read id from cache(if exists, or will call device_configs first internally) if true,
+     * if false, always read fron config file.
      * @return device name, e.g. "MaixCAM" "MaixCAM-Pro"
      * @maixpy maix.sys.device_name
      */
-    std::string device_name();
+    std::string device_name(bool cache = true);
 
     /**
      * Get host name

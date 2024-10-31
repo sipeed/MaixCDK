@@ -24,13 +24,13 @@ using namespace maix::peripheral;
 
 namespace maix::display
 {
-    static int _get_board_config_path(char *path, int path_size)
+    static bool _get_board_config_path(char *path, int path_size)
     {
         if (fs::exists("/boot/board")) {
             snprintf(path, path_size, "/boot/board");
-            return 0;
+            return true;
         }
-        return -1;
+        return false;
     }
 
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
@@ -115,7 +115,7 @@ namespace maix::display
         bool flip = 0, mirror = 0;
         bool flip_is_found = false, mirror_is_found = false;
 
-        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+        err::check_bool_raise(_get_board_config_path(path, sizeof(path)), "Can't find board config file");
         FILE *file = fopen(path, "r");
         if (file == NULL) {
             perror("Error opening file");

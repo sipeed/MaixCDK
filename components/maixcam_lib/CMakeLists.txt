@@ -23,6 +23,7 @@ if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
     set_property(SOURCE ${middleware_src_dir} PROPERTY GENERATED 1)
 
     list(APPEND ADD_REQUIREMENTS sophgo-middleware)
+    list(APPEND ADD_DEFINITIONS_PRIVATE -Wl,--exclude-libs,ALL)
 
     register_component(DYNAMIC)
 else()
