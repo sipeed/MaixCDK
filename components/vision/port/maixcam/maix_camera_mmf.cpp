@@ -175,6 +175,119 @@ namespace maix::camera
         return name;
     }
 
+    static int _get_board_config_path(char *path, int path_size)
+    {
+        if (fs::exists("/boot/board.maixcam_pro")) {
+            snprintf(path, path_size, "/boot/board.maixcam_pro");
+            return 0;
+        }
+
+        if (fs::exists("/boot/board.maixcam")) {
+            snprintf(path, path_size, "/boot/board.maixcam");
+            return 0;
+        }
+
+        return -1;
+    }
+
+    static int _get_mclk_id(void) {
+        char path[64];
+        char line[1024];
+        char mclk_id_str[256] = {0};
+        int mclk_id = 0;
+
+        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+        FILE *file = fopen(path, "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            return 1;
+        }
+
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "cam_mclk=", 9) == 0) {
+                strcpy(mclk_id_str, line + 9);
+                mclk_id_str[strcspn(mclk_id_str, "\n")] = '\0';
+                break;
+            }
+        }
+
+        fclose(file);
+
+        if (strlen(mclk_id_str) > 0) {
+            mclk_id = atoi(mclk_id_str);
+        } else {
+            char *board_name = _get_board_name();
+            if (!strcmp(board_name, "maixcam_pro")) {
+                mclk_id = 0;
+            } else {
+                mclk_id = 1;
+            }
+        }
+
+        return mclk_id;
+    }
+
+    static std::vector<bool> _get_cam_flip_mirror(void) {
+        char path[64];
+        char line[1024];
+        char flip_str[128] = {0};
+        char mirror_str[128] = {0};
+        bool flip = 0, mirror = 0;
+        bool flip_is_found = false, mirror_is_found = false;
+
+        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+        FILE *file = fopen(path, "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            return std::vector<bool>{false, false};
+        }
+
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "cam_flip=", 9) == 0) {
+                strcpy(flip_str, line + 9);
+                flip_str[strcspn(flip_str, "\n")] = '\0';
+                flip_is_found = true;
+            }
+
+            if (strncmp(line, "cam_mirror=", 11) == 0) {
+                strcpy(mirror_str, line + 11);
+                mirror_str[strcspn(mirror_str, "\n")] = '\0';
+                mirror_is_found = true;
+            }
+
+            if (flip_is_found && mirror_is_found) {
+                break;
+            }
+        }
+
+        fclose(file);
+
+        // log::info("cam flip=%s, cam mirror=%s", flip_str, mirror_str);
+        if (flip_is_found && strlen(flip_str) > 0) {
+            flip = atoi(flip_str);
+        } else {
+            char *board_name = _get_board_name();
+            if (!strcmp(board_name, "maixcam_pro")) {
+                flip = true;
+            } else {
+                flip = false;
+            }
+        }
+
+        if (mirror_is_found && strlen(mirror_str) > 0) {
+            mirror = atoi(mirror_str);
+        } else {
+            char *board_name = _get_board_name();
+            if (!strcmp(board_name, "maixcam_pro")) {
+                mirror = true;
+            } else {
+                mirror = false;
+            }
+        }
+
+        return {flip, mirror};
+    }
+
     static std::pair<bool, std::string> _get_sensor_name(void)
     {
         // TODO: supports dual sensor
@@ -223,8 +336,8 @@ namespace maix::camera
     std::string get_device_name()
     {
         std::string device_name;
-        char *board_name = _get_board_name();
-        if (!strcmp(board_name, "maixcam_pro")) {
+        int mclk_id = _get_mclk_id();
+        if (mclk_id == 0) {
             system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
             system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
         } else {
@@ -547,14 +660,6 @@ namespace maix::camera
             setenv("MMF_INIT_DO_NOT_RELOAD_KMOD", "1", 0);
         }
 
-        // check if we need update camera params
-        if (this->is_opened()) {
-            if (width == width_tmp && height == height_tmp && format == format_tmp && fps == fps_tmp && buff_num == buff_num_tmp) {
-                return err::ERR_NONE;
-            }
-            this->close();
-        }
-
         _width = width_tmp;
         _height = height_tmp;
         _fps = fps_tmp;
@@ -584,20 +689,12 @@ namespace maix::camera
         }
 
         // config sensor env
-        char *board_name = _get_board_name();
-        if (!strcmp(board_name, "maixcam_pro")) {
-            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
-            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
-            _invert_flip = true;
-            _invert_mirror = true;
-        } else {
-            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
-            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
-            _invert_flip = false;
-            _invert_mirror = false;
-        }
+        auto flip_and_mirror = _get_cam_flip_mirror();
+        _invert_flip = flip_and_mirror[0];
+        _invert_mirror = flip_and_mirror[1];
         _config_sensor_env(_fps);
 
+        char *board_name = _get_board_name();
         if (!strcmp(getenv(MMF_SENSOR_NAME), "sms_sc035gs")) {
             _fps = priv->fps;
             if (_fps == -1 && _width <= 640 && _height <= 480) {

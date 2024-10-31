@@ -37,6 +37,21 @@ namespace maix::display
         return name;
     }
 
+    static int _get_board_config_path(char *path, int path_size)
+    {
+        if (fs::exists("/boot/board.maixcam_pro")) {
+            snprintf(path, path_size, "/boot/board.maixcam_pro");
+            return 0;
+        }
+
+        if (fs::exists("/boot/board.maixcam")) {
+            snprintf(path, path_size, "/boot/board.maixcam");
+            return 0;
+        }
+
+        return -1;
+    }
+
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
@@ -110,12 +125,70 @@ namespace maix::display
         return 0;
     }
 
+
+    static std::vector<bool> _get_disp_flip_mirror(void) {
+        char path[64];
+        char line[1024];
+        char flip_str[128] = {0};
+        char mirror_str[128] = {0};
+        bool flip = 0, mirror = 0;
+        bool flip_is_found = false, mirror_is_found = false;
+
+        err::check_bool_raise(!_get_board_config_path(path, sizeof(path)), "Can't find board config file");
+        FILE *file = fopen(path, "r");
+        if (file == NULL) {
+            perror("Error opening file");
+            return std::vector<bool>{false, false};
+        }
+
+        while (fgets(line, sizeof(line), file)) {
+            if (strncmp(line, "disp_flip=", 10) == 0) {
+                strcpy(flip_str, line + 10);
+                flip_str[strcspn(flip_str, "\n")] = '\0';
+                flip_is_found = true;
+            }
+
+            if (strncmp(line, "disp_mirror=", 12) == 0) {
+                strcpy(mirror_str, line + 12);
+                mirror_str[strcspn(mirror_str, "\n")] = '\0';
+                mirror_is_found = true;
+            }
+
+            if (flip_is_found && mirror_is_found) {
+                break;
+            }
+        }
+
+        fclose(file);
+
+        log::info("disp flip=%s, disp mirror=%s", flip_str, mirror_str);
+
+        if (flip_is_found && strlen(flip_str) > 0) {
+            flip = atoi(flip_str);
+        } else {
+            char *board_name = _get_board_name();
+            if (!strcmp(board_name, "maixcam_pro")) {
+                flip = true;
+            } else {
+                flip = false;
+            }
+        }
+
+        if (mirror_is_found && strlen(mirror_str) > 0) {
+            mirror = atoi(mirror_str);
+        } else {
+            mirror = false;     // maixcam and maixcam pro default mirror is false
+        }
+
+        return {flip, mirror};
+    }
+
+
     class DisplayCviMmf final : public DisplayBase
     {
     public:
         DisplayCviMmf(const char *device, int width, int height, image::Format format)
         {
-            char *board_name = _get_board_name();
             err::check_bool_raise(!_get_vo_max_size(&_max_width, &_max_height, 1), "get vo max size failed");
             width = width <= 0 ? _max_width : width;
             height = height <= 0 ? _max_height : height;
@@ -134,15 +207,9 @@ namespace maix::display
             if (this->_layer == 0) {
                 bool flip = false;
                 bool mirror = false;
-                if (!strcmp(board_name, "maixcam_pro")) {
-                    flip = true;
-                    mirror = false;
-                } else if (!strcmp(board_name, "maixcam")) {
-                    flip = false;
-                    mirror = false;
-                } else {
-                    err::check_raise(err::ERR_RUNTIME, "unknown board name!");
-                }
+                auto disp_flip_mirror = _get_disp_flip_mirror();
+                flip = disp_flip_mirror[0];
+                mirror = disp_flip_mirror[1];
                 mmf_set_vo_video_hmirror(0, mirror);
                 mmf_set_vo_video_flip(0, flip);
                 this->_invert_flip = flip;
