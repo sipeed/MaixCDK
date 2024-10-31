@@ -241,6 +241,20 @@ static void _mmf_vi_frame_free(int ch, void **frame_info)
     *frame_info = NULL;
 }
 
+static int _get_encode_bitrate_by_camera_resolution(int w, int h) {
+    if (w == 640 && h == 480) {
+        return 1 * 1000 * 1000;
+    } else if (w == 1280 && h == 720) {
+        return 2 * 1000 * 1000;
+    } else if (w == 1920 && h == 1080) {
+        return 4 * 1000 * 1000;
+    } else if (w == 2560 && h == 1440) {
+        return 8 * 1000 * 1000;
+    } else {
+        return 3 * 1000 * 1000;
+    }
+}
+
 int app_base_init(void)
 {
     // FIXME: camera can't switch to other sensor config online.
@@ -256,6 +270,7 @@ int app_base_init(void)
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
     // init h265 encoder
+    priv.encoder_bitrate = _get_encode_bitrate_by_camera_resolution(priv.camera_resolution_w, priv.camera_resolution_h);
     priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265, 30, 50, priv.encoder_bitrate);
 
     // touch screen
