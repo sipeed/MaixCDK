@@ -600,7 +600,12 @@ void Slide::move(float oft, int speed_mm_s, bool check)
                                 calculate_speed_factor(static_cast<uint16_t>(speed_mm_s),
                                     this->step_angle, this->round_mm);
     uint64_t required_micro_steps = static_cast<uint64_t>(std::abs(oft) / this->micro_step_distance);
+    auto required_micro_steps_bak = required_micro_steps;
     required_micro_steps = this->error_handler.target(required_micro_steps);
+    if (required_micro_steps >= required_micro_steps_bak * 2) {
+        required_micro_steps = required_micro_steps_bak;
+        this->error_handler.clear(required_micro_steps);
+    }
     const int32_t velocity = calc_velocity(speed_factor, this->micro_step, (oft>=0));
 
     this->tmc2209->enable();
@@ -777,9 +782,19 @@ void ScrewSlide::move(float oft, int speed_mm_s, std::function<bool(float)> call
                                 this->speed_factor_ : \
                                 calculate_speed_factor(static_cast<uint16_t>(speed_mm_s),
                                     this->step_angle, this->screw_pitch);
+    // maix::log::info("std::abs(oft): %0.3f", std::abs(oft));
+    // maix::log::info("this->micro_step_distance: %0.8f", this->micro_step_distance);
+    // maix::log::info("std::abs(oft) / this->micro_step_distance: %0.3f", std::abs(oft) / this->micro_step_distance);
     uint64_t required_micro_steps = static_cast<uint64_t>(std::abs(oft) / this->micro_step_distance);
+    auto required_micro_steps_bak = required_micro_steps;
+    // maix::log::info("required_micro_steps: %llu", required_micro_steps);
     // printf("target:%llu, ", required_micro_steps);
     required_micro_steps = this->error_handler.target(required_micro_steps);
+    if (required_micro_steps >= required_micro_steps_bak) {
+        required_micro_steps = required_micro_steps_bak;
+        this->error_handler.clear(required_micro_steps);
+    }
+    // maix::log::info("after target: %llu", required_micro_steps);
     const int32_t velocity = calc_velocity(speed_factor, this->micro_step, (oft>=0));
 
     this->tmc2209->enable();
@@ -816,8 +831,7 @@ void ScrewSlide::move(float oft, int speed_mm_s, std::function<bool(float)> call
         // this->tmc2209->dissable();
         this->hold_current_per(this->hold_current_per_);
     }
-    uint64_t err = (maix::app::need_exit()) ? 0 : this->error_handler.save_error(total_mscnt2);
-    (void)err;
+    [[maybe_unused]]uint64_t err = (maix::app::need_exit()) ? 0 : this->error_handler.save_error(total_mscnt2);
     // maix::log::info("err:%llu\n\n", err);
 }
 
