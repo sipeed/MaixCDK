@@ -296,9 +296,11 @@ namespace maix::camera
 			log::error("sensor 0 unreset failed!\n");
 			return {false, std::string()};
 		}
-
+        int retry_count = 0;
         char name[30];
         peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+
+_retry:
         std::vector<int> addr_list = i2c_obj.scan();
         for (size_t i = 0; i < addr_list.size(); i++) {
             // log::info("i2c4 addr: 0x%02x", addr_list[i]);
@@ -328,6 +330,19 @@ namespace maix::camera
             }
         }
 
+        if (retry_count < 1) {
+            int mclk_id = _get_mclk_id();
+            if (mclk_id == 0) {
+                system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
+            } else {
+                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+                system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
+            }
+            retry_count ++;
+            goto _retry;
+        }
+
         // log::info("sensor address not found , use gcore_gc4653\n" );
         snprintf(name, sizeof(name), "gcore_gc4653");
         return {false, name};
@@ -336,14 +351,6 @@ namespace maix::camera
     std::string get_device_name()
     {
         std::string device_name;
-        int mclk_id = _get_mclk_id();
-        if (mclk_id == 0) {
-            system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
-            system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
-        } else {
-            system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
-            system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
-        }
         std::pair<bool, std::string> res = _get_sensor_name();
         if (res.first == false) {
             device_name = "";
@@ -714,20 +721,35 @@ namespace maix::camera
             setenv(MAIX_SENSOR_FPS, new_value, 0);
         }
 
-        // mmf init
-        err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps, priv), "mmf vi init failed");
-        err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
-        mmf_set_vi_vflip(_ch, _invert_flip);
-        mmf_set_vi_hmirror(_ch, _invert_mirror);
-
         int pool_num = 3;
         if (priv->sns_type == SMS_SC035GS_MIPI_480P_120FPS_12BIT) {
             pool_num = 4;
         }
-        if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
-            mmf_vi_deinit();
-            mmf_deinit_v2(false);
-            err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+
+        if (is_opened()) {
+            if (0 != mmf_del_vi_channel(_ch)) {
+                mmf_vi_deinit();
+                mmf_deinit_v2(false);
+                err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+            }
+            err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
+            if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
+                mmf_vi_deinit();
+                mmf_deinit_v2(false);
+                err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+            }
+        } else {
+            // mmf init
+            err::check_bool_raise(!_mmf_vi_init(board_name, _width, _height, _fps, priv), "mmf vi init failed");
+            err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
+            mmf_set_vi_vflip(_ch, _invert_flip);
+            mmf_set_vi_hmirror(_ch, _invert_mirror);
+
+            if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
+                mmf_vi_deinit();
+                mmf_deinit_v2(false);
+                err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+            }
         }
 
         // wait camera is ready
@@ -754,7 +776,16 @@ namespace maix::camera
             }
         }
 
-        // mmf_vi_deinit();
+        bool vi_need_deinit = true;
+        for (int i = 0; i < this->get_ch_nums(); i ++) {
+            if (mmf_vi_chn_is_open(i)) {
+                vi_need_deinit = false;
+            }
+        }
+
+        if (vi_need_deinit) {
+            mmf_vi_deinit();
+        }
 
         mmf_deinit_v2(false);
     }
