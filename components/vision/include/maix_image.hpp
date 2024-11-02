@@ -1299,12 +1299,12 @@ namespace maix::image
          * @param r_margin r_margin controls the merging of detected circles. Circles which are x_margin, y_margin, and r_margin pixels apart are merged. default is 10
          * @param r_min r_min controls the minimum circle radius detected. Increase this to speed up the algorithm. default is 2
          * @param r_max r_max controls the maximum circle radius detected. Decrease this to speed up the algorithm. default is min(roi.w / 2, roi.h / 2)
-         * @param r_step r_step controls how to step the radius detection by. default is 2.
+         * @param r_step r_step controls how to step the radius detection by. default is 4.
          *
          * @return Return the circle when found circles, format is (circle1, circle2, ...), you can use circle class methods to do more operations
          * @maixpy maix.image.Image.find_circles
          */
-        std::vector<image::Circle> find_circles(std::vector<int> roi = std::vector<int>(), int x_stride = 2, int y_stride = 1, int threshold = 2000, int x_margin = 10, int y_margin = 10, int r_margin = 10, int r_min = 2, int r_max = -1, int r_step = 2);
+        std::vector<image::Circle> find_circles(std::vector<int> roi = std::vector<int>(), int x_stride = 2, int y_stride = 1, int threshold = 3000, int x_margin = 10, int y_margin = 10, int r_margin = 10, int r_min = 2, int r_max = -1, int r_step = 2);
 
         /**
          * @brief Finds all rects in the image.
