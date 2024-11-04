@@ -48,7 +48,7 @@ namespace maix::nn::F
             _softmax((float *)tensor->data(), tensor->size_int());
             return tensor;
         }
-        maix::tensor::Tensor *t = new maix::tensor::Tensor(*tensor);
+        maix::tensor::Tensor *t = new maix::tensor::Tensor(tensor->shape(), tensor->dtype(), tensor->data(), true);
         _softmax((float *)t->data(), t->size_int());
         return t;
     }
