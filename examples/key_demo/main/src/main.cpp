@@ -26,6 +26,7 @@ int _main(int argc, char* argv[])
     log::info("screen size: %dx%d", screen.width(), screen.height());
 
     key::Key key = key::Key(on_key);
+    key::Key key = key::Key(on_key, true, "/dev/input/powerkey");
     // If you want to exit app when press ok button, you can just call add_default_listener(), more see it's definition.
     // key::add_default_listener();
     log::info("Init key ok");

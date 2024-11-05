@@ -22,10 +22,11 @@ namespace maix::peripheral::key
     enum Keys{
         KEY_NONE   = 0x000,
         KEY_ESC    = 0x001,
+        KEY_POWER  = 0x074,
         KEY_OK     = 0x160,
         KEY_OPTION = 0x165,
         KEY_NEXT   = 0x197,
-        KEY_PREV   = 0x19c
+        KEY_PREV   = 0x19c,
     };
 
     /**
@@ -33,8 +34,9 @@ namespace maix::peripheral::key
      * @maixpy maix.peripheral.key.State
     */
     enum State{
-        KEY_RELEASED  = 0,
-        KEY_PRESSED   = 1,
+        KEY_RELEASED     = 0,
+        KEY_PRESSED      = 1,
+        KEY_LONG_PRESSED = 2,
     };
 
     /**
@@ -51,10 +53,13 @@ namespace maix::peripheral::key
          *                 If set to null, you can get key value by read() function.
          *                 This callback called in a standalone thread, so you can block a while in callback, and you should be carefully when operate shared data.
          * @param open auto open device in constructor, if false, you need call open() to open device
+         * @param device The key device to use. Default is "/dev/input/event0".
+         *               Set it to "/dev/input/powerkey" to use the power key on the MaixCam-Pro.
+         * @param long_press_time The duration (in milliseconds) from pressing the key to triggering the long press event. Default is 2000ms.
          * @maixpy maix.peripheral.key.Key.__init__
          * @maixcdk maix.peripheral.key.Key.Key
         */
-        Key(std::function<void(int, int)> callback = nullptr, bool open = true);
+        Key(std::function<void(int, int)> callback = nullptr, bool open = true, const string &device = "", int long_press_time = 2000);
 
         ~Key();
 
@@ -97,6 +102,15 @@ namespace maix::peripheral::key
          * @maixpy maix.peripheral.key.Key.read
         */
         std::pair<int, int> read();
+
+        /**
+         * @brief Sets and retrieves the key's long press time.
+         * @param press_time The long press time to set for the key.
+         *        Setting it to 0 will disable the long press event.
+         * @return int type, the current long press time for the key (in milliseconds).
+         * @maixpy maix.peripheral.key.Key.long_press_time
+        */
+        int long_press_time(int press_time = -1);
 
     private:
         int _fd;
