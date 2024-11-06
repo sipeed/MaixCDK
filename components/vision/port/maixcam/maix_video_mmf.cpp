@@ -954,7 +954,7 @@ namespace maix::video
                             "the height of image need:%d input:%d\r\n"
                             "the format of image need:%s input:%s",
                             _width, img->width(), _height, img->height(),
-                            image::fmt_names[_format], image::fmt_names[img->format()]);
+                            image::fmt_names[_format].c_str(), image::fmt_names[img->format()].c_str());
                 err::check_raise(err::ERR_RUNTIME, "image is not match!");
             } else if (img && img->data() != NULL) {
                 use_input_img = true;
@@ -2021,17 +2021,27 @@ _exit:
         }
     }
 
+    static int _release_video_ctx_list(std::list<video::Context *> *list)
+    {
+        if (list == NULL) return -1;
+
+        std::list<video::Context *>::iterator iter;
+        for(iter=list->begin();iter!=list->end();iter++) {
+            video::Context *ctx = *iter;
+            delete ctx;
+            iter = list->erase(iter);
+        }
+
+        return 0;
+    }
+
     Decoder::~Decoder() {
         decoder_param_t *param = (decoder_param_t *)_param;
         if (param) {
             // release video resource
-            std::list<video::Context *>::iterator iter;
-            for(iter=param->ctx_list->begin();iter!=param->ctx_list->end();iter++) {
-                video::Context *ctx = *iter;
-                delete ctx;
-                iter = param->ctx_list->erase(iter);
-            }
+            err::check_bool_raise(!_release_video_ctx_list(param->ctx_list), "release ctx list failed!");
             delete param->ctx_list;
+            param->ctx_list = NULL;
 
             if (param->vdec_ch >= 0) {
                 mmf_del_vdec_channel(param->vdec_ch);
@@ -2075,15 +2085,33 @@ _exit:
                 log::error("camera read: format not support, need %d, but %d", image::Format::FMT_YVU420SP, format);
                 goto _error;
             }
-            memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
+
+            if (frame->stVFrame.u32Stride[0] != (CVI_U32)width) {
+                for (int h = 0; h < height; h ++) {
+                    memcpy(buffer + h * width, frame->stVFrame.pu8VirAddr[0] + h * frame->stVFrame.u32Stride[0], width);
+                }
+            } else {
+                memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
+            }
             break;
         case image::Format::FMT_YVU420SP:
             if (format != img->format()) {
                 log::error("camera read: format not support, need %d, but %d", img->format(), format);
                 goto _error;
             }
-            memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
-            memcpy(buffer + width * height, frame->stVFrame.pu8VirAddr[1], width * height / 2);
+
+            if (frame->stVFrame.u32Stride[0] != (CVI_U32)width) {
+                for (int h = 0; h < height; h ++) {
+                    memcpy(buffer + h * width, frame->stVFrame.pu8VirAddr[0] + h * frame->stVFrame.u32Stride[0], width);
+                }
+
+                for (int h = 0; h < height / 2; h ++) {
+                    memcpy(buffer + width * height + h * width, frame->stVFrame.pu8VirAddr[1] + h * frame->stVFrame.u32Stride[1], width);
+                }
+            } else {
+                memcpy(buffer, frame->stVFrame.pu8VirAddr[0], width * height);
+                memcpy(buffer + width * height, frame->stVFrame.pu8VirAddr[1], width * height / 2);
+            }
             break;
         default:
             log::error("Read failed, unknown format:%d", img->format());
@@ -2095,6 +2123,63 @@ _exit:
 _error:
         if (img) delete img;
         err::check_raise(err::ERR_RUNTIME, "Invert frame failed");
+    }
+
+    typedef struct {
+        AVPacket *pPacket;
+        uint8_t *data;
+        uint8_t *end;
+    } find_frame_iterator_t;
+
+    static int _create_find_frame_iterator(find_frame_iterator_t *handler, AVPacket *pPacket)
+    {
+        if (handler == NULL || pPacket == NULL) return -1;
+
+        memset(handler, 0, sizeof(find_frame_iterator_t));
+        handler->pPacket = pPacket;
+        handler->data = pPacket->data;
+        handler->end = handler->data + pPacket->size;
+        return 0;
+    }
+
+    // return 0: success, -1: failed
+    static int _find_frame_iterator(find_frame_iterator_t *handler, uint8_t *type, uint8_t **data, size_t *data_size)
+    {
+        if (handler == NULL || type == NULL || data == NULL || data_size == NULL) return -1;
+        bool found_start = false;
+        uint8_t *start = NULL;
+        uint8_t nal_type = 0;
+        while (handler->data < handler->end) {
+            if (handler->data + 3 < handler->end && handler->data[0] == 0 && handler->data[1] == 0 && handler->data[2] == 1) {
+                if (!found_start) {
+                    start = handler->data;
+                    handler->data += 3;
+                    nal_type = handler->data[0] & 0x1F;
+                    found_start = true;
+                } else {
+                    break;
+                }
+            } else if (handler->data + 4 < handler->end && handler->data[0] == 0 && handler->data[1] == 0 && handler->data[2] == 0 && handler->data[3] == 1) {
+                if (!found_start) {
+                    start = handler->data;
+                    handler->data += 4;
+                    nal_type = handler->data[0] & 0x1F;
+                    found_start = true;
+                } else {
+                    break;
+                }
+            }
+            handler->data++;
+        }
+
+        if (found_start) {
+            *type = nal_type;
+            *data = start;
+            *data_size = handler->data - start;
+            return 0;
+        }
+
+        return -1;
     }
 
     video::Context *Decoder::decode_video(bool block) {
@@ -2130,62 +2215,113 @@ _retry:
                         break;
                 }
 
-                // uint8_t nal_unit_type = pPacket->data[4] & 0x1F;
-                // static int count = 0;
-                // count ++;
-                // switch (nal_unit_type) {
-                //     case 1:
-                //         printf("NAL Unit Type: %u (P/B-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     case 5:
-                //         printf("NAL Unit Type: %u (I-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     case 7:
-                //         printf("NAL Unit Type: %u (SPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         // found_i_sps_frame = true;
-                //         break;
-                //     case 8:
-                //         printf("NAL Unit Type: %u (PPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     default:
-                //         printf("NAL Unit Type: %u (Other) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                // }
+                // log::info("packet data:%p data size:%ld", pPacket->data, pPacket->size);
 
-                VDEC_STREAM_S stStream = {0};
-                stStream.pu8Addr = (CVI_U8 *)pPacket->data;
-                stStream.u32Len = pPacket->size;
-                stStream.u64PTS = pPacket->pts;
-                stStream.bEndOfFrame = CVI_TRUE;
-                stStream.bEndOfStream = CVI_FALSE;
-                stStream.bDisplay = 1;
+                find_frame_iterator_t frame_iterator;
+                err::check_bool_raise(!_create_find_frame_iterator(&frame_iterator, pPacket), "create find frame iterator failed");
+                uint8_t nal_type = 0, *frame = NULL;
+                size_t frame_size = 0;
+                uint8_t *sps = NULL, *pps = NULL, *i_or_pb = NULL;
+                size_t sps_size = 0, pps_size = 0, i_or_pb_size = 0;
+                while (0 == _find_frame_iterator(&frame_iterator, &nal_type, &frame, &frame_size)) {
+                    switch (nal_type) {
+                        case 1:
+                            // log::info("NAL Unit Type: %u (P/B-Frame) frame:%p size:%ld", nal_type, frame, frame_size);
+                            i_or_pb = frame;
+                            i_or_pb_size = frame_size;
+                            break;
+                        case 5:
+                            // log::info("NAL Unit Type: %u (I-Frame) frame:%p size:%ld", nal_type, frame, frame_size);
+                            i_or_pb = frame;
+                            i_or_pb_size = frame_size;
+                            break;
+                        case 7:
+                            // log::info("NAL Unit Type: %u (SPS) frame:%p size:%ld", nal_type, frame, frame_size);
+                            sps = frame;
+                            sps_size = frame_size;
+                            break;
+                        case 8:
+                            // log::info("NAL Unit Type: %u (PPS) frame:%p size:%ld", nal_type, frame, frame_size);
+                            pps = frame;
+                            pps_size = frame_size;
+                            break;
+                        default:
+                            // log::info("NAL Unit Type: %u (Other) frame:%p size:%ld", nal_type, frame, frame_size);
+                            break;
+                    }
 
-                VIDEO_FRAME_INFO_S frame = {0};
-                video::MediaType media_type = MEDIA_TYPE_VIDEO;
-                if (block) {
-                    err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
-                    err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
-                    img = _mmf_frame_to_image(&frame, _format_out);
-                    err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
-                    media_type = MEDIA_TYPE_VIDEO;
-                } else {
-                    err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
-                    if (frame.stVFrame.u32Width) {  // if width!=0, we think this frame is valid.
+                    // for (int i = 0; i < frame_size; i ++) {
+                    //     if (i > 64) {
+                    //         break;
+                    //     }
+
+                    //     printf("%#x ", frame[i]);
+                    //     if (i % 16 == 15) {
+                    //         printf("\n");
+                    //     }
+                    // }
+                    // printf("\n");
+                }
+
+                if (i_or_pb_size > 0) {
+                    uint8_t *decode_data = NULL;
+                    size_t decode_data_size = 0;
+                    decode_data_size = sps_size + pps_size + i_or_pb_size;
+                    decode_data = (uint8_t *)malloc(decode_data_size);
+                    err::check_null_raise(decode_data, "malloc failed");
+                    if (sps_size) {
+                        memcpy(decode_data, sps, sps_size);
+                    }
+                    if (pps_size) {
+                        memcpy(decode_data + sps_size, pps, pps_size);
+                    }
+                    memcpy(decode_data + sps_size + pps_size, i_or_pb, i_or_pb_size);
+
+                    // log::info("process sps_size:%d pps_size:%d i_or_pb_size:%d decode_data_size:%d", sps_size, pps_size, i_or_pb_size, decode_data_size);
+                    // for (int i = 0; i < decode_data_size; i ++) {
+                    //     printf("%#x ", decode_data[i]);
+                    //     if (i % 16 == 15) {
+                    //         printf("\n");
+                    //     }
+                    // }
+                    // printf("\n");
+                    VDEC_STREAM_S stStream = {0};
+                    stStream.pu8Addr = (CVI_U8 *)decode_data;
+                    stStream.u32Len = decode_data_size;
+                    stStream.u64PTS = pPacket->pts;
+                    stStream.bEndOfFrame = CVI_TRUE;
+                    stStream.bEndOfStream = CVI_FALSE;
+                    stStream.bDisplay = 1;
+
+                    VIDEO_FRAME_INFO_S frame = {0};
+                    video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                    if (block) {
+                        err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
+                        err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
                         img = _mmf_frame_to_image(&frame, _format_out);
                         err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
                         media_type = MEDIA_TYPE_VIDEO;
                     } else {
-                        media_type = MEDIA_TYPE_UNKNOWN;
+                        err::check_bool_raise(!mmf_vdec_pop_v2(param->vdec_ch, &frame));
+                        if (frame.stVFrame.u32Width) {  // if width!=0, we think this frame is valid.
+                            img = _mmf_frame_to_image(&frame, _format_out);
+                            err::check_bool_raise(!mmf_vdec_free(param->vdec_ch));
+                            media_type = MEDIA_TYPE_VIDEO;
+                        } else {
+                            media_type = MEDIA_TYPE_UNKNOWN;
+                        }
+                        err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
                     }
-                    err::check_bool_raise(!mmf_vdec_push_v2(param->vdec_ch, &stStream));
-                }
 
-                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
-                                            (int)pFormatContext->streams[video_stream_index]->time_base.den};
-                context = new video::Context(media_type, timebase);
-                context->set_image(img, packet_duration, frame.stVFrame.u64PTS, last_pts);
-                av_packet_unref(pPacket);
-                break;
+                    std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                                (int)pFormatContext->streams[video_stream_index]->time_base.den};
+                    context = new video::Context(media_type, timebase);
+                    context->set_image(img, packet_duration, frame.stVFrame.u64PTS, last_pts);
+                    av_packet_unref(pPacket);
+
+                    free(decode_data);
+                    break;
+                }
             }
             av_packet_unref(pPacket);
         }
@@ -2320,28 +2456,6 @@ _retry:
                         err::check_raise(err::ERR_RUNTIME, "Unknown video format");
                         break;
                 }
-
-                // uint8_t nal_unit_type = pPacket->data[4] & 0x1F;
-                // static int count = 0;
-                // count ++;
-                // switch (nal_unit_type) {
-                //     case 1:
-                //         printf("NAL Unit Type: %u (P/B-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     case 5:
-                //         printf("NAL Unit Type: %u (I-Frame) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     case 7:
-                //         printf("NAL Unit Type: %u (SPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         // found_i_sps_frame = true;
-                //         break;
-                //     case 8:
-                //         printf("NAL Unit Type: %u (PPS) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                //     default:
-                //         printf("NAL Unit Type: %u (Other) count:%d size:%d\n", nal_unit_type, count, pPacket->size);
-                //         break;
-                // }
 
                 VDEC_STREAM_S stStream = {0};
                 stStream.pu8Addr = (CVI_U8 *)pPacket->data;
@@ -2516,11 +2630,16 @@ _retry:
                             break;
                     }
 
-                    param->next_pts = pPacket->pts;
-                    uint8_t nal_unit_type = pPacket->data[4] & 0x1F;
-                    if (nal_unit_type == 5 || nal_unit_type == 7) { // 1:P/B  5:I  7:SPS 8:PPS
-                        found_i_sps_frame = true;
+                    find_frame_iterator_t frame_iterator;
+                    err::check_bool_raise(!_create_find_frame_iterator(&frame_iterator, pPacket), "create find frame iterator failed");
+                    uint8_t nal_type = 0, *frame = NULL;
+                    size_t frame_size = 0;
+                    while (0 == _find_frame_iterator(&frame_iterator, &nal_type, &frame, &frame_size)) {
+                        if (nal_type == 5 || nal_type == 7) { // 1:P/B  5:I  7:SPS 8:PPS
+                            found_i_sps_frame = true;
+                        }
                     }
+                    param->next_pts = pPacket->pts;
                     av_packet_unref(pPacket);
                     if (found_i_sps_frame) {
                         break;
@@ -2540,6 +2659,8 @@ _retry:
                 log::error("av_seek_frame failed, ret:%d", ret);
                 return 0;
             }
+
+            err::check_bool_raise(!_release_video_ctx_list(param->ctx_list), "release ctx list failed!");
         } else {
             time = param->next_pts * av_q2d(pFormatContext->streams[video_stream_index]->time_base);
         }

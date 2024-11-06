@@ -40,6 +40,7 @@ int _main(int argc, char* argv[])
         video::Decoder decoder = video::Decoder(filepath);
         display::Display disp = display::Display();
         audio::Player *p = NULL;
+        (void)p;
         uint64_t loop_ms = time::ticks_ms(), last_us = time::ticks_us();
         log::info("filepath:%s seek_s:%f", filepath.c_str(), seek_s);
         log::info("has video:%d has audio:%d resolution:%dx%d bitrate:%d duration:%.2f s fps:%d seek_s:%f", decoder.has_video(), decoder.has_audio(), decoder.width(), decoder.height(), decoder.bitrate(), decoder.duration(), decoder.fps(), seek_s);
@@ -56,8 +57,9 @@ int _main(int argc, char* argv[])
         while (!app::need_exit()) {
             video::Context *ctx = decoder.decode_video();
             if (!ctx) {
-                log::info("decode video over");
-                break;
+                log::info("decode video over, set seek to 0");
+                decoder.seek(0);
+                continue;
             }
             if (ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
                 image::Image *img = ctx->image();
