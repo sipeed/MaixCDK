@@ -5,6 +5,7 @@
 #include <stdexcept> // std::runtime_error
 #include <unistd.h> // close
 #include <limits>
+#include <sys/select.h> // select
 
 namespace maix::comm::modbus {
 
@@ -236,14 +237,42 @@ void Slave::tcp_init(const std::string& ip, int port)
 
     this->socket_tcp_ = ::modbus_tcp_listen(this->ctx_.get(), 1);
 
-    if (::modbus_tcp_accept(this->ctx_.get(), &socket_tcp_) < 0) {
-        const std::string msg(this->TAG()+" tcp accept failed!"+std::string(::modbus_strerror(errno)));
-        // __error_and_throw__(msg);
-    }
+    this->tcp_listener_ = std::make_unique<std::thread>([this](){
+        while (!this->tcp_listener_need_exit_) {
+            fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(this->socket_tcp_, &read_fds);
+
+            struct timeval timeout;
+            timeout.tv_sec = 1; // timeout 1 sec
+            timeout.tv_usec = 0;
+
+            int select_result = ::select(this->socket_tcp_ + 1, &read_fds, nullptr, nullptr, &timeout);
+            if (select_result > 0) {
+                int new_socket = ::modbus_tcp_accept(this->ctx_.get(), &socket_tcp_);
+                if (new_socket < 0 && this->debug_) {
+                    const std::string msg(this->TAG() + " tcp accept failed! " + std::string(::modbus_strerror(errno)));
+                    log::warn(msg.c_str());
+                } else if (this->debug_) {
+                    const std::string msg(this->TAG() + " new tcp connected!");
+                    log::info(msg.c_str());
+                }
+            } else if (select_result < 0 && this->debug_) {
+                const std::string msg(this->TAG() + " select failed! " + std::string(::modbus_strerror(errno)));
+                log::warn(msg.c_str());
+            }
+        }
+    });
 }
 
 Slave::~Slave()
 {
+    if (this->tcp_listener_ != nullptr) {
+        this->tcp_listener_need_exit_ = true;
+        log::info("%s waiting for tcp listener exit...", this->TAG().c_str());
+        this->tcp_listener_->join();
+        this->tcp_listener_need_exit_ = false;
+    }
     if (this->socket_tcp_ > 0)
         ::close(this->socket_tcp_);
     if (this->ctx_.get() != nullptr)
@@ -429,6 +458,11 @@ std::vector<uint16_t> Slave::holding_registers(const std::vector<uint16_t>& data
     }
     // return __get_reg_list();
     return {0x00};
+}
+
+::modbus_mapping_t* Slave::operator->()
+{
+    return this->mb_mapping_.get();
 }
 
 }

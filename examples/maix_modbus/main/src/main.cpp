@@ -29,7 +29,7 @@ int _main(int argc, char* argv[])
     //     0x00, 10,               // holding registers
     //     0, 1,                   // serial, ignore
     //     5020,                      // tcp port
-    //     true);                  // debug ON
+    //     false);                  // debug OFF
 
     std::vector<uint16_t> data{0x22, 0x33, 0x44};
     Slave.input_registers(data, 3);
@@ -50,6 +50,7 @@ int _main(int argc, char* argv[])
 
         auto type = Slave.request_type();
         if (type == modbus::RequestType::READ_HOLDING_REGISTERS) {
+            // Operating registers through the interface ensures safety but incurs copy overhead.
             log::info("client read hr");
             auto hr = Slave.holding_registers();
             log::info0("\tnow hr data:");
@@ -62,6 +63,12 @@ int _main(int argc, char* argv[])
             }
             log::info("\tnow updata hr");
             Slave.holding_registers(hr);
+
+            // Directly manipulate registers to avoid copy overhead.
+            // for(int i = 0; i < Slave->nb_registers; ++i) {
+            //     printf("0x%x ", Slave->tab_registers[i]);
+            //     Slave->tab_registers[i]++;
+            // } printf("\n");
         }
 
         Slave.reply();

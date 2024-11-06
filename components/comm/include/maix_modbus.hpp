@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <thread>
 
 #include "maix_err.hpp"
 #include "modbus/modbus.h"
@@ -343,6 +344,16 @@ namespace maix::comm::modbus {
          * @maixpy maix.comm.modbus.Slave.holding_registers
          */
         std::vector<uint16_t> holding_registers(const std::vector<uint16_t>& data = std::vector<uint16_t>{}, const uint32_t index = 0);
+
+        /**
+         * @brief Returns the raw pointer to the modbus_mapping_t, allowing direct manipulation of registers to avoid copy overhead.
+         *
+         * @note: The returned pointer must not be deleted or freed.
+         *
+         * @return ::modbus_mapping_t* type
+         */
+        ::modbus_mapping_t* operator->();
+
     private:
         void rtu_init(const std::string& device, int baud, uint8_t slave);
         void tcp_init(const std::string& ip, int port);
@@ -365,6 +376,8 @@ namespace maix::comm::modbus {
         uint8_t query_[128]{0};
         uint32_t curr_timeout_sec_{165};
         uint32_t curr_timeout_usec_{528};
+        std::unique_ptr<std::thread> tcp_listener_{nullptr};
+        bool tcp_listener_need_exit_{false};
     };
 }
 

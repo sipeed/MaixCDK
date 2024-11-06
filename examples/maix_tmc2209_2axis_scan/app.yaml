@@ -1,0 +1,10 @@
+id: maix_tmc2209_2axis_scan
+name: maix_tmc2209_2axis_scan
+name[zh]:
+version: 1.0.0
+#icon: assets/hello.png
+author: 
+desc: 
+desc[zh]:
+files:
+  # assets: assets
