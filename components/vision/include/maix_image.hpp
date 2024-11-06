@@ -493,7 +493,7 @@ namespace maix::image
          * @param width new width, if value is -1, will use height to calculate aspect ratio
          * @param height new height, if value is -1, will use width to calculate aspect ratio
          * @param object_fit fill, contain, cover, by default is fill
-         * @param method resize method, by default is bilinear
+         * @param method resize method, by default is NEAREST
          * @return Always return a new resized image object even size not change, So in C++ you should take care of the return value to avoid memory leak.
          *         And it's better to judge whether the size has changed before calling this function to make the program more efficient.
          *         e.g.
@@ -543,6 +543,16 @@ namespace maix::image
          * @maixpy maix.image.Image.rotate
          */
         image::Image *rotate(float angle, int width = -1, int height = -1, image::ResizeMethod method = image::ResizeMethod::BILINEAR);
+
+
+        /**
+         * Vertical flip image, and return a new image.
+         * @param dir flip dir, see image.FlipDir, e.g. image.FlipDir.X is vertical flip.
+         * @return new flipped image.
+         * @throw When arg error, will throw out err.Err exception.
+         * @maixpy maix.image.Image.flip
+        */
+       image::Image *flip(const image::FlipDir dir);
 
         /**
          * @brief Finds the mean of x_div * y_div squares in the image and returns the modified image composed of the mean of each square.

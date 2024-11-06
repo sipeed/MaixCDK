@@ -1545,13 +1545,13 @@ namespace maix::image
         /// calculate size if width or height is -1
         if (width < 0)
         {
-            // new_H = int(w * fabs(sin(radians(angle))) + h * fabs(cos(radians(angle))))
-            width = _width * fabs(sin(angle * M_PI / 180)) + _height * fabs(cos(angle * M_PI / 180));
+            double radians = angle * M_PI / 180.0;
+            width = _width * fabs(cos(radians)) + _height * fabs(sin(radians));
         }
         if (height < 0)
         {
-            // new_W = int(h * fabs(sin(radians(angle))) + w * fabs(cos(radians(angle))))
-            height = _height * fabs(sin(angle * M_PI / 180)) + _width * fabs(cos(angle * M_PI / 180));
+            double radians = angle * M_PI / 180.0;
+            height = _width * fabs(sin(radians)) + _height * fabs(cos(radians));
         }
         image::Image *ret = new image::Image(width, height, _format);
         ;
@@ -1564,6 +1564,31 @@ namespace maix::image
         rot_mat.at<double>(0, 2) += (width - _width) / 2.0;
         rot_mat.at<double>(1, 2) += (height - _height) / 2.0;
         cv::warpAffine(img, dst, rot_mat, dst.size(), (cv::InterpolationFlags)method);
+        return ret;
+    }
+
+
+    Image* Image::flip(const FlipDir dir) {
+        int pixel_num = _get_cv_pixel_num(_format);
+        Image* ret = new Image(_width, _height, _format);
+        cv::Mat img(_height, _width, pixel_num, _data);
+        cv::Mat dst(_height, _width, pixel_num, ret->data());
+
+        int flipCode;
+        switch (dir) {
+            case FlipDir::X:
+                flipCode = 0; // 垂直翻转
+                break;
+            case FlipDir::Y:
+                flipCode = 1; // 水平翻转
+                break;
+            case FlipDir::XY:
+                flipCode = -1; // 同时进行垂直和水平翻转
+                break;
+            default:
+                throw err::Exception(err::ERR_ARGS);
+        }
+        cv::flip(img, dst, flipCode);
         return ret;
     }
 

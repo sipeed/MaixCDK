@@ -298,4 +298,16 @@ namespace maix::image
         EDGE_CANNY,
         EDGE_SIMPLE,
     };
+
+    /**
+     * FlipDir
+     * @maixpy maix.image.FlipDir
+     */
+    enum class FlipDir
+    {
+        X,
+        Y,
+        XY
+    };
+
 }
