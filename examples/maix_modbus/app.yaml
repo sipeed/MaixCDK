@@ -1,0 +1,10 @@
+id: maix_modbus
+name: maix_modbus
+name[zh]:
+version: 1.0.0
+#icon: assets/hello.png
+author: 
+desc: 
+desc[zh]:
+files:
+  # assets: assets
