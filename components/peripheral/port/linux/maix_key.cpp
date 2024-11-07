@@ -57,6 +57,7 @@ namespace maix::peripheral::key
     public:
         thread::Thread *thread;
         int fd;
+        int long_press_time;
         bool read_thread_exit;
         bool read_thread_need_exit;
         Key *key;
@@ -69,6 +70,7 @@ namespace maix::peripheral::key
         Port_Data *data = (Port_Data *)args;
         int key = 0;
         int value = 0;
+        uint64_t tick = 0;
         // epoll wait key event
         struct epoll_event ev;
         int epoll_fd = epoll_create(1);
@@ -96,6 +98,12 @@ namespace maix::peripheral::key
                 if (e == err::Err::ERR_NONE)
                 {
                     data->callback(key, value);
+                    // get ticks_ms when the key is pressed.
+                    if (key != 0 && value == 1) {
+                        tick = time::ticks_ms();
+                    } else if (key != 0 && value == 0) {
+                        tick = 0;
+                    }
                 }
                 else if (e != err::Err::ERR_NOT_READY)
                 {
@@ -108,13 +116,20 @@ namespace maix::peripheral::key
                 }
                 continue;
             }
+            // if long press event occurs, send KEY_LONG_PRESSED.
+            if (tick != 0 && data->long_press_time !=0) {
+                if ((int)(time::ticks_ms()- tick) >= data->long_press_time) {
+                    data->callback(key, State::KEY_LONG_PRESSED);
+                    tick = 0;
+                }
+            }
             time::sleep_ms(1);
         }
         log::info("read key thread exit");
         data->read_thread_exit = true;
     }
 
-    Key::Key(std::function<void(int, int)> callback, bool open)
+    Key::Key(std::function<void(int, int)> callback, bool open, const string &device, int long_press_time)
     {
         if(_key_defult_listener)
             rm_default_listener();
@@ -130,6 +145,7 @@ namespace maix::peripheral::key
         }
         data->thread = nullptr;
         data->fd = -1;
+        data->long_press_time = long_press_time;
         data->read_thread_exit = false;
         data->read_thread_need_exit = false;
         data->key = this;
@@ -277,6 +293,16 @@ namespace maix::peripheral::key
     bool Key::is_opened()
     {
         return this->_fd > 0;
+    }
+
+    int Key::long_press_time(int press_time)
+    {
+        Port_Data *data = (Port_Data *)this->_data;
+        if (press_time < 0) {
+            return data->long_press_time;
+        } else {
+            return data->long_press_time = press_time;
+        }
     }
 
 } // namespace maix::peripheral::key
