@@ -9,6 +9,9 @@ RUN dpkg --add-architecture i386 \
     && apt-get -o APT::Retries=3 update -y
 
 RUN apt-get update \
+    && apt-get install -y software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa\
+    && apt-get update \
 	&& apt-get install build-essential vim \
         git libncurses5-dev zlib1g-dev gawk \
         libssl-dev unzip lib32z1 lib32z1-dev lib32stdc++6 libstdc++6 \
@@ -16,7 +19,11 @@ RUN apt-get update \
         python3 python3-pip rsync shellcheck \
         libopencv-dev libopencv-contrib-dev \
         libsdl2-dev \
+        python3.11 python3.11-venv python3.11-dev \
         unzip wget sudo -y \
+    && rm /usr/bin/python3 \
+    && ln -s /usr/bin/python3.11 /usr/bin/python3 \
+    && python3 -m ensurepip --upgrade \
     && apt-get purge -yq \
     && apt-get autoremove -yq --purge \
     && apt-get clean \
