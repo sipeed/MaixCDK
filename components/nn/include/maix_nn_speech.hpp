@@ -891,7 +891,7 @@ enum SpeechDecoder {
          */
         std::pair<char*, int> vocab()
         {
-            return {"", 0};
+            return {nullptr, 0};
         }
 
         /**
