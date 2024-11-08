@@ -48,7 +48,7 @@ jobs:
           echo "--------------------------------"
           echo "-- Build API DOC for MaixCAM now --"
           echo "--------------------------------"
-          cd examples
+          cd examples/nn_yolov5
           maixcdk distclean
           maixcdk build -p maixcam
 
