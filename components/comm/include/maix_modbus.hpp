@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <thread>
+#include <functional>
 
 #include "maix_err.hpp"
 #include "modbus/modbus.h"
@@ -189,10 +190,6 @@ namespace maix::comm::modbus {
 
         ~Slave();
 
-        Slave(const Slave&) = delete;
-        Slave& operator=(const Slave&) = delete;
-        Slave(Slave&& other) = delete;
-        Slave& operator=(Slave&& other) = delete;
 
         /**
          * @brief Receives a Modbus request
@@ -352,7 +349,16 @@ namespace maix::comm::modbus {
          *
          * @return ::modbus_mapping_t* type
          */
-        ::modbus_mapping_t* operator->();
+        ::modbus_mapping_t* operator->() const noexcept;
+
+        /**
+         * @brief Returns the raw pointer to the modbus_t
+         *
+         * @note: The returned pointer must not be deleted or freed.
+         *
+         * @return ::modbus_t* type
+         */
+        ::modbus_t* operator()() const noexcept;
 
     private:
         void rtu_init(const std::string& device, int baud, uint8_t slave);
@@ -363,6 +369,7 @@ namespace maix::comm::modbus {
         void mapping_init();
         ::maix::err::Err __receive__();
         ::maix::err::Err set_timeout(uint32_t sec, uint32_t usec);
+
     private:
         std::unique_ptr<modbus_t, decltype(&modbus_free)>
             ctx_{nullptr, &modbus_free};
@@ -378,6 +385,187 @@ namespace maix::comm::modbus {
         uint32_t curr_timeout_usec_{528};
         std::unique_ptr<std::thread> tcp_listener_{nullptr};
         bool tcp_listener_need_exit_{false};
+    };
+
+    /**
+     * Class for modbus Master
+     * @maixpy maix.comm.modbus.Master
+     */
+    class Master {
+    public:
+        /**
+         * @brief Construct a new Master object
+         *
+         * @param mode Specifies the communication mode: RTU or TCP.
+         *             @see modbus.Mode for valid modes.
+         * @param ip_or_device The UART device name if using RTU mode.
+         *                     If TCP mode is chosen, this parameter is ignored.
+         * @param rtu_baud The baud rate for RTU communication.
+         *                 Supported rates include: 110, 300, 600, 1200, 2400, 4800,
+         *                 9600, 19200, 38400, 57600, 115200, 230400, 460800,
+         *                 500000, 576000, 921600, 1000000, 1152000, 1500000,
+         *                 2500000, 3000000, 3500000, 4000000.
+         *                 Default is 115200.
+         * @param rtu_slave The RTU slave address. Ignored in TCP mode. Default is 1.
+         * @param tcp_port The port used for TCP communication. Ignored in RTU mode. Default is 5020.
+         * @param debug A boolean flag to enable or disable debug mode. Default is false.
+         *
+         * @maixpy maix.comm.modbus.Master.__init__
+         */
+        Master(::maix::comm::modbus::Mode mode, const std::string& ip_or_device,
+            int rtu_baud=115200, uint8_t rtu_slave=1,
+            int tcp_port=5020, bool debug=false);
+
+        /**
+         * std::unique_ptr is used in this class, which means the copy constructor will be deleted
+         * to prevent accidental copying of objects that manage unique resources.
+         *
+         * The move constructor allows for the transfer of ownership of resources from one
+         * object to another using std::move(). This enables efficient resource management
+         * and avoids unnecessary deep copies.
+         */
+        Master(Master&& other) noexcept;
+        Master& operator=(Master&& other) noexcept;
+
+        ~Master();
+
+        /**
+         * @brief Reads coils from the Modbus device.
+         *
+         * This function reads a specified number of coils starting from a given address.
+         * It includes timeout settings to define how long to wait for a response.
+         *
+         * @param size The number of coils to read.
+         * @param addr The starting address for reading coils. Default is 0.
+         * @param timeout_ms The timeout duration for waiting to receive a request.
+         *                   - A value of -1 makes the function block indefinitely until a request
+         *                     is received.
+         *                   - A value of 0 makes it non-blocking, returning immediately without
+         *                     waiting for a request.
+         *                   - A positive value specifies the maximum time (in milliseconds) to wait
+         *                     for a request before timing out.
+         *
+         * @return std::vector<uint8_t> A vector containing the read coil values.
+         *
+         * @maixpy maix.comm.modbus.Master.read_coils
+         */
+        std::vector<uint8_t> read_coils(const uint32_t size, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Writes values to coils on the Modbus device.
+         *
+         * This function writes the specified data to the coils starting from a given address.
+         *
+         * @param data A vector containing the coil values to write.
+         * @param addr The starting address for writing coils. Default is 0.
+         * @param timeout_ms The timeout duration for the write operation.
+         *                   - A value of -1 makes the function block until the write is complete.
+         *                   - A value of 0 makes it non-blocking.
+         *                   - A positive value specifies the maximum time (in milliseconds) to wait.
+         *
+         * @return int Returns the number of bytes written on success, or a value less than 0 on failure.
+         *
+         * @maixpy maix.comm.modbus.Master.write_coils
+         */
+        int write_coils(const std::vector<uint8_t>& data, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Reads discrete inputs from the Modbus device.
+         *
+         * This function reads a specified number of discrete inputs starting from a given address.
+         *
+         * @param size The number of discrete inputs to read.
+         * @param addr The starting address for reading discrete inputs. Default is 0.
+         * @param timeout_ms The timeout duration for waiting to receive a request.
+         *
+         * @return std::vector<uint8_t> A vector containing the read discrete input values.
+         *
+         * @maixpy maix.comm.modbus.Master.read_discrete_input
+         */
+        std::vector<uint8_t> read_discrete_input(const uint32_t size, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Reads input registers from the Modbus device.
+         *
+         * This function reads a specified number of input registers starting from a given address.
+         *
+         * @param size The number of input registers to read.
+         * @param addr The starting address for reading input registers. Default is 0.
+         * @param timeout_ms The timeout duration for waiting to receive a request.
+         *
+         * @return std::vector<uint16_t> A vector containing the read input register values.
+         *
+         * @maixpy maix.comm.modbus.Master.read_input_registers
+         */
+        std::vector<uint16_t> read_input_registers(const uint32_t size, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Reads holding registers from the Modbus device.
+         *
+         * This function reads a specified number of holding registers starting from a given address.
+         *
+         * @param size The number of holding registers to read.
+         * @param addr The starting address for reading holding registers. Default is 0.
+         * @param timeout_ms The timeout duration for waiting to receive a request.
+         *
+         * @return std::vector<uint16_t> A vector containing the read holding register values.
+         *
+         * @maixpy maix.comm.modbus.Master.read_holding_registers
+         */
+        std::vector<uint16_t> read_holding_registers(const uint32_t size, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Writes values to holding registers on the Modbus device.
+         *
+         * This function writes the specified data to the holding registers starting from a given address.
+         *
+         * @param data A vector containing the values to write to holding registers.
+         * @param addr The starting address for writing holding registers. Default is 0.
+         * @param timeout_ms The timeout duration for the write operation.
+         *
+         * @return int Returns the number of bytes written on success, or a value less than 0 on failure.
+         *
+         * @maixpy maix.comm.modbus.Master.write_holding_registers
+         */
+        int write_holding_registers(const std::vector<uint16_t>& data, const uint32_t addr=0, const int timeout_ms=-1);
+
+        /**
+         * @brief Returns the raw pointer to the modbus_t
+         *
+         * @note: The returned pointer must not be deleted or freed.
+         *
+         * @return ::modbus_t* type
+         */
+        ::modbus_t* context() const noexcept;
+
+        /**
+         * @brief Returns the raw pointer to the modbus_t
+         *
+         * @note: The returned pointer must not be deleted or freed.
+         *
+         * @return ::modbus_t* type
+         */
+        ::modbus_t* operator()() const noexcept;
+
+    private:
+        void rtu_init(const std::string& device, int baud, uint8_t slave);
+        void tcp_init(const std::string& ip, int port);
+        const std::string TAG() const noexcept;
+        void debug_init();
+        ::maix::err::Err set_timeout(uint32_t sec, uint32_t usec);
+        template<typename T>
+        std::vector<T> read(const uint32_t size, const uint32_t index, const int timeout_ms,
+            const std::string& name, std::function<int(modbus_t *ctx, int addr, int nb, T* dest)> func);
+        template<typename T>
+        int write(const std::vector<T>& data, const uint32_t index, const int timeout_ms,
+            const std::string& name, std::function<int(modbus_t *ctx, int addr, int nb, const T* src)> func);
+
+    private:
+        std::unique_ptr<modbus_t, decltype(&modbus_free)>
+            ctx_{nullptr, &modbus_free};
+        bool debug_;
+        uint32_t curr_timeout_sec_{165};
+        uint32_t curr_timeout_usec_{528};
     };
 }
 
