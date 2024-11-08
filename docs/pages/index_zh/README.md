@@ -184,8 +184,8 @@ h1 {
 <div class="mt-6"></div>
 
 <h2 class="text-center font-bold">简单的 API 设计，20 行代码实现 AI 图像识别</h2>
-<div id="id1" class="flex flex-row justify-center items-end flex-wrap">
-<div class="shadow-xl">
+<div id="id1" class="flex flex-row justify-center items-end flex-wrap max-w-full">
+<div class="shadow-xl code_wrapper">
 
 ```cpp
 #include "maix_nn.hpp"
@@ -224,8 +224,8 @@ int main()
 
 
 <h2 class="text-center font-bold">同样简单的 Python API 绑定</h2>
-<div id="id2" class="flex flex-row justify-center items-end flex-wrap">
-<div class="shadow-xl">
+<div id="id2" class="flex flex-row justify-center items-end flex-wrap max-w-full">
+<div class="shadow-xl code_wrapper">
 
 ```python
 from maix import camera, display, image, nn
@@ -265,13 +265,13 @@ while 1:
 
 
 <!-- div start-->
-<div class="text-center">
+<div class="flex flex-col justify-center items-center max-w-full">
 <h2>一秒添加 Python 绑定</h2>
 
 只需添加注释，即可在 MaixPy 中使用此 API！
 
-<div class="flex flex-row justify-center flex-wrap mt-6">
-<div class="mr-4 shadow-xl">
+<div class="flex flex-row justify-center items-center flex-wrap mt-3 max-w-full">
+<div class="mr-4 mt-4 shadow-xl code_wrapper flex flex-col justify-center items-center">
 
 Python 示例代码：
 
@@ -287,7 +287,8 @@ print(devices)
 ```
 
 </div>
-<div class="shadow-xl">
+<div class="max-w-full">
+<div class="mt-4 shadow-xl code_wrapper flex flex-col justify-center items-center">
 
 MaixCDK 在 `maix_uart.hpp` 中的实现：
 
@@ -302,6 +303,7 @@ namespace maix::uart {
 }
 ```
 
+</div>
 </div>
 </div>
 </div>
@@ -326,7 +328,8 @@ namespace maix::uart {
 
 ## 社区 {#community}
 
-<div>
+<div class="max-w-full">
+<div class="overflow-auto">
 
 | 社区 | 地址 |
 | --- | ---- |
@@ -340,6 +343,7 @@ namespace maix::uart {
 | **Telegram**| [t.me/maixpy](https://t.me/maixpy) |
 | **QQ 群**| 862340358 |
 
+</div>
 </div>
 
 </div>

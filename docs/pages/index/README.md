@@ -184,8 +184,8 @@ If you like MaixCDK or MaixPy, please give a star ⭐️ to the [MaixPy](https:/
 <div class="mt-6"></div>
 
 <h2 class="text-center font-bold">Simple API Design, AI Image Recognition within 20 Lines of Code</h2>
-<div id="id1" class="flex flex-row justify-center items-end flex-wrap">
-<div class="shadow-xl">
+<div id="id1" class="flex flex-row justify-center items-end flex-wrap max-w-full">
+<div class="shadow-xl code_wrapper">
 
 ```cpp
 #include "maix_nn.hpp"
@@ -224,8 +224,8 @@ Classifier Result video
 
 
 <h2 class="text-center font-bold">Same simple Python API binding</h2>
-<div id="id2" class="flex flex-row justify-center items-end flex-wrap">
-<div class="shadow-xl">
+<div id="id2" class="flex flex-row justify-center items-end flex-wrap max-w-full">
+<div class="shadow-xl code_wrapper">
 
 ```python
 from maix import camera, display, image, nn
@@ -265,13 +265,13 @@ Classifier Result video
 
 
 <!-- div start-->
-<div class="text-center">
+<div class="flex flex-col justify-center items-center max-w-full">
 <h2>Add Python binding in one second</h2>
 
 Just add comments, then you can use this API in MaixPy!
 
-<div class="flex flex-row justify-center flex-wrap mt-6">
-<div class="mr-4 shadow-xl">
+<div class="flex flex-row justify-center items-center flex-wrap mt-3 max-w-full">
+<div class="mr-4 mt-4 shadow-xl code_wrapper flex flex-col justify-center items-center">
 
 Python demo code:
 
@@ -287,7 +287,8 @@ print(devices)
 ```
 
 </div>
-<div class="shadow-xl">
+<div class="max-w-full">
+<div class="mt-4 shadow-xl code_wrapper flex flex-col justify-center items-center">
 
 MaixCDK implemention in `maix_uart.hpp`:
 
@@ -302,6 +303,7 @@ namespace maix::uart {
 }
 ```
 
+</div>
 </div>
 </div>
 </div>
@@ -326,7 +328,8 @@ No need for AI expertise or expensive training equipment, train models with one 
 
 ## Community {#community}
 
-<div>
+<div class="max-w-full">
+<div class="overflow-auto">
 
 | Community | Address |
 | --- | ---- |
@@ -340,6 +343,7 @@ No need for AI expertise or expensive training equipment, train models with one 
 | **Telegram**| [t.me/maixpy](https://t.me/maixpy) |
 | **QQ Group**| 862340358 |
 
+</div>
 </div>
 
 </div>
