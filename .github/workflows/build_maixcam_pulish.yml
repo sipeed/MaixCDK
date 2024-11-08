@@ -1,19 +1,19 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Build test for Linux
+name: Build test for MaixCAM
 
 # Controls when the action will run.
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main, dev ]
-  pull_request:
-    branches: [ main, dev ]
+    branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# permissions: write-all
+permissions: write-all
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -46,13 +46,19 @@ jobs:
           echo "--------------------------------"
           python -m pip install -r requirements.txt
           echo "--------------------------------"
-          echo "-- Build Test for Linux now --"
+          echo "-- Build Test for MaixCAM now --"
           echo "--------------------------------"
           cd test/test_examples
           chmod +x test_cases.sh
-          ./test_cases.sh linux 0
+          ./test_cases.sh maixcam 0
+          echo "------------------------------------"
+          echo "-- Build Projects for MaixCAM now --"
+          echo "------------------------------------"
+          cd ../../projects
+          chmod +x build_all.sh
+          ./build_all.sh
 
-      - name: Build doc
+      - name: Push doc to github pages
         run: |
           pip3 install teedoc
           cd docs
@@ -61,3 +67,23 @@ jobs:
           echo "== start build =="
           teedoc build
           echo "== build complete =="
+          remote_addr=`git remote get-url --push origin`
+          remote_addr=`echo $remote_addr|  awk -F'://' '{print $2}'`
+          user_name=`git log -1 --pretty=format:'%an'`
+          user_email=`git log -1 --pretty=format:'%ae'`
+          echo "== checkout gh-pages branch =="
+          cd out
+          cp -r ../../.github .
+          git config --global init.defaultBranch gh-pages
+          git init
+          git config user.name "${user_name}"
+          git config user.email ${user_email}
+          remote_addr="https://Neutree:${{ secrets.DISPATCH_PAT }}@${remote_addr}"
+          echo "-- user ${user_name}"
+          echo "-- remote addr: ${remote_addr}"
+          git remote add origin "${remote_addr}"
+          echo "== add web files =="
+          git add -A
+          git commit -m "Rebuild MaixPy doc by commit $GITHUB_REF"
+          git push origin HEAD:gh-pages --force
+          echo "== push complete =="

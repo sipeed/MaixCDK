@@ -1,15 +1,15 @@
-APP development guide
+MaixCDK APP framework guide
 =======
 
 ## Introduction
 
 User use steps:
-* When device boot up, will automatically start `app_launcher`
+* When device boot up, will automatically start `launcher`.
 * Use select one APP to start.
 * Run selected APP.
 * User interact with APP.
 * User exit APP.
-* `app_launcher` will start again and wait for user to select APP.
+* `launcher` will start again and wait for user to select APP.
 
 User install new APP:
 * Ensure device is connected to internet(can connect WiFi in `app_settings` APP).
@@ -62,14 +62,28 @@ exclude:       # not support regular expression, .git and __pycache__ is always 
 #         White list mode, only include files in files dict.
 #         If no this key or value is empty, will use method 1.
 # files:
+#   - assets
+#   - hello.py
+#   - main.py
+
+
+#### Include files method 2.1:
+#         White list mode, only include files in files dict.
+#         If no this key or value is empty, will use method 1.
+# files:
 #   assets: assets
+
 ```
 
-## Files
+`exclude` is blacklist mode, `files` is whitelist mode, you can use one of them.
+
+
+## Files convention
 
 * All app data is stored in `/maixapp`.
 * Apps are stored in `/maixapp/apps`.
 * There is a `/maixapp/apps/app.info` INI file for simple description of installed apps. Install and uninstall APP will update this file.
+> developer or use can manually copy APP directories here and execute `python gen_app_info.py` will generate `app.info` file.
 * APP store in `/maixapp/apps/app_id` folder, every app must contain `app_id` executable file, or `main.sh` shell script, or `main.py` python script.
 * When boot up APP, the launcher will find file in app_id folder: `main.sh` -> `main.py` -> `app_id`. The `main.sh` will be executed by `sh`, `main.py` will be executed by `python3`, `app_id` will be directly executed.
 * All shared data is stored in `/maixapp/share`.
@@ -79,6 +93,12 @@ exclude:       # not support regular expression, .git and __pycache__ is always 
 * Font files are stored in `/maixapp/share/font`.
 * Icon files are stored in `/maixapp/share/icon`.
 * APP's data files created at runtime can be stored in `/maixapp/apps/app_id/data`.
-* **All this path can be get by API `maix.app.get_***_path`, more detail see API doc or `maix_app.hpp` file.**
+* **All this path can be get by API `maix.app.get_xxx_path`, more detail see API doc or [maix_app.hpp](https://github.com/sipeed/MaixCDK/blob/main/components/basic/include/maix_app.hpp) file.**
 
+
+## Switch from APP to anothor APP
+
+Use `void maix::app::switch_app(const string &app_id, int idx = -1, const std::string &start_param = "")` function to switch APP.
+
+This will exit current APP and start another APP, and parse `start_param` string to the second APP, the second APP can get this param by `maix::app::get_start_param()`.
 

@@ -147,15 +147,15 @@ h1 {
         <img src="/static/image/maixcams.png" alt="MaixPy Banner">
     </div>
     <h1><span>MaixCDK</span></h1>
-    <h3>Fast implementation of AI vision and auditory applications</h3>
+    <h3>快速实现 AI 视觉和听觉应用</h3>
 </div>
 
 <div id="big_btn_wrapper" class="flex flex-wrap justify-center items-center">
-    <a class="btn m-1" href="/doc/">Quick Start 🚀📖</a>
-    <a class="btn m-1" href="/api/">API Reference 📚</a>
-    <a class="btn m-1" target="_blank" href="https://wiki.sipeed.com/maixcam-pro">Hardware Platform: MaixCAM 📷</a>
-    <a class="btn m-1" target="_blank" href="https://github.com/sipeed/MaixCDK">Open Source Code ⭐️</a>
-    <a class="btn m-1" target="_blank" href="https://maixhub.com/app">App Store 📦</a>
+    <a class="btn m-1" href="/doc/zh/">快速开始 🚀📖</a>
+    <a class="btn m-1" href="/api/">API 参考 📚</a>
+    <a class="btn m-1" target="_blank" href="https://wiki.sipeed.com/maixcam-pro">硬件平台：MaixCAM 📷</a>
+    <a class="btn m-1" target="_blank" href="https://github.com/sipeed/MaixCDK">开源代码 ⭐️</a>
+    <a class="btn m-1" target="_blank" href="https://maixhub.com/app">应用商店 📦</a>
 </div>
 
 <div id="tags">
@@ -166,7 +166,7 @@ h1 {
 
 <div class="text-center">
 
-English | [中文](./zh/)
+[English](../) | 中文
 
 </div>
 
@@ -176,14 +176,14 @@ English | [中文](./zh/)
 <div class="text-gray-400 text-center">
 
 
-If you like MaixCDK or MaixPy, please give a star ⭐️ to the [MaixPy](https://github.com/sipeed/MaixPy) and [MaixCDK](https://github.com/sipeed/MaixCDK) open source project to encourage us to develop more features.
+如果您喜欢 MaixCDK 或 MaixPy，请为 [MaixPy](https://github.com/sipeed/MaixPy) 和 [MaixCDK](https://github.com/sipeed/MaixCDK) 开源项目点赞 ⭐️，以鼓励我们开发更多功能。
 
 </div>
 
 
 <div class="mt-6"></div>
 
-<h2 class="text-center font-bold">Simple API Design, AI Image Recognition within 20 Lines of Code</h2>
+<h2 class="text-center font-bold">简单的 API 设计，20 行代码实现 AI 图像识别</h2>
 <div id="id1" class="flex flex-row justify-center items-end flex-wrap">
 <div class="shadow-xl">
 
@@ -218,12 +218,12 @@ int main()
 
 </div>
 <video playsinline controls autoplay loop muted preload  class="p-0 mx-2 rounded-md shadow-xl white_border" src="https://wiki.sipeed.com/maixpy/static/video/classifier.mp4" type="video/mp4">
-Classifier Result video
+分类结果视频
 </video>
 </div> <!-- id1 -->
 
 
-<h2 class="text-center font-bold">Same simple Python API binding</h2>
+<h2 class="text-center font-bold">同样简单的 Python API 绑定</h2>
 <div id="id2" class="flex flex-row justify-center items-end flex-wrap">
 <div class="shadow-xl">
 
@@ -245,18 +245,18 @@ while 1:
 
 </div>
 <video playsinline controls autoplay loop muted preload  class="p-0 mx-2 rounded-md shadow-xl white_border" src="https://wiki.sipeed.com/maixpy/static/video/classifier.mp4" type="video/mp4">
-Classifier Result video
+分类结果视频
 </video>
 </div> <!-- id2 -->
 
 <!-- div start-->
 <div class="text-center flex flex-col justify-center items-center">
-<h2>Variety of built-in functions</h2>
+<h2>多样的内置功能</h2>
 
-<p>The functionality of MaixCDK is kept in sync with MaixPy, and the MaixPy documentation is also applicable to MaixCDK.</p>
+<p>MaixCDK 的功能与 MaixPy 保持同步，MaixPy 的文档也适用于 MaixCDK。</p>
 
 <div style="display: flex; justify-content: left">
-    <a target="_blank" style="margin: 1em;color: white; font-size: 0.9em; border-radius: 0.3em; padding: 0.5em 2em; background-color: #a80202" href="https://wiki.sipeed.com/maixpy/">Please Visit MaixPy learn more features</a>
+    <a target="_blank" style="margin: 1em;color: white; font-size: 0.9em; border-radius: 0.3em; padding: 0.5em 2em; background-color: #a80202" href="https://wiki.sipeed.com/maixpy/">请访问 MaixPy 以了解更多功能</a>
 </div>
 
 </div>
@@ -266,14 +266,14 @@ Classifier Result video
 
 <!-- div start-->
 <div class="text-center">
-<h2>Add Python binding in one second</h2>
+<h2>一秒添加 Python 绑定</h2>
 
-Just add comments, then you can use this API in MaixPy!
+只需添加注释，即可在 MaixPy 中使用此 API！
 
 <div class="flex flex-row justify-center flex-wrap mt-6">
 <div class="mr-4 shadow-xl">
 
-Python demo code:
+Python 示例代码：
 
 ```python
 from maix import uart
@@ -289,7 +289,7 @@ print(devices)
 </div>
 <div class="shadow-xl">
 
-MaixCDK implemention in `maix_uart.hpp`:
+MaixCDK 在 `maix_uart.hpp` 中的实现：
 
 ```cpp
 namespace maix::uart {
@@ -309,9 +309,9 @@ namespace maix::uart {
 
 <!-- start -->
 <div class="flex flex-col justify-center items-center">
-<h2>Online AI Training Platform MaixHub</h2>
+<h2>在线 AI 训练平台 MaixHub</h2>
 
-No need for AI expertise or expensive training equipment, train models with one click, deploy to MaixCAM with one click.
+无需 AI 专业知识或昂贵的训练设备，一键训练模型，一键部署到 MaixCAM。
 
 <div class="mt-3"></div>
 
@@ -319,26 +319,26 @@ No need for AI expertise or expensive training equipment, train models with one 
 </div>
 <!-- end -->
 
-## Maix Ecosystem
+## Maix 生态系统
 
 <img src="/static/image/maix_ecosystem.png" class="white_border shadow-xl rounded-md">
 
 
-## Community {#community}
+## 社区 {#community}
 
 <div>
 
-| Community | Address |
+| 社区 | 地址 |
 | --- | ---- |
-| **MaixCDK Documentation**| [MaixCDK Documentation](https://wiki.sipeed.com/maixcdk/) |
-| **MaixPy Documentation**| [MaixPy Documentation](https://wiki.sipeed.com/maixpy/) |
-| **App Store**| [maixhub.com/app](https://maixhub.com/app) |
-| **Project Sharing**| [maixhub.com/share](https://maixhub.com/share) |
-| **Bilibili**| Search for `MaixCAM` or `MaixPy` on Bilibili |
-| **Discussion**| [maixhub.com/discussion](https://maixhub.com/discussion) |
-| **MaixCDK issues**| [github.com/sipeed/MaixPy/issues](https://github.com/sipeed/MaixCDK/issues) |
+| **MaixCDK 文档**| [MaixCDK 文档](https://wiki.sipeed.com/maixcdk/) |
+| **MaixPy 文档**| [MaixPy 文档](https://wiki.sipeed.com/maixpy/) |
+| **应用商店**| [maixhub.com/app](https://maixhub.com/app) |
+| **项目分享**| [maixhub.com/share](https://maixhub.com/share) |
+| **Bilibili**| 在 Bilibili 上搜索 `MaixCAM` 或 `MaixPy` |
+| **讨论**| [maixhub.com/discussion](https://maixhub.com/discussion) |
+| **MaixCDK 问题**| [github.com/sipeed/MaixPy/issues](https://github.com/sipeed/MaixCDK/issues) |
 | **Telegram**| [t.me/maixpy](https://t.me/maixpy) |
-| **QQ Group**| 862340358 |
+| **QQ 群**| 862340358 |
 
 </div>
 

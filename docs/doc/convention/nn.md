@@ -36,3 +36,17 @@ labels = labels.txt
 * `labels` is model labels file path, it's optional for application.
 
 
+Current MaixCDK support:
+* classifier
+* classifier_no_top
+* yolo11
+* yolov8
+* yolov5
+* pp_ocr
+* retinaface
+* nanotrack
+* retinaface
+* face_detector
+* speech
+* and more ... please refer to [components/nn/include](https://github.com/sipeed/MaixCDK/tree/main/components/nn/include) souce code and search `model_type` keyword and see `load` method.
+

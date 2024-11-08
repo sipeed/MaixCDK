@@ -4,7 +4,7 @@ MaixCDK FAQ
 You can also find FAQ from:
 * [MaixPy FAQ](https://wiki.sipeed.com/maixpy/doc/en/faq.html)
 * [MaixCAM FAQ](https://wiki.sipeed.com/hardware/zh/maixcam/faq.html)
-* [MaixPy souce code FAQ](https://wiki.sipeed.com/maixpy/doc/zh/source_code/faq.html)
+* [MaixPy 源码 FAQ](https://wiki.sipeed.com/maixpy/doc/zh/source_code/faq.html)
 
 ## Downloading ippicv_2021.8_lnx_intel64_20230330_general.tgz takes a long time or fail
 
