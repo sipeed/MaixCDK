@@ -78,6 +78,6 @@ jobs:
           git remote add origin "${remote_addr}"
           echo "== add web files =="
           git add -A
-          git commit -m "Rebuild MaixPy doc by commit $GITHUB_REF"
+          git commit -m "Rebuild MaixCDK doc by commit $GITHUB_REF"
           git push origin HEAD:gh-pages --force
           echo "== push complete =="
