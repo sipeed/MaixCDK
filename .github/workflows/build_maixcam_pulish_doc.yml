@@ -1,6 +1,6 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Build test for MaixCAM
+name: Build and publish docs for MaixCAM
 
 # Controls when the action will run.
 on:
@@ -33,7 +33,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Build MaixCDK Examples
+      - name: Build MaixCDK API doc
         run: |
           echo "-- Check python version must python 3.11 --"
           python3 -c 'import sys;print(sys.version);assert sys.version_info >= (3, 11);assert sys.version_info < (3, 12)'
@@ -46,17 +46,11 @@ jobs:
           echo "--------------------------------"
           python -m pip install -r requirements.txt
           echo "--------------------------------"
-          echo "-- Build Test for MaixCAM now --"
+          echo "-- Build API DOC for MaixCAM now --"
           echo "--------------------------------"
-          cd test/test_examples
-          chmod +x test_cases.sh
-          ./test_cases.sh maixcam 0
-          echo "------------------------------------"
-          echo "-- Build Projects for MaixCAM now --"
-          echo "------------------------------------"
-          cd ../../projects
-          chmod +x build_all.sh
-          ./build_all.sh
+          cd examples
+          maixcdk distclean
+          maixcdk build -p maixcam
 
       - name: Push doc to github pages
         run: |
