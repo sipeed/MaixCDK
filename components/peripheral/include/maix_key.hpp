@@ -52,9 +52,9 @@ namespace maix::peripheral::key
          *                 callback will be called with args key(key.Keys) and value(key.State).
          *                 If set to null, you can get key value by read() function.
          *                 This callback called in a standalone thread, so you can block a while in callback, and you should be carefully when operate shared data.
-         * @param open auto open device in constructor, if false, you need call open() to open device
-         * @param device The key device to use. Default is "/dev/input/event0".
-         *               Set it to "/dev/input/powerkey" to use the power key on the MaixCam-Pro.
+         * @param open auto open device in constructor, if false, you need call open() to open device.
+         * @param device Specifies the input device to use. The default initializes all keys,
+         *               for a specific device, provide the path (e.g., "/dev/input/device").
          * @param long_press_time The duration (in milliseconds) from pressing the key to triggering the long press event. Default is 2000ms.
          * @maixpy maix.peripheral.key.Key.__init__
          * @maixcdk maix.peripheral.key.Key.Key
@@ -113,7 +113,7 @@ namespace maix::peripheral::key
         int long_press_time(int press_time = -1);
 
     private:
-        int _fd;
+        std::vector<int> _fds;
         std::string _device;
         std::function<void(int, int)> _callback;
         void *_data;
