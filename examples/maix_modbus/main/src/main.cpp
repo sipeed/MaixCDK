@@ -9,27 +9,27 @@ using namespace maix::comm;
 
 int _main(int argc, char* argv[])
 {
-    auto Slave = modbus::Slave(
-        modbus::Mode::RTU,      // mode
-        "/dev/ttyS0",           // serial device
-        0x00, 10,               // coils
-        0x00, 10,               // discrete input
-        0x00, 10,               // input registers
-        0x00, 10,               // holding registers
-        115200, 1,              // serial 115200-8N1, slave id: 1
-        0,                      // tcp port
-        true);                  // debug ON
-
     // auto Slave = modbus::Slave(
-    //     modbus::Mode::TCP,      // mode
-    //     "",                     // ip, keep empty
+    //     modbus::Mode::RTU,      // mode
+    //     "/dev/ttyS0",           // serial device
     //     0x00, 10,               // coils
     //     0x00, 10,               // discrete input
     //     0x00, 10,               // input registers
     //     0x00, 10,               // holding registers
-    //     0, 1,                   // serial, ignore
-    //     5020,                      // tcp port
-    //     false);                  // debug OFF
+    //     115200, 1,              // serial 115200-8N1, slave id: 1
+    //     0,                      // tcp port
+    //     true);                  // debug ON
+
+    auto Slave = modbus::Slave(
+        modbus::Mode::TCP,      // mode
+        "",                     // ip, keep empty
+        0x00, 10,               // coils
+        0x00, 10,               // discrete input
+        0x00, 10,               // input registers
+        0x00, 10,               // holding registers
+        0, 1,                   // serial, ignore
+        5020,                      // tcp port
+        false);                  // debug OFF
 
     std::vector<uint16_t> data{0x22, 0x33, 0x44};
     Slave.input_registers(data, 3);

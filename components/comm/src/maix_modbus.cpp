@@ -1,11 +1,12 @@
 #include "maix_modbus.hpp"
 #include "maix_log.hpp"
 
-#include <cstring> // std::memcpy
-#include <stdexcept> // std::runtime_error
-#include <unistd.h> // close
-#include <limits>
-#include <sys/select.h> // select
+#include <cstring>          // std::memcpy
+#include <stdexcept>        // std::runtime_error
+#include <unistd.h>         // close
+#include <limits>           // std::numeric_limits
+#include <sys/select.h>     // select
+#include <sstream>          // std::stringstream
 
 namespace maix::comm::modbus {
 
@@ -17,9 +18,19 @@ static inline void __error_and_throw__(const std::string& msg) noexcept(false)
     throw std::runtime_error(msg);
 }
 
+static inline void __throw_in_maixpy__(const std::string& msg) noexcept(false)
+{
+    log::error(msg.c_str());
+#if CONFIG_BUILD_WITH_MAIXPY
+    throw std::runtime_error(msg);
+#endif
+}
+
+/****************************** Slave *********************************/
+
 const std::string Slave::TAG() const noexcept
 {
-    return "[Maix Modbus]";
+    return "[Maix Modbus Slave]";
 }
 
 void Slave::header_init()
@@ -460,9 +471,458 @@ std::vector<uint16_t> Slave::holding_registers(const std::vector<uint16_t>& data
     return {0x00};
 }
 
-::modbus_mapping_t* Slave::operator->()
+::modbus_mapping_t* Slave::operator->() const noexcept
 {
     return this->mb_mapping_.get();
+}
+
+::modbus_t* Slave::operator()() const noexcept
+{
+    return this->ctx_.get();
+}
+
+/****************************** Master *********************************/
+
+class MasterOperator final {
+public:
+    template<typename T>
+    using ModbusOpsRFunc = std::function<int(modbus_t *ctx, int addr, int nb, T* dest)>;
+
+    template<typename T>
+    using ModbusOpsWFunc = std::function<int(modbus_t *ctx, int addr, int nb, const T* src)>;
+
+    MasterOperator() = delete;
+    MasterOperator(const MasterOperator&) = delete;
+    MasterOperator(MasterOperator&&) = delete;
+
+    MasterOperator& operator=(const MasterOperator&) = delete;
+    MasterOperator& operator=(MasterOperator&&) = delete;
+
+    ~MasterOperator() = delete;
+
+    static const std::string TAG() noexcept;
+    static void debug(bool debug) noexcept;
+    static void deinit(::modbus_t* ptr) noexcept;
+
+    static std::unique_ptr<::modbus_t, decltype(&deinit)> rtu_init(const std::string& device, int baud, int slave) noexcept;
+    static std::unique_ptr<::modbus_t, decltype(&deinit)> tcp_init(const std::string& ip, int port) noexcept;
+
+    template<typename T>
+    static std::vector<T> read(::modbus_t* ctx, const uint32_t size, const uint32_t index,
+                        const int timeout_ms, const std::string& name,  ModbusOpsRFunc<T> func);
+
+    template<typename T>
+    static int write(::modbus_t* ctx, const std::vector<T>& data, const uint32_t index, const int timeout_ms,
+        const std::string& name, ModbusOpsWFunc<T> func);
+
+private:
+    static int debug_init(::modbus_t* ctx) noexcept;
+    static int set_timeout(::modbus_t* ctx, int timeout=-1) noexcept;
+    static inline std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)> empty_ctx() noexcept;
+
+private:
+    static bool debug_;
+};
+
+bool MasterOperator::debug_ = false;
+
+const std::string MasterOperator::TAG() noexcept
+{
+    return "[Maix Modbus Master]";
+}
+
+void MasterOperator::debug(bool debug) noexcept
+{
+    debug_ = debug;
+}
+
+std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)> MasterOperator::empty_ctx() noexcept
+{
+    return std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)>(nullptr, &MasterOperator::deinit);
+}
+
+int MasterOperator::debug_init(::modbus_t* ctx) noexcept
+{
+    if (::modbus_set_debug(ctx, debug_) < 0) {
+        const std::string msg(TAG()+" set debug failed!"+std::string(::modbus_strerror(errno)));
+        log::error(msg.c_str());
+        return -1;
+    }
+    return 0;
+}
+
+int MasterOperator::set_timeout(::modbus_t* ctx, int timeout_ms) noexcept
+{
+    auto __set_timeout__ = [&ctx](uint32_t sec, uint32_t usec, const std::string& name){
+        if (debug_) {
+            log::info("%s timeout %s", TAG().c_str(), name.c_str());
+        }
+        if (::modbus_set_response_timeout(ctx, sec, usec) < 0) {
+            std::string msg(TAG()+" set timeout failed! "+std::string(::modbus_strerror(errno)));
+            log::warn(msg.c_str());
+            return 1;
+        }
+        return 0;
+    };
+
+    if (timeout_ms < 0) {
+        return __set_timeout__(std::numeric_limits<uint32_t>::max(), 0, "<max>");
+    }
+
+    if (timeout_ms == 0) {
+        return __set_timeout__(0, 1, "<0>");
+    }
+
+    int sec = timeout_ms / 1000;
+    int usec = timeout_ms % 1000 * 1000;
+    std::stringstream ss;
+    if (debug_)
+        ss << '<' << sec << 's' << usec << "us>";
+
+    return __set_timeout__(sec, usec, ss.str());
+}
+
+std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)> MasterOperator::rtu_init(const std::string& device, int baud, int slave) noexcept
+{
+    if (debug_) {
+        log::info("%s Mode: RTU, Port: %s, Baudrate: %d-8N1, Slave addr: %u.",
+            TAG().c_str(), device.c_str(), baud, slave);
+    }
+
+    auto ctx = std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)>(
+        ::modbus_new_rtu(device.c_str(), baud, 'N', 8, 1),
+        &MasterOperator::deinit
+    );
+    if (!ctx) {
+        const std::string msg(TAG()+" malloc failed!");
+        log::error(msg.c_str());
+        return empty_ctx();
+    }
+
+    if (::modbus_set_slave(ctx.get(), slave) < 0) {
+        const std::string msg(TAG()+" set slave failed!");
+        log::error(msg.c_str());
+        return empty_ctx();
+    }
+
+    if (debug_init(ctx.get()) < 0) {
+        return empty_ctx();
+    }
+
+    if (::modbus_connect(ctx.get()) < 0) {
+        const std::string msg(TAG()+" connect failed!"+std::string(::modbus_strerror(errno)));
+        log::error(msg.c_str());
+        return empty_ctx();
+    }
+
+    return ctx;
+}
+
+std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)> MasterOperator::tcp_init(const std::string& ip, int port) noexcept
+{
+    if (debug_) {
+        log::info("%s Mode: TCP, Port: %d",
+            TAG().c_str(), port);
+    }
+
+    auto ctx = std::unique_ptr<::modbus_t, decltype(&MasterOperator::deinit)>(
+        ::modbus_new_tcp(ip.c_str(), port),
+        &MasterOperator::deinit
+    );
+    // auto ctx = std::make_unique<::modbus_t, decltype(&MasterOperator::deinit)>(::modbus_new_tcp(ip.c_str(), port), &deinit);
+    if (!ctx) {
+        const std::string msg(TAG()+" malloc failed!");
+        log::error(msg.c_str());
+        return empty_ctx();
+    }
+
+    if (debug_init(ctx.get()) < 0) {
+        return empty_ctx();
+    }
+
+    if (::modbus_connect(ctx.get()) < 0) {
+        const std::string msg(TAG()+" connect failed!"+std::string(::modbus_strerror(errno)));
+        log::error(msg.c_str());
+        return empty_ctx();
+    }
+
+    return ctx;
+}
+
+void MasterOperator::deinit(::modbus_t* ptr) noexcept
+{
+    if (ptr != nullptr) {
+        ::modbus_close(ptr);
+        ::modbus_free(ptr);
+    }
+}
+
+template<typename T>
+std::vector<T> MasterOperator::read(::modbus_t* ctx, const uint32_t size, const uint32_t index,
+        const int timeout_ms, const std::string& name,  ModbusOpsRFunc<T> func)
+{
+    if (size == 0) {
+        std::string msg(TAG()+" read length cannot be zero!");
+        __throw_in_maixpy__(msg);
+        return {};
+    }
+
+    set_timeout(ctx, timeout_ms);
+
+    if (debug_) log::info("%s read %s: index<%u>, len<%u>", TAG().c_str(), name.c_str(), index, size);
+
+    std::vector<T> __res__(size);
+    int rc = func(
+        ctx,
+        static_cast<int>(index),
+        static_cast<int>(size),
+        __res__.data()
+    );
+
+    if (rc <= 0) {
+        if (debug_) log::warn("%s read %s failed!", TAG().c_str(), name.c_str());
+        return {};
+    }
+
+    return __res__;
+}
+
+template<typename T>
+int MasterOperator::write(::modbus_t* ctx, const std::vector<T>& data, const uint32_t index, const int timeout_ms,
+    const std::string& name, ModbusOpsWFunc<T> func)
+{
+    if (data.empty()) {
+        std::string msg(TAG()+" write length cannot be zero!");
+        __throw_in_maixpy__(msg);
+        return -1;
+    }
+
+    set_timeout(ctx, timeout_ms);
+
+    if (debug_) log::info("%s write %s: index<%u>, len<%u>", TAG().c_str(), name.c_str(), index, data.size());
+
+    int rc = func(
+        ctx,
+        static_cast<int>(index),
+        static_cast<int>(data.size()),
+        data.data()
+    );
+    if (rc <= 0) {
+        if (debug_) log::warn("%s write %s failed!", TAG().c_str(), name.c_str());
+        return -1;
+    }
+
+    return rc;
+}
+
+/**************************************Master DEBUG**************************************/
+
+void set_master_debug(bool debug)
+{
+    MasterOperator::debug(debug);
+}
+
+/**************************************Master RTU**************************************/
+
+MasterRTU::MasterRTU(const std::string& device, const int baudrate)
+    : device_(device), baudrate_(baudrate) {}
+
+MasterRTU::~MasterRTU() {}
+
+std::pair<std::string, int> MasterRTU::get_cfg(const std::string& device, const int baudrate) noexcept
+{
+    std::string dev = device;
+    int baud = baudrate;
+
+    if (device.empty()) {
+        dev = this->device_;
+    }
+    if (baudrate <= 0) {
+        baud = this->baudrate_;
+    }
+
+    return std::make_pair(dev, baud);
+}
+
+std::vector<uint8_t> MasterRTU::read_coils(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return read_coils(dev, baud, slave_id, size, addr, timeout_ms);
+}
+
+int MasterRTU::write_coils(const uint32_t slave_id, const std::vector<uint8_t>& data,
+    const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return write_coils(dev, baud, slave_id, data, addr, timeout_ms);
+}
+
+std::vector<uint8_t> MasterRTU::read_discrete_input(const uint32_t slave_id, const uint32_t addr,
+        const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return read_discrete_input(dev, baud, slave_id, size, addr, timeout_ms);
+}
+
+std::vector<uint16_t> MasterRTU::read_input_registers(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return read_input_registers(dev, baud, slave_id, size, addr, timeout_ms);
+}
+
+std::vector<uint16_t> MasterRTU::read_holding_registers(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return read_holding_registers(dev, baud, slave_id, size, addr, timeout_ms);
+}
+
+int MasterRTU::write_holding_registers(const uint32_t slave_id, const std::vector<uint16_t>& data,
+    const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+{
+    auto [dev, baud] = this->get_cfg(device, baudrate);
+    return write_holding_registers(dev, baud, slave_id, data, addr, timeout_ms);
+}
+
+std::vector<uint8_t> MasterRTU::read_coils( const std::string& device, const int baudrate,
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "coils", ::modbus_read_bits);
+}
+
+int MasterRTU::write_coils(const std::string& device, const int baudrate,
+    const uint32_t slave_id, const std::vector<uint8_t>& data, const uint32_t addr, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::write<uint8_t>(ctx.get(), data, addr, timeout_ms, "coils", ::modbus_write_bits);
+}
+
+std::vector<uint8_t> MasterRTU::read_discrete_input(const std::string& device, const int baudrate,
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "discrete input", ::modbus_read_input_bits);
+}
+
+std::vector<uint16_t> MasterRTU::read_input_registers(const std::string& device, const int baudrate,
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "input registers", ::modbus_read_input_registers);
+}
+
+std::vector<uint16_t> MasterRTU::read_holding_registers(const std::string& device, const int baudrate,
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "holding registers", ::modbus_read_registers);
+}
+
+int MasterRTU::write_holding_registers(const std::string& device, const int baudrate,
+    const uint32_t slave_id, const std::vector<uint16_t>& data, const uint32_t addr, const int timeout_ms)
+{
+    auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
+    return MasterOperator::write<uint16_t>(ctx.get(), data, addr, timeout_ms, "holding registers", ::modbus_write_registers);
+}
+
+/**************************************Master TCP**************************************/
+
+MasterTCP::MasterTCP(const int port) : port_(port) {}
+
+MasterTCP::~MasterTCP() {}
+
+int MasterTCP::get_cfg(int port) noexcept
+{
+    if (port < 0)
+        return this->port_;
+    return port;
+}
+
+std::vector<uint8_t> MasterTCP::read_coils(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return read_coils(ip, p, size, addr, timeout_ms);
+}
+
+int MasterTCP::write_coils(const std::string ip, const std::vector<uint8_t>& data,
+                const uint32_t addr, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return write_coils(ip, p, data, addr, timeout_ms);
+}
+
+std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return read_discrete_input(ip, p, size, addr, timeout_ms);
+}
+
+std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return read_input_registers(ip, p, size, addr, timeout_ms);
+}
+
+std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return read_holding_registers(ip, p, size, addr, timeout_ms);
+}
+
+int MasterTCP::write_holding_registers(const std::string ip, const std::vector<uint16_t>& data,
+    const uint32_t addr, const int timeout_ms, const int port)
+{
+    auto p = this->get_cfg(port);
+    return write_holding_registers(ip, p, data, addr, timeout_ms);
+}
+
+std::vector<uint8_t> MasterTCP::read_coils( const std::string ip, const int port,
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "coils", ::modbus_read_bits);
+}
+
+int MasterTCP::write_coils(const std::string ip, const int port,
+    const std::vector<uint8_t>& data, const uint32_t addr, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::write<uint8_t>(ctx.get(), data, addr, timeout_ms, "coils", ::modbus_write_bits);
+}
+
+std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const int port,
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "discrete input", ::modbus_read_input_bits);
+}
+
+std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const int port,
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "input registers", ::modbus_read_registers);
+}
+
+std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const int port,
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "holding registers", ::modbus_read_registers);
+}
+
+int MasterTCP::write_holding_registers(const std::string ip, const int port,
+    const std::vector<uint16_t>& data, const uint32_t addr, const int timeout_ms)
+{
+    auto ctx = MasterOperator::tcp_init(ip, port);
+    return MasterOperator::write<uint16_t>(ctx.get(), data, addr, timeout_ms, "holding registers", ::modbus_write_registers);
 }
 
 }
