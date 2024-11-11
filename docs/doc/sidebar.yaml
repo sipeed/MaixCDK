@@ -1,23 +1,36 @@
 items:
-  - label: Brief
-    file: README.md
   - label: Quick start
-    file: dev/quick_start.md
-  - label: Dev Convention
-    file: convention/README.md
+    file: README.md
+  - label: FAQ
+    file: faq.md
+  - label: Convention
+    collapsed: false
     items:
-      - label: APP dev
+      - label: Code Convention
+        file: convention/README.md
+      - label: Add New API
+        file: convention/add_api.md
+      - label: APP framework
         file: convention/app.md
-      - label: I18N(translate)
+      - label: I18N(translation)
         file: convention/i18n.md
       - label: Communicate protocol
         file: convention/protocol.md
       - label: NN AI model
         file: convention/nn.md
-  - label: FAQ
-    file: faq.md
-  - label: Applications
+      - label: Memory leak check
+        file: convention/memcheck.md
+  - label: Docker Evironment
+    file: dev/docker/README.md
+  - label: More documentaion
+    file: more.md
+  - label: Application Notes
     collapsed: false
     items:
-      - label: YOLOv2
-        file: application/ai/yolov2.md
+      - label: About These Notes
+        file: application/README.md
+      - label: YOLO11 dev note
+        file: application/ai/yolo11.md
+      - label: LVGL
+        file: application/ui/lvgl.md
+

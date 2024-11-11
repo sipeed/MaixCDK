@@ -1,15 +1,12 @@
 
 
 #home_page h1 {
-    color: #4caf7d;
+    color: #1f8dbf;
 }
 .dark #home_page h1{
     color: white;
 }
 
 @media screen and (max-width: 900px) {
-    #home_page h1 {
-        color: #eb4848;
-    }
 }
 

@@ -1,430 +1,417 @@
 ---
-title: Maix communicate Protocol
+
+title: Maix Communicate Protocol
 update:
-  - date: 2023-11-28
-    author: neucrack
-    version: 1.0.0
-    content: 设计并编写协议文档和代码 API 实现
+- date: 2023-11-28
+  author: neucrack
+  version: 1.0.0
+  content: Designed and implemented the protocol documentation and code API
+
 ---
 
-## Maix 串口协议简介
+> This article is translated from Chinese by ChatGPT, may have error, Pull Request is welcome!
 
 
-运行 MaixCDK 或者 MaixPy 的设备， 除了可以直接使用设备上的触摸屏和按键操作外， 还可以作为模块，可以使用 `UART`（串口） 或者 `I2C` 进行通信控制。
+## Introduction to Maix Serial Protocol
 
-> 因为 I2C 为主从模式，所以协议都采用问答模式，一问一答，即`Request`+`Response`
-> 对于 UART 协议， 部分功能支持配置主动上报，具体请看协议
+Devices running MaixCDK or MaixPy can be controlled not only directly via the device's touch screen and buttons but also as modules using `UART` (serial port) or `I2C`.
 
-后文会详细阐述通信协议内容。
+> Since I2C operates in a master-slave mode, the protocol adopts a request-response format: `Request` + `Response`.  
+> For UART protocol, some functions support active reporting. Please refer to the specific protocol details.
 
-## Maix 设备端如何使用
+The communication protocol is explained in detail below.
 
-开机进入 `设置` 应用，在 `通信` 设置里面选择通信接口，有：
-* **串口**：选择后会使用串口进行通信，串口根据板子决定，波特率默认为`115200`。
-* **TCP**：选择后 Maix 设备会启动一个 TCP 服务，主控端可以通过 TCP 连接 Maix 设备，端口默认为`5555`。
+## How to Use Maix Device
 
-然后主控连接上 Maix 设备后，就可以通过协议进行通信了， 主控作为主设备， Maix 设备作为从设备。
+Upon startup, go to the `Settings` application, and select the communication interface under `Communication` settings:
 
-**Maix 设备端开发**：
+* **Serial Port**: Uses the serial port for communication. The specific serial port depends on the board, with a default baud rate of `115200`.
+* **TCP**: Starts a TCP service on the Maix device, allowing the master device to connect via TCP. The default port is `5555`.
 
-用提供的`maix.comm.CommProtocol`类可以很方便实现命令响应，具体参考例程 [comm_protocol](../../../examples/protocol_demo)（C++）或者 [comm_protocol.py](https://github.com/sipeed/MaixPy/blob/main/examples/protocol)（MaixPy）。
+Once the master device is connected to the Maix device, it can communicate following the protocol, where the master device acts as the primary device, and the Maix device as the slave.
 
+**Development on Maix Device Side**:
 
-**主控端开发**：
+You can easily implement command responses using the provided `maix.comm.CommProtocol` class. Refer to the examples [comm_protocol](../../../examples/protocol_demo) (C++) or [comm_protocol.py](https://github.com/sipeed/MaixPy/blob/main/examples/protocol) (MaixPy) for details.
 
-主控端根据芯片和开发语言可自行实现协议，在文末附录中有提供模板代码。
+**Development on Master Device Side**:
 
+The master device can implement the protocol based on the chip and programming language. Template code is provided in the appendix.
 
-## 数据帧
+---
 
-|               | header(4B LE) |  data len(4B LE)(flags+cmd+body+crc) |flags(1B)  | cmd(1B) | body(nB)     | CRC16_IBM(2B LE)(前面所有) |
-| ------------- | ---------- | ---------------------------- | ------------------ | ------- | ---------------- | ---------------------- |
-| 十进制示例      | 3148663466 | 9                            | 0                  | 1       | hello            | 17451        |
-| 十六进制示例    | 0xBBACCAAA | 0x00000009                   |  0x00              | 0x01    | hello             | 0x442B       |
-| 字节流(十六进制)| AA CA AC BB | 09 00 00 00                 | 00                 | 01      |  68 65 6c 6c 6F   | 2B 44 |
+## Data Frame
 
-> **注意**这里超过一个字节的数据均采用小端(LE)编码，比如这里 `data_len` 为 `0x00000006`，`06`在最低位，发送时需要先发送`0x06`再发送`0x00` `0x00` `0x00`。
-> 字符串就按照顺序发即可，比如`hello`，先发`h`再发`e` `l` `l` `o`。
-> 这里的例子，最终发送数据： `AA CA AC BB 09 00 00 00 00 01 68 65 6c 6c 6F 2B 44`。
+|               | header (4B LE) | data len (4B LE)(flags+cmd+body+crc) | flags (1B) | cmd (1B) | body (nB) | CRC16_IBM (2B LE) (all previous) |
+| ------------- | -------------- | ------------------------------------ | ---------- | -------- | --------- | ---------------------------------- |
+| Decimal Example | 3148663466     | 9                                    | 0          | 1        | hello     | 17451                             |
+| Hex Example     | 0xBBACCAAA     | 0x00000009                           | 0x00       | 0x01     | hello     | 0x442B                             |
+| Byte Stream (Hex) | AA CA AC BB   | 09 00 00 00                         | 00         | 01       | 68 65 6C 6C 6F | 2B 44                       |
 
-* `header`: 头，4 字节，用来标识一帧的开始，固定为 4 字节 `0xAA 0xCA 0xAC 0xBB`, 先发`0xAA`
-* `data len`: 数据长度， 4 字节， 包含了 `flags` `cmd` + `body` + `CRC` 的长度。
-* `flags`: 一个字节，各个位分别表示：
-  * 最高位 `is_resp`:  是否是响应，`0`代表发送请求，`1`代表 响应 或者 主动上报（第三高位需要置`1`）。
-  * 第二高位 `resp_ok`:
-    * 对于请求，保留位。
-    * 对于响应，`1`表示成功，`0`表示失败。
-  * 第三高位 `is_report`：
-    * 对于请求，保留位。
-    * 对于响应，`1`表示主动上报，`0`表示为响应消息。
-  * 第 4~6 高位： 保留以后使用。
-  * 低 2位 `version`: 协议版本，以后修改不兼容的协议才会更改这个版本号，如果修改协议后与当前版本协议兼容则这个版本号不需要升级。目前的版本为 `0`。
-* `cmd`: 基本命令类型，1 字节，已经预先定义了几个命令，看后文[命令定义](#命令定义)，这些预定义命令的值从 255 逐渐递减，APP 自定义的命令可以从 `0 ~ maix.protocol.CMD.CMD_APP_MAX`。
-* `body`: 内容，变长, 长度只要 `< (2^32 - 1)` 即可，不同的命令对应不同的`body`，在后面会对每个命令进行详细说明
-* `crc16`: CRC 校验值，2 字节， 用以校验帧数据在传输过程中是否出错，使用 `CRC IBM` 方法计算，可以参见[C 代码实现](#C-CRC16)，或者 [Python CRC16](#Python-CRC16)。和`data_len`同样两个字节小端存放，传输时先传输低位再传输高位。
+> **Note**: Multi-byte data uses little-endian (LE) encoding. For example, `data_len` is `0x00000006`, with `06` in the lowest byte, so it is sent first as `0x06`, followed by `0x00 0x00 0x00`.
+> Strings are sent in order, e.g., `hello` is sent as `h`, then `e`, `l`, `l`, `o`.
+> In this example, the final data sent is: `AA CA AC BB 09 00 00 00 00 01 68 65 6C 6C 6F 2B 44`.
 
-编解码的代码见[附录：代码](#附录：代码)
+- `header`: 4-byte header marking the start of a frame, fixed as `0xAA 0xCA 0xAC 0xBB`, sent starting with `0xAA`.
+- `data len`: 4-byte data length, including the length of `flags`, `cmd`, `body`, and `CRC`.
+- `flags`: 1-byte flag where each bit indicates:
+  - MSB `is_resp`: Indicates if it is a response. `0` for request, `1` for response or active report (requires the third highest bit set to `1`).
+  - Second highest bit `resp_ok`:
+    - For requests: Reserved.
+    - For responses: `1` for success, `0` for failure.
+  - Third highest bit `is_report`:
+    - For requests: Reserved.
+    - For responses: `1` for active report, `0` for response message.
+  - Bits 4-6: Reserved for future use.
+  - Lowest 2 bits `version`: Protocol version, updated only for incompatible changes. Compatible changes do not require a version update. The current version is `0`.
+- `cmd`: 1-byte command type, with several predefined commands listed in [Command Definitions](#command-definitions). Custom commands range from `0` to `maix.protocol.CMD.CMD_APP_MAX`.
+- `body`: Variable length, `< (2^32 - 1)`. Different commands have different `body` content, detailed below for each command.
+- `crc16`: 2-byte CRC check value using the `CRC IBM` method, verifying data integrity during transmission. See [C Code Implementation](#C-CRC16) or [Python CRC16](#Python-CRC16).
 
-## 请求和响应
+For encoding and decoding, see [Appendix: Code](#Appendix-Code).
 
-### 发送方主动请求
+---
 
-数据方向为： 单片机或其它主控设备 -> Maix 设备
+### Request and Response
 
-`flags`最高位`is_resp`设置为`0`， `body` 内容由`cmd`决定;
+#### Sending Request
 
-### 接收方响应
+Data direction: MCU or other master device -> Maix device
 
-数据方向为： Maix 设备 -> 单片机或其它主控设备
+Set the highest bit of `flags` (`is_resp`) to `0`. The `body` content is determined by `cmd`.
 
-`flags`最高位`is_resp`设置为`1`。
+#### Receiving Response
 
-* 对于成功响应：`resp_ok` 设置为 `1`, `body` 内容由`cmd`决定, 其中最简单的成功响应即 `body` 为空。
-* 对是失败响应：
-  * `resp_ok`设置为 `0`。
-  * `body` 第一个字节为错误码, 具体的错误码见[MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp)。
-  * `body` 后面的字节为错误字符串信息，`UTF-8` 编码，一般情况下建议用纯英文，提高兼容性。
+Data direction: Maix device -> MCU or other master device
 
-每个请求均应有对应的响应，即执行成功或者失败，后面均用`RESP_OK`和`RESP_ERR`来代替执行成功和失败两种响应。
-`RESP_OK`的 `body` 字节不说明就是没有，有会单独进行说明。
+Set the highest bit of `flags` (`is_resp`) to `1`.
 
-### 主动上报数据
+- For a successful response: Set `resp_ok` to `1`, and the `body` content is determined by `cmd`. An empty `body` is the simplest successful response.
+- For a failed response:
+  - Set `resp_ok` to `0`.
+  - The first byte of `body` is the error code. Refer to [MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp) for error codes.
+  - The following bytes in `body` contain the error message in `UTF-8` encoding, preferably in plain English for better compatibility.
 
-数据方向为： Maix 设备 -> 单片机或其它主控设备
-
-需要主控先通过`CMD_SET_REPORT`命令设置需要主动上报的数据（需要对应的命令支持）
-> 比如 APP 支持 `CMD_GET_TEMP` 命令获取温度，主控可以通过 `CMD_SET_REPORT` 命令设置主动定时上报温度，然后 APP 收到这个命令后，就会定时上报温度，如果 APP 不支持设置`CMD_GET_TEMP`命令的主动上报，则会响应`CMD_ERROR`。
-
-`flags`最高位`is_resp`设置为`1`，第三位`is_report` 设置为 `1`，`body` 内容由`cmd`决定。
+Each request should have a corresponding response, either successful (`RESP_OK`) or failed (`RESP_ERR`). If `RESP_OK` has no specified `body`, it is empty.
 
 
-## 实例
+### Active Data Reporting
 
-举例：
+Data direction: Maix device -> MCU or other master device
 
-单片机与 Maix 设备通过串口连接，默认使用`115200`波特率。
+The master device must first enable active reporting using the `CMD_SET_REPORT` command (only supported for specific commands).
 
-单片机向 Maix 设备请求获取 应用列表，步骤：
+> For example, if the APP supports the `CMD_GET_TEMP` command to get temperature data, the master can use the `CMD_SET_REPORT` command to enable periodic temperature reporting. If the APP does not support active reporting for `CMD_GET_TEMP`, it will respond with `CMD_ERROR`.
 
-1. 根据下方的协议说明，单片机通过串口发送`cmd`为`0xF9`的请求，即`CMD_APP_LIST`，`body`为空。实际字节流：
-`AA CA AC BB  04 00 00 00  01 F9  C9 77`。
+Set the highest bit of `flags` (`is_resp`) to `1` and the third bit `is_report` to `1`. The `body` content depends on the `cmd`.
 
-2. Maix 设备收到请求后，返回`cmd`为`0xF9`, `flags`为`0x01 | 0x80 | 0x40 => 0xC1`的响应（响应`flags`最高为`1`所以有`|0x80`, 成功响应第二高位为`1`所以有`|0x40`），`body`内容为应用列表，具体内容见下方协议说明。假如有两个 APP,实际字节流：
-`AA CA AC BB  0A 00 00 00  C1 F9  02  66 61 63 65 00  66 61 63 65 00  F6 06`。
+---
 
+## Examples
 
-## 命令定义
+Example:  
 
-协议帧中的`cmd`取值如下：
+The MCU connects to the Maix device via the serial port using the default baud rate of `115200`.
 
-| 命令名            | 值   |       含义      |
-| ---------------- | ---- | -------------- |
-|CMD_APP_MAX       | 0xC8 | 应用可自定义命令最大值（不含） |
-|CMD_SET_REPORT    | 0xF8 | 设置主动上报     |
-|CMD_APP_LIST      | 0xF9 | 应用列表查询     |
-|CMD_START_APP     | 0xFA | 启动应用        |
-|CMD_EXIT_APP      | 0xFB | 退出应用        |
-|CMD_CUR_APP_INFO  | 0xFC | 当前应用信息查询  |
-|CMD_APP_INFO      | 0xFD | 应用信息查询     |
-|CMD_KEY           | 0xFE | 按键模拟消息     |
-|CMD_TOUCH         | 0xFF | 触摸模拟消息     |
+The MCU requests the list of applications from the Maix device. The steps are as follows:
 
-注意这里有个 `CMD_APP_MAX`， 任何 APP 自定义的命令都应该在`0 ~ CMD_APP_MAX`之间，包含`0`，不包含`CMD_APP_MAX`。
+1. According to the protocol specification, the MCU sends a request with `cmd` set to `0xF9` (`CMD_APP_LIST`), and an empty `body`. Actual byte stream:
+   `AA CA AC BB 04 00 00 00 01 F9 C9 77`.
 
-不同的`cmd`对应不同的请求和响应数据， 以及不同的`body`，详细协议（主要阐述`cmd`和`body`）如下：
+2. The Maix device responds with `cmd` set to `0xF9` and `flags` set to `0xC1` (with `|0x80` for response and `|0x40` for success). The `body` contains the application list. If there are two applications, the actual byte stream is:
+   `AA CA AC BB 0A 00 00 00 C1 F9 02 66 61 63 65 00 66 61 63 65 00 F6 06`.
+
+---
+
+## Command Definitions
+
+The `cmd` values in the protocol frame are defined as follows:
+
+| Command Name    | Value | Description                   |
+| --------------- | ----- | ----------------------------- |
+| CMD_APP_MAX     | 0xC8  | Maximum value for custom commands (exclusive) |
+| CMD_SET_REPORT  | 0xF8  | Set active reporting          |
+| CMD_APP_LIST    | 0xF9  | Query application list        |
+| CMD_START_APP   | 0xFA  | Start an application          |
+| CMD_EXIT_APP    | 0xFB  | Exit the current application  |
+| CMD_CUR_APP_INFO| 0xFC  | Query current application info|
+| CMD_APP_INFO    | 0xFD  | Query specific application info|
+| CMD_KEY         | 0xFE  | Simulate key press message    |
+| CMD_TOUCH       | 0xFF  | Simulate touch message        |
+
+Note that `CMD_APP_MAX` defines the range for custom commands, from `0` up to (but not including) `CMD_APP_MAX`.
+
+Each `cmd` has specific request and response data and a unique `body`. Detailed explanations for each command are provided below:
+
+---
 
 ### CMD_SET_REPORT
 
-开启或关闭命令主动上报。
-主动上报包括：
-1. 有事件时主动上报，比如检测到人脸时主动上报人脸信息。
-2. 定时上报，比如每隔 5s 上报一次温度。
+Enables or disables active reporting for specific commands.
 
-如果定时上报和事件上报同时开启，则事件上报后，定时器重新计时。
+Active reporting includes:
+1. Event-based reporting, such as reporting detected faces.
+2. Periodic reporting, such as reporting temperature every 5 seconds.
 
-#### 请求
+If both periodic and event-based reporting are enabled, the timer restarts after an event report.
 
-`body`：
+#### Request
 
-|     | cmd(1B)             | on_off(1B)   | event(1B) | timer(4B) |
-| --- | ------------------- |  ----------- | --------- |---------- |
-| 解释 | 需要开启主动上报的命令  | 开关(1 开， 0 关) | 事件上报（1 开， 0 关）  | 定时上报，单位 ms，不需要定时则设置为 0 |
-| 例子 |  0x02               |  0x01 | 5000 |
+`body`:
 
-#### 响应
+|     | cmd (1B)      | on_off (1B) | event (1B) | timer (4B) |
+| --- | ------------- | ----------- | ---------- | ---------- |
+| Description | Command for active reporting | Enable (1) or disable (0) | Event reporting (1 for enable, 0 for disable) | Timer for periodic reporting in ms (set to 0 if not needed) |
+| Example | 0x02       | 0x01        | 1          | 5000       |
 
-如果相应的命令支持主动上报，则响应`RESP_OK`，否则响应`RESP_ERR`，均由应用自行决定。
+#### Response
 
-`body`： 无
+If the command supports active reporting, respond with `RESP_OK`; otherwise, respond with `RESP_ERR`.
 
+`body`: None
+
+---
 
 ### CMD_APP_LIST
 
-获取应用列表
+Queries the list of available applications.
 
-#### 请求
+#### Request
 
-`body` 为空
+`body`: None
 
-#### 响应
+#### Response
 
 `body`:
 
-|     | number(1B) | app1 | ... | app n info |
-| --- | ---------- | ---------- | ---------- | ----- |
-| 解释 | 应用数量    | id1 + '\0'结尾的字符串 | ... | idn |
-| 例子 |  0x02      | 'face\0' | ... | 'appn\0' |
+|     | number (1B) | app1       | ... | app n info |
+| --- | ----------- | ---------- | --- | -----------|
+| Description | Number of applications | id1 (null-terminated string) | ... | idn        |
+| Example     | 0x02          | 'face\0' | ... | 'appn\0'   |
 
+---
 
 ### CMD_CUR_APP_INFO
 
-获取当前应用信息
+Gets the current application information.
 
-#### 请求
+#### Request
 
-`body` 为空
+`body`: None
 
-#### 响应
+#### Response
 
 `body`:
 
-|     | idx(1B) | app info(id + name + brief)|
-| --- | ------- | ---------- |
-| 解释 | 应用序号 | 应用信息（id， 名字(UTF-8 编码)，简介（UTF-8 编码）） |
-| 例子 | 0x00    | 'face\0face\0face detect\0' |
+|     | idx (1B) | app info (id + name + brief) |
+| --- | -------- | ---------------------------- |
+| Description | Application index | Application info (id, name in UTF-8, brief description in UTF-8) |
+| Example     | 0x00   | 'face\0face\0face detect\0' |
+
+---
 
 ### CMD_APP_INFO
 
-获取指定应用信息
+Queries specific application information.
 
-#### 请求
-
-`body` ：
-
-|     | idx(1B) | app_id(nB) |
-| --- |-------- | ------ |
-| 解释 | 应用序号 | 应用 ID |
-| 例子 | 0x02    | 'face' |
-
-`idx` 和 `app_id` 二选一即可
-* `idx`: 应用序号（从0开始），设置为 0xFF 表示不设置
-* `app_id`: 应用 ID，如果 idx 设置了，可以不用设置
-
-#### 响应
+#### Request
 
 `body`:
 
-|     | idx(1B) | app info(id + name + brief)|
-| --- | ------- | ---------- |
-| 解释 | 应用序号 | 应用信息（id， 名字(UTF-8 编码)，简介（UTF-8 编码）） |
-| 例子 |   0x00  | 'face\0face\0face detect\0' |
+|     | idx (1B) | app_id (nB) |
+| --- | -------- | ------------|
+| Description | Application index | Application ID |
+| Example     | 0x02    | 'face' |
 
+Either `idx` or `app_id` can be specified:
+* `idx`: Application index (starts from 0). Setting to `0xFF` means it is not specified.
+* `app_id`: Application ID. If `idx` is specified, `app_id` can be omitted.
 
+#### Response
+
+`body`:
+
+|     | idx (1B) | app info (id + name + brief) |
+| --- | -------- | ---------------------------- |
+| Example | 0x00   | 'face\0face\0face detect\0' |
+
+---
 
 ### CMD_START_APP
 
-请求启动指定应用，执行此命令会退出当前应用，然后启动指定应用。
-* 如果是 APP 收到这个命令，则它需要调用 API `maix.app.switch_app` 切换 APP。
-> 这里存在一个风险，就是如果 APP 没有正确实现响应这个命令，则可以敦促开发者实现这个命令。
+Requests to start a specified application. This command will exit the current application and start the specified one.
 
-* 如果时 Launcher 收到这个命令后会启动对应的应用。
+* If the APP receives this command, it must call the API `maix.app.switch_app` to switch the application.
+> There is a risk if the APP does not correctly implement the response to this command, prompting the developer to implement it.
 
-#### 请求
+* If the Launcher receives this command, it will start the specified application.
 
-`body`：
+#### Request
 
-|    |  idx(1B)                           | app_id(nB) | app_func(nB) |
-| ------- | ---------------------------------- | ------ | --------- |
-| 解释 | 应用序号（从0开始），设置为 0xFF 表示不设置 | 应用 ID，如果 idx 设置了，可以不用设置 | 该应用存在多个功能时用于指定应用启动时执行的功能 |
-| 例子 | 0x02    | 'scan' | 'qrcode' |
+`body`:
 
-`idx` 、 `app_id` 和 `app_func` 三个参数如何使用：
+|    | idx (1B) | app_id (nB) | app_func (nB) |
+| ---| -------- | ----------- | ------------- |
+| Description | Application index (starts from 0, set to `0xFF` if unspecified) | Application ID (optional if `idx` is specified) | Function to execute if the application has multiple functions |
+| Example     | 0x02        | 'scan'       | 'qrcode'   |
 
-* 不带参数启动应用: 单独设置 `idx` 或者 `app_id`
+#### Response
 
-* 带参数启动应用:
+`body`: None
 
-  > `idx` + `app_func`，设置 `idx` 后，解释器会将后续的第一个字符串视为 `app_func`，如果有多个字符串将会返回错误。
-
-  > `app_id` + `app_func`，不设置 `idx`，解释器会在后续字符串中查找 `app_id` 和 `app_func`，不符合条件将会返回错误。
-
-
-#### 响应
-
-`body`: 无
-
+---
 
 ### CMD_EXIT_APP
 
-请求退出当前应用
+Requests to exit the current application.
 
-#### 请求
+#### Request
 
-无 `body`
+`body`: None
 
-#### 响应
+#### Response
 
-`body`: 无
+`body`: None
 
+---
 
 ### CMD_KEY
 
-发送模拟按键请求
+Sends a simulated key press request.
 
-#### 请求
+#### Request
 
-`body`：
+`body`:
 
-| key(4B) | value(1B) |
-| ------------- | --------- |
-| 键值(小端)    | 取值：0x01(/0x00/0x02) |
+| key (4B) | value (1B) |
+| -------- | ---------- |
+| Key value (little-endian) | 0x01 (pressed), 0x00 (released), 0x02 (long press) |
 
-* `key`: 键值，4 字节，发送时需要按小端编码，比如`0x00000001` 发送时的字节流为`0x01 0x00 0x00 0x00`，支持的取值为：
-  * 38: "up"
-  * 40: "down"
-  * 37: "left"
-  * 39: "right"
-  * 108: "enter"
-  * 27: "esc"
-  * 0x01010101: "ok"
-  * 0x02020202: "ret"
-  * 0x03030303: "pre"
-  * 0x04040404: "next"
-* `value`: 按键值， 1 字节
-  * 0x01: 按下
-  * 0x00: 释放
-  * 0x02: 长按
+#### Response
 
-#### 响应
+`body`: None
 
-`body`: 无
-
+---
 
 ### CMD_TOUCH
 
-发送模拟触摸请求
+Sends a simulated touch request.
 
-#### 请求
+#### Request
 
-`body`：
+`body`:
 
-| x     | y      | event(1B) |
-| ----- | ------ | --------- |
-| x 坐标 | y 坐标 | 事件|
+| x       | y       | event (1B) |
+| ------- | ------- | ---------- |
+| x-coordinate | y-coordinate | Event type |
 
-event 取值：
-* 0x00: 按下
-* 0x01: 抬起
-* 0x02: 移动
+Event types:
+* 0x00: Press
+* 0x01: Release
+* 0x02: Move
+
+#### Response
+
+`body`: None
 
 
-#### 响应
+## Application (APPS) Protocol Specification
 
-`body`：无
+### Camera
 
+Commands:
 
-## 应用（APPS）协议说明
-
-### 相机
-
-命令:
-
-|  命令 | 取值 | 含义 | 响应 |
+| Command | Value | Description | Response |
 | ---- | ---- | --- | ---- |
-| CMD_SNAP    | 0x01 | 拍照 |
+| CMD_SNAP | 0x01 | Take a photo |
 
-### 分类器
+### Classifier
 
 TODO:
 
-`body`说明：
-请求只有一个字节， 代表了命令， 具体如下表：
+`body` Description:
+The request consists of a single byte representing the command, as shown in the table below:
 
-|  命令 | 取值 | 含义 | 响应 |
+| Command | Value | Description | Response |
 | ---- | ---- | --- | ---- |
-| CMD_RECOGNIZE    | 0x01 | 识别物体 | CMD_APP_CMD |
+| CMD_RECOGNIZE | 0x01 | Recognize object | CMD_APP_CMD |
 
-响应：
-* 命令 `CMD_RECOGNIZE` 的响应： 响应 `cmd`为 `CMD_APP_CMD`, `body`:
+Response:
+* Response for command `CMD_RECOGNIZE`: The response `cmd` is `CMD_APP_CMD`, and the `body` is structured as follows:
 
-| CMD_RECOGNIZE | id(2B uint16 LE) | prob(4B float LE) | name |
+| CMD_RECOGNIZE | id (2B uint16 LE) | prob (4B float LE) | name |
 | --- | --- | ----- | ------ |
-| CMD_RECOGNIZE 值  | 识别到的 id（下标），小端 | 概率， 浮点型， 小端 | 名字， UTF-8 编码 |
+| CMD_RECOGNIZE value | Recognized id (index), little-endian | Probability, float, little-endian | Name, UTF-8 encoded |
 
-
-### 人脸检测
+### Face Detection
 
 TODO:
 
-`body`说明：
-请求只有一个字节， 代表了命令， 具体如下表：
+`body` Description:
+The request consists of a single byte representing the command, as shown in the table below:
 
-|  命令 | 取值 | 含义 | 响应 |
+| Command | Value | Description | Response |
 | ---- | ---- | --- | ---- |
-| CMD_POS    | 0x01 | 检测人脸 | CMD_APP_CMD |
+| CMD_POS | 0x01 | Detect face | CMD_APP_CMD |
 
-响应：
-* 命令 `CMD_POS` 的响应： 响应 `cmd`为 `CMD_APP_CMD`, `body`:
+Response:
+* Response for command `CMD_POS`: The response `cmd` is `CMD_APP_CMD`, and the `body` is structured as follows:
 
-| CMD_POS | face num(2B LE) | prob(4B float LE) | x(2B LE) | y(2B LE) | w(2B LE) | h(2B LE) | ... |
+| CMD_POS | face num (2B LE) | prob (4B float LE) | x (2B LE) | y (2B LE) | w (2B LE) | h (2B LE) | ... |
 | --- | --- | ----- | ------ | --- | --- | ---- | --- |
-| CMD_POS 值 | 检测到的人脸数量 | 概率， 浮点型， 小端 | 人脸框左上角横坐标 | 人脸框左上角纵坐标 | 人脸框宽 | 人脸框高 | 剩下的人脸... |
+| CMD_POS value | Number of detected faces | Probability, float, little-endian | Top-left x-coordinate of the face box | Top-left y-coordinate of the face box | Width of the face box | Height of the face box | Remaining faces... |
 
-### 人脸识别
+### Face Recognition
 
 TODO:
 
-`body`说明：
-请求只有一个字节， 代表了命令， 具体如下表：
+`body` Description:
+The request consists of a single byte representing the command, as shown in the table below:
 
-|  命令 | 取值 | 含义 | 响应 |
+| Command | Value | Description | Response |
 | ---- | ---- | --- | ---- |
-| CMD_FACES    | 0x01 | 识别人脸 | CMD_APP_CMD |
-| CMD_USERS    | 0x02 | 查询所有用户 | CMD_APP_CMD |
-| CMD_RECORD    | 0x03 | 录入人脸 | CMD_APP_CMD |
-| CMD_REMOVE    | 0x04 | 删除人脸 | CMD_APP_CMD |
+| CMD_FACES | 0x01 | Recognize faces | CMD_APP_CMD |
+| CMD_USERS | 0x02 | Query all users | CMD_APP_CMD |
+| CMD_RECORD | 0x03 | Record a face | CMD_APP_CMD |
+| CMD_REMOVE | 0x04 | Remove a face | CMD_APP_CMD |
 
-请求
+Request:
 
-`CMD_APP_CMD`加一个字节的`app_cmd`，个别命令有额外的参数，如下：
+`CMD_APP_CMD` plus an additional byte for `app_cmd`. Some commands have extra parameters, as follows:
 
-* 命令 `CMD_RECORD` 的请求
+* Request for command `CMD_RECORD`:
 
 | CMD_RECORD | user name |
 | --- | --- |
-| CMD_RECORD 值 | 录制的用户名 |
+| CMD_RECORD value | Name of the user being recorded |
 
-* 命令 `CMD_REMOVE` 的请求
+* Request for command `CMD_REMOVE`:
 
-| CMD_REMOVE | user idx(2B int16) | user name |
+| CMD_REMOVE | user idx (2B int16) | user name |
 | --- | --- | --- |
-| CMD_REMOVE 值 | 用户下标， 两字节，小端 | 要删除的用户名 |
+| CMD_REMOVE value | User index, 2 bytes, little-endian | Name of the user to be removed |
 
-下标和用户名二选一
+Either index or username can be provided.
 
+Response:
 
+* Response for command `CMD_FACES`: The response `cmd` is `CMD_APP_CMD`, and the `body` is structured as follows:
 
-响应：
-
-* 命令 `CMD_FACES` 的响应： 响应 `cmd`为 `CMD_APP_CMD`, `body`:
-
-| CMD_FACES |  face num(2B LE) | id(2B) | name_len(1B) | name | prob(4B float LE) | x(2B LE) | y(2B LE) | w(2B LE) | h(2B LE) | ... |
+| CMD_FACES | face num (2B LE) | id (2B) | name_len (1B) | name | prob (4B float LE) | x (2B LE) | y (2B LE) | w (2B LE) | h (2B LE) | ... |
 | --- | --- | ----- | ------ | --- | --- | ---- | --- | --- | --- | --- |
-| CMD_FACES 值 | 检测到的人脸数量 | 人脸 ID（下标） | 名字长度 | 名字， UTF-8 编码 | 概率， 浮点型， 小端 | 人脸框左上角横坐标 | 人脸框左上角纵坐标 | 人脸框宽 | 人脸框高 | 剩下的人脸... |
+| CMD_FACES value | Number of detected faces | Face ID (index) | Length of the name | Name, UTF-8 encoded | Probability, float, little-endian | Top-left x-coordinate of the face box | Top-left y-coordinate of the face box | Width of the face box | Height of the face box | Remaining faces... |
 
-* 命令 `CMD_USERS` 的响应： 响应 `cmd`为 `CMD_APP_CMD`, `body`:
+* Response for command `CMD_USERS`: The response `cmd` is `CMD_APP_CMD`, and the `body` is structured as follows:
 
-| CMD_USERS | user num(2B LE) | name_len(1B) | name | ... |
+| CMD_USERS | user num (2B LE) | name_len (1B) | name | ... |
 | --- | --- | ----- | ------ | --- |
-| CMD_USERS 值 | 用户数量 | 用户名长度 | 名字， UTF-8 编码 | 剩下的用户名... |
+| CMD_USERS value | Number of users | Length of the username | Name, UTF-8 encoded | Remaining usernames... |
 
-* 命令 `CMD_RECORD` 的响应： `CMD_OK` 或者 `CMD_ERROR`
+* Response for command `CMD_RECORD`: `CMD_OK` or `CMD_ERROR`
 
-* 命令 `CMD_REMOVE` 的响应： `CMD_OK` 或者 `CMD_ERROR`
+* Response for command `CMD_REMOVE`: `CMD_OK` or `CMD_ERROR`
 
-
-
-## 附录：代码
+## Appendix: Code
 
 ### C CRC16 IBM
 
@@ -450,9 +437,8 @@ unsigned short crc16_IBM(unsigned char *ptr, int len)
 }
 ```
 
-或者查表法：
+Alternatively, using a lookup table:
 ```c
-
 const unsigned int crc16_table[256] = {
     0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,
     0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440,
@@ -502,5 +488,3 @@ unsigned short crc16_IBM(const unsigned char *ptr,int len)
 }
 
 ```
-
-

@@ -57,3 +57,13 @@ jobs:
           cd ../../projects
           chmod +x build_all.sh
           ./build_all.sh
+
+      - name: Build doc
+        run: |
+          pip3 install teedoc
+          cd docs
+          echo "== install plugins =="
+          teedoc install
+          echo "== start build =="
+          teedoc build
+          echo "== build complete =="

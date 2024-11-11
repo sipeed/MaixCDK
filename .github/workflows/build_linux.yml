@@ -51,3 +51,13 @@ jobs:
           cd test/test_examples
           chmod +x test_cases.sh
           ./test_cases.sh linux 0
+
+      - name: Build doc
+        run: |
+          pip3 install teedoc
+          cd docs
+          echo "== install plugins =="
+          teedoc install
+          echo "== start build =="
+          teedoc build
+          echo "== build complete =="

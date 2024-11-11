@@ -1,6 +1,34 @@
 MaixCDK
 ===
 
+<div align="center">
+
+![](https://wiki.sipeed.com/maixcdk/static/image/maixcams.png)
+
+
+<h2>MaixCDK: 快速落地 AI 视觉、听觉应用</h2>
+
+**Let's Sipeed up, Maximize AI's power!**
+
+<h3>
+    <a href="https://wiki.sipeed.com/maixcdk/doc/index.html"> Quick Start </a> |
+    <a href="https://wiki.sipeed.com/maixcdk/index.html"> Documentation </a> |
+    <a href="https://wiki.sipeed.com/maixcdk/api/index.html"> API </a> |
+    <a href="https://wiki.sipeed.com/maixcam-pro"> Hardware </a> |
+    <a href="https://maixhub.com/app"> APP Store </a>
+</h3>
+
+[![GitHub Repo stars](https://img.shields.io/github/stars/sipeed/MaixCDK?style=social)](https://github.com/sipeed/MaixCDK/stargazers)
+[![Apache 2.0](https://img.shields.io/badge/license-Apache%20v2.0-orange.svg)]("https://github.com/sipeed/MaixCDK/blob/main/LICENSE.md)
+![GitHub repo size](https://img.shields.io/github/repo-size/sipeed/MaixCDK) 
+[![Build MaixCAM](https://github.com/sipeed/MaixCDK/actions/workflows/build_maixcam.yml/badge.svg)](https://github.com/sipeed/MaixCDK/actions/workflows/build_maixcam.yml)
+[![Trigger wiki](https://github.com/sipeed/MaMaixCDKixPy/actions/workflows/trigger_wiki.yml/badge.svg)](https://github.com/sipeed/MaixCDK/actions/workflows/trigger_wiki.yml)
+
+[English](./README.md) | 中文
+
+</div>
+
+
 English | [中文](./README_ZH.md)
 
 
@@ -27,12 +55,13 @@ For more information, refer to the [MaixPy](https://github.com/sipeed/MaixPy) in
 
 | Device | Support Status |
 | ------ | -------------- |
-| Linux  | Partial        |
 | [Sipeed MaixCAM](https://wiki.sipeed.com/maixcam) | Full |
+| [Sipeed MaixCAM-Pro](https://wiki.sipeed.com/maixcam-pro) | Full |
+| Commen Linux | Partial |
 
 ## Quick Start
 
-Click to view the [Quick Start](./docs/doc/dev/quick_start.md) document, which includes instructions on how to quickly download code, compile, and run.
+Click to view the [Quick Start](./docs/doc/README.md) document, which includes instructions on how to quickly download code, compile, and run.
 
 ## MaixCDK Development Guidelines
 
@@ -41,6 +70,8 @@ To help developers quickly understand MaixCDK and maintain the quality of long-t
 ## More Documentation
 
 In addition to the development guidelines above, the documentation also includes application documents, development notes, and more for reference.
+
+Please visit [Sipeed Wiki](https://wiki.sipeed.com/maixcdk).
 
 The documents are written in `Markdown` format under the [docs](./docs) directory. You can directly view the `.md` files or generate a web version of the documentation using the [teedoc](https://github.com/teedoc/teedoc) tool.
 

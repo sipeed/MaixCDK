@@ -1,10 +1,11 @@
 {
     "site_name": "MaixCDK",
     "site_slogon": "",
-    "site_root_url": "/MaixCDK/",
+    "site_root_url": "/maixcdk/",
     "site_domain": "wiki.sipeed.com",
     "site_protocol": "https",
     "config_template_dir": "config",
+    "source": "https://github.com/sipeed/MaixCDK/blob/main/docs",
     "route": {
         "docs": {
             "/doc/": "doc",
@@ -16,10 +17,6 @@
         "assets": {
             "/static/": "static"
         }
-    },
-    "executable": {
-        "python": "python3",
-        "pip": "pip3"
     },
     "translate": {
         "docs": {
@@ -51,7 +48,7 @@
                 "dark": true,
                 "show_print_page": false,
                 "env":{
-                    "main_color": "#4caf7d"
+                    "main_color": "#1f8dbf"
                 }
             }
         },
@@ -71,9 +68,23 @@
                     "/static/js/custom.js"
                 ],
                 "env":{
-                    "main_color": "#4caf7d",
-                    "second_color": "#0a7d43"
+                    "main_color": "#1f8dbf",
+                    "second_color": "#3fb2d4"
                 }
+            }
+        },
+        "teedoc-plugin-baidu-tongji":{
+            "from": "pypi",
+            "config": {
+                "code": "9cb07365544a53067c56c346c838181a"
+            }
+        },
+        "teedoc-plugin-thumbs-up": {
+            "from": "pypi",
+            "config": {
+                "url": "https://thumbs-up.sipeed.com",
+                "show_up_count": true,
+                "show_down_count": false
             }
         }
     },

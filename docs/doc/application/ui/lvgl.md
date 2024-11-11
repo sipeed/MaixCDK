@@ -19,3 +19,4 @@ You can also execute `maixcdk menuconfig` to change platform to build for other 
 * Copy all ui files to `examples/gui_lvgl/ui` folder.
 * Run `maixcdk build` to build.
 
+Or you can mannually write code and not use squareline.
