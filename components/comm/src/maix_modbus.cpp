@@ -744,8 +744,8 @@ std::pair<std::string, int> MasterRTU::get_cfg(const std::string& device, const 
     return std::make_pair(dev, baud);
 }
 
-std::vector<uint8_t> MasterRTU::read_coils(const uint32_t slave_id, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+std::vector<uint8_t> MasterRTU::read_coils(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
     return read_coils(dev, baud, slave_id, size, addr, timeout_ms);
@@ -758,22 +758,22 @@ int MasterRTU::write_coils(const uint32_t slave_id, const std::vector<uint8_t>& 
     return write_coils(dev, baud, slave_id, data, addr, timeout_ms);
 }
 
-std::vector<uint8_t> MasterRTU::read_discrete_input(const uint32_t slave_id, const uint32_t size,
-        const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+std::vector<uint8_t> MasterRTU::read_discrete_input(const uint32_t slave_id, const uint32_t addr,
+        const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
     return read_discrete_input(dev, baud, slave_id, size, addr, timeout_ms);
 }
 
-std::vector<uint16_t> MasterRTU::read_input_registers(const uint32_t slave_id, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+std::vector<uint16_t> MasterRTU::read_input_registers(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
     return read_input_registers(dev, baud, slave_id, size, addr, timeout_ms);
 }
 
-std::vector<uint16_t> MasterRTU::read_holding_registers(const uint32_t slave_id, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const std::string& device, const int baudrate)
+std::vector<uint16_t> MasterRTU::read_holding_registers(const uint32_t slave_id, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
     return read_holding_registers(dev, baud, slave_id, size, addr, timeout_ms);
@@ -787,7 +787,7 @@ int MasterRTU::write_holding_registers(const uint32_t slave_id, const std::vecto
 }
 
 std::vector<uint8_t> MasterRTU::read_coils( const std::string& device, const int baudrate,
-    const uint32_t slave_id, const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
     return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "coils", ::modbus_read_bits);
@@ -801,21 +801,21 @@ int MasterRTU::write_coils(const std::string& device, const int baudrate,
 }
 
 std::vector<uint8_t> MasterRTU::read_discrete_input(const std::string& device, const int baudrate,
-    const uint32_t slave_id, const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
     return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "discrete input", ::modbus_read_input_bits);
 }
 
 std::vector<uint16_t> MasterRTU::read_input_registers(const std::string& device, const int baudrate,
-    const uint32_t slave_id, const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
     return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "input registers", ::modbus_read_input_registers);
 }
 
 std::vector<uint16_t> MasterRTU::read_holding_registers(const std::string& device, const int baudrate,
-    const uint32_t slave_id, const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t slave_id, const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::rtu_init(device, baudrate, slave_id);
     return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "holding registers", ::modbus_read_registers);
@@ -841,8 +841,8 @@ int MasterTCP::get_cfg(int port) noexcept
     return port;
 }
 
-std::vector<uint8_t> MasterTCP::read_coils(const std::string ip, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const int port)
+std::vector<uint8_t> MasterTCP::read_coils(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
     return read_coils(ip, p, size, addr, timeout_ms);
@@ -855,22 +855,22 @@ int MasterTCP::write_coils(const std::string ip, const std::vector<uint8_t>& dat
     return write_coils(ip, p, data, addr, timeout_ms);
 }
 
-std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const int port)
+std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
     return read_discrete_input(ip, p, size, addr, timeout_ms);
 }
 
-std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const int port)
+std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
     return read_input_registers(ip, p, size, addr, timeout_ms);
 }
 
-std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const uint32_t size,
-    const uint32_t addr, const int timeout_ms, const int port)
+std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const uint32_t addr,
+    const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
     return read_holding_registers(ip, p, size, addr, timeout_ms);
@@ -884,7 +884,7 @@ int MasterTCP::write_holding_registers(const std::string ip, const std::vector<u
 }
 
 std::vector<uint8_t> MasterTCP::read_coils( const std::string ip, const int port,
-    const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::tcp_init(ip, port);
     return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "coils", ::modbus_read_bits);
@@ -898,21 +898,21 @@ int MasterTCP::write_coils(const std::string ip, const int port,
 }
 
 std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const int port,
-    const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::tcp_init(ip, port);
     return MasterOperator::read<uint8_t>(ctx.get(), size, addr, timeout_ms, "discrete input", ::modbus_read_input_bits);
 }
 
 std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const int port,
-    const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::tcp_init(ip, port);
     return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "input registers", ::modbus_read_registers);
 }
 
 std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const int port,
-    const uint32_t size, const uint32_t addr, const int timeout_ms)
+    const uint32_t addr, const uint32_t size, const int timeout_ms)
 {
     auto ctx = MasterOperator::tcp_init(ip, port);
     return MasterOperator::read<uint16_t>(ctx.get(), size, addr, timeout_ms, "holding registers", ::modbus_read_registers);

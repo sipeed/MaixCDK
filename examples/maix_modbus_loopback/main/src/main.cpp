@@ -17,7 +17,7 @@ constexpr modbus::Mode MODE = modbus::Mode::RTU;
 // constexpr modbus::Mode MODE = modbus::Mode::TCP;
 
 /* slave cfg */
-constexpr uint8_t REGISTERS_START_ADDRESS = 0x00;
+constexpr uint32_t REGISTERS_START_ADDRESS = 0x00;
 constexpr uint32_t REGISTERS_NUMBER = 10;
 
 /* rtu cfg */
@@ -45,7 +45,7 @@ int master_rtu_thread()
     while (!app::need_exit()) {
         // log::info("master thread running...");
 
-        std::vector<uint16_t> rt = master.read_holding_registers(RTU_SLAVE_ID, REGISTERS_NUMBER, REGISTERS_START_ADDRESS, 2000);
+        std::vector<uint16_t> rt = master.read_holding_registers(RTU_SLAVE_ID, REGISTERS_START_ADDRESS, REGISTERS_NUMBER, 2000);
         if (rt.empty())
             continue;
 
@@ -169,7 +169,7 @@ int master_tcp_thread()
     while (!app::need_exit()) {
         // log::info("master thread running...");
 
-        std::vector<uint16_t> rt = master.read_holding_registers("127.0.0.1", REGISTERS_NUMBER, REGISTERS_START_ADDRESS, 2000);
+        std::vector<uint16_t> rt = master.read_holding_registers("127.0.0.1", REGISTERS_START_ADDRESS, REGISTERS_NUMBER, 2000);
         if (rt.empty())
             continue;
 
