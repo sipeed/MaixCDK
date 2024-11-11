@@ -1,4 +1,4 @@
-maix_modbus_master Project based on MaixCDK
+maix_modbus_loopback Project based on MaixCDK
 ====
 
 

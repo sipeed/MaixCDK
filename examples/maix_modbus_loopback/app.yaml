@@ -1,5 +1,5 @@
-id: maix_modbus_master
-name: maix_modbus_master
+id: maix_modbus_loopback
+name: maix_modbus_loopback
 name[zh]:
 version: 1.0.0
 #icon: assets/hello.png
