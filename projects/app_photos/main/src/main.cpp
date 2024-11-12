@@ -34,13 +34,15 @@ int _main(int argc, char **argv)
     // init display
     display::Display disp = display::Display();
     err::check_bool_raise(disp.is_opened(), "camera open failed");
+    display::Display *other_disp = disp.add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
+    err::check_bool_raise(disp.is_opened(), "display open failed");
 
     // touch screen
     touchscreen::TouchScreen touchscreen = touchscreen::TouchScreen();
     err::check_bool_raise(touchscreen.is_opened(), "touchscreen open failed");
 
     // init gui
-    maix::lvgl_init(&disp, &touchscreen);
+    maix::lvgl_init(other_disp, &touchscreen);
     app_init(&disp);
 
     // main ui loop

@@ -3,7 +3,6 @@
 #include "ui_screen.h"
 #include "ui_event_handler.h"
 
-
 typedef struct Node Node;
 
 typedef struct {
@@ -48,7 +47,10 @@ lv_obj_t *g_big_photo_screen;
 lv_obj_t *g_small_photo_screen;
 lv_obj_t *g_switch_left;
 lv_obj_t *g_switch_right;
-
+lv_obj_t *g_video_screen;
+lv_obj_t *g_video_bar_label;
+lv_obj_t *g_video_bar;
+lv_obj_t *g_video_pause_img;
 
 LV_IMG_DECLARE(img_return);
 LV_IMG_DECLARE(img_delete);
@@ -56,6 +58,7 @@ LV_IMG_DECLARE(img_cancel);
 LV_IMG_DECLARE(img_option);
 LV_IMG_DECLARE(img_right);
 LV_IMG_DECLARE(img_left);
+LV_IMG_DECLARE(img_video_play);
 
 extern void event_touch_small_image_cb(lv_event_t * e);
 extern void event_touch_big_image_cb(lv_event_t * e);
@@ -256,7 +259,6 @@ static void _ui_base_screen_init(void)
 
     g_base_screen = scr;
 }
-
 
 static void _ui_upper_screen_init(void)
 {
@@ -551,26 +553,9 @@ void ui_right_screen_update(void)
     _ui_right_screen_info_init();
 }
 
-static void _ui_big_photo_screen_init(void)
+static void _ui_left_right_init(void)
 {
-    lv_obj_t *scr = lv_obj_create(g_base_screen);
-    lv_obj_set_size(scr, lv_pct(100), lv_pct(100));
-    lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
-    lv_obj_set_style_radius(scr, 0, 0);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(0xffffff), 0);
-    lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_pad_all(scr, 0, 0);
-    lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_user_data(scr, &priv.big_image_info);
-
-    lv_obj_t *img = lv_image_create(scr);
-    lv_obj_add_flag(img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(img, event_touch_big_image_cb, LV_EVENT_SHORT_CLICKED, &priv.big_image_info);
-
-    if (priv.big_image_info.dsc.data) {
-        lv_image_set_src(img, &priv.big_image_info.dsc);
-    }
-
+    lv_obj_t *scr = lv_layer_sys();
     lv_obj_t *left = lv_image_create(scr);
     lv_obj_set_align(left, LV_ALIGN_LEFT_MID);
     lv_obj_set_pos(left, lv_pct(0), lv_pct(0));
@@ -591,9 +576,31 @@ static void _ui_big_photo_screen_init(void)
     lv_obj_add_event_cb(right, event_touch_show_right_big_photo_cb, LV_EVENT_SHORT_CLICKED, NULL);
     lv_image_set_src(right, &img_right);
 
-    g_big_photo_screen = scr;
     g_switch_right = right;
     g_switch_left = left;
+}
+
+static void _ui_big_photo_screen_init(void)
+{
+    lv_obj_t *scr = lv_obj_create(g_base_screen);
+    lv_obj_set_size(scr, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_radius(scr, 0, 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0xffffff), 0);
+    lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(scr, 0, 0);
+    lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_user_data(scr, &priv.big_image_info);
+
+    lv_obj_t *img = lv_image_create(scr);
+    lv_obj_add_flag(img, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(img, event_touch_big_image_cb, LV_EVENT_SHORT_CLICKED, &priv.big_image_info);
+
+    if (priv.big_image_info.dsc.data) {
+        lv_image_set_src(img, &priv.big_image_info.dsc);
+    }
+
+    g_big_photo_screen = scr;
 }
 
 static void _ui_big_photo_screen_deinit(void)
@@ -601,19 +608,27 @@ static void _ui_big_photo_screen_deinit(void)
     if (g_big_photo_screen) {
         lv_obj_delete(g_big_photo_screen);
         g_big_photo_screen = NULL;
-        g_switch_right = NULL;
-        g_switch_left = NULL;
     }
 }
 
 // flag: 0, view in small photo screen; 1, view in big photo screen; 2, view in big photo and don't change upper and lower screen
+// 4. view video screen
 void ui_set_view_flag(int value)
 {
     priv.view_flag = value;
-
+    printf("set view flag:%d\r\n", value);
     switch (priv.view_flag) {
     case 0: // 0, view in small photo screen
     {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_100, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_add_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) lv_obj_add_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+        }
+
         if (g_big_photo_screen) {
             lv_obj_add_flag(g_big_photo_screen, LV_OBJ_FLAG_HIDDEN);
         }
@@ -639,10 +654,27 @@ void ui_set_view_flag(int value)
         if (g_right_screen) {
             lv_obj_add_flag(g_right_screen, LV_OBJ_FLAG_HIDDEN);
         }
+
+        if (g_switch_left) {
+            lv_obj_add_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_right) {
+            lv_obj_add_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+        }
     }
         break;
     case 1: // 1, view in big photo screen
     {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_100, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_add_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) lv_obj_add_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+        }
+
         if (g_big_photo_screen) {
             lv_obj_remove_flag(g_big_photo_screen, LV_OBJ_FLAG_HIDDEN);
         }
@@ -668,10 +700,27 @@ void ui_set_view_flag(int value)
         if (g_right_screen) {
             lv_obj_add_flag(g_right_screen, LV_OBJ_FLAG_HIDDEN);
         }
+
+        if (g_switch_left) {
+            lv_obj_add_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_right) {
+            lv_obj_add_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+        }
         break;
     }
     case 2: // 2, view in big photo screen
     {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_100, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_add_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) lv_obj_add_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+        }
+
         if (g_big_photo_screen) {
             lv_obj_remove_flag(g_big_photo_screen, LV_OBJ_FLAG_HIDDEN);
         }
@@ -701,6 +750,135 @@ void ui_set_view_flag(int value)
         }
         break;
     }
+    case 3:
+    {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_100, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_add_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) lv_obj_add_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_upper_screen && g_lower_screen) {
+            if (lv_obj_has_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN) && lv_obj_has_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN)) {
+                lv_obj_remove_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN);
+            } else if (!lv_obj_has_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN) && lv_obj_has_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN)) {
+                lv_obj_remove_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_add_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+
+        if (g_switch_left) {
+            if (g_upper_screen) {
+                if (lv_obj_has_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN)) {
+                    lv_obj_add_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_remove_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+                }
+            }
+        }
+
+        if (g_switch_right) {
+            if (g_upper_screen) {
+                if (lv_obj_has_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN)) {
+                    lv_obj_add_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+                } else {
+                    lv_obj_remove_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+                }
+            }
+        }
+        break;
+    }
+    case 4:
+    {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_0, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_remove_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) lv_obj_add_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_big_photo_screen) {
+            lv_obj_add_flag(g_big_photo_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_small_photo_screen){
+            lv_obj_add_flag(g_small_photo_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_lower_screen) {
+            lv_obj_add_flag(g_lower_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_lower_view1) {
+                lv_obj_add_flag(g_lower_view1, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (g_lower_view2) {
+                lv_obj_remove_flag(g_lower_view2, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+
+        if (g_upper_screen) {
+            lv_obj_add_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_right_screen) {
+            lv_obj_add_flag(g_right_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_left) {
+            lv_obj_add_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_right) {
+            lv_obj_add_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+        }
+        break;
+    }
+    case 5:
+    {
+        if (g_base_screen) {
+            lv_obj_set_style_opa(g_base_screen, LV_OPA_0, 0);
+        }
+
+        if (g_video_screen) {
+            lv_obj_remove_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+            if (g_video_pause_img) {
+                lv_obj_remove_flag(g_video_pause_img, LV_OBJ_FLAG_HIDDEN);
+            }
+        }
+
+        if (g_big_photo_screen) {
+            lv_obj_add_flag(g_big_photo_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_small_photo_screen){
+            lv_obj_add_flag(g_small_photo_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_upper_screen) {
+            lv_obj_remove_flag(g_upper_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_right_screen) {
+            lv_obj_add_flag(g_right_screen, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_left) {
+            lv_obj_remove_flag(g_switch_left, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (g_switch_right) {
+            lv_obj_remove_flag(g_switch_right, LV_OBJ_FLAG_HIDDEN);
+        }
+        break;
+    }
     default:break;
     }
 }
@@ -714,7 +892,7 @@ void ui_update_big_photo(ui_big_photo_info_t *info)
 {
     lv_image_dsc_t *src = (lv_image_dsc_t *)&priv.big_image_info.dsc;
     if (!src->data) {
-        src->data = malloc(info->dsc.data_size);
+        src->data = (uint8_t *)malloc(info->dsc.data_size);
         if (!src->data) {
             perror("upload big photo failed");
             return;
@@ -724,7 +902,7 @@ void ui_update_big_photo(ui_big_photo_info_t *info)
     if (priv.big_image_info.path) {
         free(priv.big_image_info.path);
     }
-    priv.big_image_info.path = malloc(strlen(info->path) + 1);
+    priv.big_image_info.path = (char *)malloc(strlen(info->path) + 1);
     if (!priv.big_image_info.path) {
         perror("upload big photo failed");
         return;
@@ -733,7 +911,7 @@ void ui_update_big_photo(ui_big_photo_info_t *info)
     if (priv.big_image_info.dir_name) {
         free(priv.big_image_info.dir_name);
     }
-    priv.big_image_info.dir_name = malloc(strlen(info->dir_name) + 1);
+    priv.big_image_info.dir_name = (char *)malloc(strlen(info->dir_name) + 1);
     if (!priv.big_image_info.dir_name) {
         perror("upload big photo failed");
         return;
@@ -742,7 +920,7 @@ void ui_update_big_photo(ui_big_photo_info_t *info)
     if (priv.big_image_info.type) {
         free(priv.big_image_info.type);
     }
-    priv.big_image_info.type = malloc(strlen(info->type) + 1);
+    priv.big_image_info.type = (char *)malloc(strlen(info->type) + 1);
     if (!priv.big_image_info.type) {
         perror("upload big photo failed");
         return;
@@ -781,6 +959,73 @@ static void _ui_small_photo_screen_init(void)
     g_small_photo_screen = obj;
 }
 
+static void _ui_video_view_screen_deinit(void)
+{
+    if (g_video_screen) {
+        lv_obj_delete(g_video_screen);
+        g_video_screen = NULL;
+        g_video_bar = NULL;
+        g_video_bar_label = NULL;
+        g_video_pause_img = NULL;
+    }
+}
+static void _ui_video_view_screen_init(void)
+{
+    if (g_video_screen) {
+        lv_obj_delete(g_video_screen);
+        g_video_screen = NULL;
+    }
+
+    lv_obj_t *obj = lv_obj_create(lv_layer_sys());
+    lv_obj_set_pos(obj, 0, lv_pct(12));
+    lv_obj_set_size(obj, lv_pct(100) + 1, lv_pct(88) + 1);
+    lv_obj_set_style_radius(obj, 0, 0);
+    lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_pad_all(obj, 0, 0);
+    lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_bg_color(obj, lv_color_hex(0xff0000), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_0, 0);
+    lv_obj_add_event_cb(obj, event_video_view_event_cb, LV_EVENT_PRESSED, NULL);
+    g_video_screen = obj;
+    lv_obj_add_flag(g_video_screen, LV_OBJ_FLAG_HIDDEN);
+
+    lv_obj_t * touch_area = lv_obj_create(obj);
+    lv_obj_set_pos(touch_area, lv_pct(0), lv_pct(0));
+    lv_obj_set_size(touch_area, lv_pct(90), lv_pct(25));
+    lv_obj_set_align(touch_area, LV_ALIGN_BOTTOM_MID);
+    lv_obj_set_style_bg_opa(touch_area, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_side(touch_area, 0, 0);
+
+    lv_obj_t * bar = lv_bar_create(touch_area);
+    lv_bar_set_range(bar, 0, 10000);
+    lv_obj_set_size(bar, lv_pct(90), lv_pct(35));
+    lv_obj_center(bar);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0x2e2e2e), 0);
+    lv_obj_set_style_bg_color(bar, lv_color_hex(0xf308d6), LV_PART_INDICATOR);
+    lv_obj_add_event_cb(bar, event_video_bar_event_cb, LV_EVENT_PRESSING, NULL);
+    lv_obj_add_event_cb(bar, event_video_bar_event_cb, LV_EVENT_RELEASED, NULL);
+    g_video_bar = bar;
+
+    lv_obj_t * text = lv_label_create(obj);
+    lv_obj_set_pos(text, lv_pct(0), lv_pct(-5));
+    lv_obj_set_align(text, LV_ALIGN_BOTTOM_MID);
+    lv_label_set_text(text, "00:00:23");
+    g_video_bar_label = text;
+
+    lv_obj_t * img = lv_image_create(obj);
+    lv_image_set_src(img, &img_video_play);
+    lv_obj_center(img);
+    lv_obj_set_pos(img, 0, lv_pct(-5));
+    lv_obj_add_flag(img, LV_OBJ_FLAG_HIDDEN);
+    g_video_pause_img = img;
+}
+
+void ui_video_view_screen_update(uint32_t total_ms)
+{
+    _ui_video_view_screen_deinit();
+    _ui_video_view_screen_init();
+}
+
 static void _ui_small_photo_screen_deinit(void)
 {
     if (g_small_photo_screen) {
@@ -789,6 +1034,8 @@ static void _ui_small_photo_screen_deinit(void)
         g_small_photo_screen = NULL;
     }
 }
+
+
 
 int ui_get_need_bulk_delete(void)
 {
@@ -895,6 +1142,12 @@ void ui_photo_list_screen_update(void)
                         lv_obj_set_style_bg_color(sub_obj3, lv_color_hex(0xffffff), 0);
                         lv_obj_set_style_bg_opa(sub_obj3, LV_OPA_0, 0);
                     }
+
+                    if (photo->is_video) {
+                        lv_obj_t *pause_img = lv_image_create(img);
+                        lv_obj_center(pause_img);
+                        lv_image_set_src(pause_img, &img_video_play);
+                    }
                 }
                 next_photo = next_photo->next;
             }
@@ -920,7 +1173,7 @@ void ui_photo_del_dir(char *dir_name)
     deleteDirNode(&priv.dirs, dir_name);
 }
 
-void ui_photo_add_photo(char *dir_name, char *path, lv_image_dsc_t *dsc)
+void ui_photo_add_photo(char *dir_name, char *path, lv_image_dsc_t *dsc, bool is_video)
 {
     Node *head = priv.dirs;
     if (!head) {
@@ -958,6 +1211,7 @@ void ui_photo_add_photo(char *dir_name, char *path, lv_image_dsc_t *dsc)
         free(data.photo.path);
         return;
     }
+    data.photo.is_video = is_video;
     memcpy((uint8_t *)data.photo.img_dsc->data, dsc->data, dsc->data_size);
 
     appendNode(&dir_node->data->dir.list, &data);
@@ -1068,7 +1322,8 @@ void ui_all_screen_init(void)
     _ui_right_screen_init();
     _ui_big_photo_screen_init();
     _ui_small_photo_screen_init();
-
+    _ui_video_view_screen_init();
+    _ui_left_right_init();
 #if 0
     lv_image_dsc_t *dsc = &test_img_128x128;
     char *dir1 = "2003-03-05";
@@ -1115,5 +1370,27 @@ void ui_all_screen_deinit(void)
     if (src->data) {
         free((uint8_t *)src->data);
         src->data = NULL;
+    }
+}
+
+void ui_set_video_bar_s(uint32_t curr_s, uint32_t total_s)
+{
+    if (g_video_bar_label) {
+        lv_label_set_text_fmt(g_video_bar_label, "%.2d:%.2d:%.2d/%.2d:%.2d:%.2d",
+            curr_s / 3600, (curr_s % 3600) / 60, curr_s % 60, total_s / 3600, (total_s % 3600) / 60, total_s % 60);
+    }
+
+    if (g_video_bar) {
+        int max_value = lv_bar_get_max_value(g_video_bar);
+        int min_value = lv_bar_get_min_value(g_video_bar);
+        int new_value = ((double)curr_s / total_s) * (max_value - min_value) + min_value;
+        lv_bar_set_value(g_video_bar, new_value, LV_ANIM_OFF);
+    }
+}
+
+void ui_clear_video_bar()
+{
+    if (g_video_bar) {
+        lv_bar_set_value(g_video_bar, 0, LV_ANIM_OFF);
     }
 }
