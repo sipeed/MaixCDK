@@ -4,7 +4,7 @@
 #include "ui_utils.h"
 #include "ui_event_handler.h"
 
-#define DEBUG_ENABLE
+// #define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
 #define DEBUG_EN(x)                                                         \
     bool g_debug_flag = x;
@@ -332,7 +332,7 @@ bool ui_get_touch_video_bar_release_flag(void)
 
 double ui_get_video_bar_value(void)
 {
-    DEBUG_EN(1);
+    DEBUG_EN(0);
     if (g_video_bar) {
         lv_bar_t * bar = (lv_bar_t *)g_video_bar;
         int bar_max_val = abs(bar->max_value - bar->min_value);

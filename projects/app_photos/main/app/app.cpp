@@ -119,7 +119,7 @@ public:
             for (auto iter = list.rbegin(); iter != list.rend(); iter++) {
                 if (iter->path == new_info.path) {
                     // If found the same path, do nothing!
-                    return true;
+                    return false;
                 }
             }
             auto iter = list.rbegin();
@@ -147,26 +147,29 @@ public:
     {
         if (_video_photo_list->size() == 0) {
             std::pair<std::string, std::list<PhotoVideoInfo>> new_item = std::make_pair(date, std::list<PhotoVideoInfo>());
-            push_video_photo_list(new_item.second, new_info);
-            _video_photo_list->push_back(new_item);
+            if (push_video_photo_list(new_item.second, new_info)) {
+                _video_photo_list->push_back(new_item);
+            }
         } else {
-            auto iter = _video_photo_list->rbegin();
-            for (; iter != _video_photo_list->rend(); iter ++) {
+            auto iter = _video_photo_list->begin();
+            for (; iter != _video_photo_list->end(); iter ++) {
                 auto pair = iter;
                 auto compare_res = _compare_date_string(date, pair->first);
                 if (compare_res == 0) {
                     push_video_photo_list(pair->second, new_info);
                     break;
-                } else if (compare_res > 0) {
+                } else if (compare_res < 0) {
                     std::pair<std::string, std::list<PhotoVideoInfo>> new_item = std::make_pair(date, std::list<PhotoVideoInfo>());
-                    push_video_photo_list(new_item.second, new_info);
-                    _video_photo_list->push_back(new_item);
+                    if (push_video_photo_list(new_item.second, new_info)) {
+                        _video_photo_list->push_front(new_item);
+                    }
                     break;
                 } else {
-                    if (std::next(iter) == _video_photo_list->rend()) {
+                    if (std::next(iter) == _video_photo_list->end()) {
                         std::pair<std::string, std::list<PhotoVideoInfo>> new_item = std::make_pair(date, std::list<PhotoVideoInfo>());
-                        push_video_photo_list(new_item.second, new_info);
-                        _video_photo_list->push_front(new_item);
+                        if (push_video_photo_list(new_item.second, new_info)) {
+                            _video_photo_list->push_front(new_item);
+                        }
                         break;
                     }
                 }
@@ -230,7 +233,7 @@ public:
             auto item = *iter;
             auto date = item.first;
             auto list = item.second;
-            log::info("\t[%s]", date.c_str());
+            // log::info("\t[%s] number:%d", date.c_str(), list.size());
             auto list_iter = list.begin();
             for (; list_iter != list.end(); list_iter ++) {
                 auto list_item = *list_iter;
@@ -284,6 +287,17 @@ public:
         // t = time::ticks_ms();
         _sort_date_vector(date_dirs);
         // log::info("[%d] use %lld ms", __LINE__, time::ticks_ms() - t);
+
+        // flite the same date
+        for (auto iter = date_dirs.begin(); iter != date_dirs.end(); iter ++) {
+            auto &item = *iter;
+            for (auto iter2 = std::next(iter); iter2 != date_dirs.end(); iter2 ++) {
+                auto &item2 = *iter2;
+                if (item2 == item) {
+                    iter2 = date_dirs.erase(iter);
+                }
+            }
+        }
 
         // log::info("found date dirs: ");
         // t = time::ticks_ms();
@@ -454,7 +468,7 @@ static char *find_thumbnail_path_by_path(char *path)
     return NULL;
 }
 
-void nv21_to_rgb_crop_resize(uint8_t *src_nv21, uint8_t *dst_rgb, int src_width, int src_height, int dst_width, int dst_height) {
+void nv21_to_bgra_crop_resize(uint8_t *src_nv21, uint8_t *dst_rgb, int src_width, int src_height, int dst_width, int dst_height) {
     int src_frame_size = src_width * src_height;
     int uv_offset = src_frame_size;
 
@@ -501,51 +515,53 @@ void nv21_to_rgb_crop_resize(uint8_t *src_nv21, uint8_t *dst_rgb, int src_width,
             g = g < 0 ? 0 : (g > 255 ? 255 : g);
             b = b < 0 ? 0 : (b > 255 ? 255 : b);
 
-            int rgb_index = (j * dst_width + i) * 3;
-            dst_rgb[rgb_index] = (uint8_t)r;
+            int rgb_index = (j * dst_width + i) * 4;
+            dst_rgb[rgb_index] = (uint8_t)b;
             dst_rgb[rgb_index + 1] = (uint8_t)g;
-            dst_rgb[rgb_index + 2] = (uint8_t)b;
+            dst_rgb[rgb_index + 2] = (uint8_t)r;
+            dst_rgb[rgb_index + 3] = (uint8_t)0xff;
         }
     }
 }
 
-void nv21_resize(uint8_t *src_nv21, int src_width, int src_height,
-                 uint8_t *dst_nv21, int dst_width, int dst_height) {
-    int src_frame_size = src_width * src_height;
-    int dst_frame_size = dst_width * dst_height;
+void nv21_resize(uint8_t *src_nv21, uint32_t src_width, uint32_t src_height,
+                 uint8_t *dst_nv21, uint32_t dst_width, uint32_t dst_height) {
+    float scale_x = (float)dst_width / src_width;
+    float scale_y = (float)dst_height / src_height;
+    float scale = (scale_x < scale_y) ? scale_x : scale_y;
 
-    uint8_t *src_y_plane = src_nv21;
-    uint8_t *src_uv_plane = src_nv21 + src_frame_size;
-    uint8_t *dst_y_plane = dst_nv21;
-    uint8_t *dst_uv_plane = dst_nv21 + dst_frame_size;
+    uint32_t new_width = (uint32_t)(src_width * scale);
+    uint32_t new_height = (uint32_t)(src_height * scale);
+    uint32_t offset_x = (dst_width - new_width) / 2;
+    uint32_t offset_y = (dst_height - new_height) / 2;
 
-    int x_scale = (src_width << 16) / dst_width;
-    int y_scale = (src_height << 16) / dst_height;
+    memset(dst_nv21, 0, dst_width * dst_height);
+    memset(dst_nv21 + dst_width * dst_height, 128, dst_width * dst_height / 2);
 
-    for (int dy = 0; dy < dst_height; dy++) {
-        int sy = (dy * y_scale) >> 16;
-        for (int dx = 0; dx < dst_width; dx++) {
-            int sx = (dx * x_scale) >> 16;
-            dst_y_plane[dy * dst_width + dx] = src_y_plane[sy * src_width + sx];
+    uint8_t *src_y = src_nv21;
+    uint8_t *dst_y = dst_nv21;
+    for (uint32_t y = 0; y < new_height; y++) {
+        uint32_t src_y_index = (uint32_t)(y / scale);
+        for (uint32_t x = 0; x < new_width; x++) {
+            uint32_t src_x_index = (uint32_t)(x / scale);
+            dst_y[(y + offset_y) * dst_width + (x + offset_x)] = src_y[src_y_index * src_width + src_x_index];
         }
     }
 
-    for (int dy = 0; dy < dst_height / 2; dy++) {
-        int sy = ((dy * y_scale) >> 16) / 2;
-        for (int dx = 0; dx < dst_width / 2; dx++) {
-            int sx = ((dx * x_scale) >> 16) / 2;
-            int src_uv_index = (sy * src_width + (sx * 2));
+    uint8_t *src_uv = src_nv21 + src_width * src_height;
+    uint8_t *dst_uv = dst_nv21 + dst_width * dst_height;
+    for (uint32_t y = 0; y < new_height / 2; y++) {
+        uint32_t src_uv_y_index = (uint32_t)(y / scale);
+        for (uint32_t x = 0; x < new_width / 2; x++) {
+            uint32_t src_uv_x_index = (uint32_t)(x / scale);
+            uint32_t src_index = src_uv_y_index * src_width + 2 * src_uv_x_index;
+            uint32_t dst_index = (y + offset_y / 2) * dst_width + 2 * (x + offset_x / 2);
 
-            uint8_t u = src_uv_plane[src_uv_index];
-            uint8_t v = src_uv_plane[src_uv_index + 1];
-
-            int dst_uv_index = (dy * dst_width + (dx * 2));
-            dst_uv_plane[dst_uv_index] = u;
-            dst_uv_plane[dst_uv_index + 1] = v;
+            dst_uv[dst_index] = src_uv[src_index];
+            dst_uv[dst_index + 1] = src_uv[src_index + 1];
         }
     }
 }
-
 
 static lv_image_dsc_t *load_thumbnail_image(char *path, char *thumbnail_path)
 {
@@ -574,15 +590,16 @@ static lv_image_dsc_t *load_thumbnail_image(char *path, char *thumbnail_path)
                     priv.decoder = NULL;
                 }
                 priv.decoder = new video::Decoder(src_path);
+                priv.decoder->seek(0);
                 err::check_null_raise(priv.decoder, "Decoder init failed!");
                 auto ctx = priv.decoder->decode_video();
                 if (ctx && ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
                     image::Image *img = ctx->image();
                     delete ctx;
                     if (img) {
-                        image::Image thumbnail_img(128, 128, image::FMT_RGB888);
-                        nv21_to_rgb_crop_resize((uint8_t *)img->data(), (uint8_t *)thumbnail_img.data(), img->width(), img->height(), thumbnail_img.width(), thumbnail_img.height());
-                        thumbnail_img.save(thumbnail_path);
+                        thumbnail_img = new image::Image(128, 128, image::FMT_BGRA8888);
+                        nv21_to_bgra_crop_resize((uint8_t *)img->data(), (uint8_t *)thumbnail_img->data(), img->width(), img->height(), thumbnail_img->width(), thumbnail_img->height());
+                        thumbnail_img->save(thumbnail_path);
                         delete img;
                     } else {
                         log::error("decode video %s failed!\r\n", &src_path[0]);
@@ -595,6 +612,10 @@ static lv_image_dsc_t *load_thumbnail_image(char *path, char *thumbnail_path)
                 delete priv.decoder;
                 priv.decoder = NULL;
             } catch (std::exception &e) {
+                if (priv.decoder) {
+                    delete priv.decoder;
+                    priv.decoder = NULL;
+                }
                 log::error("decode video %s failed!\r\n", &src_path[0]);
                 return NULL;
             }
@@ -634,6 +655,7 @@ static lv_image_dsc_t *load_thumbnail_image(char *path, char *thumbnail_path)
     if (!img_dsc->data) {
         delete thumbnail_img;
         free(img_dsc);
+        free((char *)img_dsc->data);
         perror("create image dsc failed");
         return NULL;
     }
@@ -669,6 +691,7 @@ int app_init(display::Display *disp)
         priv.disp = disp;
         image::Image *img = new image::Image(disp->width(), disp->height(), maix::image::FMT_YVU420SP);
         img->clear();
+        memset((uint8_t *)img->data() + img->width() * img->height(), 128, img->width() * img->height() / 2);
         config_next_display_image(img, 0);
     } else {
         priv.disp_w = 552;
@@ -678,18 +701,21 @@ int app_init(display::Display *disp)
 #if 1
     priv.photo_video = new PhotoVideo("/maixapp/share/picture", "/maixapp/share/video");
     priv.photo_video->collect_video_photo();
+    // priv.photo_video->print_video_photo_list();
+
+    // log::info("========= PUSH TO UI ==========");
     auto list = priv.photo_video->get_video_photo_list();
-    auto iter = list->rbegin();
-    for (; iter != list->rend(); iter++) {
+    auto iter = list->begin();
+    for (; iter != list->end(); iter++) {
         auto item = *iter;
         auto date = item.first;
-        auto list = item.second;
-        // log::info("\t[%s]", date.c_str());
+        auto info_list = item.second;
+        // log::info("\t[%s] number:%d", date.c_str(), info_list.size());
         ui_photo_add_dir((char *)date.c_str());
-        auto list_iter = list.begin();
-        for (; list_iter != list.end(); list_iter ++) {
+        auto list_iter = info_list.rbegin();
+        for (; list_iter != info_list.rend(); list_iter ++) {
             auto list_item = *list_iter;
-            log::info("path:%s", list_item.path.c_str());
+            // log::info("\tpath:%s", list_item.path.c_str());
             lv_image_dsc_t *dsc = load_thumbnail_image((char *)list_item.path.c_str(), (char *)list_item.thumbnail_path.c_str());
             if (dsc) {
                 ui_photo_add_photo((char *)date.c_str(), (char *)list_item.path.c_str(), dsc, list_item.is_video());
@@ -697,6 +723,7 @@ int app_init(display::Display *disp)
             }
         }
     }
+    // log::info("======= PUSH TO UI (END)========");
 
     ui_photo_print();
     ui_photo_list_screen_update();
@@ -833,20 +860,22 @@ static void ui_set_video_first_image(char *dir_name, char *path)
             priv.decoder = NULL;
         }
         priv.decoder = new video::Decoder(path);
+        priv.decoder->seek(0);
         err::check_null_raise(priv.decoder, "Decoder init failed!");
         auto ctx = priv.decoder->decode_video();
         if (ctx && ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
             image::Image *img = ctx->image();
             if (img) {
+                // log::info("disp wxh:%dx%d image format:%s", priv.disp->width(), priv.disp->height(), image::fmt_names[img->format()].c_str());
                 // uint64_t t = time::ticks_ms();
                 image::Image *new_img = new image::Image(priv.disp->width(), priv.disp->height(), image::Format::FMT_YVU420SP);
                 nv21_resize((uint8_t *)img->data(), img->width(), img->height(), (uint8_t *)new_img->data(),new_img->width(), new_img->height());
+                // log::info("============================crop used:%lld", time::ticks_ms() - t);
                 config_next_display_image(new_img, ctx->duration_us() / 1000);
                 ui_clear_video_bar();
                 ui_set_video_bar_s(0, priv.decoder->duration());
                 // delete new_img;     // delete auto
                 delete img;
-                // log::info("============================crop used:%lld", time::ticks_ms() - t);
                 delete ctx;
             } else {
                 delete ctx;
@@ -871,6 +900,7 @@ static void play_video(void)
 {
     if (!priv.decoder) {
         priv.decoder = new video::Decoder(priv. big_img_filename);
+        priv.decoder->seek(0);
         err::check_null_raise(priv.decoder, "Decoder init failed!");
     }
 
@@ -902,6 +932,7 @@ static void play_video(void)
                     continue;
                 }
             } else {
+                ui_set_video_bar_s(0, priv.decoder->duration());
                 delete priv.decoder;
                 priv.decoder = NULL;
                 priv.pause_video = true;
@@ -936,6 +967,7 @@ int app_loop(void)
         image::Image *img = get_next_display_image();
         uint64_t try_keep_ms = get_next_image_try_keep_ms();
         if (img) {
+            // log::info("image resolution:%dx%d image format:%s", img->width(), img->height(), image::fmt_names[img->format()].c_str());
             priv.disp->show(*img, image::FIT_COVER);
             // delete img;  // delete in config_next_display_image()
             // time::sleep_ms(try_keep_ms);

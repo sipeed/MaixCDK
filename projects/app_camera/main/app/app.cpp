@@ -269,9 +269,9 @@ int app_base_init(void)
     priv.other_disp = priv.disp->add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
     err::check_bool_raise(priv.disp->is_opened(), "display open failed");
 
-    // init h265 encoder
+    // init encoder
     priv.encoder_bitrate = _get_encode_bitrate_by_camera_resolution(priv.camera_resolution_w, priv.camera_resolution_h);
-    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265, 30, 50, priv.encoder_bitrate);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, 30, 50, priv.encoder_bitrate);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
@@ -362,11 +362,11 @@ int app_base_loop(void)
         }
 
         // Push frame to encoder
-        int enc_h265_ch = 1;
+        int enc_ch = 1;
 
         if (priv.video_start_flag && priv.video_prepare_is_ok) {
             uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
-            mmf_venc_push2(enc_h265_ch, frame);
+            mmf_venc_push2(enc_ch, frame);
             ui_set_record_time(record_time);
         }
 
@@ -388,7 +388,7 @@ int app_base_loop(void)
 
         // Pop stream from encoder
         mmf_stream_t stream = {0};
-        if (0 == mmf_venc_pop(enc_h265_ch, &stream)) {
+        if (0 == mmf_venc_pop(enc_ch, &stream)) {
             for (int i = 0; i < stream.count; i++) {
                 printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
 
@@ -399,7 +399,7 @@ int app_base_loop(void)
                     }
                 }
             }
-            mmf_venc_free(enc_h265_ch);
+            mmf_venc_free(enc_ch);
         }
 
         priv.loop_last_frame = frame;
@@ -635,7 +635,7 @@ static int app_config_param(void)
             if (priv.encoder) {
                 delete priv.encoder;
                 priv.encoder = nullptr;
-                priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H265, 30, 50, priv.encoder_bitrate);
+                priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, 30, 50, priv.encoder_bitrate);
             }
         }
     }
@@ -739,7 +739,7 @@ int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::d
             }
             std::vector<std::string> *file_list = fs::listdir(video_path);
             printf("file_list_cnt:%ld\n", file_list->size());
-            string video_save_path = video_path + "/" + std::to_string(file_list->size()) +".h265";
+            string video_save_path = video_path + "/" + std::to_string(file_list->size()) +".h264";
             string video_mp4_path = video_path + "/" + std::to_string(file_list->size()) +".mp4";
             printf("video_path path:%s  video_save_path:%s\n", video_path.c_str(), video_save_path.c_str());
             free(file_list);
