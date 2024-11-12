@@ -363,13 +363,13 @@ public:
 
     PhotoVideoInfo *find_next_photo_video(std::string date, std::string path) {
         bool return_next_item = false;
-        auto iter = _video_photo_list->rbegin();
-        for (; iter != _video_photo_list->rend(); iter++) {
+        auto iter = _video_photo_list->begin();
+        for (; iter != _video_photo_list->end(); iter++) {
             auto item = *iter;
             auto list = item.second;
             if (date == item.first || return_next_item) {
-                auto list_iter = list.begin();
-                for (; list_iter != list.end(); list_iter ++) {
+                auto list_iter = list.rbegin();
+                for (; list_iter != list.rend(); list_iter ++) {
                     auto &list_item = *list_iter;
                     if (return_next_item) {
                         return list_item.clone();
@@ -387,13 +387,13 @@ public:
 
     PhotoVideoInfo *find_prev_photo_video(std::string date, std::string path) {
         bool return_next_item = false;
-        auto iter = _video_photo_list->begin();
-        for (; iter != _video_photo_list->end(); iter++) {
+        auto iter = _video_photo_list->rbegin();
+        for (; iter != _video_photo_list->rend(); iter++) {
             auto item = *iter;
             auto list = item.second;
             if (date == item.first || return_next_item) {
-                auto list_iter = list.rbegin();
-                for (; list_iter != list.rend(); list_iter ++) {
+                auto list_iter = list.begin();
+                for (; list_iter != list.end(); list_iter ++) {
                     auto &list_item = *list_iter;
                     if (return_next_item) {
                         return list_item.clone();
@@ -707,19 +707,22 @@ int app_init(display::Display *disp)
     auto list = priv.photo_video->get_video_photo_list();
     auto iter = list->begin();
     for (; iter != list->end(); iter++) {
-        auto item = *iter;
+        auto &item = *iter;
         auto date = item.first;
-        auto info_list = item.second;
-        // log::info("\t[%s] number:%d", date.c_str(), info_list.size());
+        auto &info_list = item.second;
+        log::info("\t[%s] number:%d", date.c_str(), info_list.size());
         ui_photo_add_dir((char *)date.c_str());
         auto list_iter = info_list.rbegin();
-        for (; list_iter != info_list.rend(); list_iter ++) {
+        for (; list_iter != info_list.rend();) {
             auto list_item = *list_iter;
-            // log::info("\tpath:%s", list_item.path.c_str());
+            log::info("\tpath:%s", list_item.path.c_str());
             lv_image_dsc_t *dsc = load_thumbnail_image((char *)list_item.path.c_str(), (char *)list_item.thumbnail_path.c_str());
             if (dsc) {
                 ui_photo_add_photo((char *)date.c_str(), (char *)list_item.path.c_str(), dsc, list_item.is_video());
                 free_thumbnail_image(dsc);
+                list_iter ++;
+            } else {
+                list_iter = std::make_reverse_iterator(info_list.erase(std::next(list_iter).base()));
             }
         }
     }
@@ -1111,7 +1114,7 @@ int app_loop(void)
 
             delete info;
         }  else {
-            printf("The last photo is not found!\r\n");
+            printf("The prev photo is not found!\r\n");
         }
     }
 
@@ -1141,7 +1144,7 @@ int app_loop(void)
 
             delete info;
         } else {
-            printf("The last photo is not found!\r\n");
+            printf("The next photo is not found!\r\n");
         }
     }
     return 0;

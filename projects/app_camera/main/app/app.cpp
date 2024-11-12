@@ -249,7 +249,7 @@ static int _get_encode_bitrate_by_camera_resolution(int w, int h) {
     } else if (w == 1920 && h == 1080) {
         return 4 * 1000 * 1000;
     } else if (w == 2560 && h == 1440) {
-        return 8 * 1000 * 1000;
+        return 6 * 1000 * 1000;
     } else {
         return 3 * 1000 * 1000;
     }
