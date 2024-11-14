@@ -7,5 +7,5 @@ author: Sipeed Ltd
 desc: RTMP demo
 desc[zh]: rtmp示例
 files:
-  # assets: assets
+  assets: assets
 

@@ -669,6 +669,16 @@ namespace maix::video
         }
 
         /**
+         * Get video format
+         * @return video format
+         * @maixpy maix.video.Encoder.format
+        */
+        image::Format format()
+        {
+            return _format;
+        }
+
+        /**
          * Get video encode type
          * @return VideoType
          * @maixpy maix.video.Encoder.type

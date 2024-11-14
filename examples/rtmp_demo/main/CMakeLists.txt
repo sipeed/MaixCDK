@@ -23,7 +23,7 @@ append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic media_server vision)
+list(APPEND ADD_REQUIREMENTS basic media_server vision network)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

@@ -48,6 +48,9 @@ namespace maix::rtmp
         void *_handler;
 
         camera::Camera *_camera;
+        video::Encoder *_video_encoder;
+        audio::Recorder *_audio_recorder;
+        display::Display *_display;
         thread::Thread *_thread;
         thread::Thread *_push_thread;
         thread::Thread *_app_thread;
@@ -56,6 +59,8 @@ namespace maix::rtmp
         std::string _path;
         image::Image *_capture_image;
         bool _need_capture;
+
+        void *_param;
     public:
         /**
          * @brief Construct a new Video object
@@ -117,6 +122,30 @@ namespace maix::rtmp
         }
 
         /**
+         * @brief Bind audio recorder
+         * @note If the audio_recorder object is bound, the audio_recorder object cannot be used elsewhere.
+         * @param recorder audio_recorder object
+         * @return error code, err::ERR_NONE means success, others means failed
+         * @maixpy maix.rtmp.Rtmp.bind_audio_recorder
+        */
+        err::Err bind_audio_recorder(audio::Recorder *recorder) {
+            _audio_recorder = recorder;
+            return err::ERR_NONE;
+        }
+
+        /**
+         * @brief Bind display
+         * @note If the display object is bound, the display object cannot be used elsewhere.
+         * @param disaply display object
+         * @return error code, err::ERR_NONE means success, others means failed
+         * @maixpy maix.rtmp.Rtmp.bind_display
+        */
+        err::Err bind_display(display::Display *display) {
+            _display = display;
+            return err::ERR_NONE;
+        }
+
+        /**
          * @brief If you bind a camera, return the camera object.
          * @return Camera object
          * @maixpy maix.rtmp.Rtmp.get_camera
@@ -165,7 +194,7 @@ namespace maix::rtmp
         /**
          * @brief Start push stream
          * @note only support flv file now
-         * @param path File path, if you passed file path, cyclic push the file, else if you bound camera, push the camera image.
+         * @param path File path, if you passed file path, cyclic push the file, else if you bound camera, push the camera image.(This parameter has been deprecated)
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.rtmp.Rtmp.start
         */

@@ -250,6 +250,9 @@ namespace maix::audio
         }
 
         if ((len = (int)snd_pcm_readi(handle, buffer, frame_size)) < 0) {
+            if (len == -EPIPE) {
+                snd_pcm_prepare(handle);
+            }
             return len;
         }
 

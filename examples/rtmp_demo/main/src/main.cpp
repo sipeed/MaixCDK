@@ -2,6 +2,8 @@
 #include "maix_rtmp.hpp"
 #include "maix_basic.hpp"
 #include "maix_vision.hpp"
+#include "maix_video.hpp"
+#include "maix_wifi.hpp"
 #include "main.h"
 
 #include <stdio.h>
@@ -9,8 +11,21 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <list>
+
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+#include <libavutil/avutil.h>
+#include <libavutil/opt.h>
+#include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+#include <libswresample/swresample.h>
+}
+#include "sophgo_middleware.hpp"
 
 using namespace maix;
+using namespace maix::network;
 
 static int helper(void)
 {
@@ -27,7 +42,7 @@ static int helper(void)
 
 int _main(int argc, char* argv[])
 {
-    int cmd = 0;
+    int cmd = 2;
     if (argc > 1) {
         cmd = atoi(argv[1]);
     } else {
@@ -79,23 +94,20 @@ int _main(int argc, char* argv[])
 
 
         camera::Camera cam = camera::Camera(1280, 720, image::Format::FMT_YVU420SP);
+        audio::Recorder audio_recorder = audio::Recorder();
         display::Display disp = display::Display();
         rtmp::Rtmp rtmp = rtmp::Rtmp(host, port, app, stream, bitrate);
 
         rtmp.bind_camera(&cam);
+        rtmp.bind_audio_recorder(&audio_recorder);
+        rtmp.bind_display(&disp);
 
         log::info("start\r\n");
         log::info("rtmp://%s:%d/%s/%s", &host[0], port, &app[0], &stream[0]);
         rtmp.start();
 
         while (!app::need_exit()) {
-            // image::Image *img = rtmp.capture(); // not support now
-
-            // if (img) {
-                // disp.show(*img);
-                // delete img;
-            // }
-            sleep(1);
+            time::sleep(5);
         }
         rtmp.stop();
         log::info("stop\r\n");
