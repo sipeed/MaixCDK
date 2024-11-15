@@ -4,13 +4,19 @@
 #include "maix_display.hpp"
 #include "maix_touchscreen.hpp"
 #include "maix_nn_speech.hpp"
+#include <atomic>
 
 using namespace maix;
 
+static nn::Speech *speech;
 static image::Image *img;
 static display::Display *disp;
 static i18n::Trans trans;
-static int function_id = 0;
+static thread::Thread *run_thread = nullptr;
+static std::atomic<int> function_id(0);
+static std::atomic<bool> is_run(false);
+static std::atomic<bool> function_change(false);
+static std::atomic<bool> run_thread_exit(false);
 
 static std::vector<string> kw_tbl = {
     "xiao3 ai4 tong2 xue2",
@@ -79,10 +85,23 @@ static void lvcsr_callback(std::pair<char*, char*> data, int len)
     disp->show(*img);
 }
 
+void run_process(void *arg)
+{
+    run_thread_exit = false;
+    while(!app::need_exit())
+    {
+        if (function_change == false) {
+            is_run = true;
+            speech->run(1);
+            is_run = false;
+        }
+        time::sleep_ms(10);
+    }
+    run_thread_exit = true;
+}
+
 int _main(int argc, char* argv[])
 {
-    log::info("Program start");
-
     err::Err e = trans.load("locales");
     err::check_raise(e, "load translation yamls failed");
 
@@ -128,11 +147,13 @@ int _main(int argc, char* argv[])
     disp->show(*img);
 
     // init asr lib
-    nn::Speech speech("/root/models/am_3332_192_int8.mud");
-    speech.init(nn::SpeechDevice::DEVICE_MIC, "hw:0,0");
-    speech.digit(640, digit_callback);
+    speech = new nn::Speech("/root/models/am_3332_192_int8.mud");
+    speech->init(nn::SpeechDevice::DEVICE_MIC, "hw:0,0");
+    speech->digit(640, digit_callback);
 
     function_id = 1;
+    run_thread = new thread::Thread(run_process, nullptr);
+    run_thread->detach();
 
     // Run until app want to exit, for example app::switch_app API will set exit flag.
     // And you can also call app::set_exit_flag(true) to mark exit.
@@ -142,36 +163,31 @@ int _main(int argc, char* argv[])
         if (ts_pressed && !is_pressed) {
             is_pressed = true;
             if (ts_x < 40 + 60 && ts_y < 40) {
+                app::set_exit_flag(true);
                 break;
             } else if (ts_x > 0 && ts_x < 0.25*disp->width() && ts_y > 308) {
                 log::info("clear\n");
-                speech.clear();
+                speech->clear();
+                if (function_id == 2) {
+                    img->draw_rect(0, 50, disp->width(), disp->height()-110, image::COLOR_WHITE, -1);
+                    draw_keyword(img);
+                    disp->show(*img);
+                }
             } else if (ts_x > 138 && ts_x < 0.5*disp->width() && ts_y > 308 && function_id != 1) {
-                log::info("digit\n");
-                speech.clear();
-                speech.digit(65535, digit_callback);
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_KWS);
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_LVCSR);
                 function_id = 1;
+                function_change = true;
             } else if (ts_x > 276 && ts_x < 0.75*disp->width() && ts_y > 308 && function_id != 2) {
-                log::info("kws\n");
-                speech.clear();
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_DIG);
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_LVCSR);
-                speech.kws(kw_tbl, kw_gate, kws_callback);
                 function_id = 2;
+                function_change = true;
             } else if (ts_x > 0.75*disp->width() && ts_y > 308 && function_id != 3) {
-                log::info("lvcsr\n");
-                speech.clear();
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_DIG);
-                speech.dec_deinit(nn::SpeechDecoder::DECODER_KWS);
-                static const std::string lm_path = "/root/models/lmS/";
-                speech.lvcsr(lm_path + "lg_6m.sfst", lm_path + "lg_6m.sym", 
-                             lm_path + "phones.bin", lm_path + "words_utf.bin", 
-                             lvcsr_callback);
                 function_id = 3;
+                function_change = true;
             }
+        } else if (!ts_pressed && is_pressed) {
+            is_pressed = false;
+        }
 
+        if (function_change && is_run == false) {
             img->draw_rect(0, disp->height()-60, disp->width(), 60, image::Color::from_rgb(17, 17, 17), -1);
             img->draw_string(0.05*disp->width(), disp->height()-45, trans.tr("Clear").c_str(), image::COLOR_WHITE, 1.5);
             img->draw_string(0.317*disp->width(), disp->height()-45, trans.tr("digit").c_str(), image::COLOR_WHITE, 1.5);
@@ -181,32 +197,58 @@ int _main(int argc, char* argv[])
 
             switch (function_id)
             {
-                case 1: img->draw_string(0.317*disp->width(), disp->height()-45, trans.tr("digit").c_str(), image::COLOR_GREEN, 1.5); break;
+                case 1:
+                    log::info("digit\n");
+                    speech->clear();
+                    speech->digit(65535, digit_callback);
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_KWS);
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_LVCSR);
+                    img->draw_string(0.317*disp->width(), disp->height()-45, trans.tr("digit").c_str(), image::COLOR_GREEN, 1.5);
+                    function_change = false;
+                    break;
                 case 2: 
+                    log::info("kws\n");
+                    speech->clear();
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_DIG);
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_LVCSR);
+                    speech->kws(kw_tbl, kw_gate, kws_callback);
                     draw_keyword(img);
                     img->draw_string(0.58*disp->width(), disp->height()-45, trans.tr("kws").c_str(), image::COLOR_GREEN, 1.5);
+                    function_change = false;
                     break;
-                case 3: img->draw_string(0.82*disp->width(), disp->height()-45, trans.tr("lvcsr").c_str(), image::COLOR_GREEN, 1.5); break;
+                case 3:
+                    log::info("lvcsr\n");
+                    speech->clear();
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_DIG);
+                    speech->dec_deinit(nn::SpeechDecoder::DECODER_KWS);
+                    static const std::string lm_path = "/root/models/lmS/";
+                    speech->lvcsr(lm_path + "lg_6m.sfst", lm_path + "lg_6m.sym", 
+                                lm_path + "phones.bin", lm_path + "words_utf.bin", 
+                                lvcsr_callback);
+                    img->draw_string(0.82*disp->width(), disp->height()-45, trans.tr("lvcsr").c_str(), image::COLOR_GREEN, 1.5);
+                    function_change = false;
+                    break;
                 default: break;
             }
-
             disp->show(*img);
-
-        } else if (!ts_pressed && is_pressed) {
-            is_pressed = false;
-        }
-
-        int frames = speech.run(1);
-        if(frames<1) {
-            log::info("run out\n");
-            break;
         }
     }
 
-    speech.deinit();
+    log::info("wait run thread exit");
+    while(!run_thread_exit)
+    {
+        time::sleep_ms(20);
+    }
+    log::info("wait run thread exit done");
+
+    if (run_thread != nullptr) {
+        delete run_thread;
+        run_thread = nullptr;
+    }
+
+    delete speech;
     delete img;
     delete disp;
-    log::info("Program exit");
 
     return err::ERR_NONE;
 }
