@@ -34,8 +34,6 @@ using websocketpp::lib::placeholders::_2;
 #define IMG_ENCODE_JPEG 1
 #define IMG_ENCODE_PNG  2
 
-static int jpeg_quality = 95;
-
 enum ImageTransFmt
 {
     IMG_TRANS_FMT_NONE = 0, // pause trans
