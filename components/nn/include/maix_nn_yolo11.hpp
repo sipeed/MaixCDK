@@ -346,12 +346,12 @@ namespace maix::nn
                     int y2 = points[pos[i * 2 + 1] * 2 + 1];
                     if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
                         continue;
-                    img.draw_line(x1, y1, x2, y2, image::COLOR_RED, 2);
+                    img.draw_line(x1, y1, x2, y2, color, 2);
                 }
                 int x = (points[5 * 2] + points[6 * 2]) / 2;
                 int y = (points[5 * 2 + 1] + points[6 * 2 + 1]) / 2;
                 if (!(points[5 * 2] < 0 || points[5 * 2 + 1] < 0 || points[6 * 2] < 0 || points[6 * 2 + 1] < 0 || x < 0 || y < 0 || points[0] < 0 || points[1] < 0))
-                    img.draw_line(points[0], points[1], x, y, image::COLOR_RED, 2);
+                    img.draw_line(points[0], points[1], x, y, color, 2);
             }
             for (size_t i = 0; i < points.size() / 2; ++i)
             {

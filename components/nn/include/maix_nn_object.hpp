@@ -259,7 +259,7 @@ namespace maix::nn
 
         /**
          * Get object item
-         * @maixpy maix.nn.Objects.__item__
+         * @maixpy maix.nn.Objects.__getitem__
          * @maixcdk maix.nn.Objects.[]
          */
         nn::Object &operator[](int idx)

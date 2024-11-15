@@ -34,6 +34,8 @@ using websocketpp::lib::placeholders::_2;
 #define IMG_ENCODE_JPEG 1
 #define IMG_ENCODE_PNG  2
 
+static int jpeg_quality = 95;
+
 enum ImageTransFmt
 {
     IMG_TRANS_FMT_NONE = 0, // pause trans
@@ -454,7 +456,14 @@ namespace maix
         // compress image to jpeg
         if (img.format() != _fmt)
         {
-            compressed = img.to_format(_fmt);
+            if(_fmt == image::FMT_JPEG)
+            {
+                compressed = img.to_jpeg(this->_quality);
+            }
+            else
+            {
+                compressed = img.to_format(_fmt);
+            }
             if (compressed == nullptr)
             {
                 log::error("compress image failed\n");

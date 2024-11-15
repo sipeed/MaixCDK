@@ -276,4 +276,10 @@ namespace maix::display
 
     }
 
+    void set_trans_image_quality(const int value)
+    {
+        if(img_trans)
+            img_trans->set_quality(value);
+    }
+
 } // namespace maix::display

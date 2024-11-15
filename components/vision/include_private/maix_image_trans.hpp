@@ -16,6 +16,7 @@ namespace maix
         err::Err send_image(image::Image &img);
         err::Err set_format(image::Format fmt, int quality = 95);
         image::Format get_format() { return _fmt; }
+        void set_quality(const int quality) { _quality = quality; }
 
     private:
         void *_handle;

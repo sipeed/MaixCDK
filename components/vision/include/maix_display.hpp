@@ -202,4 +202,11 @@ namespace maix::display
      * @maixpy maix.display.send_to_maixvision
     */
     void send_to_maixvision(image::Image &img);
+
+    /**
+     * Set image transport quality(only for JPEG)
+     * @param quality default 95, value from 51 ~ 100
+     * @maixpy maix.display.set_trans_image_quality
+     */
+    void set_trans_image_quality(const int value);
 }
