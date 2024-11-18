@@ -44,7 +44,7 @@ namespace maix::display
          * @maixpy maix.display.Display.__init__
          * @maixcdk maix.display.Display.Display
          */
-        Display(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, bool open = true);
+        Display(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const std::string &device = "", bool open = true);
 
         /**
          * @brief Construct a new Display object.
@@ -57,7 +57,7 @@ namespace maix::display
          * @param open If true, display will automatically call open() after creation. default is true.
          * @maixcdk maix.display.Display.Display
          */
-        Display(const char *device, DisplayBase *base, int width = -1, int height = -1, image::Format format = image::FMT_INVALID, bool open = true);
+        Display(const std::string &device, DisplayBase *base, int width = -1, int height = -1, image::Format format = image::FMT_INVALID, bool open = true);
 
         ~Display();
 

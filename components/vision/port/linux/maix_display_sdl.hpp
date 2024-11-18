@@ -19,7 +19,7 @@ namespace maix::display
     class SDL_Display final : public DisplayBase
     {
     public:
-        SDL_Display(const char *device, int width, int height, image::Format format)
+        SDL_Display(const std::string &device, int width, int height, image::Format format)
         {
             this->_width = width;
             this->_height = height;

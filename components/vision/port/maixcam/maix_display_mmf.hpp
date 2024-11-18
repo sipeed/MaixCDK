@@ -168,7 +168,7 @@ namespace maix::display
     class DisplayCviMmf final : public DisplayBase
     {
     public:
-        DisplayCviMmf(const char *device, int width, int height, image::Format format)
+        DisplayCviMmf(const string &device, int width, int height, image::Format format)
         {
             err::check_bool_raise(!_get_vo_max_size(&_max_width, &_max_height, 1), "get vo max size failed");
             width = width <= 0 ? _max_width : width;
