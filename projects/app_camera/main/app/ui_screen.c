@@ -346,7 +346,9 @@ static void right_screen_init(void)
     lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
     lv_obj_set_style_radius(scr, 0, 0);
     lv_obj_set_style_bg_color(scr, lv_color_hex(0x000000), 0);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_align(scr, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
 
     {
         static lv_style_t click_style, release_style;
@@ -362,8 +364,7 @@ static void right_screen_init(void)
         lv_style_set_bg_color(&release_style, lv_color_hex(0x0));
 
         lv_obj_t *obj = lv_obj_create(scr);
-        lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 37);
-        lv_obj_set_size(obj, img_camera.header.w, img_camera.header.h);
+        lv_obj_set_size(obj, 64, 64);
         lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
         lv_obj_add_event_cb(obj, event_touch_video_camera_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_style(obj, &click_style, LV_STATE_CHECKED);
@@ -398,8 +399,7 @@ static void right_screen_init(void)
         lv_style_set_bg_color(&video_ready_style, lv_color_hex(0x0));
 
         lv_obj_t *obj = lv_obj_create(scr);
-        lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 136);
-        lv_obj_set_size(obj, img_photo_release.header.w, img_photo_release.header.h);
+        lv_obj_set_size(obj, 64, 64);
         lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(obj, event_touch_start_cb, LV_EVENT_CLICKED, NULL);
         lv_obj_add_style(obj, &release_style, LV_STATE_DEFAULT);
@@ -412,11 +412,12 @@ static void right_screen_init(void)
 
     {
         lv_obj_t *obj = lv_obj_create(scr);
-        lv_obj_align(obj, LV_ALIGN_TOP_MID, 0, 246);
-        lv_obj_set_size(obj, 56, 56);
+        lv_obj_set_size(obj, 64, 64);
         lv_obj_set_style_radius(obj, 5, 0);
         lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_border_side(obj, 0, 0);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x0), 0);
         lv_obj_add_event_cb(obj, event_touch_small_img_cb, LV_EVENT_CLICKED, NULL);
         g_small_img = obj;
 
