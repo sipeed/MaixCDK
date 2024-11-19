@@ -23,7 +23,7 @@ append_srcs_dir(ADD_SRCS "assets")
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic lvgl)
+list(APPEND ADD_REQUIREMENTS basic lvgl FFmpeg)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

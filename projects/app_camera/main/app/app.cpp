@@ -10,6 +10,7 @@
 #include "maix_gpio.hpp"
 #include "maix_fs.hpp"
 #include "maix_vision.hpp"
+#include "maix_ffmpeg.hpp"
 #include "sophgo_middleware.hpp"
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -39,9 +40,7 @@ static struct {
 
     uint8_t cam_snap_delay_s;
     int video_start_ms;
-    std::string video_save_path;
     std::string video_mp4_path;
-    int video_save_fd;
 
     uint64_t loop_last_ms;
     void *loop_last_frame;
@@ -56,7 +55,14 @@ static struct {
     touchscreen::TouchScreen *touchscreen;
     video::Encoder *encoder;
     gpio::GPIO *light;
+    ffmpeg::FFmpegPacker *ffmpeg_packer;
+    audio::Recorder *audio_recorder;
     int encoder_bitrate;
+
+    uint64_t last_read_pcm_ms;
+    uint64_t last_read_cam_ms;
+    uint64_t video_pts;
+    uint64_t audio_pts;
 } priv;
 
 static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
@@ -261,7 +267,8 @@ int app_base_init(void)
     mmf_deinit_v2(true);
 
     // init camera
-    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, 30, 3, true, priv.capture_raw_enable);
+    int fps = 30;
+    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, fps, 3, true, priv.capture_raw_enable);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
     // init display
@@ -271,7 +278,7 @@ int app_base_init(void)
 
     // init encoder
     priv.encoder_bitrate = _get_encode_bitrate_by_camera_resolution(priv.camera_resolution_w, priv.camera_resolution_h);
-    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, 30, 50, priv.encoder_bitrate);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, fps, 50, priv.encoder_bitrate);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
@@ -282,6 +289,27 @@ int app_base_init(void)
     priv.light = new gpio::GPIO("B3", gpio::Mode::OUT);
     priv.light->low();
     err::check_null_raise(priv.light, "light gpio open failed");
+
+    // init audio
+    priv.audio_recorder = new audio::Recorder();
+    err::check_null_raise(priv.audio_recorder, "audio recorder init failed!");
+
+    // init ffmpeg packer
+    priv.ffmpeg_packer = new ffmpeg::FFmpegPacker();
+    err::check_null_raise(priv.ffmpeg_packer, "ffmpeg packer init failed");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("has_video", true), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_codec_id", AV_CODEC_ID_H264), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_width", priv.camera_resolution_w), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_height", priv.camera_resolution_h), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_bitrate", priv.encoder_bitrate), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_fps", fps), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_pixel_format", AV_PIX_FMT_NV21), "rtmp config failed!");
+
+    err::check_bool_raise(!priv.ffmpeg_packer->config("has_audio", true), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("audio_sample_rate", 48000), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("audio_channels", 1), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("audio_bitrate", 128000), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("audio_format", AV_SAMPLE_FMT_S16), "rtmp config failed!");
 
     // init gui
     maix::lvgl_init(priv.other_disp, priv.touchscreen);
@@ -294,6 +322,16 @@ int app_base_init(void)
 int app_base_deinit(void)
 {
     maix::lvgl_destroy();
+
+    if (priv.ffmpeg_packer) {
+        delete priv.ffmpeg_packer;
+        priv.ffmpeg_packer = NULL;
+    }
+
+    if (priv.audio_recorder) {
+        delete priv.audio_recorder;
+        priv.audio_recorder = NULL;
+    }
 
     if (priv.light) {
         priv.light->low();
@@ -364,12 +402,6 @@ int app_base_loop(void)
         // Push frame to encoder
         int enc_ch = 1;
 
-        if (priv.video_start_flag && priv.video_prepare_is_ok) {
-            uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
-            mmf_venc_push2(enc_ch, frame);
-            ui_set_record_time(record_time);
-        }
-
         // Snap picture
         if (priv.cam_snap_flag) {
             priv.cam_snap_flag = false;
@@ -386,22 +418,122 @@ int app_base_loop(void)
             delete img;
         }
 
-        // Pop stream from encoder
-        mmf_stream_t stream = {0};
-        if (0 == mmf_venc_pop(enc_ch, &stream)) {
-            for (int i = 0; i < stream.count; i++) {
-                printf("stream[%d]: data:%p size:%d\r\n", i, stream.data[i], stream.data_size[i]);
+        bool found_venc_stream = false;
 
-                if (priv.video_save_fd > 0) {
-                    int size = write(priv.video_save_fd, stream.data[i], stream.data_size[i]);
-                    if (size != stream.data_size[i]) {
-                        printf("write file failed! need %d bytes, write %d bytes\r\n", stream.data_size[i], size);
+        // Pop stream from encoder
+        mmf_stream_t venc_stream = {0};
+        if (0 == mmf_venc_pop(enc_ch, &venc_stream)) {
+            // for (int i = 0; i < venc_stream.count; i++) {
+            //     printf("venc stream[%d]: data:%p size:%d\r\n", i, venc_stream.data[i], venc_stream.data_size[i]);
+            // }
+
+            if (venc_stream.count > 0) {
+                found_venc_stream = true;
+            }
+        }
+
+        if (priv.ffmpeg_packer && priv.ffmpeg_packer->is_opened()) {
+            double temp_us = priv.ffmpeg_packer->video_pts_to_us(priv.video_pts);
+            priv.audio_pts = priv.ffmpeg_packer->audio_us_to_pts(temp_us);
+        }
+
+        if (found_venc_stream) {
+            if (priv.ffmpeg_packer) {
+                if (!priv.ffmpeg_packer->is_opened()) {
+                    if (venc_stream.count > 1) {
+                        int sps_pps_size = venc_stream.data_size[0] + venc_stream.data_size[1];
+                        uint8_t *sps_pps = (uint8_t *)malloc(sps_pps_size);
+                        if (sps_pps) {
+                            memcpy(sps_pps, venc_stream.data[0], venc_stream.data_size[0]);
+                            memcpy(sps_pps + venc_stream.data_size[0], venc_stream.data[1], venc_stream.data_size[1]);
+
+                            if (0 == priv.ffmpeg_packer->config_sps_pps(sps_pps, sps_pps_size)) {
+                                while (0 != priv.ffmpeg_packer->open() && !app::need_exit()) {
+                                    time::sleep_ms(500);
+                                    log::info("Can't open ffmpeg, retry again..");
+                                }
+
+                                if (priv.audio_recorder) {
+                                    Bytes *pcm_data = priv.audio_recorder->record();
+                                    if (pcm_data) {
+                                        delete pcm_data;
+                                        pcm_data = NULL;
+                                    }
+                                }
+
+                                priv.last_read_pcm_ms = 0;
+                                priv.last_read_cam_ms = 0;
+                                priv.video_pts = 0;
+                                priv.audio_pts = 0;
+                            }
+                            free(sps_pps);
+                        }
+                    }
+                }
+            }
+
+            if (priv.ffmpeg_packer->is_opened()) {
+                uint8_t *data = NULL;
+                int data_size = 0;
+                if (venc_stream.count == 1) {
+                    data = venc_stream.data[0];
+                    data_size = venc_stream.data_size[0];
+                } else if (venc_stream.count > 1) {
+                    data = venc_stream.data[2];
+                    data_size = venc_stream.data_size[2];
+                }
+
+                if (data_size) {
+                    if (priv.last_read_cam_ms == 0) {
+                        priv.video_pts = 0;
+                        priv.last_read_cam_ms = time::ticks_ms();
+                    } else {
+                        priv.video_pts += priv.ffmpeg_packer->video_us_to_pts((time::ticks_ms() - priv.last_read_cam_ms) * 1000);
+                        priv.last_read_cam_ms = time::ticks_ms();
+                    }
+                    log::info("[VIDEO] pts:%d  pts %f s", priv.video_pts, priv.ffmpeg_packer->video_pts_to_us(priv.video_pts) / 1000000);
+                    if (err::ERR_NONE != priv.ffmpeg_packer->push(data, data_size, priv.video_pts)) {
+                        log::error("ffmpeg push failed!");
                     }
                 }
             }
             mmf_venc_free(enc_ch);
         }
 
+        if (priv.ffmpeg_packer->is_opened()) {
+            int frame_size_per_second = priv.ffmpeg_packer->get_audio_frame_size_per_second();
+            uint64_t loop_ms = 0;
+            int read_pcm_size = 0;
+            if (priv.last_read_pcm_ms == 0) {
+                loop_ms = 30;
+                read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+                priv.audio_pts = 0;
+                priv.last_read_pcm_ms = time::ticks_ms();
+            } else {
+                loop_ms = time::ticks_ms() - priv.last_read_pcm_ms;
+                priv.last_read_pcm_ms = time::ticks_ms();
+
+                read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+                priv.audio_pts += priv.ffmpeg_packer->audio_us_to_pts(loop_ms * 1000);
+            }
+
+            Bytes *pcm_data = priv.audio_recorder->record_bytes(read_pcm_size);
+            if (pcm_data) {
+                if (pcm_data->data_len > 0) {
+                    log::info("[AUDIO] pts:%d  pts %f s", priv.audio_pts, priv.ffmpeg_packer->audio_pts_to_us(priv.audio_pts) / 1000000);
+                    if (err::ERR_NONE != priv.ffmpeg_packer->push(pcm_data->data, pcm_data->data_len, priv.audio_pts, true)) {
+                        log::error("ffmpeg push failed!");
+                    }
+                }
+                delete pcm_data;
+            }
+        }
+
+        if (priv.video_start_flag && priv.video_prepare_is_ok) {
+            uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
+            mmf_venc_push2(enc_ch, frame);
+            ui_set_record_time(record_time);
+        }
         priv.loop_last_frame = frame;
     } else {
         frame = priv.loop_last_frame;
@@ -728,7 +860,6 @@ int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::d
     if (priv.video_start_flag && !priv.video_prepare_is_ok) {
         printf("Prepare record video\n");
         char *date = ui_get_sys_date();
-        printf("video_save_path:%s\n", priv.video_save_path.c_str());
         if (date) {
             string video_root_path = maix::app::get_video_path();
             string video_date(date);
@@ -738,24 +869,19 @@ int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::d
                 fs::mkdir(video_path);
             }
             std::vector<std::string> *file_list = fs::listdir(video_path);
-            printf("file_list_cnt:%ld\n", file_list->size());
-            string video_save_path = video_path + "/" + std::to_string(file_list->size()) +".h264";
             string video_mp4_path = video_path + "/" + std::to_string(file_list->size()) +".mp4";
-            printf("video_path path:%s  video_save_path:%s\n", video_path.c_str(), video_save_path.c_str());
             free(file_list);
             free(date);
 
-            priv.video_save_path = video_save_path;
-            priv.video_mp4_path = video_mp4_path;
-            priv.video_save_fd = open(video_save_path.c_str(), O_RDWR | O_CREAT, 0666);
-            if (priv.video_save_fd > 0) {
-                printf("open video file success\n");
+            if (priv.ffmpeg_packer) {
+                priv.ffmpeg_packer->config2("path", video_mp4_path);
             }
+
+            priv.video_mp4_path = video_mp4_path;
+            printf("video_save_path:%s\n", priv.video_mp4_path.c_str());
         } else {
             printf("get date failed!\n");
-            priv.video_save_path = "";
             priv.video_mp4_path = "";
-            priv.video_save_fd = -1;
         }
 
         priv.video_prepare_is_ok = true;
@@ -763,21 +889,10 @@ int app_loop(maix::camera::Camera &camera, maix::display::Display &disp, maix::d
 
     if (priv.video_stop_flag) {
         printf("Stop video\n");
-        if (priv.video_save_fd > 0) {
-            close(priv.video_save_fd);
-            priv.video_save_fd = -1;
+        if (priv.ffmpeg_packer) {
+            priv.ffmpeg_packer->close();
         }
-
-        if (priv.video_mp4_path != "" && priv.video_save_path != "") {
-            char cmd[128];
-            snprintf(cmd, sizeof(cmd), "ffmpeg -loglevel quiet -i %s -c:v copy -c:a copy %s -y",
-                        priv.video_save_path.c_str(),
-                        priv.video_mp4_path.c_str());
-            system(cmd);
-            snprintf(cmd, sizeof(cmd), "rm %s", priv.video_save_path.c_str());
-            system(cmd);
-            system("sync");
-        }
+        system("sync");
 
         priv.video_stop_flag = false;
         priv.video_prepare_is_ok = false;

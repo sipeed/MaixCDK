@@ -369,20 +369,6 @@ _free_format_context:
         return err::ERR_NONE;
     }
 
-    static void add_adts_header(uint8_t adts_header[7], int packet_len, AVCodecContext *audio_codec_ctx) {
-        int profile = 1;  // AAC LC
-        int freq_idx = audio_codec_ctx->sample_rate == 44100 ? 4 : 3; // 4: 44.1kHz, 3: 48kHz
-        int chan_cfg = audio_codec_ctx->channels;
-
-        adts_header[0] = 0xFF;
-        adts_header[1] = 0xF1;
-        adts_header[2] = ((profile << 6) + (freq_idx << 2) + (chan_cfg >> 2));
-        adts_header[3] = (((chan_cfg & 3) << 6) + (packet_len >> 11));
-        adts_header[4] = ((packet_len & 0x7FF) >> 3);
-        adts_header[5] = (((packet_len & 7) << 5) + 0x1F);
-        adts_header[6] = 0xFC;
-    }
-
     err::Err push(uint8_t *frame, size_t frame_size, uint64_t pts, bool is_audio = false)
     {
         ffmpeg_param_t *ffmpeg = (ffmpeg_param_t *)&_ffmpeg;

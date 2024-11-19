@@ -3,6 +3,7 @@ set(ffmpeg_unzip_path "${DL_EXTRACTED_PATH}/ffmpeg_srcs")
 set(src_path "${ffmpeg_unzip_path}/ffmpeg")
 ############### Add include ###################
 set(ffmpeg_include_dir          "${src_path}/include"
+                                "."
                                 )
 list(APPEND ADD_INCLUDE ${ffmpeg_include_dir})
 set_property(SOURCE ${ffmpeg_include_dir} PROPERTY GENERATED 1)
