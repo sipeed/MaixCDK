@@ -172,7 +172,8 @@ namespace maix::touchscreen
             // struct epoll_event events[1];
             bool event_press = false;
             bool event_move = false;
-
+            bool wait_pos_x = false;
+            bool wait_pos_y = false;
             while(1)
             {
                 // int nfds = epoll_wait(_epoll_fd, events, 1, 0);
@@ -200,6 +201,7 @@ namespace maix::touchscreen
                         // anti-clockwise 90 degree
                         _y = event.value;
                         event_move = true;
+                        wait_pos_y = false;
                     }
                     else if(event.code == ABS_MT_POSITION_Y || event.code == ABS_Y)
                     {
@@ -207,15 +209,25 @@ namespace maix::touchscreen
                         // anti-clockwise 90 degree
                         _x = _y_max - event.value - 1;
                         event_move = true;
+                        wait_pos_x = false;
                     }
                 }
                 else if(event.type == EV_KEY)
                 {
                     if(event.code == BTN_TOUCH)
                     {
+                        if(event.value == 1)  // some driver trigger press event before position
+                        {
+                            wait_pos_x = true;
+                            wait_pos_x = true;
+                        }
                         _pressed = event.value == 1;
                         event_press = true;
                     }
+                }
+                if(wait_pos_y || wait_pos_x)
+                {
+                    continue;
                 }
                 if(event_press)
                 {

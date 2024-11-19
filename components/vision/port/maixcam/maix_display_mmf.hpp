@@ -24,15 +24,6 @@ using namespace maix::peripheral;
 
 namespace maix::display
 {
-    static bool _get_board_config_path(char *path, int path_size)
-    {
-        if (fs::exists("/boot/board")) {
-            snprintf(path, path_size, "/boot/board");
-            return true;
-        }
-        return false;
-    }
-
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
@@ -107,61 +98,37 @@ namespace maix::display
     }
 
 
-    static std::vector<bool> _get_disp_flip_mirror(void) {
-        char path[64];
-        char line[1024];
-        char flip_str[128] = {0};
-        char mirror_str[128] = {0};
-        bool flip = 0, mirror = 0;
-        bool flip_is_found = false, mirror_is_found = false;
+    static void _get_disp_configs(bool &flip, bool &mirror, float &max_backlight) {
+        std::string flip_str;
+        bool flip_is_found = false;
 
-        err::check_bool_raise(_get_board_config_path(path, sizeof(path)), "Can't find board config file");
-        FILE *file = fopen(path, "r");
-        if (file == NULL) {
-            perror("Error opening file");
-            return std::vector<bool>{false, false};
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("disp_flip");
+        if (it != device_configs.end()) {
+            flip_str = it->second;
+            flip_is_found = true;
+        }
+        auto it2 = device_configs.find("disp_mirror");
+        if (it2 != device_configs.end()) {
+            if (it2->second.size() > 0)
+                mirror = atoi(it2->second.c_str());
+        }
+        auto it3 = device_configs.find("disp_max_backlight");
+        if (it3 != device_configs.end()) {
+            if (it3->second.size() > 0)
+                max_backlight = atof(it3->second.c_str());
         }
 
-        while (fgets(line, sizeof(line), file)) {
-            if (strncmp(line, "disp_flip=", 10) == 0) {
-                strcpy(flip_str, line + 10);
-                flip_str[strcspn(flip_str, "\n")] = '\0';
-                flip_is_found = true;
-            }
-
-            if (strncmp(line, "disp_mirror=", 12) == 0) {
-                strcpy(mirror_str, line + 12);
-                mirror_str[strcspn(mirror_str, "\n")] = '\0';
-                mirror_is_found = true;
-            }
-
-            if (flip_is_found && mirror_is_found) {
-                break;
-            }
-        }
-
-        fclose(file);
-
-        log::info("disp flip=%s, disp mirror=%s", flip_str, mirror_str);
-
-        if (flip_is_found && strlen(flip_str) > 0) {
-            flip = atoi(flip_str);
+        if (flip_is_found && flip_str.size() > 0) {
+            flip = atoi(flip_str.c_str());
         } else {
             std::string board_id = sys::device_id();
             if (board_id == "maixcam_pro") {
                 flip = true;
-            } else {
-                flip = false;
             }
         }
 
-        if (mirror_is_found && strlen(mirror_str) > 0) {
-            mirror = atoi(mirror_str);
-        } else {
-            mirror = false;     // maixcam and maixcam pro default mirror is false
-        }
-
-        return {flip, mirror};
+        log::info("disp config flip: %d, mirror: %d, max_backlight: %.1f", flip, mirror, max_backlight);
     }
 
 
@@ -188,9 +155,8 @@ namespace maix::display
             if (this->_layer == 0) {
                 bool flip = false;
                 bool mirror = false;
-                auto disp_flip_mirror = _get_disp_flip_mirror();
-                flip = disp_flip_mirror[0];
-                mirror = disp_flip_mirror[1];
+                _max_backlight = 50.0;
+                _get_disp_configs(flip, mirror, _max_backlight);
                 mmf_set_vo_video_hmirror(0, mirror);
                 mmf_set_vo_video_flip(0, flip);
                 this->_invert_flip = flip;
@@ -216,6 +182,7 @@ namespace maix::display
             this->_format = format;
             this->_invert_flip = false;
             this->_invert_mirror = false;
+            this->_max_backlight = 50.0;
             this->_layer = layer;       // layer 0 means vedio layer
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
@@ -435,8 +402,7 @@ namespace maix::display
 
         void set_backlight(float value)
         {
-            float max_duty = 50;
-            _bl_pwm->duty(value * max_duty / 100.0);
+            _bl_pwm->duty(value * _max_backlight / 100.0);
             _bl_pwm->disable();
             if(value == 0)
                 return;
@@ -445,8 +411,7 @@ namespace maix::display
 
         float get_backlight()
         {
-            float max_duty = 50;
-            return _bl_pwm->duty() / max_duty * 100;
+            return _bl_pwm->duty() / _max_backlight * 100;
         }
 
         int get_ch_nums()
@@ -507,6 +472,7 @@ namespace maix::display
         bool _opened;
         bool _invert_flip;
         bool _invert_mirror;
+        float _max_backlight;
         pwm::PWM *_bl_pwm;
     };
 }
