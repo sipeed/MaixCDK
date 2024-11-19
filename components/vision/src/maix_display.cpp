@@ -12,9 +12,11 @@
 #include "maix_image_trans.hpp"
 #ifdef PLATFORM_LINUX
     #include "maix_display_sdl.hpp"
+    #include "maix_display_fb.hpp"
 #endif
 #ifdef PLATFORM_MAIXCAM
     #include "maix_display_mmf.hpp"
+    #include "maix_display_fb.hpp"
 #endif
 
 namespace maix::display
@@ -27,24 +29,30 @@ namespace maix::display
         return {"0"};
     }
 
-    Display::Display(int width, int height, image::Format format, const char *device, bool open)
+    Display::Display(int width, int height, image::Format format, const string &device, bool open)
     {
         _impl = NULL;
+        _device = device;
 
-        // Select implementation by platform
+        if (device != "") {
+            _impl = new FB_Display(device, width, height, format);
+        } else {
+            // Select implementation by platform
 #ifdef PLATFORM_LINUX
-        _impl = new SDL_Display(device, width, height, format);
+            _impl = new SDL_Display(device, width, height, format);
 #endif
 #ifdef PLATFORM_MAIXCAM
-        _impl = new DisplayCviMmf(device, width, height, format);
+            _impl = new DisplayCviMmf(device, width, height, format);
 #endif
+        }
+
         if (open) {
             err::Err e = this->open();
             err::check_raise(e, "display open failed");
         }
     }
 
-    Display::Display(const char *device, DisplayBase *base, int width, int height, image::Format format, bool open)
+    Display::Display(const string &device, DisplayBase *base, int width, int height, image::Format format, bool open)
     {
         err::Err e;
         _impl = base;
@@ -58,11 +66,18 @@ namespace maix::display
     Display::~Display()
     {
 #ifdef PLATFORM_LINUX
-        delete (SDL_Display *)_impl;
+        if (_device != "")
+            delete (FB_Display *)_impl;
+        else
+            delete (SDL_Display *)_impl;
 #endif
 #ifdef PLATFORM_MAIXCAM
-        this->close();
-        delete (DisplayCviMmf *)_impl;
+        if (_device != "")
+            delete (FB_Display *)_impl;
+        else {
+            this->close();
+            delete (DisplayCviMmf *)_impl;
+        }
 #endif
     }
 
@@ -124,7 +139,7 @@ namespace maix::display
         if (_impl) {
             DisplayBase *disp_base = _impl->add_channel(width_tmp, height_tmp, format_tmp);
             err::check_bool_raise(disp_base, "Unable to add a new channel. Please check the maximum number of supported channels.");
-            disp = new Display(this->device().c_str(), disp_base, width_tmp, height_tmp, format_tmp, open);
+            disp = new Display(this->device(), disp_base, width_tmp, height_tmp, format_tmp, open);
         }
         return disp;
     }
