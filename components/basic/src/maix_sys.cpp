@@ -25,6 +25,8 @@
 #include <iostream>
 #include "maix_basic.hpp"
 
+#define LIB_VERSION_FILE_PATH "/maixapp/maixcam_lib.version"
+
 namespace maix::sys
 {
     std::string os_version()
@@ -105,6 +107,36 @@ namespace maix::sys
 #endif
     }
 
+    std::string runtime_version()
+    {
+        fs::File *file = fs::open(LIB_VERSION_FILE_PATH, "r");
+        if (!file)
+        {
+            return "";
+        }
+        std::string *version = file->readline();
+        std::string curr_version = *version;
+
+        // 去掉头尾的空字符
+        const std::string whitespace = " \t\n\r";
+        size_t start = curr_version.find_first_not_of(whitespace);
+        size_t end = curr_version.find_last_not_of(whitespace);
+
+        if (start != std::string::npos && end != std::string::npos)
+        {
+            curr_version = curr_version.substr(start, end - start + 1);
+        }
+        else
+        {
+            curr_version = ""; // 如果全是空白字符
+        }
+
+        delete version;
+        file->close();
+        delete file;
+        return curr_version;
+    }
+
     static std::map<std::string, std::string> _device_configs;
     std::map<std::string, std::string> device_configs(bool cache)
     {
@@ -118,12 +150,10 @@ namespace maix::sys
         fs::File *f = fs::open("/boot/board", "r");
         if (!f)
         {
-            log::error("open /boot/board failed");
-            return _device_configs;
+            throw err::Exception(err::ERR_ARGS, "open /boot/board failed");
         }
 
         _device_configs.clear();
-        // log::info("device configs:");
         while (1)
         {
             std::string line;
@@ -145,13 +175,64 @@ namespace maix::sys
                 value.erase(0, value.find_first_not_of(" \t\r\n"));
                 value.erase(value.find_last_not_of(" \t\r\n") + 1);
 
-                // log::print("\t%s: %s\n", key.c_str(), value.c_str());
                 _device_configs[key] = value;
             }
         }
-        // log::print("\n");
-
         delete f;
+
+        // 检查是否有 id
+        if (_device_configs.find("id") == _device_configs.end())
+        {
+            throw err::Exception(err::ERR_ARGS, "/boot/board missing 'id' item");
+        }
+
+        // 读取 /boot/boards/board.{id}
+        std::string id = _device_configs["id"];
+        std::string board_file_path = "/boot/boards/board." + id;
+        if (fs::exists(board_file_path))
+        {
+            fs::File *board_file = fs::open(board_file_path, "r");
+            if (!board_file)
+            {
+                log::error(("open " + board_file_path + " failed").c_str());
+                return _device_configs;
+            }
+
+            while (1)
+            {
+                std::string line;
+                int num = board_file->readline(line);
+                if (num <= 0)
+                    break;
+
+                line.erase(0, line.find_first_not_of(" \t\r\n"));
+                line.erase(line.find_last_not_of(" \t\r\n") + 1);
+
+                size_t pos = line.find('=');
+                if (pos != std::string::npos)
+                {
+                    std::string key = line.substr(0, pos);
+                    std::string value = line.substr(pos + 1);
+
+                    key.erase(0, key.find_first_not_of(" \t\r\n"));
+                    key.erase(key.find_last_not_of(" \t\r\n") + 1);
+                    value.erase(0, value.find_first_not_of(" \t\r\n"));
+                    value.erase(value.find_last_not_of(" \t\r\n") + 1);
+
+                    // 如果 /boot/board 没有该键值，则从 board.{id} 补充
+                    if (_device_configs.find(key) == _device_configs.end())
+                    {
+                        _device_configs[key] = value;
+                    }
+                }
+            }
+            delete board_file;
+        }
+        else
+        {
+            log::warn(("Board config not found: " + board_file_path).c_str());
+        }
+
         return _device_configs;
     }
 

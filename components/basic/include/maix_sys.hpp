@@ -27,11 +27,20 @@ namespace maix::sys
      */
     std::string maixpy_version();
 
+
+    /**
+     * Get runtime version
+     * @return current runtime version
+     * @maixpy maix.sys.runtime_version
+     */
+    std::string runtime_version();
+
     /**
      * Get device configs, we also say board configs. e.g. for MaixCAM it read form /boot/board
      * @param cache read id from cache(if exists, or will call device_configs first internally) if true,
      * if false, always read fron config file.
      * @return device id, e.g. "maixcam" "maixcam_pro"
+     * @throw If board config file error will throw out exception(err.Exception)
      * @maixpy maix.sys.device_id
      */
     std::map<std::string, std::string> device_configs(bool cache = true);
