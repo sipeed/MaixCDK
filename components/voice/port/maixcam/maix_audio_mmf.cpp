@@ -813,8 +813,34 @@ namespace maix::audio
     }
 
     int Player::volume(int value) {
-        err::check_raise(err::ERR_NOT_IMPL, "Not support now\r\n");
-        return -1;
+        char buffer[512];
+        value = value > 100 ? 100 : value;
+        value = value < 0 ? -1 : value;
+        // set
+        if (value != -1) {
+            value = 100 - value;
+            snprintf(buffer, sizeof(buffer), "amixer -c 1 set 'DAC' %d%% &> /dev/zero", value);
+            system(buffer);
+        }
+
+        // get
+        FILE *fp;
+        fp = popen("amixer -c 1 get 'DAC'", "r");
+        if (fp == NULL) {
+            return -1;
+        }
+
+        int read_value = -1;
+        while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+            if (strstr(buffer, "  Front Right: Playback")) {
+                sscanf(buffer, "  Front Right: Playback %*d [%d%%]", &read_value);
+            }
+        }
+        pclose(fp);
+
+        read_value = ((100 - read_value)) * 2;
+
+        return read_value;
     }
 
     err::Err Player::play(maix::Bytes *data) {

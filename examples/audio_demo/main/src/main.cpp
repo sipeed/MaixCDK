@@ -244,7 +244,7 @@ int _main(int argc, char* argv[])
         }
 
         log::info("Ready to record and save to %s\r\n", path.c_str());
-        audio::Recorder r = audio::Recorder();
+        audio::Recorder r = audio::Recorder(nullptr, sample_rate, format, channel);
 
         while (!app::need_exit()) {
             Bytes *b = r.record(-1);
@@ -384,7 +384,6 @@ int _main(int argc, char* argv[])
 
         log::info("Playback %s\r\n", path.c_str());
         audio::Player p = audio::Player("", sample_rate, format, channel);
-
         FILE *file;
         file = fopen(path.c_str(), "rb+");
         err::check_null_raise(file);
@@ -397,9 +396,17 @@ int _main(int argc, char* argv[])
         }
         fclose(file);
 
-        while (!app::need_exit()) {
-            time::sleep_ms(1000);
-        }
+        break;
+    }
+    case 7:
+    {
+        int volume = 10;
+        if (argc > 2) volume = atoi(argv[2]);
+
+        log::info("Set player volume:%d\r\n", volume);
+        audio::Player r = audio::Player();
+        int new_volume = r.volume(volume);
+        log::info("Get player volume:%d\r\n", new_volume);
         break;
     }
     case 100:

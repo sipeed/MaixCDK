@@ -165,9 +165,9 @@ namespace maix::audio
         ~Player();
 
         /**
-         * Set/Get player volume(Not support now)
+         * Set/Get player volume
          * @param value volume value, If you use this parameter, audio will set the value to volume,
-         * if you don't, it will return the current volume.
+         * if you don't, it will return the current volume. range is [0, 100].
          * @return the current volume
          * @maixpy maix.audio.Player.volume
         */
