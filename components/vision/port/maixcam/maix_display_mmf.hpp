@@ -20,10 +20,33 @@
 #include <sys/ioctl.h>
 #include <linux/fb.h>
 #include <sys/mman.h>
+#include "maix_fs.hpp"
+
 using namespace maix::peripheral;
 
 namespace maix::display
 {
+    enum class PanelType {
+        NORMAL,
+        LT9611,
+        UNKNOWN,
+    };
+    inline static PanelType __g_panel_type = PanelType::UNKNOWN;
+
+    static bool __check_lt9611()
+    {
+        return fs::exists("/boot/lt9611.txt");
+    }
+
+    static bool _get_board_config_path(char *path, int path_size)
+    {
+        if (fs::exists("/boot/board")) {
+            snprintf(path, path_size, "/boot/board");
+            return true;
+        }
+        return false;
+    }
+
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
@@ -59,12 +82,23 @@ namespace maix::display
             printf("panel value not found\n");
         }
 
+        __g_panel_type = PanelType::NORMAL;
         if (!strcmp(panel_value, "st7701_hd228001c31")) { // maixcam
             w = 368;
             h = 552;
+            if (__check_lt9611()) {
+                /* for LT9611 552x368 */
+                __g_panel_type = PanelType::LT9611;
+                std::swap(w, h);
+            }
         } else if (!strcmp(panel_value, "st7701_lct024bsi20")) { // maixcam_pro
             w = 480;
             h = 640;
+            if (__check_lt9611()) {
+                /* for LT9611 640x480 */
+                __g_panel_type = PanelType::LT9611;
+                std::swap(w, h);
+            }
         } else if (!strcmp(panel_value, "zct2133v1")) {
             w = 800;
             h = 1280;
@@ -80,6 +114,16 @@ namespace maix::display
         } else if (!strcmp(panel_value, "st7701_d300fpc9307a")) {
             w = 480;
             h = 854;
+        } else if (!strcmp(panel_value, "lt9611_1024x768_60hz")) {
+            /* for LT9611 1024x768 */
+            w = 768;
+            h = 1024;
+            __g_panel_type = PanelType::LT9611;
+        } else if (!strcmp(panel_value, "lt9611_1280x720_60hz")) {
+            /* for LT9611 1280x720 */
+            w = 720;
+            h = 1280;
+            __g_panel_type = PanelType::LT9611;
         }
 
         if(w == 0 || h == 0)
@@ -243,10 +287,13 @@ namespace maix::display
             image::Format format_out = (image::Format)mmf_invert_format_to_maix(mmf_format_out);
             size_t image_size = image::fmt_size[format_out];
             int pool_num_out = 1;
-            if (width * height * image_size > 1920 * 1080 * image_size) {
+            if (width * height * image_size > 1920 * 1080 * image_size || __g_panel_type == PanelType::LT9611) {
                 pool_num_out = 2;
             }
-            if (0 != mmf_add_vo_channel_v2(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), mmf_format_out, -1, 0, -1, -1, 0, 90, 2, pool_num_out)) {
+            int rotate = 90;
+            if (__g_panel_type == PanelType::LT9611)
+                rotate = 0;
+            if (0 != mmf_add_vo_channel_v2(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), mmf_format_out, -1, 0, -1, -1, 0, rotate, 2, pool_num_out)) {
                 log::error("mmf_add_vo_channel_v2 failed\n");
                 return err::ERR_RUNTIME;
             }
