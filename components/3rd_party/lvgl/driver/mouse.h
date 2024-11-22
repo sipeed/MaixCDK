@@ -47,6 +47,12 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+enum class MouseInputDevice {
+    TOUCHSCREEN,
+    USB_MOUSE,
+    UNKNOWN
+};
+
 
 /**********************
  * GLOBAL PROTOTYPES
@@ -55,7 +61,7 @@ extern "C" {
 /**
  * Initialize the mouse
  */
-void mouse_init(lv_indev_t * indev_drv);
+MouseInputDevice mouse_init(lv_indev_t * indev_drv);
 
 /**
  * Get the current position and state of the mouse

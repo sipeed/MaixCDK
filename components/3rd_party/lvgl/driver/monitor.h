@@ -34,6 +34,8 @@ extern "C" {
  **********************/
 void monitor_init(int w, int h);
 void monitor_flush(lv_display_t * disp_drv, const lv_area_t * area, uint8_t * color_p);
+
+void monitor_rect(int* w, int* h);
 /**********************
  *      MACROS
  **********************/
