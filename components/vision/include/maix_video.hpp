@@ -103,6 +103,7 @@ namespace maix::video
 
             _pcm = NULL;
             _image = NULL;
+            _raw_data = NULL;
         }
 
         /**
@@ -129,6 +130,7 @@ namespace maix::video
             _audio_channels = channels;
             _pcm = NULL;
             _image = NULL;
+            _raw_data = NULL;
         }
 
         ~Context() {
@@ -142,6 +144,12 @@ namespace maix::video
                     delete _pcm;
                     _pcm = NULL;
                 }
+            }
+
+            if (_raw_data) {
+                free(_raw_data);
+                _raw_data = NULL;
+                _raw_data_size = 0;
             }
         }
 
@@ -212,6 +220,45 @@ namespace maix::video
         }
 
         /**
+         * @brief Set private data
+         * @param data private raw data
+         * @param data_size private raw data size
+         * @param duration Duration of the current image. unit: timebase
+         * @param pts The start time of this image playback. If it is 0, it means this parameter is not supported. unit: timebase
+         * @param last_pts The start time of the previous image playback. It can be used to ensure the playback order. If it is 0, it means this parameter is not supported. unit: timebase
+         * @maixcdk maix.video.Context.set_raw_data
+         */
+        void set_raw_data(void *data, size_t data_size, int duration = 0, uint64_t pts = 0, uint64_t last_pts = 0, bool copy = false) {
+            if (copy) {
+                void *new_data = malloc(data_size);
+                err::check_null_raise(new_data, "malloc raw data failed!");
+                memcpy(new_data, data, data_size);
+                _raw_data = new_data;
+                _raw_data_size = data_size;
+            } else {
+                _raw_data = data;
+                _raw_data_size = data_size;
+            }
+            _duration = duration < 0 ? 0 : duration;
+            _pts = pts < 0 ? 0 : pts;
+            _last_pts = last_pts < 0 ? 0 : last_pts;
+        }
+
+        /**
+         * @brief Get private data
+         * @maixcdk maix.video.Context.get_raw_data
+         */
+        void *get_raw_data() {
+            void *new_data = _raw_data;
+            _raw_data = NULL;
+            return new_data;
+        }
+
+        size_t get_raw_data_size() {
+            return _raw_data_size;
+        }
+
+        /**
          * @brief Retrieve the image data to be played.
          * @attention Note that if you call this interface, you are responsible for releasing the memory of the image, and this interface cannot be called again.
          * @maixpy maix.video.Context.image
@@ -272,6 +319,8 @@ namespace maix::video
         private:
         video::MediaType _media_type;
         image::Image *_image;
+        void *_raw_data;
+        size_t _raw_data_size;
         uint64_t _pts;
         uint64_t _last_pts;
         std::vector<int> _timebase; // [den, num], timebase = den / num
@@ -819,6 +868,13 @@ namespace maix::video
          * @maixpy maix.video.Decoder.decode
         */
         video::Context * decode(bool block = true);
+
+        /**
+         * Unpacking the video and audio stream
+         * @return Unpacking context information.
+         * @maixcdk maix.video.Decoder.unpack
+        */
+        video::Context * unpack();
 
         /**
          * @brief Get sample rate of audio (only valid in the context of audio)

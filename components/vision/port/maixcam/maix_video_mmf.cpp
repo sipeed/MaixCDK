@@ -2552,6 +2552,116 @@ _retry:
         }
     }
 
+    video::Context *Decoder::unpack() {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+        int audio_stream_index = param->audio_stream_index;
+        AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
+        AVFrame *audio_frame = param->audio_frame;
+        int resample_channels = param->resample_channels;
+        int resample_sample_rate = param->resample_sample_rate;
+        enum AVSampleFormat resample_format = param->resample_sample_format;
+        SwrContext *swr_ctx = param->swr_ctx;
+        image::Image *img = NULL;
+        video::Context *context = NULL;
+        uint64_t last_pts = 0;
+        bool is_video = false;
+        bool is_audio = false;
+
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            if (pPacket->stream_index == video_stream_index) {
+                last_pts = _last_pts;
+                _last_pts = pPacket->pts;
+                is_video = true;
+
+                int64_t packet_duration = pPacket->duration;
+                switch (param->video_format) {
+                    case VIDEO_FORMAT_H264:
+                        break;
+                    case VIDEO_FORMAT_H264_FLV:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    case VIDEO_FORMAT_H264_MP4:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    default:
+                        err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                        break;
+                }
+
+                video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                            (int)pFormatContext->streams[video_stream_index]->time_base.den};
+                context = new video::Context(media_type, timebase);
+                context->set_raw_data(pPacket->data, pPacket->size, packet_duration, pPacket->pts, last_pts, true);
+                av_packet_unref(pPacket);
+                break;
+            } else if (pPacket->stream_index == audio_stream_index) {
+                is_audio = true;
+                if (avcodec_send_packet(audio_codec_ctx, pPacket) >= 0) {
+                    while (avcodec_receive_frame(audio_codec_ctx, audio_frame) >= 0) {
+                        uint8_t *output;
+                        int out_samples = av_rescale_rnd(
+                            swr_get_delay(swr_ctx, audio_codec_ctx->sample_rate) + audio_frame->nb_samples,
+                            audio_codec_ctx->sample_rate,
+                            audio_codec_ctx->sample_rate,
+                            AV_ROUND_UP
+                        );
+
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+
+                        int converted_samples = swr_convert(
+                            swr_ctx,
+                            &output, out_samples,
+                            (const uint8_t **)audio_frame->data, audio_frame->nb_samples
+                        );
+
+                        video::MediaType media_type = MEDIA_TYPE_AUDIO;
+                        if (converted_samples > 0) {
+                            // Process the converted PCM data in `output` (e.g., write to file or buffer)
+                            // fwrite(output, 1, converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16), stdout);
+
+                            media_type = MEDIA_TYPE_AUDIO;
+                        } else {
+                            media_type = MEDIA_TYPE_UNKNOWN;
+                        }
+
+                        std::vector<int> timebase = {(int)pFormatContext->streams[audio_stream_index]->time_base.num,
+                                                    (int)pFormatContext->streams[audio_stream_index]->time_base.den};
+                        // context = new video::Context(MEDIA_TYPE_UNKNOWN, timebase);
+                        context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+                        Bytes data(output, converted_samples * audio_codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+                        context->set_pcm(&data, pPacket->duration, pPacket->pts);
+                        // log::info("data:%p size:%d sample_rate:%d channel:%d timebase:%d/%d, duration:%d pts:%d", output,
+                        //         converted_samples * audio_codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
+                        //         audio_codec_ctx->sample_rate, audio_codec_ctx->channels,
+                        //         timebase[0], timebase[1], pPacket->duration, audio_frame->pts);
+
+                        av_freep(&output);
+                    }
+                }
+                break;
+            }
+            av_packet_unref(pPacket);
+        }
+
+        if (is_video) {
+            if (context) {
+                param->next_pts += context->duration();
+            }
+            return context;
+        } else if (is_audio) {
+            return context;
+        } else {
+            return NULL;
+        }
+    }
+
     double Decoder::seek(double time) {
 #if 0
         decoder_param_t *param = (decoder_param_t *)_param;

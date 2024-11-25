@@ -11,6 +11,7 @@
 #include "maix_basic.hpp"
 #include <dirent.h>
 #include "sophgo_middleware.hpp"
+#include "maix_rtsp_server.hpp"
 
 namespace maix::rtsp
 {
@@ -122,9 +123,22 @@ namespace maix::rtsp
         return err::ERR_NONE;
     }
 
+    enum RtspStatus{
+        RTSP_IDLE = 0,
+        RTSP_RUNNING,
+        RTSP_STOP,
+    };
+
+    typedef struct {
+        MaixRtspServer *rtsp_server;
+        enum RtspStatus status;
+        int *clients;
+    } rtsp_param_t;
+
     Rtsp::Rtsp(std::string ip, int port, int fps, rtsp::RtspStreamType stream_type) {
-        err::check_bool_raise(stream_type == rtsp::RtspStreamType::RTSP_STREAM_H265,
-                            "support RTSP_STREAM_H265 only!");
+        rtsp_param_t *param = (rtsp_param_t *)malloc(sizeof(rtsp_param_t));
+        err::check_null_raise(param, "malloc failed!");
+
         this->_ip = ip;
         this->_port = port;
         this->_fps = fps;
@@ -132,6 +146,7 @@ namespace maix::rtsp
         this->_bind_camera = false;
         this->_is_start = false;
         this->_thread = NULL;
+        this->_param = param;
         this->_region_max_number = 16;
         for (int i = 0; i < this->_region_max_number; i ++) {
             this->_region_list.push_back(NULL);
@@ -139,22 +154,66 @@ namespace maix::rtsp
             this->_region_used_list.push_back(false);
         }
 
-        char *new_ip = NULL;
-        if (this->_ip.size() != 0) {
-            new_ip = (char *)this->_ip.c_str();
+        if (_ip.size() == 0) {
+            _ip = "0.0.0.0";
         }
+
         this->_timestamp = 0;
         this->_last_ms = 0;
-        err::check_bool_raise(!rtsp_server_init(new_ip, this->_port), "Rtsp init failed!");
+        MaixRtspServerBuilder rtsp_builder = MaixRtspServerBuilder()
+                                    .set_ip(_ip)
+                                    .set_port(this->_port)
+                                    .set_session_name("live")
+                                    .set_audio_channels(1)
+                                    .set_audio_sample_rate(48000);log::info("============[%s][%d]", __func__, __LINE__);
+        std::shared_ptr<MaixRtspServer> rtsp_server = rtsp_builder.build();log::info("============[%s][%d]", __func__, __LINE__);
+
+
+        // std::string ip = _ip;
+        // int port = 8554;
+//         ip = "0.0.0.0";
+//         port = 8554;
+//         std::string session_name = "live";
+//         int audio_sample_rate = 48000;
+//         int audio_channels = 1;
+//         printf("ip=%s, port=%d, session_name=%s, audio_sample_rate=%d, audio_channels=%d\r\n", ip.c_str(), port, session_name.c_str(), audio_sample_rate, audio_channels);
+
+//         std::shared_ptr<xop::EventLoop> event_loop(new xop::EventLoop());
+//         std::shared_ptr<xop::RtspServer> server = xop::RtspServer::Create(event_loop.get());
+//         if (!server->Start(ip, port)) {
+//             throw "rtsp server start failed";
+//         }
+
+//         xop::MediaSession *session = xop::MediaSession::CreateNew(session_name);
+//         session->AddSource(xop::channel_0, xop::H264Source::CreateNew());
+//         session->AddSource(xop::channel_1, xop::AACSource::CreateNew(audio_sample_rate, audio_channels));
+//         int *clients = (int *)malloc(sizeof(int));
+//         if (clients == nullptr) {
+//             throw "alloc memory failed";
+//         }
+//         session->AddNotifyConnectedCallback([clients] (xop::MediaSessionId sessionId, std::string peer_ip, uint16_t peer_port){
+//             printf("RTSP client connect, ip=%s, port=%hu \n", peer_ip.c_str(), peer_port);
+//             (*clients) ++;
+//         });
+//         session->AddNotifyDisconnectedCallback([clients](xop::MediaSessionId sessionId, std::string peer_ip, uint16_t peer_port) {
+//             printf("RTSP client disconnect, ip=%s, port=%hu \n", peer_ip.c_str(), peer_port);
+//             (*clients) --;
+//         });
+//         xop::MediaSessionId session_id = server->AddSession(session);
+// printf("================[%s][%d]\n", __func__, __LINE__);
+//         auto rtsp_server = new MaixRtspServer(clients, server, session_id);printf("================[%s][%d]\n", __func__, __LINE__);
+
+//         param->rtsp_server = rtsp_server;printf("================[%s][%d]\n", __func__, __LINE__);
+        // err::check_null_raise(new_server, "rtsp server init failed!");log::info("============[%s][%d]", __func__, __LINE__);
     }
 
     Rtsp::~Rtsp() {
-        if (this->_is_start) {
-            this->stop();
-        }
-
-        if (0 != rtsp_server_deinit()) {
-            log::warn("rtsp deinit failed!\r\n");
+        rtsp_param_t *param = (rtsp_param_t *)_param;
+        if (param) {
+            if (param->rtsp_server) {
+                delete param->rtsp_server;
+                param->rtsp_server = nullptr;
+            }
         }
 
         for (auto &region : this->_region_list) {
@@ -163,99 +222,56 @@ namespace maix::rtsp
     }
 
     static void _camera_push_thread(void *args) {
-        Rtsp *rtsp = (Rtsp *)args;
-        void *data;
-        int data_size, width, height, format;
-        int vi_ch = 0, enc_ch = 1;
-        int fps = rtsp->to_camera()->fps();
-        uint64_t wait_us = 1000000 / fps;
-        uint64_t last_us = time::time_us();
-        while (rtsp->rtsp_is_start()) {
-            rtsp->update_timestamp();
-            uint64_t timestamp = rtsp->get_timestamp();
+        rtsp_param_t *param = (rtsp_param_t *)args;
+        MaixRtspServer *rtsp_server = param->rtsp_server;
+        while (param->status != RTSP_RUNNING) {
+            log::info("rtsp server clients:%d", rtsp_server->get_clients());
+            if (rtsp_server->get_clients() > 0) {
 
-            mmf_h265_stream_t stream;
-            if (!mmf_enc_h265_pop(enc_ch, &stream)) {
-                int stream_size = 0;
-                for (int i = 0; i < stream.count; i ++) {
-                    // log::info("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
-                    stream_size += stream.data_size[i];
-                }
-
-                if (stream.count > 1) {
-                    uint8_t *stream_buffer = (uint8_t *)malloc(stream_size);
-                    if (stream_buffer) {
-                        int copy_length = 0;
-                        for (int i = 0; i < stream.count; i ++) {
-                            memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
-                            copy_length += stream.data_size[i];
-                        }
-                        rtsp_send_h265_data(timestamp, stream_buffer, copy_length);
-                        free(stream_buffer);
-                    } else {
-                        log::warn("malloc failed!\r\n");
-                    }
-                } else if (stream.count == 1) {
-                    rtsp_send_h265_data(timestamp, (uint8_t *)stream.data[0], stream.data_size[0]);
-                }
-
-                if (mmf_enc_h265_free(enc_ch)) {
-                    log::warn("mmf_enc_h265_free failed\n");
-                    continue;
-                }
             }
+        }
 
-            if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
-                continue;
-            }
-            while (time::ticks_us() - last_us < wait_us) {
-                time::sleep_us(50);
-            }
-
-            last_us = time::ticks_us();
-            if (mmf_enc_h265_push(enc_ch, (uint8_t *)data, width, height, format)) {
-                log::warn("mmf_enc_h265_push failed\n");
-                continue;
-            }
-
-            mmf_vi_frame_free(vi_ch);
+        if (param->status == RTSP_STOP) {
+            param->status = RTSP_IDLE;
         }
     }
 
     err::Err Rtsp::start() {
         err::Err err = err::ERR_NONE;
-
-        if (0 != rtsp_server_start()) {
-            log::error("rtsp start failed!\r\n");
+        rtsp_param_t *param = (rtsp_param_t *)_param;
+        if (!param) {
             return err::ERR_RUNTIME;
         }
 
-        if (this->_bind_camera) {
-            this->_thread = new thread::Thread(_camera_push_thread, this);
-            if (this->_thread == NULL) {
-                log::error("create camera thread failed!\r\n");
-                return err::ERR_RUNTIME;
-            }
+        if (param->status != RTSP_IDLE) {
+            return err::ERR_BUSY;
         }
 
-        this->_is_start = true;
+        if (!_bind_camera) {
+            log::error("bind camera failed!");
+            return err::ERR_RUNTIME;
+        }
 
+        param->status = RTSP_RUNNING;
+        _thread = new thread::Thread(_camera_push_thread, param);
+        if (_thread == NULL) {
+            log::error("create camera thread failed!\r\n");
+            return err::ERR_RUNTIME;
+        }
         return err;
     }
 
     err::Err Rtsp::stop() {
         err::Err err = err::ERR_NONE;
-
-        this->_is_start = false;
-
-        if (this->_bind_camera) {
-            this->_thread->join();
+        rtsp_param_t *param = (rtsp_param_t *)_param;
+        if (param->status != RTSP_RUNNING) {
+            return err::ERR_NONE;
         }
 
-        if (0 != rtsp_server_stop()) {
-            log::error("rtsp stop failed!\r\n");
-            this->_is_start = true;
-            return err::ERR_RUNTIME;
+        param->status = RTSP_STOP;
+        if (_bind_camera) {
+            _thread->join();
+            _thread = nullptr;
         }
 
         return err;

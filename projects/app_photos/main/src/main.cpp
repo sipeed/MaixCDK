@@ -32,7 +32,7 @@ int _main(int argc, char **argv)
     app_pre_init();
 
     // init display
-    display::Display disp = display::Display();
+    display::Display disp = display::Display(-1, -1, image::FMT_YVU420SP);
     err::check_bool_raise(disp.is_opened(), "camera open failed");
     display::Display *other_disp = disp.add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
     err::check_bool_raise(disp.is_opened(), "display open failed");

@@ -252,6 +252,7 @@ namespace maix::rtsp
         uint64_t _timestamp;
         uint64_t _last_ms;
         int _region_max_number;
+        void *_param;
     };
 } // namespace maix::rtsp
 

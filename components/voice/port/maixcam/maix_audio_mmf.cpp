@@ -348,8 +348,16 @@ namespace maix::audio
         int len = 0;
         int frame_byte = snd_pcm_format_width(format) / 8;
         int write_count = buffer_size / frame_byte / channels;
-        if (snd_pcm_wait(handle, 1000) < 0) {
-            printf("alsa pcm wait timeout!\r\n");
+        int ret = 0;
+        int retry_count = 2;
+_retry:
+        if ((ret = snd_pcm_wait(handle, 5000)) < 0) {
+            // printf(" alsa pcm wait timeout! retry_count:%d ret:%d(%s)\r\n", retry_count, ret, snd_strerror(errno));
+            snd_pcm_prepare(handle);
+            if (retry_count > 0) {
+                retry_count--;
+                goto _retry;
+            }
             return 0;
         }
 
