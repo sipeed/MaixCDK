@@ -36,7 +36,7 @@ int _main(int argc, char* argv[])
 {
     nn::Speech speech("/root/models/am_3332_192_int8.mud");
 
-    speech.init(nn::SpeechDevice::DEVICE_MIC, "hw:0,0");         // use mic device
+    speech.init(nn::SpeechDevice::DEVICE_MIC);                      // use mic device
     // speech.init(nn::SpeechDevice::DEVICE_WAV, "test.wav");       // use wav file
     // speech.init(nn::SpeechDevice::DEVICE_PCM, "test.pcm");       // use pcm file
 
