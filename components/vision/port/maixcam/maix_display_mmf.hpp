@@ -20,37 +20,36 @@
 #include <sys/ioctl.h>
 #include <linux/fb.h>
 #include <sys/mman.h>
+#include "maix_fs.hpp"
+
 using namespace maix::peripheral;
 
 namespace maix::display
 {
+    enum class PanelType {
+        NORMAL,
+        LT9611,
+        UNKNOWN,
+    };
+    inline static PanelType __g_panel_type = PanelType::UNKNOWN;
+
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
         int w = 0, h = 0;
 
-        char line[1024];
         char panel_value[256];
+        ::memset(panel_value, 0x00, std::size(panel_value));
 
         char *panel_env = getenv("MMF_PANEL_NAME");
         if (panel_env) {
             log::info("Found panel env MMF_PANEL_NAME=%s\r\n", panel_env);
             strncpy(panel_value, panel_env, sizeof(panel_value));
         } else {
-            FILE *file = fopen("/boot/uEnv.txt", "r");
-            if (file == NULL) {
-                perror("Error opening file");
-                return 1;
-            }
-
-            while (fgets(line, sizeof(line), file)) {
-                if (strncmp(line, "panel=", 6) == 0) {
-                    strcpy(panel_value, line + 6);
-                    panel_value[strcspn(panel_value, "\n")] = '\0';
-                    break;
+            for (const auto& [k, v] : sys::device_configs(false)) {
+                if (k == "panel") {
+                    std::copy(v.begin(), v.end(), panel_value);
                 }
             }
-
-            fclose(file);
         }
 
         if (strlen(panel_value) > 0) {
@@ -59,6 +58,7 @@ namespace maix::display
             printf("panel value not found\n");
         }
 
+        __g_panel_type = PanelType::NORMAL;
         if (!strcmp(panel_value, "st7701_hd228001c31")) { // maixcam
             w = 368;
             h = 552;
@@ -80,6 +80,26 @@ namespace maix::display
         } else if (!strcmp(panel_value, "st7701_d300fpc9307a")) {
             w = 480;
             h = 854;
+        } else if (!strcmp(panel_value, "lt9611_1024x768_60hz")) {
+            /* for LT9611 1024x768 */
+            w = 768;
+            h = 1024;
+            __g_panel_type = PanelType::LT9611;
+        } else if (!strcmp(panel_value, "lt9611_1280x720_60hz")) {
+            /* for LT9611 1280x720 */
+            w = 720;
+            h = 1280;
+            __g_panel_type = PanelType::LT9611;
+        } else if (!strcmp(panel_value, "lt9611_640x480_60hz")) {
+            /* for LT9611 640x480 */
+            w = 640;
+            h = 480;
+            __g_panel_type = PanelType::LT9611;
+        } else if (!strcmp(panel_value, "lt9611_552x368_60hz")) {
+            /* for LT9611 552x368 */
+            w = 552;
+            h = 368;
+            __g_panel_type = PanelType::LT9611;
         }
 
         if(w == 0 || h == 0)
@@ -243,10 +263,13 @@ namespace maix::display
             image::Format format_out = (image::Format)mmf_invert_format_to_maix(mmf_format_out);
             size_t image_size = image::fmt_size[format_out];
             int pool_num_out = 1;
-            if (width * height * image_size > 1920 * 1080 * image_size) {
+            if (width * height * image_size > 1920 * 1080 * image_size || __g_panel_type == PanelType::LT9611) {
                 pool_num_out = 2;
             }
-            if (0 != mmf_add_vo_channel_v2(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), mmf_format_out, -1, 0, -1, -1, 0, 90, 2, pool_num_out)) {
+            int rotate = 90;
+            if (__g_panel_type == PanelType::LT9611)
+                rotate = 0;
+            if (0 != mmf_add_vo_channel_v2(this->_layer, ch, width, height, mmf_invert_format_to_mmf(format), mmf_format_out, -1, 0, -1, -1, 0, rotate, 2, pool_num_out)) {
                 log::error("mmf_add_vo_channel_v2 failed\n");
                 return err::ERR_RUNTIME;
             }

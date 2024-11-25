@@ -34,6 +34,14 @@ void monitor_init(int w, int h)
     vres = h;
 }
 
+void monitor_rect(int* w, int* h)
+{
+    if (nullptr != w)
+        *w = hres;
+    if (nullptr != h)
+        *h = vres;
+}
+
 /**
  * Flush a buffer to the marked area
  * @param drv pointer to driver where this function belongs
