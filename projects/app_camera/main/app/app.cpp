@@ -89,9 +89,9 @@ static int save_buff_to_file(char *filename, uint8_t *filebuf, uint32_t filebuf_
 
 int app_pre_init(void)
 {
-    priv.camera_resolution_w = 640;
-    priv.camera_resolution_h = 480;
-    priv.resolution_index = 3;  // 0: 2560x1440; 1: 1920x1080; 2: 1280x720; 3: 640x480
+    priv.camera_resolution_w = 2560;
+    priv.camera_resolution_h = 1440;
+    priv.resolution_index = 0;  // 0: 2560x1440; 1: 1920x1080; 2: 1280x720; 3: 640x480
     priv.encoder_bitrate = 3 * 1000 * 1000;
     return 0;
 }
