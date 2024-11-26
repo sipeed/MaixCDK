@@ -201,22 +201,26 @@ def parse_args(sdk_path, project_path, extra_tools):
         subparsers.add_parser(sub_parser.prog, parents=[sub_parser], help=sub_parser.description)
 
     # cmd build
-    parser_build = subparsers.add_parser("build", help="start compile project, temp files in `build` dir, dist files in `dist` dir, by default always execute cmake to regenerate, to disable cmake execute, use --no-gen option")
-    parser_build.add_argument('--config-file',
-                            help='config file path, e.g. config_defaults.mk',
-                            metavar='PATH',
-                            default="{}/config_defaults.mk".format(project_path))
-    parser_build.add_argument('--verbose',
-                            help='for build command, execute `cmake -build . --verbose` to compile',
-                            action="store_true",
-                            default=False)
-    parser_build.add_argument('-G', '--generator', default="", help="project type to generate, supported type on your platform see `cmake --help`")
-    parser_build.add_argument('--release', action="store_true", default=False, help="release mode, default is release mode")
-    parser_build.add_argument('--debug', action="store_true", default=False, help="debug mode, default is release mode")
-    parser_build.add_argument('--build-type', default=None, help="build type, [Debug, Release, MinRelSize, RelWithDebInfo], you can also set build type by CMAKE_BUILD_TYPE environment variable")
-    parser_build.add_argument('-p', "--platform", default="", help="device name, e.g. linux, maixcam, m2dock", choices=get_platforms(sdk_path))
-    parser_build.add_argument("--no-gen", action="store_true", default=False, help="by default the build command do the same action as rebuild to avoid user can't understand rebuild, but if you don't want to re-execute cmake command, and only compile, use this option")
-    parser_build.add_argument('--toolchain-id', default="", help="toolchain id, if platform has multiple toolchains, use this option to select one")
+    parser_build = subparsers.add_parser("build", help="start compile project, temp files in `build` dir, dist files in `dist` dir, build command by default always execute cmake to regenerate, to disable file change scan (cmake execute), use build2 command or add --no-gen option to only compile changed files, warning build2 will not detect file additions and deletions")
+    parser_build2 = subparsers.add_parser("build2", help="same as `maixcdk build --no-gen`, compile project, not scan files additions and deletions, only compile changed files, so build faster but be attention you should use build again if you add new file or delete files")
+    parser_build.add_argument("--no-gen", action="store_true", default=False, help="same as command build2, by default the build command do the same action as rebuild to avoid user can't understand rebuild, but if you don't want to re-execute cmake command, and only compile, use this option")
+    def add_build_args(parser_):
+        parser_.add_argument('--config-file',
+                                help='config file path, e.g. config_defaults.mk',
+                                metavar='PATH',
+                                default="{}/config_defaults.mk".format(project_path))
+        parser_.add_argument('--verbose',
+                                help='for build command, execute `cmake -build . --verbose` to compile',
+                                action="store_true",
+                                default=False)
+        parser_.add_argument('-G', '--generator', default="", help="project type to generate, supported type on your platform see `cmake --help`")
+        parser_.add_argument('--release', action="store_true", default=False, help="release mode, default is release mode")
+        parser_.add_argument('--debug', action="store_true", default=False, help="debug mode, default is release mode")
+        parser_.add_argument('--build-type', default=None, help="build type, [Debug, Release, MinRelSize, RelWithDebInfo], you can also set build type by CMAKE_BUILD_TYPE environment variable")
+        parser_.add_argument('-p', "--platform", default="", help="device name, e.g. linux, maixcam, m2dock", choices=get_platforms(sdk_path))
+        parser_.add_argument('--toolchain-id', default="", help="toolchain id, if platform has multiple toolchains, use this option to select one")
+    add_build_args(parser_build)
+    add_build_args(parser_build2)
 
     # cmd menuconfig
     parser_menuconfig = subparsers.add_parser("menuconfig", help="open menuconfig panel, a visual config panel")
@@ -322,7 +326,7 @@ def main(sdk_path, project_path):
         distclean(project_path, build_path, dist_path)
         print("-- Distclean done")
         sys.exit(0)
-    elif cmd in ["build"]:
+    elif cmd in ["build", "build2"]:
         check_project_valid()
         platform = configs["PLATFORM"]
         print("-- Project ID: {}".format(project_id))
@@ -364,7 +368,7 @@ def main(sdk_path, project_path):
 
         print("-- Build now")
         t = time.time()
-        if args.no_gen:
+        if cmd == "build2" or args.no_gen:
             build(build_path, configs, info, args.verbose)
         else:
             rebuild(build_path, configs, info, args.verbose)

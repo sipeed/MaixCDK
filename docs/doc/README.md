@@ -77,17 +77,23 @@ Follow the prompts to select the device platform. A menu appears to configure pa
 ```shell
 maixcdk build
 ```
-On first run, this step downloads the necessary toolchain. If downloads are slow, manually download to the specified directory, then run the build again.
-> Downloaded resources are mainly from GitHub. Set up a proxy for faster downloads. Users in China can download from the [main page QQ group](../) file section.
-> To set a proxy: `export http_proxy=http://127.0.0.1:8123 https_proxy=http://127.0.0.1:8123`, where `http://127.0.0.1:8123` is your proxy address.
+The first time you run this step, the device will download the compilation toolchain. If the download is slow, you can manually download it to the specified directory as prompted, and then proceed with the compilation.
 
-After compilation, the binary files can be found in the `build` directory, with dependencies in `build/dl_lib`.
+>! The resources are mostly downloaded from GitHub, and download speeds in China may be slow or even fail (the list of files to download is in `dl/pkgs_info.json`). There are several common solutions:
+> 1. Set a proxy in the terminal (recommended), for example: `export http_proxy=http://127.0.0.1:8123 https_proxy=http://127.0.0.1:8123`. Here, `http://127.0.0.1:8123` is the address of your HTTP proxy.
+> 2. Manually download to the `dl/pkgs` folder: During the download, the download URL and local path will be printed. You can manually download the files and place them in the corresponding directory. When you run the build command again, it will use the locally prepared files (Note: the file’s sha256 checksum must match, i.e., it must be the same file).
+> 3. Users in China can go to the [QQ Group](../) on the homepage, find the `MaixCDK` folder, and download the files to the `MaixCDK/dl` directory.
 
-After code changes, rerun `maixcdk build` to recompile.
+>! For common errors and solutions, refer to the [FAQ](./faq.md).
 
-The `maixcdk build` command scans all file changes before building.
-If **no source files are added or removed, use `maixcdk build --no-gen` for faster compilation**.
-> Since it uses `cmake`, the `build` command always executes `cmake` first. Adding `--no-gen` skips `cmake` and runs `make` directly, saving time if files haven’t changed.
+After the compilation, you will find the binary program files in the `build` directory, and the dependent `.so` files in `build/dl_lib`.
+
+After modifying the code, you can run `maixcdk build` again to compile.
+
+The `maixcdk build` command will scan all files for changes and rebuild them by default.  
+If you **haven’t added or removed source files**, you can run `maixcdk build2` or `maixcdk build --no-gen` for faster compilation (it will only compile the modified files).  
+> This is because the `build` command starts the entire build process from scratch, scanning files and recompiling. In contrast, the `build2` command will not scan for file additions or deletions and will only compile the edited files.  
+> Note: The `build2` command will not detect file additions or deletions, so if you **add or remove files**, you must run the `build` command again.
 
 Run `maixcdk distclean` to clear all temporary build files and start fresh (this increases build time and is typically used to troubleshoot issues).
 
