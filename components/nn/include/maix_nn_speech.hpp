@@ -18,7 +18,6 @@
 namespace maix::nn
 {
 
-static bool _is_skip_frames {false};
 static std::function<void(std::vector<std::pair<int, float>>, int)> raw_callback;
 static std::function<void(char*, int)> digit_callback;
 static std::function<void(std::vector<float>, int)> kws_callback;
@@ -48,6 +47,9 @@ enum class SpeechDecoder {
 };
 
 #ifdef PLATFORM_MAIXCAM
+
+    static bool _is_skip_frames {false};
+
     /**
      * Speech
      * @maixpy maix.nn.Speech
@@ -293,7 +295,7 @@ enum class SpeechDecoder {
          * @return err::Err type, if init success, return err::ERR_NONE
          * @maixpy maix.nn.Speech.raw
          */
-        err::Err raw(std::function<void(std::vector<std::pair<int, float>>, int)> callback) 
+        err::Err raw(std::function<void(std::vector<std::pair<int, float>>, int)> callback)
         {
             if (this->dev_type() == SpeechDevice::DEVICE_NONE) {
                 log::error("please init a type of audio device first.");
@@ -778,7 +780,7 @@ enum class SpeechDecoder {
          * @return err::Err type, if init success, return err::ERR_NONE
          * @maixpy maix.nn.Speech.raw
          */
-        err::Err raw(std::function<void(std::vector<pnyp_t>, int)> callback) 
+        err::Err raw(std::function<void(std::vector<std::pair<int, float>>, int)> callback)
         {
             return err::ERR_NONE;
         }
