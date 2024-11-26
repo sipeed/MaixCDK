@@ -45,7 +45,7 @@ namespace maix::display
             log::info("Found panel env MMF_PANEL_NAME=%s\r\n", panel_env);
             strncpy(panel_value, panel_env, sizeof(panel_value));
         } else {
-            for (const auto& [k, v] : sys::device_configs(false)) {
+            for (const auto& [k, v] : sys::device_configs()) {
                 if (k == "panel") {
                     std::copy(v.begin(), v.end(), panel_value);
                 }
