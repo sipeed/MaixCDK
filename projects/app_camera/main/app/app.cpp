@@ -787,6 +787,13 @@ static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img
             fs::mkdir(picture_path);
         }
         std::vector<std::string> *file_list = fs::listdir(picture_path);
+        if (file_list) {
+            auto it = std::find(file_list->begin(), file_list->end(), ".thumbnail");
+            if (it != file_list->end()) {
+                file_list->erase(it);
+            }
+        }
+
         printf("file_list_cnt:%ld\n", file_list->size());
         string picture_save_path = picture_path + "/" + std::to_string(file_list->size()) +".jpg";
         std::string thumbnail_path = picture_path + "/.thumbnail/" + std::to_string(file_list->size()) +".jpg";

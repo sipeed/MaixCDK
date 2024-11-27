@@ -4,14 +4,6 @@
 #include "maix_basic.hpp"
 #include "sophgo_middleware.hpp"
 #include <stdio.h>
-#include "sockutil.h"
-#include "sys/system.h"
-#include "rtmp-client.h"
-#include "flv-reader.h"
-#include "flv-writer.h"
-#include "flv-header.h"
-#include "flv-proto.h"
-#include "maix_avc2flv.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

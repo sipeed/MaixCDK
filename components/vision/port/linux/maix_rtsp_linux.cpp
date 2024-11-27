@@ -35,11 +35,12 @@ namespace maix::rtsp
         return err::ERR_NOT_IMPL;
     }
 
-    Rtsp::Rtsp(std::string ip, int port, int fps, rtsp::RtspStreamType stream_type) {
+    Rtsp::Rtsp(std::string ip, int port, int fps, rtsp::RtspStreamType stream_type, int bitrate) {
         (void)ip;
         (void)port;
         (void)fps;
         (void)stream_type;
+        (void)bitrate;
     }
 
     Rtsp::~Rtsp() {
@@ -61,10 +62,21 @@ namespace maix::rtsp
         return err;
     }
 
+    err::Err Rtsp::bind_audio_recorder(audio::Recorder *recorder) {
+        err::Err err = err::ERR_NOT_IMPL;
+        (void)recorder;
+        return err;
+    }
+
     err::Err Rtsp::write(video::Frame &stream) {
         err::Err err = err::ERR_NOT_IMPL;
         (void)stream;
         return err;
+    }
+
+    camera::Camera *Rtsp::to_camera() {
+        err::check_null_raise(NULL, "The camera object is NULL");
+        return NULL;
     }
 
     std::string Rtsp::get_url() {

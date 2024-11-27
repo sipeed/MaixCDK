@@ -148,7 +148,7 @@ namespace maix::display
             }
         }
 
-        log::info("disp config flip: %d, mirror: %d, max_backlight: %.1f", flip, mirror, max_backlight);
+        // log::info("disp config flip: %d, mirror: %d, max_backlight: %.1f", flip, mirror, max_backlight);
     }
 
 

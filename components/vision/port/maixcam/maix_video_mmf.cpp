@@ -2565,7 +2565,6 @@ _retry:
         int resample_sample_rate = param->resample_sample_rate;
         enum AVSampleFormat resample_format = param->resample_sample_format;
         SwrContext *swr_ctx = param->swr_ctx;
-        image::Image *img = NULL;
         video::Context *context = NULL;
         uint64_t last_pts = 0;
         bool is_video = false;

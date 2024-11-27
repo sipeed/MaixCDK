@@ -1,0 +1,15 @@
+
+
+menu "RtspServer component configuration"
+    menu "RtspServer version"
+        config RTSP_SERVER_VERSION_MAJOR
+            int "RtspServer version major"
+            default 1
+        config RTSP_SERVER_VERSION_MINOR
+            int "RtspServer version minor"
+            default 0
+        config RTSP_SERVER_VERSION_PATCH
+            int "RtspServer version patch"
+            default 0
+    endmenu
+endmenu

@@ -310,6 +310,7 @@ public:
             audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;
             audio_codec_ctx->time_base = (AVRational){1, sample_rate};
             audio_codec_ctx->bit_rate = bitrate;
+            audio_codec_ctx->profile = FF_PROFILE_AAC_LOW;
             audio_stream->time_base = audio_codec_ctx->time_base;
 
             if (0 > avcodec_open2(audio_codec_ctx, audio_codec, NULL)) {
@@ -360,14 +361,16 @@ public:
             _audio_format = format;
         }
 
-        if (avio_open(&format_context->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
-			printf("rtmp connect failed!\r\n");
-            goto _free_audio_frame;
-        }
+        if (_path.length() > 0) {
+            if (avio_open(&format_context->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
+                printf("avio open failed!\r\n");
+                goto _free_audio_frame;
+            }
 
-        if (avformat_write_header(format_context, NULL) < 0) {
-			printf("rtmp write header failed!\r\n");
-            goto _close_io;
+            if (avformat_write_header(format_context, NULL) < 0) {
+                printf("avformat write header failed!\r\n");
+                goto _close_io;
+            }
         }
 
         _format_context = format_context;
@@ -403,6 +406,17 @@ _free_format_context:
         return -1;
     }
 
+    void reset() {
+        if (_pcm_list) {
+            for (auto it = _pcm_list->begin(); it != _pcm_list->end(); ++it) {
+                auto &item = *it;
+                Bytes *pcm = item.second;
+                delete pcm;
+                it = _pcm_list->erase(it);
+            }
+        }
+    }
+
     void close() {
         if (!_open) return;
 
@@ -433,7 +447,9 @@ _free_format_context:
         }
 
         if (_format_context) {
-            av_write_trailer(_format_context);
+            if (_path.length() > 0) {
+                av_write_trailer(_format_context);
+            }
 
             // av_write_trailer(_format_context);
             if (_format_context && _format_context->pb) {
@@ -447,6 +463,49 @@ _free_format_context:
         _video_last_pts = 0;
     }
 
+    std::vector<unsigned char> pack_pcm(uint8_t *frame, size_t frame_size) {
+        std::vector<unsigned char> output_data;
+        if (!_open) {
+            return output_data;
+        }
+
+        if (_has_audio) {
+            AVPacket *pkt = av_packet_alloc();
+            if (!pkt) {
+                fprintf(stderr, "Can't malloc avpacket\r\n");
+                return output_data;
+            }
+
+            if (frame && frame_size > 0) {
+                AVFrame *audio_frame = _audio_frame;
+                AVCodecContext *audio_codec_ctx = _audio_codec_ctx;
+                SwrContext *swr_ctx = _audio_swr_ctx;
+                AVPacket *audio_packet = pkt;
+
+                const uint8_t *in[] = {frame};
+                uint8_t *out[] = {audio_frame->data[0]};
+                swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
+                if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
+                    printf("Error send audio_frame to encoder.\n");
+                    return output_data;
+                }
+
+                if (avcodec_receive_packet(audio_codec_ctx, audio_packet) != 0) {
+                    printf("Error receive audio_frame to encoder.\n");
+                    return output_data;
+                }
+
+                output_data.resize(audio_packet->size);
+                memcpy(output_data.data(), audio_packet->data, audio_packet->size);
+                av_packet_unref(audio_packet);
+            }
+
+            av_packet_unref(pkt);
+            av_packet_free(&pkt);
+        }
+
+        return output_data;
+    }
 
     int push(uint8_t *frame, size_t frame_size, uint64_t pts, bool is_audio = false)
     {
@@ -595,6 +654,176 @@ _free_format_context:
         return 0;
     }
 
+    void add_adts_header(uint8_t *adts_header, int aac_frame_length, int profile, int sample_rate_index, int channel_config) {
+        // ADTS 固定头部的前 5 字节
+        adts_header[0] = 0xFF;                           // Syncword 0xFFF, 高8位
+        adts_header[1] = 0xF1;                           // Syncword低4位+ID=0+Layer=0+protection_absent=1
+        adts_header[2] = ((profile - 1) << 6)            // Profile（2位）：AAC-LC 为 1（profile - 1 后为 0）
+                        | (sample_rate_index << 2)       // Sampling frequency index（4位）
+                        | (channel_config >> 2);         // Channel configuration（高2位）
+        adts_header[3] = ((channel_config & 0x3) << 6)   // Channel configuration（低2位）
+                        | ((aac_frame_length + 7) >> 11); // Frame length（高3位）
+        adts_header[4] = ((aac_frame_length + 7) >> 3) & 0xFF; // Frame length（中间 8 位）
+        adts_header[5] = (((aac_frame_length + 7) & 0x7) << 5) // Frame length（低 3 位）
+                        | 0x1F;                         // Buffer fullness（高5位，固定值0x7FF）
+        adts_header[6] = 0xFC;                          // Buffer fullness（低2位，固定值0x7FF）+ number_of_raw_data_blocks（2位，固定0）
+    }
+
+    static int get_sample_rate_index(int sample_rate)
+    {
+        switch (sample_rate) {
+        case 96000: return 0;
+        case 88200: return 1;
+        case 64000: return 2;
+        case 48000: return 3;
+        case 44100: return 4;
+        case 32000: return 5;
+        case 24000: return 6;
+        case 22050: return 7;
+        case 16000: return 8;
+        case 12000: return 9;
+        case 11025: return 10;
+        case 8000: return 11;
+        case 7350: return 12;
+        default: return 3;
+        }
+    }
+
+    int push2(uint8_t *frame, size_t frame_size, uint64_t pts, bool is_audio, void (*callback)(void*, size_t, size_t, void *args), void *args)
+    {
+        if (!_open) {
+            return -1;
+        }
+
+        if (!is_audio) {
+            // log::info("[VIDEO] frame:%p frame_size:%d pts:%ld(%f s)", frame, frame_size, pts, this->video_pts_to_us(pts) / 1000);
+            if (callback) {
+                callback(frame, frame_size, pts, args);
+            }
+        } else {
+            if (_has_audio) {
+                AVPacket *pkt = av_packet_alloc();
+                if (!pkt) {
+                    fprintf(stderr, "Can't malloc avpacket\r\n");
+                    return -1;
+                }
+
+                if (frame && frame_size > 0) {
+                    auto pcm_list = _pcm_list;
+                    AVFrame *audio_frame = _audio_frame;
+                    AVStream *audio_stream = _audio_stream;
+                    AVCodecContext *audio_codec_ctx = _audio_codec_ctx;
+                    SwrContext *swr_ctx = _audio_swr_ctx;
+                    AVPacket *audio_packet = pkt;
+                    size_t buffer_size = av_samples_get_buffer_size(NULL, _audio_channels, audio_frame->nb_samples, _audio_format, 1);
+                    size_t pcm_remain_len = frame_size;
+
+                    // fill last pcm to buffer_size
+                    size_t next_pts = pts;
+                    if (!pcm_list->empty()) {
+                        auto last_item = pcm_list->back();
+                        Bytes *last_pcm = last_item.second;
+                        if (last_pcm && last_pcm->data_len < buffer_size) {
+                            int temp_size = pcm_remain_len + last_pcm->data_len >= buffer_size ? buffer_size : pcm_remain_len + last_pcm->data_len;
+                            uint8_t *temp = (uint8_t *)malloc(temp_size);
+                            if (!temp) {
+                                fprintf(stderr, "malloc failed!\r\n");
+                                return -1;
+                            }
+                            memcpy(temp, last_pcm->data, last_pcm->data_len);
+                            if (pcm_remain_len + last_pcm->data_len < buffer_size) {
+                                memcpy(temp + last_pcm->data_len, frame, pcm_remain_len);
+                                pcm_remain_len = 0;
+                            } else {
+                                memcpy(temp + last_pcm->data_len, frame, buffer_size - last_pcm->data_len);
+                                pcm_remain_len -= (buffer_size - last_pcm->data_len);
+                            }
+
+                            Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                            pcm_list->pop_back();
+                            delete last_pcm;
+
+                            size_t new_pts = last_item.first;
+                            next_pts = new_pts + get_audio_pts_from_pcm_size(new_pcm->data_len);
+                            pcm_list->push_back(std::make_pair(new_pts, new_pcm));
+                        }
+                    }
+
+                    // fill other pcm
+                    while (pcm_remain_len > 0) {
+                        int temp_size = pcm_remain_len >= buffer_size ? buffer_size : pcm_remain_len;
+                        uint8_t *temp = (uint8_t *)malloc(temp_size);
+                        if (!temp) {
+                            fprintf(stderr, "malloc failed!\r\n");
+                            return -1;
+                        }
+                        memcpy(temp, frame + frame_size - pcm_remain_len, temp_size);
+                        pcm_remain_len -= temp_size;
+
+                        Bytes *new_pcm = new Bytes(temp, temp_size, true, false);
+                        pcm_list->push_back(std::make_pair(next_pts, new_pcm));
+                        next_pts += get_audio_pts_from_pcm_size(temp_size);
+                    }
+
+                    // for (auto it = _pcm_list->begin(); it != _pcm_list->end(); ++it) {
+                    //     auto &item = *it;
+                    //     log::info("PTS:%d PCM:%p PCM_SIZE:%d", item.first, item.second->data, item.second->data_len);
+                    // }
+
+                    // audio process
+                    while (pcm_list->size() > 0) {
+                        auto item = pcm_list->front();
+                        auto next_pts = item.first;
+                        Bytes *pcm = item.second;
+                        if (pcm) {
+                            if (pcm->data_len == buffer_size) {
+                                const uint8_t *in[] = {pcm->data};
+                                uint8_t *out[] = {audio_frame->data[0]};
+                                swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
+                                audio_frame->pts = next_pts;
+                                if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
+                                    printf("Error sending audio_frame to encoder.\n");
+                                    break;
+                                }
+
+                                while (avcodec_receive_packet(audio_codec_ctx, audio_packet) == 0) {
+                                    audio_packet->stream_index = audio_stream->index;
+                                    audio_packet->pts = audio_packet->dts = next_pts;
+                                    audio_packet->duration = get_audio_pts_from_pcm_size(pcm->data_len);
+
+                                    // log::info("[AUIDIO] frame:%p frame_size:%d pts:%ld(%f s)", pcm->data, pcm->data_len, pkt->pts, this->audio_pts_to_us(pkt->pts) / 1000);
+                                    if (callback) {
+                                        int new_size = audio_packet->size + 7;
+                                        uint8_t *new_data = (uint8_t *)malloc(new_size);
+                                        if (new_data) {
+                                            int profile = 2;
+                                            int sample_rate_index = get_sample_rate_index(_audio_sample_rate);
+                                            add_adts_header(new_data, audio_frame->nb_samples, profile, sample_rate_index, _audio_channels);
+                                            memcpy(new_data + 7, audio_packet->data, audio_packet->size);
+                                            callback(new_data, new_size, pts, args);
+                                            free(new_data);
+                                        }
+                                    }
+                                    av_packet_unref(audio_packet);
+                                }
+                                pcm_list->pop_front();
+                                delete pcm;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            fprintf(stderr, "pcm data is nullptr..\r\n");
+                        }
+                    }
+                }
+
+                av_packet_unref(pkt);
+                av_packet_free(&pkt);
+            }
+        }
+
+        return 0;
+    }
     uint64_t get_audio_pts_from_pcm_size(size_t pcm_length) {
         if (!_open || !_has_audio)
             return 0;
@@ -623,7 +852,7 @@ _free_format_context:
     }
 
     uint64_t audio_us_to_pts(uint64_t us) {
-        if (!_open || !_has_video) {
+        if (!_open || !_has_audio) {
             return 0;
         }
 
@@ -631,8 +860,10 @@ _free_format_context:
     }
 
     int get_audio_frame_size_per_second() {
-        if (!_open || !_has_video)
+        if (!_open || !_has_audio) {
             return 0;
+        }
+
         return _audio_frame->sample_rate * _audio_frame->channels * av_get_bytes_per_sample(_audio_format);
     }
 };

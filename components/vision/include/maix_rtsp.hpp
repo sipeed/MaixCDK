@@ -24,6 +24,7 @@ namespace maix::rtsp
     enum RtspStreamType
     {
         RTSP_STREAM_NONE = 0,  // format invalid
+        RTSP_STREAM_H264,
         RTSP_STREAM_H265,
     };
 
@@ -87,10 +88,11 @@ namespace maix::rtsp
          * @param port rtsp port
          * @param fps rtsp fps
          * @param stream_type rtsp stream type
+         * @param bitrate rtsp bitrate
          * @maixpy maix.rtsp.Rtsp.__init__
          * @maixcdk maix.rtsp.Rtsp.Rtsp
          */
-        Rtsp(std::string ip = std::string(), int port = 8554, int fps = 30, rtsp::RtspStreamType stream_type = rtsp::RtspStreamType::RTSP_STREAM_H265);
+        Rtsp(std::string ip = std::string(), int port = 8554, int fps = 30, rtsp::RtspStreamType stream_type = rtsp::RtspStreamType::RTSP_STREAM_H264, int bitrate = 3000 * 1000);
         ~Rtsp();
 
         /**
@@ -116,7 +118,16 @@ namespace maix::rtsp
         err::Err bind_camera(camera::Camera *camera);
 
         /**
-         * @brief Write data to rtsp
+         * @brief Bind audio recorder
+         * @note If the audio_recorder object is bound, the audio_recorder object cannot be used elsewhere.
+         * @param recorder audio_recorder object
+         * @return error code, err::ERR_NONE means success, others means failed
+         * @maixpy maix.rtsp.Rtsp.bind_audio_recorder
+        */
+        err::Err bind_audio_recorder(audio::Recorder *recorder);
+
+        /**
+         * @brief Write data to rtsp(This function will be removed in the future)
          * @param frame video frame data
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.rtsp.Rtsp.write
@@ -142,14 +153,12 @@ namespace maix::rtsp
          * @return camera object
          * @maixpy maix.rtsp.Rtsp.to_camera
         */
-        camera::Camera *to_camera() {
-            return this->_camera;
-        }
+        camera::Camera *to_camera();
 
         /**
          * @brief return rtsp start status
          * @return true means rtsp is start, false means rtsp is stop.
-         * @maixpy maix.rtsp.Rtsp.rtsp_is_start
+         * @maixcdk maix.rtsp.Rtsp.rtsp_is_start
         */
         bool rtsp_is_start()
         {
@@ -157,7 +166,7 @@ namespace maix::rtsp
         }
 
         /**
-         * @brief return a region object, you can draw image on the region.
+         * @brief return a region object, you can draw image on the region.(This function will be removed in the future)
          * @param x region coordinate x
          * @param y region coordinate y
          * @param width region width
@@ -169,21 +178,21 @@ namespace maix::rtsp
         rtsp::Region *add_region(int x, int y, int width, int height, image::Format format = image::Format::FMT_BGRA8888);
 
         /**
-         * @brief update and show region
+         * @brief update and show region(This function will be removed in the future)
          * @return error code
          * @maixpy maix.rtsp.Rtsp.update_region
         */
         err::Err update_region(rtsp::Region &region);
 
         /**
-         * @brief del region
+         * @brief del region(This function will be removed in the future)
          * @return error code
          * @maixpy maix.rtsp.Rtsp.del_region
         */
         err::Err del_region(rtsp::Region *region);
 
         /**
-         * @brief return region list
+         * @brief return region list(This function will be removed in the future)
          * @attention DO NOT ADD THIS FUNC TO MAIXPY
          * @return return a list of region
         */
@@ -192,7 +201,7 @@ namespace maix::rtsp
         }
 
         /**
-         * @brief Draw a rectangle on the canvas
+         * @brief Draw a rectangle on the canvas(This function will be removed in the future)
          * @param id region id
          * @param x rectangle coordinate x
          * @param y rectangle coordinate y
@@ -206,7 +215,7 @@ namespace maix::rtsp
         err::Err draw_rect(int id, int x, int y, int width, int height, image::Color color, int thickness = 1);
 
         /**
-         * @brief Draw a string on the canvas
+         * @brief Draw a string on the canvas(This function will be removed in the future)
          * @param id region id
          * @param x string coordinate x
          * @param y string coordinate y
@@ -242,8 +251,6 @@ namespace maix::rtsp
         int _fps;
         rtsp::RtspStreamType _stream_type;
         bool _is_start;
-        bool _bind_camera;
-        camera::Camera *_camera;
         thread::Thread *_thread;
         std::vector<rtsp::Region *> _region_list;
         std::vector<bool> _region_used_list;
@@ -252,6 +259,7 @@ namespace maix::rtsp
         uint64_t _timestamp;
         uint64_t _last_ms;
         int _region_max_number;
+        void *_param;
     };
 } // namespace maix::rtsp
 

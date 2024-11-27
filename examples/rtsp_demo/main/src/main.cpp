@@ -1,4 +1,3 @@
-
 #include "stdio.h"
 #include "main.h"
 #include "maix_util.hpp"
@@ -18,7 +17,6 @@ using namespace maix;
 
 int _main(int argc, char* argv[])
 {
-    int cnt = 0;
     int cam_w = -1;
     int cam_h = -1;
     image::Format cam_fmt = image::Format::FMT_YVU420SP;
@@ -42,8 +40,10 @@ int _main(int argc, char* argv[])
     camera::Camera cam = camera::Camera(cam_w, cam_h, cam_fmt, "", cam_fps, cam_buffer_num);
     camera::Camera *cam2 = cam.add_channel(640, 480);
     display::Display disp = display::Display();
+    auto audio_recorder = audio::Recorder();
     rtsp::Rtsp rtsp = rtsp::Rtsp();
     rtsp.bind_camera(&cam);
+    rtsp.bind_audio_recorder(&audio_recorder);
     rtsp::Region *region = rtsp.add_region(0, 0, 200, 100);
     rtsp::Region *region3 = rtsp.add_region(400, 200, 200, 100);
 
@@ -52,14 +52,15 @@ int _main(int argc, char* argv[])
     rgn_img->draw_string(0, 0, "hello");
     region3->update_canvas();
 
+    log::info("url:%s", rtsp.get_url().c_str());
     std::vector<std::string> url = rtsp.get_urls();
     for (size_t i = 0; i < url.size(); i ++) {
-        log::info("%s\r\n", url[i].c_str());
+        log::info("url[%d]:%s", i, url[i].c_str());
     }
-
-    rtsp.start();
+    err::check_raise(rtsp.start());
 
     uint64_t last_ms = time::ticks_ms();
+    int cnt = 0;
     while(!app::need_exit()) {
         cnt ++;
         image::Color color = image::COLOR_BLACK;
@@ -80,12 +81,12 @@ int _main(int argc, char* argv[])
         maix::image::Image *img = cam2->read();
         disp.show(*img);
         delete img;
-
         uint64_t curr_ms = time::ticks_ms();
         log::info("loop use %lld ms\r\n", curr_ms - last_ms);
         last_ms = curr_ms;
     }
 
+    rtsp.stop();
     delete cam2;
 
     return 0;
