@@ -95,11 +95,14 @@ def find_valid_components(components):
                         continue
                     depends[name].append(r)
     # find main depends
-    def get_depend_recursive(name):
-        d = depends[name]
+    def get_depend_recursive(name, seen={}):
+        if name in seen:
+            return seen[name]
+        d = depends[name].copy()
         for r in depends[name]:
-            d.extend(get_depend_recursive(r))
+            d.extend(get_depend_recursive(r, seen))
         d = list(set(d))
+        seen[name] = d
         return d
     valid = ["main"]
     valid.extend(get_depend_recursive("main"))
