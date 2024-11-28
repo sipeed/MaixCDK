@@ -72,10 +72,10 @@ namespace maix::comm::listener_priv
         void loop() noexcept;
 
         bool check_device_occupy(const uint64_t interval_ms = 0) noexcept;
-        bool check_device_occupy_reset_timer()
-        {
-            _last_check_time = time::ticks_ms();
-        }
+        // bool check_device_occupy_reset_timer()
+        // {
+        //     _last_check_time = time::ticks_ms();
+        // }
 
         bool keep_join();
 
@@ -971,7 +971,7 @@ namespace maix::comm::listener_priv
             }
             if (check_device_occupy(interval))
             {
-                maix::log::info("[Default CommListener] Device %s is used by the user, CommListener exit and release %s.",
+                maix::log::info("[Default CommListener] Release device %s for program use",
                                 this->device.c_str(), this->device.c_str());
                 if (_stop_th)
                 {
@@ -993,6 +993,6 @@ namespace maix::comm::listener_priv
             delete msg;
             time::sleep_ms(sleep_time); // default listenner don't need fast react, to release CPU usage, so sleep here.
         }
-        maix::log::info("[Default CommListener] exit");
+        maix::log::info("[Default CommListener] exit success");
     }
 }
