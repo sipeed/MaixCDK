@@ -33,6 +33,7 @@ typedef struct {
 } priv_t;
 
 static priv_t priv;
+param_t g_param;
 static int cmd_init(int argc, char* argv[]);
 
 int _main(int argc, char* argv[])
@@ -43,6 +44,7 @@ int _main(int argc, char* argv[])
     if (!priv.use_picture) {
         cam = new camera::Camera(priv.cam_w ,priv.cam_h, priv.cam_fmt, nullptr, priv.cam_fps, priv.cam_buffnum);
         log::info("camera size: %dx%d\n", cam->width(), cam->height());
+        g_param.cam = cam;
     } else {
         picture = image::load(priv.picture_path.c_str(), priv.cam_fmt);
         image::Image *new_picture = picture->resize(priv.cam_w, priv.cam_h);
@@ -129,7 +131,8 @@ static int cmd_init(int argc, char* argv[])
     priv.method_list.push_back(image_method_t{"no method(default)", NULL});
     priv.method_list.push_back(image_method_t{"gaussian", test_gaussion});
     priv.method_list.push_back(image_method_t{"find_blobs", test_find_blobs});
-    priv.method_list.push_back(image_method_t{"zbar", test_find_qrcode});
+    priv.method_list.push_back(image_method_t{"find_qrcode", test_find_qrcode});
+    priv.method_list.push_back(image_method_t{"qrcode_detector", test_qrcode_detector});
 
     // Get init param
     if (argc > 1) {
