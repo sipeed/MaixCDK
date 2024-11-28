@@ -275,7 +275,7 @@ namespace maix::rtsp
             bool is_i_or_b;
         } temp_param_t;
 
-        while (param->status == RTSP_RUNNING) {
+        while (param->status == RTSP_RUNNING && !app::need_exit()) {
             void *frame = NULL;
             bool found_camera_frame = false;
             bool found_venc_stream = false;

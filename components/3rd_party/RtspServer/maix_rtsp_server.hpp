@@ -10,25 +10,34 @@
 class MaixRtspServer
 {
     int *clients;
+    xop::MediaSession *_session = nullptr;
+    bool _has_audio = false;
 public:
     xop::MediaSessionId session_id;
     std::shared_ptr<xop::RtspServer> server;
     std::shared_ptr<xop::EventLoop> event_loop;
 
-    MaixRtspServer(int *clients, std::shared_ptr<xop::RtspServer> server_ptr, xop::MediaSessionId session_id, std::shared_ptr<xop::EventLoop> event_loop_ptr)
+    MaixRtspServer(int *clients, std::shared_ptr<xop::RtspServer> server_ptr, xop::MediaSessionId session_id, std::shared_ptr<xop::EventLoop> event_loop_ptr, xop::MediaSession *session, bool has_audio)
     {
         this->clients = clients;
         this->server = std::move(server_ptr);
         this->session_id = session_id;
         this->event_loop = std::move(event_loop_ptr);
+        this->_session = session;
+        this->_has_audio = has_audio;
     }
 
     ~MaixRtspServer() {
+        server->RemoveSession(session_id);
+        server->Stop();
 
         if (clients != nullptr) {
             free(clients);
             clients = nullptr;
         }
+
+        server.reset();
+        event_loop.reset();
     }
 
     int get_clients() {
@@ -149,8 +158,7 @@ public:
             }
         });
         xop::MediaSessionId session_id = server->AddSession(session);
-
-        MaixRtspServer *new_server(new MaixRtspServer(clients, server, session_id, event_loop));
+        MaixRtspServer *new_server(new MaixRtspServer(clients, server, session_id, event_loop, session, _has_audio));
 
         return new_server;
     }

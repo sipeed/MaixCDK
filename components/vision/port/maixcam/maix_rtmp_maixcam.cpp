@@ -701,7 +701,7 @@ namespace maix::rtmp {
         }
 
 		param->status = PrivateParam::RTMP_RUNNING;
-		while (param->status == PrivateParam::RTMP_RUNNING) {
+		while (param->status == PrivateParam::RTMP_RUNNING && !app::need_exit()) {
 			// /* sync video and audio pts */
 			audio_pts = video_pts;
 			// log::info("[VIDEO] %d(pts:%d) [AUDIO] %d(pts:%d)", last_read_cam_ms, video_pts, last_read_pcm_ms, audio_pts);
