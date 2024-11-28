@@ -289,8 +289,25 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
             content += _content
         return content
 
+    ids = {
+        # "module": {
+        #     "id": "Module",
+        #     "count": 1
+        # },
+    }
+    def update_id(h_str, id) -> str:
+        l_id = id.lower()
+        if l_id not in ids:
+            ids[l_id] = {
+                "id": id,
+                "count": 1
+            }
+            return f'{h_str} {id} {{#{id}}}'
+        ids[l_id]["count"] += 1
+        return f'{h_str} {id} {{#{id}-{ids[l_id]["count"]}}}'
+
     # Module
-    content += "## Module\n\n"
+    content += update_id("##", "Module") + "\n\n"
     _content = ""
     for key, item in module["members"].items():
         if item["type"] != "module":
@@ -305,11 +322,11 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
     content += "\n\n"
 
     # Enum
-    content += "## Enum\n\n"
+    content += update_id("##", "Enum") + "\n\n"
     for key, item in module["members"].items():
         if item["type"] != "enum":
             continue
-        content += '### {}\n\n'.format(key.replace("_", "\_"))
+        content += update_id("###", key.replace("_", "\_")) + "\n\n"
         content += item["doc"].get("brief", "") + "\n\n"
         content += '| item | describe |\n'
         content += '| --- | --- |\n'
@@ -321,11 +338,11 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
     content += "\n\n"
 
     # Variable
-    content += "## Variable\n\n"
+    content += update_id("##", "Variable") + "\n\n"
     for key, item in module["members"].items():
         if item["type"] != "var":
             continue
-        content += '### {}\n\n'.format(key.replace("_", "\_"))
+        content += update_id("###", key.replace("_", "\_")) + "\n\n"
         content += item["doc"].get("brief", "") + "\n\n"
         content += '| item | description |\n'
         content += '| --- | --- |\n'
@@ -336,11 +353,11 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
     content += "\n\n"
 
     # Function
-    content += "## Function\n\n"
+    content += update_id("##", "Function") + "\n\n"
     def gen_func_info(key, item, overload_count = -1):
         if overload_count >= 0:
             key = "{} (overload {})".format(key, overload_count + 1)
-        content = '### {}\n\n'.format(key.replace("_", "\_"))
+        content = update_id('###', key.replace("_", "\_")) + "\n\n"
         if "py_def" in item:
             content += f'```python\n{item["py_def"]}\n```\n'
         content += item["doc"].get("brief", "") + "\n\n"
@@ -361,11 +378,11 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
     content += "\n\n"
 
     # Class
-    content += "## Class\n\n"
+    content += update_id("##", "Class") + "\n\n"
     for key, item in module["members"].items():
         if item["type"] != "class":
             continue
-        content += '### {}\n\n'.format(key.replace("_", "\_"))
+        content += update_id('###', key.replace("_", "\_")) + "\n\n"
         content += item["doc"].get("brief", "") + "\n\n"
         if have_doc_kv(item["doc"]):
             content += '| item | description |\n'
@@ -379,7 +396,7 @@ def module_to_md(pre_modules, module_name, module, start_comment, module_join_ch
                 raise Exception("class member only support {} now, but got {}".format(supported_types, item["type"]))
             if overload_count >= 0:
                 key = "{} (overload {})".format(key, overload_count + 1)
-            content = '#### {}\n\n'.format(key.replace("_", "\_"))
+            content = update_id('####', key.replace("_", "\_")) + "\n\n"
             if "py_def" in item:
                 content += f'```python\n{item["py_def"]}\n```\n'
             content += item["doc"].get("brief", "") + "\n\n"

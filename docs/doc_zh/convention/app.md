@@ -86,7 +86,7 @@ exclude:       # 不支持正则表达式，.git 和 __pycache__ 总是会被排
 * 共享数据存储在 `/maixapp/share`。
 * 图片文件存储在 `/maixapp/share/picture`。
 * 视频文件存储在 `/maixapp/share/video`。
-* 临时数据可以存储在 `/maixapp/tmp`。
+* 临时数据可以存储在 `/maixapp/tmp`，注意，和 Linux 本身的`/tmp` 目录不同的是这个目录是在文件系统（SD卡）上的，系统`/tmp`是在内存上虚拟的文件系统，`/tmp`读写速度更快但是内存大小受限，大文件以及需要长期记录的日志文件（随着时间推移可能变得比较大）建议放在`/maixapp/tmp`目录下。
 * 字体文件存储在 `/maixapp/share/font`。
 * 图标文件存储在 `/maixapp/share/icon`。
 * 应用运行时创建的数据文件可以存储在 `/maixapp/apps/app_id/data`。

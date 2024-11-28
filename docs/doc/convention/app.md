@@ -89,7 +89,7 @@ exclude:       # not support regular expression, .git and __pycache__ is always 
 * All shared data is stored in `/maixapp/share`.
 * All pictures are stored in `/maixapp/share/picture`.
 * All video files are stored in `/maixapp/share/video`.
-* Temporary data can be stored in `/maixapp/tmp`.
+* Temporary data can be stored in `/maixapp/tmp`. Note that this directory is located on the file system (SD card), which differs from the system's `/tmp` directory. The `/tmp` directory on the system is a virtual file system in memory, offering faster read/write speeds but with limited memory size. Large files and log files that need to be stored long-term (which may grow over time) are recommended to be placed in the `/maixapp/tmp` directory.
 * Font files are stored in `/maixapp/share/font`.
 * Icon files are stored in `/maixapp/share/icon`.
 * APP's data files created at runtime can be stored in `/maixapp/apps/app_id/data`.
