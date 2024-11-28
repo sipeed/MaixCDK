@@ -12,6 +12,7 @@
 #include <list>
 
 extern "C" {
+#include <unistd.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>

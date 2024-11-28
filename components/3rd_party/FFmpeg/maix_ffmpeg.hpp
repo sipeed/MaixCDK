@@ -2,6 +2,7 @@
 #define __MAIX_FFMPEG_HPP
 
 extern "C" {
+#include <unistd.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
@@ -12,7 +13,7 @@ extern "C" {
 }
 #include <list>
 #include <string>
-
+#include <vector>
 
 
 
