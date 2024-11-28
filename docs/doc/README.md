@@ -10,6 +10,17 @@ MaixCDK is not only a C++ SDK but also auto-generates Python API bindings, so de
 
 Basic Linux knowledge and a fundamental understanding of cross-compilation are required to use MaixCDK.
 
+## Basic Knowledge
+
+To use MaixCDK, it is assumed that you are already familiar with the following knowledge. If not, please learn them first or consider using [MaixPy](https://wiki.sipeed.com/maixpy/):
+
+* Proficient in using Linux for development, familiar with the terminal and common commands.
+* Proficient in either C or C++ programming language. C++ proficiency is not required, but you must understand the basic syntax and object-oriented concepts.
+* Able to actively read and analyze source code to troubleshoot issues.
+* Chinese developers should be familiar with using network proxies.
+* Understand cross-compilation.
+
+
 ## How to Find Resources and Troubleshoot
 
 1. Read [MaixCDK source code](https://github.com/sipeed/MaixCDK).
@@ -90,7 +101,6 @@ After the compilation, you will find the binary program files in the `build` dir
 
 After modifying the code, you can run `maixcdk build` again to compile.
 
-The `maixcdk build` command will scan all files for changes and rebuild them by default.  
 If you **haven’t added or removed source files**, you can run `maixcdk build2` or `maixcdk build --no-gen` for faster compilation (it will only compile the modified files).  
 > This is because the `build` command starts the entire build process from scratch, scanning files and recompiling. In contrast, the `build2` command will not scan for file additions or deletions and will only compile the edited files.  
 > Note: The `build2` command will not detect file additions or deletions, so if you **add or remove files**, you must run the `build` command again.
