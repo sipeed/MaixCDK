@@ -692,12 +692,14 @@ namespace maix::rtmp {
 		int venc_ch = MMF_VENC_CHN;
 		uint64_t video_pts = 0, audio_pts = 0;
         uint64_t last_read_pcm_ms = 0, last_read_cam_ms = 0;
-
+        bool has_audio = audio_recorder ? true : false;
         // clear pcm buffer
-        Bytes *pcm_data = audio_recorder->record();
-        if (pcm_data) {
-            delete pcm_data;
-            pcm_data = NULL;
+        if (has_audio) {
+            Bytes *pcm_data = audio_recorder->record();
+            if (pcm_data) {
+                delete pcm_data;
+                pcm_data = NULL;
+            }
         }
 
 		param->status = PrivateParam::RTMP_RUNNING;
@@ -755,10 +757,13 @@ namespace maix::rtmp {
 									time::sleep_ms(500);
 									log::info("Can't connect rtmp server, retry again..");
 								}
-                                Bytes *pcm_data = audio_recorder->record();
-                                if (pcm_data) {
-                                    delete pcm_data;
-                                    pcm_data = NULL;
+
+                                if (has_audio) {
+                                    Bytes *pcm_data = audio_recorder->record();
+                                    if (pcm_data) {
+                                        delete pcm_data;
+                                        pcm_data = NULL;
+                                    }
                                 }
 
                                 last_read_pcm_ms = 0;
@@ -804,7 +809,7 @@ namespace maix::rtmp {
                 }
             }
 
-            if (rtmp_client->is_opened()) {
+            if (has_audio && rtmp_client->is_opened()) {
                 int frame_size_per_second = rtmp_client->get_frame_size_per_second();
                 uint64_t loop_ms = 0;
                 int read_pcm_size = 0;
@@ -826,7 +831,7 @@ namespace maix::rtmp {
                     if (pcm_data->data_len > 0) {
                         if (err::ERR_NONE != rtmp_client->push(pcm_data->data, pcm_data->data_len, audio_pts, true)) {
                             log::error("rtmp push failed!");
-							break;
+                            break;
                         }
                     }
                     delete pcm_data;
@@ -861,6 +866,7 @@ namespace maix::rtmp {
 		auto video_encoder_height = 0;
 		auto video_encoder_format = 0;
 		auto fps = 30;
+        bool has_audio = false;
 		RTMPClient *rtmp_client = nullptr;
 
 		if (param == nullptr) {
@@ -881,10 +887,10 @@ namespace maix::rtmp {
 		}
 
 		if (_audio_recorder == nullptr) {
-			log::info("You must use the bind_audio_recorder interface to bind a audio::Recorder object.");
-			ret = err::ERR_NOT_READY;
-			goto _error;
-		}
+			has_audio = false;
+		} else {
+            has_audio = true;
+        }
 
 		video_encoder_width = _camera->width();
 		video_encoder_height = _camera->height();
@@ -898,7 +904,7 @@ namespace maix::rtmp {
 			goto _error;
 		}
 
-		err::check_raise(rtmp_client->config("has_audio", true), "rtmp config failed!");
+		err::check_raise(rtmp_client->config("has_audio", has_audio), "rtmp config failed!");
         err::check_raise(rtmp_client->config("video_codec_id", AV_CODEC_ID_H264), "rtmp config failed!");
         err::check_raise(rtmp_client->config("video_width", video_encoder_width), "rtmp config failed!");
         err::check_raise(rtmp_client->config("video_height", video_encoder_height), "rtmp config failed!");

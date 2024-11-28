@@ -47,13 +47,13 @@ namespace maix::rtmp
         int _socket;
         void *_handler;
 
-        camera::Camera *_camera;
-        video::Encoder *_video_encoder;
-        audio::Recorder *_audio_recorder;
-        display::Display *_display;
-        thread::Thread *_thread;
-        thread::Thread *_push_thread;
-        thread::Thread *_app_thread;
+        camera::Camera *_camera = nullptr;
+        video::Encoder *_video_encoder = nullptr;
+        audio::Recorder *_audio_recorder = nullptr;
+        display::Display *_display = nullptr;
+        thread::Thread *_thread = nullptr;
+        thread::Thread *_push_thread = nullptr;
+        thread::Thread *_app_thread = nullptr;
         pthread_mutex_t _lock;
         bool _start;
         std::string _path;
