@@ -61,7 +61,7 @@ enum class MouseInputDevice {
 /**
  * Initialize the mouse
  */
-MouseInputDevice mouse_init(lv_indev_t * indev_drv);
+int mouse_init(lv_indev_t * indev_drv);
 
 /**
  * Get the current position and state of the mouse
