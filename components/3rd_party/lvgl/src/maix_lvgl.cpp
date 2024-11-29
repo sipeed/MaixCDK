@@ -6,6 +6,8 @@
 #include "lvgl.h"
 #include "maix_basic.hpp"
 
+#include "pointing_device.hpp"
+
 // extern "C" {
 // #include "cursor_48.c"
 // #include "cursor_96.c"
@@ -97,26 +99,9 @@ namespace maix
          * Use the 'mouse' driver which reads the PC's mouse*/
 #if CONFIG_LVGL_USE_MOUSE
         lv_indev_t * indev = lv_indev_create();
-        MouseInputDevice type = mouse_init(indev);
         lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
-        lv_indev_set_read_cb(indev, mouse_read);
-        // lv_indev_set_mode(indev, LV_INDEV_MODE_EVENT);
-        if (type == MouseInputDevice::USB_MOUSE) {
-            static lv_obj_t *cursor_rect = lv_img_create(lv_scr_act());
-            int w;
-            monitor_rect(&w, nullptr);
-            if (w > 640) {
-                lv_img_set_src(cursor_rect, &cursor_96);
-                maix::log::info("use cursor size 48x48");
-            } else {
-                lv_img_set_src(cursor_rect, &cursor_48);
-                maix::log::info("use cursor size 96x96");
-            }
-            // w = static_cast<int>((20.0/640)*w);
-            // lv_obj_set_size(cursor_rect, w, w);
-            lv_obj_set_style_bg_color(cursor_rect, lv_color_hex(0xFF0000), 0);
-            lv_indev_set_cursor(indev, cursor_rect);
-        }
+        pointing_device_init(indev);
+        lv_indev_set_read_cb(indev, pointing_device_read);
 #endif
 
 #if USE_KEYBOARD
