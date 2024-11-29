@@ -246,7 +246,7 @@ namespace maix::audio
         int frame_byte = snd_pcm_format_width(format) / 8;
         if (buffer_size < frame_byte * channels * frame_size) {
             printf("Bad buffer size, input %ld, need %d\r\n", buffer_size, frame_byte * channels * frame_size);
-            return 0;
+            return -1;
         }
 
         if ((len = (int)snd_pcm_readi(handle, buffer, frame_size)) < 0) {

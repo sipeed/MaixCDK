@@ -214,6 +214,9 @@ namespace maix::rtsp
                 delete param->rtsp_server;
                 param->rtsp_server = nullptr;
             }
+
+            free(_param);
+            _param = nullptr;
         }
 
         for (auto &region : this->_region_list) {
@@ -473,6 +476,11 @@ namespace maix::rtsp
             _thread->join();
             _thread = nullptr;
         }
+
+		while (param->status != RTSP_IDLE) {
+			time::sleep_ms(100);
+			log::info("wait rtsp thread exit..");
+		}
 
         if (param->ffmpeg_packer) {
             delete param->ffmpeg_packer;
