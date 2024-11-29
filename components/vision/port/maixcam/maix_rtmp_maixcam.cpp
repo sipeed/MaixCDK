@@ -947,6 +947,11 @@ _error:
 			log::info("wait rtmp thread exit..");
 		}
 
+        if (_video_encoder) {
+            delete _video_encoder;
+            _video_encoder = nullptr;
+        }
+
 		return err::ERR_NONE;
 	}
 }
