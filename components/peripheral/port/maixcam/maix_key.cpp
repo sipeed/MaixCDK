@@ -232,7 +232,6 @@ namespace maix::peripheral::key
 
         if (!fs::exists("/sys/class/gpio/gpio448")) {
             system("echo 448 > /sys/class/gpio/export");
-            usleep(100000);
             system("echo \"in\" > /sys/class/gpio/gpio448/direction");
             system("echo \"falling\" > /sys/class/gpio/gpio448/edge");
             log::info("export axp2101 irq gpio success");
