@@ -24,17 +24,17 @@ namespace maix
          * Construct a Bytes object from a uint8_t array.
          * @param data uint8_t array
          * @param len length of the array
-         * @param auto_detele if true, will delete data when destruct. When copy is true, this arg will be ignore.
+         * @param auto_delete if true, will delete data when destruct. When copy is true, this arg will be ignore.
          * @param copy data will be copy to new buffer if true, if false, will use data directly,
          *             default true to ensure memory safety.
          * @maixcdk maix.Bytes.Bytes
          */
-        Bytes(uint8_t *data, uint32_t len, bool auto_detele = false, bool copy = true)
+        Bytes(uint8_t *data, uint32_t len, bool auto_delete = false, bool copy = true)
         {
             this->data = data;
             this->data_len = len;
             this->buff_len = len;
-            this->_is_alloc = auto_detele;
+            this->_is_alloc = auto_delete;
             if(len > 0)
             {
                 if(data && copy)
