@@ -412,6 +412,8 @@ public:
     }
 };
 
+#define DEFAULT_NEXT_KEEP_MS      (10)
+
 typedef struct {
     int disp_w;
     int disp_h;
@@ -422,24 +424,21 @@ typedef struct {
     PhotoVideo *photo_video;
     display::Display *disp;
 
-    image::Image *next_image;
-    uint64_t next_image_try_keep_ms;
     video::Decoder *decoder;
     audio::Player *audio_player;
     std::list<video::Context *> *audio_list;
     std::list<video::Context *> *video_list;
 
-    image::Image *default_show_image;
-    uint64_t default_show_keep_ms;
     bool next_is_frame;
-    void *next_show_ptr;
+    bool next_is_default_image;
+    image::Image *default_next_image;
+    image::Image *next_image;
+    VIDEO_FRAME_INFO_S *next_frame;
+    uint64_t next_keep_ms;
 
     bool find_first_pts;
-    VIDEO_FRAME_INFO_S *next_raw_frame;
     uint64_t first_play_ms, next_play_ms;
     uint64_t last_pts;
-    bool found_frame;
-    VIDEO_FRAME_INFO_S *video_frame;
 
     bool play_video;
     bool pause_video;
@@ -490,77 +489,78 @@ static void _audio_video_list_init()
     err::check_null_raise(priv.video_list, "video list init failed!");
 }
 
-static void config_default_display_image(image::Image *image, uint64_t try_keep_ms)
+static void config_default_display_image(image::Image *image)
 {
-    if (priv.default_show_image) {
-        delete priv.default_show_image;
-        priv.default_show_image = nullptr;
+    if (priv.default_next_image) {
+        delete priv.default_next_image;
+        priv.default_next_image = nullptr;
     }
 
-    priv.default_show_image = image->copy();
-    priv.default_show_keep_ms = try_keep_ms;
+    priv.default_next_image = image->copy();
 }
 
-static void config_next_display_image(void *next_show_ptr, uint64_t try_keep_ms, bool is_raw_frame = false)
+static void release_last_show_frame(void)
 {
-    if (is_raw_frame) {
-        if (priv.next_show_ptr) {
-            free(priv.next_show_ptr);
-            priv.next_show_ptr = nullptr;
-        }
-
-        priv.next_show_ptr = next_show_ptr;
-    } else {
-        image::Image *img = (image::Image *)priv.next_show_ptr;
-        if (priv.next_show_ptr) {
-            delete img;
-            priv.next_show_ptr = nullptr;
-        }
-
-        priv.next_show_ptr = next_show_ptr;
+    if (priv.next_frame) {
+        free(priv.next_frame);
+        priv.next_frame = nullptr;
+        err::check_bool_raise(!mmf_vdec_free(0));
     }
-    priv.next_image_try_keep_ms = try_keep_ms;
-    priv.next_is_frame = is_raw_frame;
 }
 
-static void show_default_image()
-{
-    priv.next_is_frame = false;
-    priv.next_image_try_keep_ms = 10;
-}
-
-static void show_frame()
+static void try_show_frame(VIDEO_FRAME_INFO_S *frame, uint64_t next_keep_ms = 30)
 {
     priv.next_is_frame = true;
+    priv.next_is_default_image = false;
+    priv.next_frame = frame;
+    priv.next_keep_ms = next_keep_ms;
 }
 
-static bool show_next_is_frame() {
+static void try_show_default_image(void)
+{
+    priv.next_is_frame = false;
+    priv.next_is_default_image = true;
+    priv.next_keep_ms = DEFAULT_NEXT_KEEP_MS;
+}
+
+// if img = nullptr, use last img
+static void try_show_image(image::Image *img, uint64_t next_keep_ms = 30)
+{
+    if (img) {
+        image::Image *next_img = (image::Image *)priv.next_image;
+        if (next_img) {
+            delete next_img;
+            priv.next_image = nullptr;
+            next_img = nullptr;
+        }
+        priv.next_image = img;
+    }
+
+    priv.next_is_frame = false;
+    priv.next_is_default_image = false;
+    priv.next_keep_ms = next_keep_ms;
+}
+
+static bool next_is_frame() {
     return priv.next_is_frame;
 }
 
-static image::Image *get_default_display_image()
+static image::Image *get_next_show_image()
 {
-    return (image::Image *)priv.default_show_image;
+    if (priv.next_is_default_image) {
+        return priv.default_next_image;
+    }
+    return priv.next_image;
 }
 
-static uint64_t get_default_try_keep_ms()
+static VIDEO_FRAME_INFO_S *get_next_show_frame()
 {
-    return priv.default_show_keep_ms;
+    return priv.next_frame;
 }
 
-static image::Image *get_next_display_image()
+static uint64_t get_next_keep_ms()
 {
-    return (image::Image *)priv.next_show_ptr;
-}
-
-static void *get_next_display_frame()
-{
-    return priv.next_show_ptr;
-}
-
-static uint64_t get_next_image_try_keep_ms()
-{
-    return priv.next_image_try_keep_ms;
+    return priv.next_keep_ms;
 }
 
 static void decoder_seek(double seek_ms)
@@ -575,15 +575,7 @@ static void decoder_seek(double seek_ms)
 static void decoder_release()
 {
     if (priv.decoder) {
-        if (priv.found_frame) {
-            if (priv.video_frame) {
-                free(priv.video_frame);
-                priv.video_frame = nullptr;
-            }
-            err::check_bool_raise(!mmf_vdec_free(0));
-            priv.found_frame = false;
-        }
-
+        release_last_show_frame();
         delete priv.decoder;
         priv.decoder = NULL;
     }
@@ -864,7 +856,8 @@ int app_init(display::Display *disp)
         image::Image *img = new image::Image(disp->width(), disp->height(), maix::image::FMT_YVU420SP);
         img->clear();
         memset((uint8_t *)img->data() + img->width() * img->height(), 128, img->width() * img->height() / 2);
-        config_default_display_image(img, 15);
+        config_default_display_image(img);
+        try_show_default_image();
         delete img;
     } else {
         priv.disp_w = 552;
@@ -1001,7 +994,7 @@ _retry:
                 image::Image *new_img = new image::Image(priv.disp->width(), priv.disp->height(), image::Format::FMT_YVU420SP);
                 nv21_resize((uint8_t *)img->data(), img->width(), img->height(), (uint8_t *)new_img->data(),new_img->width(), new_img->height());
                 // log::info("============================crop used:%lld", time::ticks_ms() - t);
-                config_next_display_image(new_img, ctx->duration_us() / 1000);
+                try_show_image(new_img, ctx->duration_us() / 1000);
                 ui_clear_video_bar();
                 ui_set_video_bar_s(0, priv.decoder->duration());
                 // delete new_img;     // delete auto
@@ -1014,6 +1007,7 @@ _retry:
         } else {
             goto _error;
         }
+
         // delete priv.decoder;     // continue use
         // priv.decoder = NULL;
     } catch (std::exception &e) {
@@ -1028,6 +1022,7 @@ _error:
         log::warn("decode video %s failed, retry...\r\n");
         goto _retry;
     }
+    try_show_default_image();
     log::error("decode video %s failed!\r\n", &path[0]);
     return;
 }
@@ -1073,7 +1068,7 @@ static void play_video(void)
                     }
                 }
             } while (priv.audio_list->size() < 1 && ctx);
-            log::info("unpack video/audio use %lld ms, video list size:%d, audio list size:%d", time::ticks_ms() - t, priv.video_list->size(), priv.audio_list->size());
+            // log::info("unpack video/audio use %lld ms, video list size:%d, audio list size:%d", time::ticks_ms() - t, priv.video_list->size(), priv.audio_list->size());
 
             t = time::ticks_ms();
             std::list<video::Context *>::iterator iter;
@@ -1108,14 +1103,7 @@ static void play_video(void)
                         err::check_null_raise(frame, "video frame is null!");
                         memset(frame, 0, sizeof(VIDEO_FRAME_INFO_S));
 
-                        if (priv.found_frame) {
-                            if (priv.video_frame) {
-                                free(priv.video_frame);
-                                priv.video_frame = nullptr;
-                            }
-                            err::check_bool_raise(!mmf_vdec_free(0));
-                            priv.found_frame = false;
-                        }
+                        release_last_show_frame();
                         err::check_bool_raise(!mmf_vdec_push_v2(0, &stStream));
                         err::check_bool_raise(!mmf_vdec_pop_v2(0, frame));
     #if 0
@@ -1124,14 +1112,12 @@ static void play_video(void)
                                             (uint8_t *)frame->stVFrame.pu8VirAddr[1],
                                             frame->stVFrame.u32Width, frame->stVFrame.u32Height,
                                             (uint8_t *)new_img->data(),new_img->width(), new_img->height());
-                        config_next_display_image(new_img, ctx->duration_us() / 1000);
+                        try_show_image(new_img, ctx->duration_us() / 1000);
                         // delete new_img;     // delete in next call config_next_display_image
                         err::check_bool_raise(!mmf_vdec_free(0));
                         free(frame);
     #else
-                        show_frame();
-                        priv.found_frame = true;
-                        priv.video_frame = frame;
+                        try_show_frame(frame, video_ctx->duration_us() / 1000);
     #endif
                         ui_set_video_bar_s(priv.decoder->seek(), priv.decoder->duration());
                         priv.next_play_ms = priv.first_play_ms + video::timebase_to_ms(video_ctx->timebase(), video_ctx->pts());
@@ -1142,7 +1128,7 @@ static void play_video(void)
                     break;
                 }
             }
-            log::info("playback video use %lld ms, video list size:%d", time::ticks_ms() - t, priv.video_list->size());
+            // log::info("playback video use %lld ms, video list size:%d", time::ticks_ms() - t, priv.video_list->size());
 
             while (priv.audio_list->size() > 0) {
                 video::Context *audio_ctx = *priv.audio_list->begin();
@@ -1156,10 +1142,10 @@ static void play_video(void)
                     delete audio_ctx;
                 }
             }
-            log::info("playback audio use %lld ms, audio list size:%d", time::ticks_ms() - t, priv.audio_list->size());
+            // log::info("playback audio use %lld ms, audio list size:%d", time::ticks_ms() - t, priv.audio_list->size());
 
             if (ctx == nullptr && priv.video_list->size() == 0 && priv.audio_list->size() == 0) {
-                show_default_image();
+                try_show_image(nullptr);
                 _audio_video_list_reset();
                 ui_set_video_bar_s(0, priv.decoder->duration());
                 decoder_release();
@@ -1170,14 +1156,17 @@ static void play_video(void)
         }
     }
 
-
-    if (priv.found_frame) {
-        mmf_vo_frame_push2(0, 0, 2, priv.video_frame);
-    }
+    // if (priv.found_frame) {
+    //     mmf_vo_frame_push2(0, 0, 2, priv.video_frame);
+    // }
 
     int view_flag = ui_get_view_flag();
     if (view_flag == 4 && priv.pause_video && view_flag != 5) {
         ui_set_view_flag(5);
+    }
+
+    if (view_flag == 0 && next_is_frame()) {
+        try_show_default_image();
     }
 }
 
@@ -1193,41 +1182,7 @@ int app_loop(void)
 
     }
 
-
     play_video();
-
-
-    if (priv.disp) {
-        static uint64_t last_show_ms = time::ticks_ms();
-        if (!show_next_is_frame()) {
-            image::Image *img = nullptr;
-            uint64_t try_keep_ms = 0;
-            if ((img = get_next_display_image()) == nullptr) {
-                img = get_default_display_image();
-                try_keep_ms = get_default_try_keep_ms();
-            } else {
-                try_keep_ms = get_next_image_try_keep_ms();
-            }
-
-            if (img) {
-                priv.disp->show(*img, image::FIT_COVER);
-            }
-
-            while (time::ticks_ms() - last_show_ms <= (try_keep_ms > 0 ? try_keep_ms : 10)) {
-                time::sleep_ms(1);
-            }
-            last_show_ms = time::ticks_ms();
-        } else {
-            while (time::ticks_ms() < priv.next_play_ms) {
-                time::sleep_ms(1);
-            }
-
-            while (time::ticks_ms() - last_show_ms <= 10) {
-                time::sleep_ms(1);
-            }
-            last_show_ms = time::ticks_ms();
-        }
-    }
 
     if (ui_get_touch_small_image_flag()) {
         if (!ui_get_bulk_delete_flag()) {
@@ -1391,6 +1346,33 @@ int app_loop(void)
             delete info;
         } else {
             printf("The next photo is not found!\r\n");
+        }
+    }
+
+    if (priv.disp) {
+        static uint64_t last_show_ms = time::ticks_ms();
+        if (!next_is_frame()) {
+            image::Image *img = get_next_show_image();
+            uint64_t try_keep_ms = get_next_keep_ms();
+            if (img) {
+                priv.disp->show(*img, image::FIT_COVER);
+            }
+
+            while (time::ticks_ms() - last_show_ms <= (try_keep_ms > 0 ? try_keep_ms : 10)) {
+                time::sleep_ms(1);
+            }
+            last_show_ms = time::ticks_ms();
+        } else {
+            VIDEO_FRAME_INFO_S *frame = get_next_show_frame();
+            uint64_t try_keep_ms = get_next_keep_ms();
+            if (frame) {
+                mmf_vo_frame_push2(0, 0, 2, frame);
+            }
+
+            while (time::ticks_ms() - last_show_ms <= (try_keep_ms > 0 ? try_keep_ms : 10)) {
+                time::sleep_ms(1);
+            }
+            last_show_ms = time::ticks_ms();
         }
     }
 
