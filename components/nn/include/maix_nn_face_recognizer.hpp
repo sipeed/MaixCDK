@@ -487,7 +487,7 @@ namespace maix::nn
 
         /**
          * remove face from lib
-         * @param idx index of face in lib, default -1 means use label, idx and label must have one, idx have high priotiry.
+         * @param idx index of face in lib, default -1 means use label, value [0,face_num), idx and label must have one, idx have high priotiry.
          * @param label which face to remove, default to empty string mean use idx, idx and label must have one, idx have high priotiry.
          * @maixpy maix.nn.FaceRecognizer.remove_face
          */
@@ -504,7 +504,9 @@ namespace maix::nn
                 {
                     if (labels[i] == label)
                     {
-                        idx = i;
+                        idx = i - 1;
+                        if(idx < 0) // should never < 0
+                            throw err::Exception("Code have bug here, idx must >= 0");
                         break;
                     }
                 }
