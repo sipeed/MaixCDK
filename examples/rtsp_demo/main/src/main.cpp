@@ -24,8 +24,8 @@ int _main(int argc, char* argv[])
     int cam_buffer_num = 3;
     if (argc > 1) {
         if (!strcmp(argv[1], "-h")) {
-            log::info("./camera_display <width> <height> <format> <fps> <buff_num>");
-            log::info("example: ./camera_display 640 480 0 60 2");
+            log::info("./rtsp_demo <width> <height> <format> <fps> <buff_num>");
+            log::info("example: ./rtsp_demo 640 480");
             exit(0);
         } else {
             cam_w = atoi(argv[1]);
