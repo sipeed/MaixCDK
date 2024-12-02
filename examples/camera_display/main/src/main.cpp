@@ -3,6 +3,7 @@
 #include "maix_basic.hpp"
 #include "maix_camera.hpp"
 #include "maix_display.hpp"
+#include "maix_fp5510.hpp"
 #include "main.h"
 
 #include <stdio.h>
@@ -12,12 +13,14 @@
 #include <fcntl.h>
 
 using namespace maix;
+using namespace maix::ext_dev;
 
 static int cmd_init(void);
 static int cmd_loop(camera::Camera *cam, display::Display *disp);
 
 static bool camera2_enable = false;
 static bool disp2_enable = false;
+fp5510::FP5510 *g_fp5510e = nullptr;
 
 int _main(int argc, char* argv[])
 {
@@ -57,6 +60,7 @@ int _main(int argc, char* argv[])
     log::info("disp size: %dx%d format:%s", disp.width(), disp.height(), image::fmt_names[disp.format()].c_str());
     cam.skip_frames(5);
     err::check_bool_raise(!cmd_init(), "cmd init failed!");
+    uint64_t last_loop_ms = time::ticks_ms();
 
     while(!app::need_exit())
     {
@@ -119,7 +123,8 @@ int _main(int argc, char* argv[])
         // calculate fps
         t3 = time::ticks_ms();
         fps = 1000.0f/(t3-t1);
-        snprintf(buf, sizeof(buf), "cam: %ld, disp: %ld, all: %ld (ms), fps: %.2f", t2-t1, t3-t2, t3-t1, fps);
+        snprintf(buf, sizeof(buf), "cam: %ld, disp: %ld, all: %ld (ms), fps: %.2f", t2-t1, t3-t2, t3-last_loop_ms, fps);
+        last_loop_ms = time::ticks_ms();
     }
 
     if (cam2) {
@@ -166,6 +171,7 @@ static int cmd_init(void)
             "17 <fps>: set fps\r\n"
             "18 <addr> <data>: set reg\r\n"
             "19 <addr>: get reg\r\n"
+            "20 <pos>: set fp5510e pos\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -359,6 +365,22 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
             log::info("i2c read addr:%#x", value_h);
             int data = cam->read_reg(value_h);
             log::info("i2c read data:%#x", data);
+            break;
+        }
+        case 20:
+        {
+            try {
+                if (!g_fp5510e) {
+                    g_fp5510e = new fp5510::FP5510();
+                }
+            } catch (exception &e) {
+                log::info("Create fp5510 failed!");
+            }
+
+            if (g_fp5510e) {
+                g_fp5510e->set_pos(value);
+                log::info(" set fp5510 pos:%d", g_fp5510e->get_pos());
+            }
             break;
         }
         default:printf("Find not cmd!\r\n"); break;
