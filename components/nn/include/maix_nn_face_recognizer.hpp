@@ -152,6 +152,108 @@ namespace maix::nn
     };
 
     /**
+     * Objects Class for detect result
+     * @maixpy maix.nn.FaceObjects
+     */
+    class FaceObjects
+    {
+    public:
+        /**
+         * Constructor of FaceObjects class
+         * @maixpy maix.nn.FaceObjects.__init__
+         * @maixcdk maix.nn.FaceObjects.FaceObjects
+         */
+        FaceObjects()
+        {
+        }
+
+        ~FaceObjects()
+        {
+            for (FaceObject *obj : objs)
+            {
+                delete obj;
+            }
+        }
+
+        /**
+         * Add object to FaceObjects
+         * @throw Throw exception if no memory
+         * @maixpy maix.nn.FaceObjects.add
+         */
+        nn::FaceObject &add(int x = 0, int y = 0, int w = 0, int h = 0, int class_id = 0, float score = 0, std::vector<int> points = std::vector<int>(), std::vector<float> feature = std::vector<float>(), image::Image face = image::Image())
+        {
+            FaceObject *obj = new FaceObject(x, y, w, h, class_id, score, points, feature, face);
+            if(!obj)
+                throw err::Exception(err::ERR_NO_MEM);
+            objs.push_back(obj);
+            return *obj;
+        }
+
+        /**
+         * Remove object form FaceObjects
+         * @maixpy maix.nn.FaceObjects.remove
+         */
+        err::Err remove(int idx)
+        {
+            if ((size_t)idx >= objs.size())
+                return err::ERR_ARGS;
+            objs.erase(objs.begin() + idx);
+            return err::ERR_NONE;
+        }
+
+        /**
+         * Get object item
+         * @maixpy maix.nn.FaceObjects.at
+         */
+        nn::FaceObject &at(int idx)
+        {
+            return *objs.at(idx);
+        }
+
+        /**
+         * Get object item
+         * @maixpy maix.nn.FaceObjects.__getitem__
+         * @maixcdk maix.nn.FaceObjects.[]
+         */
+        nn::FaceObject &operator[](int idx)
+        {
+            return *objs.at(idx);
+        }
+
+        /**
+         * Get size
+         * @maixpy maix.nn.FaceObjects.__len__
+         * @maixcdk maix.nn.FaceObjects.size
+         */
+        size_t size()
+        {
+            return objs.size();
+        }
+
+        /**
+         * Begin
+          @maixpy maix.nn.FaceObjects.__iter__
+         * @maixcdk maix.nn.FaceObjects.begin
+        */
+        std::vector<FaceObject*>::iterator begin()
+        {
+            return objs.begin();
+        }
+
+        /**
+         * End
+         * @maixcdk maix.nn.FaceObjects.end
+        */
+        std::vector<FaceObject*>::iterator end()
+        {
+            return objs.end();
+        }
+
+    private:
+        std::vector<FaceObject *> objs;
+    };
+
+    /**
      * FaceRecognizer class
      * @maixpy maix.nn.FaceRecognizer
      */
@@ -228,7 +330,7 @@ namespace maix::nn
                 err::Err e = _facedetector_retina->load(detect_model);
                 if (e != err::ERR_NONE)
                 {
-                    log::info("load detect model failed");
+                    log::error("load detect model failed");
                     return e;
                 }
                 _input_size = _facedetector_retina->input_size();
@@ -239,7 +341,7 @@ namespace maix::nn
                 err::Err e = _facedetector->load(detect_model);
                 if (e != err::ERR_NONE)
                 {
-                    log::info("load detect model failed");
+                    log::error("load detect model failed");
                     return e;
                 }
                 _input_size = _facedetector->input_size();
@@ -250,7 +352,7 @@ namespace maix::nn
                 err::Err e = _facedetector_yolov8->load(detect_model);
                 if (e != err::ERR_NONE)
                 {
-                    log::info("load detect model failed");
+                    log::error("load detect model failed");
                     return e;
                 }
                 _input_size = _facedetector_yolov8->input_size();
@@ -267,7 +369,7 @@ namespace maix::nn
                 delete _model_feature;
                 _model_feature = nullptr;
             }
-            _model_feature = new nn::NN(feature_model, _dual_buff);
+            _model_feature = new nn::NN(feature_model, false);
             if (!_model_feature)
             {
                 if(_facedetector)
@@ -403,10 +505,10 @@ namespace maix::nn
          * @param get_face return face image or not, if true result object's face attribute will valid, or face sttribute is empty. Get face image will alloc memory and copy image, so will lead to slower speed.
          * @param fit Resize method, default image.Fit.FIT_CONTAIN.
          * @throw If image format not match model input format, will throw err::Exception.
-         * @return FaceObject list. In C++, you should delete it after use.
+         * @return FaceObjects object. In C++, you should delete it after use.
          * @maixpy maix.nn.FaceRecognizer.recognize
          */
-        std::vector<nn::FaceObject> *recognize(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, float compare_th = 0.8, bool get_feature = false, bool get_face = false, maix::image::Fit fit = maix::image::FIT_CONTAIN)
+        nn::FaceObjects *recognize(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, float compare_th = 0.8, bool get_feature = false, bool get_face = false, maix::image::Fit fit = maix::image::FIT_CONTAIN)
         {
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
@@ -418,7 +520,7 @@ namespace maix::nn
                 objs = _facedetector_retina->detect(img, _conf_th, _iou_th, fit);
             else if (_facedetector_yolov8)
                 objs2 = _facedetector_yolov8->detect(img, _conf_th, _iou_th, fit);
-            std::vector<nn::FaceObject> *faces = new std::vector<nn::FaceObject>();
+            FaceObjects *faces = new nn::FaceObjects();
             size_t size = objs2 ? objs2->size() : objs->size();
             for (size_t i = 0; i < size; ++i)
             {
@@ -427,11 +529,11 @@ namespace maix::nn
                 image::Image *std_img = img.affine(obj->points, _std_points, _feature_input_size, _feature_input_size);
                 // img.save("/root/test0.jpg");
                 // std_img->save("/root/test.jpg");
-                tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false, get_feature || get_face);
+                tensor::Tensors *outputs = _model_feature->forward_image(*std_img, this->mean_feature, this->scale_feature, fit, false, true);
                 if (!outputs) // not ready for dual_buff mode
                 {
                     delete std_img;
-                    return new std::vector<nn::FaceObject>();
+                    return new FaceObjects();
                 }
                 tensor::Tensor *out = outputs->tensors[outputs->keys()[0]];
                 int fea_len = out->size_int();
@@ -449,8 +551,9 @@ namespace maix::nn
                             max_i = i;
                     }
                 }
-                nn::FaceObject face(obj->x, obj->y, obj->w, obj->h, max_i + 1, max_score);
-                faces->push_back(face);
+                {
+                    faces->add(obj->x, obj->y, obj->w, obj->h, max_i + 1, max_score);
+                }
                 nn::FaceObject &face1 = faces->at(faces->size() - 1);
                 face1.points = obj->points;
                 if(get_feature)
@@ -495,7 +598,7 @@ namespace maix::nn
         {
             if (idx == -1 && label.empty())
             {
-                log::info("idx and label must have one");
+                log::error("idx and label must have one");
                 return err::ERR_ARGS;
             }
             if (!label.empty())
@@ -517,7 +620,7 @@ namespace maix::nn
                 labels.erase(labels.begin() + idx + 1);
                 return err::ERR_NONE;
             }
-            log::info("idx value error: %d", idx);
+            log::error("idx value error: %d", idx);
             return err::ERR_ARGS;
         }
 

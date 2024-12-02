@@ -434,13 +434,29 @@ namespace maix::image
 
     void Image::operator=(const image::Image &img)
     {
+        if(_data)
+        {
+            if(_is_malloc)
+            {
+                log::info("free _actual_data");
+                free(_actual_data);
+                _actual_data = NULL;
+                _data = NULL;
+            }
+            else
+                throw err::Exception(err::ERR_NOT_IMPL, "not support copy image to not alloc data image");
+        }
         _format = img._format;
         _width = img._width;
         _height = img._height;
-        _data = malloc(_width * _height * image::fmt_size[_format]);
-        if (!_data)
+        _data_size = _width * _height * image::fmt_size[_format];
+        _actual_data = malloc(_data_size + 0x1000);
+        if (!_actual_data)
             throw std::bad_alloc();
-        memcpy(_data, img._data, _width * _height * image::fmt_size[_format]);
+        _data = (void *)(((uint64_t)_actual_data + 0x1000) & ~0xFFF);
+        memcpy(_data, img._data, _data_size);
+        _is_malloc = true;
+        // log::debug("malloc image data\n");
     }
 
     std::string Image::__str__()
@@ -1508,6 +1524,52 @@ namespace maix::image
         }
         cv::Mat warp_mat = cv::getAffineTransform(srcTri, dstTri);
         cv::warpAffine(img, dst, warp_mat, dst.size(), (cv::InterpolationFlags)method);
+        return ret;
+    }
+
+    image::Image* Image::perspective(std::vector<int> src_points, std::vector<int> dst_points, int width, int height, image::ResizeMethod method)
+    {
+        if (width < 0 && height < 0)
+        {
+            throw std::runtime_error("width and height can't both be -1");
+        }
+        if (src_points.size() < 8 || dst_points.size() < 8)
+        {
+            throw std::invalid_argument("4 points are required for perspective transform.");
+        }
+
+        int pixel_num = _get_cv_pixel_num(_format);
+
+        // Calculate size if width or height is -1
+        if (width == -1)
+        {
+            width = height * _width / _height;
+        }
+        else if (height == -1)
+        {
+            height = width * _height / _width;
+        }
+
+        // Create output image
+        image::Image* ret = new image::Image(width, height, _format);
+
+        // Convert source and destination points to cv::Point2f
+        std::vector<cv::Point2f> srcPts, dstPts;
+        for (size_t i = 0; i < 8; i += 2)
+        {
+            srcPts.push_back(cv::Point2f(src_points[i], src_points[i + 1]));
+            dstPts.push_back(cv::Point2f(dst_points[i], dst_points[i + 1]));
+        }
+
+        // Calculate perspective transformation matrix
+        cv::Mat warp_mat = cv::getPerspectiveTransform(srcPts, dstPts);
+
+        // Apply the perspective transform to the image
+        cv::Mat img(_height, _width, pixel_num, _data);
+        cv::Mat dst(height, width, pixel_num, ret->data());
+
+        cv::warpPerspective(img, dst, warp_mat, dst.size(), (cv::InterpolationFlags)method);
+
         return ret;
     }
 

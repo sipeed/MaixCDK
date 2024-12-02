@@ -144,7 +144,7 @@ namespace maix::image
         /**
          * Get image's data pointer.
          * In MaixPy is capsule object.
-         * @maixpy maix.image.Image.data
+         * @maixcdk maix.image.Image.data
          */
         void *data(){ return _data; }
 
@@ -504,7 +504,7 @@ namespace maix::image
         image::Image *resize(int width, int height, image::Fit object_fit = image::Fit::FIT_FILL, image::ResizeMethod method = image::ResizeMethod::NEAREST);
 
         /**
-         * Affine transform image, will create a new transformed image object
+         * Affine transform image, will create a new transformed image object, need 3 points.
          * @param src_points three source points, [x1, y1, x2, y2, x3, y3]
          * @param dst_points three destination points, [x1, y1, x2, y2, x3, y3]
          * @param width new width, if value is -1, will use height to calculate aspect ratio
@@ -514,6 +514,18 @@ namespace maix::image
          * @maixpy maix.image.Image.affine
          */
         image::Image *affine(std::vector<int> src_points, std::vector<int> dst_points, int width = -1, int height = -1, image::ResizeMethod method = image::ResizeMethod::BILINEAR);
+
+        /**
+         * Perspective transform image, will create a new transformed image object, need 4 points.
+         * @param src_points three source points, [x1, y1, x2, y2, x3, y3, x4, y4]
+         * @param dst_points three destination points, [x1, y1, x2, y2, x3, y3, x4, y4]
+         * @param width new width, if value is -1, will use height to calculate aspect ratio
+         * @param height new height, if value is -1, will use width to calculate aspect ratio
+         * @param method resize method, by default is bilinear
+         * @return new transformed image object
+         * @maixpy maix.image.Image.affine
+         */
+        image::Image* perspective(std::vector<int> src_points, std::vector<int> dst_points, int width = -1, int height = -1, image::ResizeMethod method = image::ResizeMethod::BILINEAR);
 
         /**
          * Copy image, will create a new copied image object
