@@ -1,7 +1,7 @@
 id: photos
 name: Photos
 name[zh]: 相册
-version: 1.0.0
+version: 1.0.1
 icon: assets/photos.json
 author: Sipeed Ltd
 desc: Photos
