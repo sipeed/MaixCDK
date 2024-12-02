@@ -78,7 +78,7 @@ set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
-#### and components denpend on this component
+#### Add components that depend on this component
 # list(APPEND ADD_DEFINITIONS -D__ERROR__=00*10000000+__LINE__*1000 -DOS_LINUX)
 
 ###############################################

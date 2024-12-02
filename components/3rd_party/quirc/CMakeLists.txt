@@ -43,7 +43,7 @@ aux_source_directory("./src" ADD_SRCS)
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
-#### and components denpend on this component
+#### Add components that depend on this component
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1
 #                             -DAAAAA333=1)
 ###############################################
