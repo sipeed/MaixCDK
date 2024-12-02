@@ -46,3 +46,39 @@ class CommProtocol
 
 Here `class CommProtocol` not add `@maixpy maix.comm.CommProtocol` but its method `get_msg` add it.
 So we add `@maixpy maix.comm.CommProtocol` to `class CommProtocol` comment will fix this error.
+
+
+## 使用WSL编译OpenSSL时出错的修复方法
+
+当我在工程中使用openssl时：
+![a0cee88e7a7a747c2d34eadb31a925bd](https://github.com/user-attachments/assets/7de123b5-aae6-4a92-8d88-9d9a7a57f419)
+
+编译报错：
+
+![3b42197634ee4cd6a7b0462636e8dd34](https://github.com/user-attachments/assets/5ffe5433-ac0f-4096-8374-5d76c43ed320)
+
+ 用verbose查看命令发现， Path里是包含“（”的，这是windows的Path将WSL的path污染了。 
+
+参照网上的方法，在WSL中：
+```
+sudo nano /etc/wsl.conf
+```
+
+如果没有则新建，内容如下：
+
+```conf
+[interop]
+appendWindowsPath = false
+```
+
+重启WSL后， Path干净了。
+
+![9a86a628630209725d362f07b51ecb9a](https://github.com/user-attachments/assets/af7f11d2-9bef-4df1-aeeb-0388dce18241)
+
+
+编译openssl也成功了。
+
+![d6e43b3bf8e5c68d9966636464b08a43](https://github.com/user-attachments/assets/c41eaa03-f1d8-49b9-bc27-88c63ee4cf4f)
+
+
+
