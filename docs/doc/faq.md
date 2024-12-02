@@ -48,3 +48,41 @@ class CommProtocol
 
 Here `class CommProtocol` not add `@maixpy maix.comm.CommProtocol` but its method `get_msg` add it.
 So we add `@maixpy maix.comm.CommProtocol` to `class CommProtocol` comment will fix this error.
+
+## Build OpenSSL Error when using WSL( Windows Subsystem Layer)
+
+When I add openssl to my project 
+![a0cee88e7a7a747c2d34eadb31a925bd](https://github.com/user-attachments/assets/77b0c057-fb0b-4980-8ff4-413fd14dec28)
+build fail occured:
+
+![3b42197634ee4cd6a7b0462636e8dd34](https://github.com/user-attachments/assets/d23da336-8096-43ec-aec8-23691caaacf2)
+
+Use "maixcdk build --verbose" to check . I found that windows path polluted wsl path . and there are "(" and space in path ,which make configure of openssl fail .
+
+Fix : fix the path : 
+
+edit `wsl.conf` in wsl 
+```sh
+sudo nano /etc/wsl.conf
+```
+
+create the file if no exist. add the content below : 
+
+```
+
+[interop]
+appendWindowsPath = false
+```
+
+restart wsl 
+```
+wsl --shutdown Ubuntu
+```
+
+![9a86a628630209725d362f07b51ecb9a](https://github.com/user-attachments/assets/79571b2c-3449-4ae8-afdd-69917d4986ce)
+
+path is fixed ,openssl configure succ 
+
+![d6e43b3bf8e5c68d9966636464b08a43](https://github.com/user-attachments/assets/f69be859-dc9c-4a7d-82f3-06df0ea03ed5)
+
+
