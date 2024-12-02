@@ -1,5 +1,5 @@
 set(zbar_version_str "${CONFIG_ZBAR_VERSION_MAJOR}.${CONFIG_ZBAR_VERSION_MINOR}")
-set(unzip_path "${DL_EXTRACTED_PATH}/zbar_srcs")
+set(unzip_path ".")
 set(src_path "${unzip_path}/ZBar-${zbar_version_str}")
 
 ################# Add include #################
