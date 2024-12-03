@@ -11,6 +11,7 @@
 #include "maix_fs.hpp"
 #include "maix_vision.hpp"
 #include "maix_ffmpeg.hpp"
+#include "region.hpp"
 #include "sophgo_middleware.hpp"
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -43,6 +44,7 @@ static struct {
     std::string video_mp4_path;
 
     uint64_t loop_last_ms;
+    uint64_t last_update_region_ms;
     void *loop_last_frame;
 
     bool camera_resolution_update_flag;
@@ -57,7 +59,10 @@ static struct {
     gpio::GPIO *light;
     ffmpeg::FFmpegPacker *ffmpeg_packer;
     audio::Recorder *audio_recorder;
+    Region *region;
     int encoder_bitrate;
+
+    bool show_timestamp_enable;
 
     uint64_t last_read_pcm_ms;
     uint64_t last_read_cam_ms;
@@ -271,6 +276,15 @@ int app_base_init(void)
     priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, fps, 3, true, priv.capture_raw_enable);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
+    // // init region
+    // auto string_size = image::string_size("2024/09/20 10:23:33");
+    // auto region_w = 200;
+    // auto region_h = string_size.height();
+    // auto region_x = 10;
+    // auto region_y = priv.camera->height() - region_h - 10;
+    // priv.region = new Region(region_x, region_y, region_w, region_h, image::FMT_BGRA8888, priv.camera);
+    // err::check_null_raise(priv.region, "region open failed");
+
     // init display
     priv.disp = new display::Display();
     priv.other_disp = priv.disp->add_channel();  // This object(other_disp) is depend on disp, so we must keep disp.show() running.
@@ -357,6 +371,11 @@ int app_base_deinit(void)
     if (priv.disp) {
         delete priv.disp;
         priv.disp = NULL;
+    }
+
+    if (priv.region) {
+        delete priv.region;
+        priv.region = nullptr;
     }
 
     if (priv.camera) {
@@ -491,7 +510,7 @@ int app_base_loop(void)
                         priv.video_pts += priv.ffmpeg_packer->video_us_to_pts((time::ticks_ms() - priv.last_read_cam_ms) * 1000);
                         priv.last_read_cam_ms = time::ticks_ms();
                     }
-                    log::info("[VIDEO] pts:%d  pts %f s", priv.video_pts, priv.ffmpeg_packer->video_pts_to_us(priv.video_pts) / 1000000);
+                    // log::info("[VIDEO] pts:%d  pts %f s", priv.video_pts, priv.ffmpeg_packer->video_pts_to_us(priv.video_pts) / 1000000);
                     if (err::ERR_NONE != priv.ffmpeg_packer->push(data, data_size, priv.video_pts)) {
                         log::error("ffmpeg push failed!");
                     }
@@ -520,7 +539,7 @@ int app_base_loop(void)
             Bytes *pcm_data = priv.audio_recorder->record_bytes(read_pcm_size);
             if (pcm_data) {
                 if (pcm_data->data_len > 0) {
-                    log::info("[AUDIO] pts:%d  pts %f s", priv.audio_pts, priv.ffmpeg_packer->audio_pts_to_us(priv.audio_pts) / 1000000);
+                    // log::info("[AUDIO] pts:%d  pts %f s", priv.audio_pts, priv.ffmpeg_packer->audio_pts_to_us(priv.audio_pts) / 1000000);
                     if (err::ERR_NONE != priv.ffmpeg_packer->push(pcm_data->data, pcm_data->data_len, priv.audio_pts, true)) {
                         log::error("ffmpeg push failed!");
                     }
@@ -546,6 +565,23 @@ int app_base_loop(void)
     lv_timer_handler();
 
     app_loop(*priv.camera, *priv.disp, priv.other_disp);
+
+    if (priv.show_timestamp_enable) {
+        uint64_t curr_ms = time::ticks_ms();
+        if (curr_ms - priv.last_update_region_ms > 1000) {
+            if (priv.region) {
+                auto img = priv.region->get_canvas();
+                auto datetime = time::now();
+                auto str1 = datetime->strftime("%Y/%m/%d %H:%M:%S");
+                delete datetime;
+                img->draw_string(0, 0, str1, image::COLOR_WHITE);
+                priv.region->update_canvas();
+                // log::info("use:%lld str:%s", time::ticks_ms() - curr_ms, str1.c_str());
+            }
+            priv.last_update_region_ms = curr_ms;
+        }
+    }
+
     // printf("loop time: %ld ms\n", time::ticks_ms() - priv.loop_last_ms);
     // priv.loop_last_ms = time::ticks_ms();
     return 0;
@@ -769,6 +805,25 @@ static int app_config_param(void)
                 priv.encoder = nullptr;
                 priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, 30, 50, priv.encoder_bitrate);
             }
+        }
+    }
+
+    if (ui_get_timestamp_btn_update_flag()) {
+        priv.show_timestamp_enable = ui_get_timestamp_btn_touched();
+        if (priv.region) {
+            delete priv.region;
+            priv.region = nullptr;
+        }
+
+        if (priv.show_timestamp_enable) {
+            // init region
+            auto string_size = image::string_size("2024/09/20 10:23:33");
+            auto region_w = 200;
+            auto region_h = string_size.height();
+            auto region_x = 10;
+            auto region_y = priv.camera->height() - region_h - 10;
+            priv.region = new Region(region_x, region_y, region_w, region_h, image::FMT_BGRA8888, priv.camera);
+            err::check_null_raise(priv.region, "region open failed");
         }
     }
 

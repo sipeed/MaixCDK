@@ -54,6 +54,7 @@ lv_obj_t *g_light_button;
 lv_obj_t *g_raw_button;
 lv_obj_t *g_shutter_plus_minus_button;
 lv_obj_t *g_iso_plus_minus_button;
+lv_obj_t *g_timestamp_button;
 
 lv_obj_t *g_drop_down_img;
 
@@ -75,6 +76,7 @@ LV_IMG_DECLARE(img_light_on);
 LV_IMG_DECLARE(img_light_off);
 LV_IMG_DECLARE(img_bitrate);
 LV_IMG_DECLARE(img_drop_down);
+LV_IMG_DECLARE(img_timestamp);
 
 extern void event_touch_exit_cb(lv_event_t * e);
 extern void event_touch_delay_cb(lv_event_t * e);
@@ -333,6 +335,27 @@ static void left_screen_init(void)
         lv_label_set_text(label, "kbps");
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_center(label);
+    }
+
+    {
+        lv_obj_t *obj = lv_obj_create(scr);
+        lv_obj_set_size(obj, lv_pct(100), lv_pct(25));
+        lv_obj_set_pos(obj, 0, lv_pct(200));
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0), 0);
+        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), LV_STATE_CHECKED);
+        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
+        lv_obj_set_style_radius(obj, 0, 0);
+        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_event_cb(obj, event_touch_timestamp_cb, LV_EVENT_CLICKED, NULL);
+        g_timestamp_button = obj;
+        lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(obj, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(obj, 0, 0);
+
+        img = lv_image_create(obj);
+        lv_image_set_src(img, &img_timestamp);
+        lv_obj_center(img);
     }
 }
 

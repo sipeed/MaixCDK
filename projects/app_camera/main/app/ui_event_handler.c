@@ -49,6 +49,7 @@ extern lv_obj_t *g_raw_button;
 extern lv_obj_t *g_light_button;
 extern lv_obj_t *g_bitrate_button;
 extern lv_obj_t *g_drop_down_img;
+extern lv_obj_t *g_timestamp_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -75,6 +76,8 @@ static struct {
     unsigned int raw_btn_update_flag : 1;
     unsigned int light_btn_touched : 1;
     unsigned int light_btn_update_flag : 1;
+    unsigned int timestamp_btn_touched : 1;
+    unsigned int timestamp_btn_update_flag : 1;
 
     unsigned int resolution_setting_idx;
     unsigned int bitrate;
@@ -617,6 +620,20 @@ void event_touch_light_cb(lv_event_t * e)
 
             lv_obj_t *img = lv_obj_get_child(g_light_button, -1);
             lv_image_set_src(img, &img_light_off);
+        }
+    }
+}
+
+void event_touch_timestamp_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (lv_obj_get_state(g_timestamp_button) != LV_STATE_FOCUSED) {
+            priv.timestamp_btn_touched = 1;
+            priv.timestamp_btn_update_flag = 1;
+        } else {
+            priv.timestamp_btn_touched = 0;
+            priv.timestamp_btn_update_flag = 1;
         }
     }
 }
@@ -1641,4 +1658,14 @@ void ui_set_bitrate(int bitrate, bool need_update)
             priv.bitrate_update_flag = need_update;
         }
     }
+}
+
+bool ui_get_timestamp_btn_update_flag() {
+    bool flag = priv.timestamp_btn_update_flag ? true : false;
+    priv.timestamp_btn_update_flag = false;
+    return flag;
+}
+
+bool ui_get_timestamp_btn_touched() {
+    return priv.timestamp_btn_touched ? true : false;
 }
