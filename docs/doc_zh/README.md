@@ -44,7 +44,7 @@ MaixCDK 不光是一套 C++ SDK，同时会自动生成 Python API 绑定，即�
 
 ```
 sudo apt update
-sudo apt install git cmake build-essential python3 python3-pip
+sudo apt install git cmake build-essential python3 python3-pip autoconf automake libtool
 cmake --version # cmake 版本应该 >= 3.13
 ```
 > 如果你希望编译出来到 Linux PC 上跑，而不是交叉编译到开发板，如果是 `Ubuntu`，请使用系统版本`>=20.04`，否则有些依赖包可能会版本太旧无法编译通过，并且按照[Dockerfile](https://github.com/sipeed/MaixCDK/blob/main/docs/doc/dev/docker/Dockerfile)里面的安装依赖的命令来安装依赖。
