@@ -411,4 +411,3 @@ By following the steps and examples provided, you can write C++ code that can be
 - **Memory Management**: Ensure that Python can correctly manage the lifecycle of dynamically allocated objects returned from C++.
 - **Error Handling**: Use C++ exception handling mechanisms to manage errors, ensuring that these errors can be caught in Python.
 
-If you have any further questions or need additional assistance, feel free to ask. I hope this guide helps you successfully map your C++ code to Python functions!
