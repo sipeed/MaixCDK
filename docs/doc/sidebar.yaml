@@ -10,6 +10,8 @@ items:
         file: convention/README.md
       - label: Add New API
         file: convention/add_api.md
+      - label: Python Binding Details
+        file:  dev/python_bind.md
       - label: APP framework
         file: convention/app.md
       - label: I18N(translation)
