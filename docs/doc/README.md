@@ -43,7 +43,7 @@ Note that the MaixCAM toolchain only supports x86_64 CPUs and is not compatible 
 
 ```shell
 sudo apt update
-sudo apt install git cmake build-essential python3 python3-pip
+sudo apt install git cmake build-essential python3 python3-pip autoconf automake libtool
 cmake --version # cmake version should be >= 3.13
 ```
 > To compile for a Linux PC (instead of cross-compiling for a dev board), if you’re using `Ubuntu`, ensure the system version is `>=20.04`, or some dependencies may be too outdated to compile. Install dependencies following the commands in the [Dockerfile](https://github.com/sipeed/MaixCDK/blob/main/docs/doc/dev/docker/Dockerfile).
