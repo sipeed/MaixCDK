@@ -28,7 +28,7 @@ int _main(int argc, char* argv[])
         0x00, 10,               // input registers
         0x00, 10,               // holding registers
         0, 1,                   // serial, ignore
-        5020,                      // tcp port
+        502,                      // tcp port
         false);                  // debug OFF
 
     std::vector<uint16_t> data{0x22, 0x33, 0x44};

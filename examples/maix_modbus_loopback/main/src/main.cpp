@@ -25,7 +25,7 @@ constexpr uint32_t RTU_SLAVE_ID = 1;
 constexpr int RTU_BAUDRATE = 115200;
 
 /* tcp cfg */
-constexpr int TCP_PORT = 5020;
+constexpr int TCP_PORT = 502;
 
 int master_rtu_thread()
 {

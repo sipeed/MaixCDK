@@ -141,7 +141,7 @@ namespace maix::comm::modbus {
          *                 Default is 115200. Ensure that the selected baud rate
          *                 is supported by the underlying hardware and libmodbus.
          * @param rtu_slave The RTU slave address. Ignored in TCP mode. Default is 1.
-         * @param tcp_port The port used for TCP communication. Ignored in RTU mode. Default is 5020.
+         * @param tcp_port The port used for TCP communication. Ignored in RTU mode. Default is 502.
          * @param debug A boolean flag to enable or disable debug mode. Default is false.
          *
          * @maixpy maix.comm.modbus.Slave.__init__
@@ -152,7 +152,7 @@ namespace maix::comm::modbus {
             uint32_t holding_start=0, uint32_t holding_size=0,
             uint32_t input_start=0, uint32_t input_size=0,
             int rtu_baud=115200, uint8_t rtu_slave=1,
-            int tcp_port=5020, bool debug=false);
+            int tcp_port=502, bool debug=false);
 
         /**
          * @brief Constructor for creating a Modbus Slave instance with specified registers.
@@ -177,7 +177,7 @@ namespace maix::comm::modbus {
          *                 Default is 115200. Ensure that the selected baud rate
          *                 is supported by the underlying hardware and libmodbus.
          * @param rtu_slave The RTU slave address. Ignored in TCP mode. Default is 1.
-         * @param tcp_port The port used for TCP communication. Ignored in RTU mode. Default is 5020.
+         * @param tcp_port The port used for TCP communication. Ignored in RTU mode. Default is 502.
          * @param debug A boolean flag to enable or disable debug mode. Default is false.
          *
          * @maixcdk maix.modbus.Slave.__init__
@@ -185,7 +185,7 @@ namespace maix::comm::modbus {
         Slave(maix::comm::modbus::Mode mode, const std::string& ip_or_device,
             const Registers& registers=Registers{},
             int rtu_baud=115200, uint8_t rtu_slave=1,
-            int tcp_port=5020, bool debug=false);
+            int tcp_port=502, bool debug=false);
 
 
         ~Slave();
