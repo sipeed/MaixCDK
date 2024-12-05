@@ -1373,11 +1373,11 @@ void ui_all_screen_deinit(void)
     }
 }
 
-void ui_set_video_bar_s(uint32_t curr_s, uint32_t total_s)
+void ui_set_video_bar_s(double curr_s, double total_s)
 {
     if (g_video_bar_label) {
         lv_label_set_text_fmt(g_video_bar_label, "%.2d:%.2d:%.2d/%.2d:%.2d:%.2d",
-            curr_s / 3600, (curr_s % 3600) / 60, curr_s % 60, total_s / 3600, (total_s % 3600) / 60, total_s % 60);
+            (uint32_t)curr_s / 3600, ((uint32_t)curr_s % 3600) / 60, (uint32_t)curr_s % 60, (uint32_t)total_s / 3600, ((uint32_t)total_s % 3600) / 60, (uint32_t)total_s % 60);
     }
 
     if (g_video_bar) {
