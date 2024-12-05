@@ -68,7 +68,7 @@ append_srcs_dir(ADD_SRCS        "${src_path}/src/net"
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
-#### and components denpend on this component
+#### Add components that depend on this component
 # list(APPEND ADD_DEFINITIONS -D__ERROR__=00*10000000+__LINE__*1000 -DOS_LINUX)
 
 ###############################################
