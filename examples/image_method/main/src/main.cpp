@@ -47,7 +47,7 @@ int _main(int argc, char* argv[])
         g_param.cam = cam;
     } else {
         picture = image::load(priv.picture_path.c_str(), priv.cam_fmt);
-        image::Image *new_picture = picture->resize(priv.cam_w, priv.cam_h);
+        image::Image *new_picture = picture->resize(priv.cam_w, priv.cam_h, image::FIT_COVER);
         delete picture;
         picture = new_picture;
         log::info("picture path:%s size: %dx%d format:%s\n", priv.picture_path.c_str(), picture->width(), picture->height(), image::fmt_names[picture->format()]);
@@ -84,7 +84,7 @@ int _main(int argc, char* argv[])
         while (!app::need_exit()) {
             time::sleep_ms(100);
         }
-        delete picture;
+        // delete picture; // deleted after delete img
     }
 
     if (cam) {
@@ -133,6 +133,9 @@ static int cmd_init(int argc, char* argv[])
     priv.method_list.push_back(image_method_t{"find_blobs", test_find_blobs});
     priv.method_list.push_back(image_method_t{"find_qrcode", test_find_qrcode});
     priv.method_list.push_back(image_method_t{"qrcode_detector", test_qrcode_detector});
+    priv.method_list.push_back(image_method_t{"find_lines", test_find_lines});
+    priv.method_list.push_back(image_method_t{"ed lib", test_ed_lib});
+    priv.method_list.push_back(image_method_t{"tracking line", test_tracking_line});
 
     // Get init param
     if (argc > 1) {
@@ -163,6 +166,11 @@ static int cmd_init(int argc, char* argv[])
             if (strlen(argv[5]) > 0) {
                 priv.use_picture = true;
                 priv.picture_path = argv[5];
+                if (!fs::exists(priv.picture_path)) {
+                    cmd_helper();
+                    log::error("\r\npath %s does not exist!\r\n", priv.picture_path.c_str());
+                    exit(0);
+                }
             }
         }
     }

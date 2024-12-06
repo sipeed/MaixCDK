@@ -2816,4 +2816,77 @@ namespace maix::image
 
         ~HaarCascade(){};
     };
+
+
+    /**
+     * Line type class
+     * @maixpy maix.image.LineType
+    */
+    enum class LineType {
+        LINE_NORMAL,
+        LINE_CROSS,
+        LINE_T,
+        LINE_L,
+    };
+
+    /**
+     * LineGroup class
+     * @maixpy maix.image.LineGroup
+     */
+    class LineGroup{
+    private:
+        int _id;
+        LineType _type;
+        std::vector<image::Line> _lines;
+        std::vector<std::vector<std::vector<int>>> _points;
+    public:
+        /**
+         * LineGroup constructor
+         *
+         * @param id The id of line
+         * @param type The line list type, @see image::LineType
+         * @param lines The line list
+         * @param points Point sets of line
+         * @maixpy maix.image.HaarCascade.__init__
+        */
+        LineGroup(int id, image::LineType type, std::vector<image::Line> lines, std::vector<std::vector<std::vector<int>>> points = std::vector<std::vector<std::vector<int>>>()) {
+            _id = id;
+            _type = type;
+            _lines = lines;
+            _points = points;
+        }
+
+        ~LineGroup(){}
+
+        /**
+         * Get the line id of group, first id is 0.
+         *
+         * @return return id
+         * @maixpy maix.image.LineGroup.id
+        */
+        int id() {return _id;}
+
+        /**
+         * Get the line type of group
+         *
+         * @return returns line type. @see LineType
+         * @maixpy maix.image.LineGroup.type
+        */
+        image::LineType type() {return _type;}
+
+        /**
+         * Get a list of line
+         *
+         * @return returns a list composed of Line objects
+         * @maixpy maix.image.LineGroup.lines
+        */
+        std::vector<image::Line> lines() {return _lines;}
+
+        /**
+         * Get the key points of line
+         * @return returns a list composed of (x,y) coordnates.
+         * @maixpy maix.image.LineGroup.points
+        */
+        std::vector<std::vector<std::vector<int>>> points() {return _points;}
+    };
 }
