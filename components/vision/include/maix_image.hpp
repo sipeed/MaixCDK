@@ -1308,6 +1308,24 @@ namespace maix::image
         std::vector<image::Line> find_line_segments(std::vector<int> roi = std::vector<int>(), int merge_distance = 0, int max_theta_difference = 15);
 
         /**
+         * Search the path of line
+         *
+         * @param thresholds You can define multiple thresholds.
+         * For GRAYSCALE format, you can use {{Lmin, Lmax}, ...} to define one or more thresholds.
+         * For RGB888 format, you can use {{Lmin, Lmax, Amin, Amax, Bmin, Bmax}, ...} to define one or more thresholds.
+         * Where the upper case L,A,B represent the L,A,B channels of the LAB image format, and min, max represent the minimum and maximum values of the corresponding channels.
+         * @param detect_pixel_size Before finding the path, the screen is divided into several smaller blocks, each with a width and height of detect_pixel_size. The smaller the detect_pixel_size, the finer the division. the unit is pixels.
+         * @param point_merge_size Minimum distance between merged point sets. the unit is pixels.
+         * @param connection_max_size Minimum size allowed for connecting points to form a line. the unit is pixels.
+         * @param connection_max_distance Minimum distance allowed for point to line. the unit is pixels.
+         * @param connection_max_angle Minimum angle allowed for connecting points to form a line.
+         *
+         * @return Return the line when found lines, format is (groupline1, groupline2, ...), you can use LineGroup class methods to do more operations
+         * @maixpy maix.image.Image.search_line_path
+         */
+        std::vector<image::LineGroup> search_line_path(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), int detect_pixel_size = 30, int point_merge_size = 15, int connection_max_size = 51, int connection_max_distance = 20, int connection_max_angle = 20);
+
+        /**
          * Find circles in image
          *
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.

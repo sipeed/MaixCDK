@@ -1,17 +1,8 @@
 ############### Add include ###################
 list(APPEND ADD_INCLUDE "include"
     )
+list(APPEND ADD_PRIVATE_INCLUDE "")
 ###############################################
-
-# ed lib
-list(APPEND ADD_PRIVATE_INCLUDE "ed_lib/ED_Lib")
-list(APPEND ADD_SRCS  "ed_lib/ED_Lib/ED.cpp"
-                      "ed_lib/ED_Lib/EDCircles.cpp"
-                      "ed_lib/ED_Lib/EDColor.cpp"
-                      "ed_lib/ED_Lib/EDLines.cpp"
-                      "ed_lib/ED_Lib/EDPF.cpp"
-                      "ed_lib/ED_Lib/NFA.cpp"
-    )
 
 ############ Add source files #################
 # list(APPEND ADD_SRCS  "src/main.c"
@@ -32,7 +23,7 @@ append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS vision quirc vision_extra)
+list(APPEND ADD_REQUIREMENTS basic ext_dev)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
@@ -47,8 +38,8 @@ list(APPEND ADD_REQUIREMENTS vision quirc vision_extra)
 ###############################################
 
 #### Add compile option for this component ####
-#### Just for this component, won't affect other 
-#### modules, including component that depend 
+#### Just for this component, won't affect other
+#### modules, including component that depend
 #### on this component
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
@@ -65,14 +56,13 @@ list(APPEND ADD_REQUIREMENTS vision quirc vision_extra)
 
 ######### Add files need to download #########
 # list(APPEND ADD_FILE_DOWNLOADS "{
-# 'url': 'https://*****/abcde.tar.xz',
-# 'urls': [],  # backup urls, if url failed, will try urls
-# 'sites': [], # download site, user can manually download file and put it into dl_path
-# 'sha256sum': '',
-# 'filename': 'abcde.tar.xz',
-# 'path': 'toolchains/xxxxx',
-# 'check_files': []
-# }"
+#     'url': 'https://*****/abcde.tar.xz',
+#     'urls': [],  # backup urls, if url failed, will try urls
+#     'sites': [], # download site, user can manually download file and put it into dl_path
+#     'sha256sum': '',
+#     'filename': 'abcde.tar.xz',
+#     'path': 'toolchains/xxxxx',
+#     }"
 # )
 #
 # then extracted file in ${DL_EXTRACTED_PATH}/toolchains/xxxxx,
