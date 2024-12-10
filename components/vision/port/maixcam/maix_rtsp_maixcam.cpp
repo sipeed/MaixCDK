@@ -384,7 +384,7 @@ namespace maix::rtsp
                     log::error("mmf_venc_push2 failed!\r\n");
                 }
 
-                mmf_vi_frame_free(vi_ch);
+                mmf_vi_frame_free2(vi_ch, &frame);
             }
 
             if (found_audio_data) {
