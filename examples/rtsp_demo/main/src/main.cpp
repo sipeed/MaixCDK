@@ -77,8 +77,16 @@ int _main(int argc, char* argv[])
         rgn_img = region->get_canvas();
         rgn_img->draw_rect(0, 0, rgn_img->width(), rgn_img->height(), color, -1);
         region->update_canvas();
+        delete rgn_img;
 
-        maix::image::Image *img = cam2->read();
+        maix::image::Image *img = nullptr;
+        try {
+            img = cam2->read();
+        } catch (std::exception &e) {
+            time::sleep_ms(10);
+            continue;
+        }
+
         disp.show(*img);
         delete img;
         uint64_t curr_ms = time::ticks_ms();
