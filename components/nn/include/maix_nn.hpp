@@ -32,7 +32,7 @@ namespace maix::nn
          * @maixpy maix.nn.MUD.__init__
          * @maixcdk maix.nn.MUD.MUD
          */
-        MUD(const char *model_path = nullptr);
+        MUD(const std::string &model_path = "");
         ~MUD();
 
         /**
@@ -54,6 +54,35 @@ namespace maix::nn
          * @maixpy maix.nn.MUD.items
          */
         std::map<std::string, std::map<std::string, std::string>> items;
+
+        /**
+         * Model path
+         * @maixpy maix.nn.MUD.model_path
+         */
+         std::string model_path;
+
+        /**
+         * Please load() first, parse labels in items["extra"]["labels"],
+         * if items["extra"]["labels"] is a file path: will parse file, every one line is a label;
+         * if items["extra"]["labels"] is a string, labels split by comma(",").
+         * Execute this method will replace items["extra"]["labels"];
+         * @param key parse from items[key], default "labels".
+         * @return parsed labels list.
+         * @maixpy maix.nn.MUD.parse_labels
+         */
+        std::vector<std::string> parse_labels(const std::string key = "labels");
+
+        /**
+         * Please load() first, parse labels in items["extra"]["labels"],
+         * if items["extra"]["labels"] is a file path: will parse file, every one line is a label;
+         * if items["extra"]["labels"] is a string, labels split by comma(",").
+         * Execute this method will replace items["extra"]["labels"];
+         * @param labels labels to store.
+         * @param key parse from items[key], default "labels".
+         * @return parse success or not, err.Err type, no error will return err.Err.ERR_NONE.
+         * @maixcdk maix.nn.MUD.parse_labels
+         */
+        err::Err parse_labels(std::vector<std::string> &labels, const std::string key = "labels");
     };
 
     /**
@@ -287,6 +316,28 @@ namespace maix::nn
          * @maixpy maix.nn.NN.extra_info
          */
         std::map<std::string, std::string> extra_info();
+
+        /**
+         * Get model parsed extra info labels define in MUD file
+         * @return labels list in extra info, string list type.
+         * @maixpy maix.nn.NN.extra_info_labels
+         */
+        std::vector<std::string> extra_info_labels();
+
+        /**
+         * Get model parsed extra info labels define in MUD file
+         * @param labels list in extra info, string list type.
+         * @return error info, err::Err::ERR_NONE means no error.
+         * @maixcdk maix.nn.NN.extra_info_labels
+         */
+        err::Err extra_info_labels(std::vector<std::string> &labels);
+
+        /**
+         * Get MUD object
+         * @return MUD object reference.
+         * @maixcdk maix.nn.NN.mud
+         */
+         nn::MUD &mud();
 
         /**
          * forward run model, get output of model
