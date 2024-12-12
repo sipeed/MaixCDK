@@ -19,9 +19,10 @@
 
 namespace maix::nn
 {
-    MUD::MUD(const char *model_path)
+    MUD::MUD(const std::string &model_path)
     {
-        if (model_path)
+        this->model_path = model_path;
+        if (!model_path.empty())
         {
             err::Err e = load(model_path);
             if (e != err::ERR_NONE)
@@ -48,8 +49,97 @@ namespace maix::nn
         }
     }
 
+    static err::Err _load_labels_from_file(std::vector<std::string> &labels, const std::string &label_path)
+    {
+        // load labels from labels file
+        labels.clear();
+        fs::File *f = fs::open(label_path, "r");
+        if (!f)
+        {
+            log::error("open label file %s failed", label_path.c_str());
+            return err::ERR_ARGS;
+        }
+        std::string line;
+        while (f->readline(line) > 0)
+        {
+            // strip line
+            line.erase(0, line.find_first_not_of(" \t\r\n"));
+            line.erase(line.find_last_not_of(" \t\r\n") + 1);
+            labels.push_back(line);
+        }
+        f->close();
+        delete f;
+        return err::ERR_NONE;
+    }
+
+    err::Err MUD::parse_labels(std::vector<std::string> &labels, const std::string key)
+    {
+        auto it = items["extra"].find(key);
+        if (it == items["extra"].end())
+        {
+            log::error("Key %s not found in items['extra']", key.c_str());
+            return err::Err::ERR_ARGS;
+        }
+        labels.clear();
+
+        auto is_potential_file_path = [](const std::string& str) {
+            // Consider it a file path if it doesn't contain commas or whitespace
+            return str.find(',') == std::string::npos && str.find_first_of(" \t\r\n") == std::string::npos;
+        };
+
+        const std::string &label_value = it->second;
+        std::string label_file = fs::dirname(model_path) + "/" + label_value;
+
+        if (is_potential_file_path(label_value) && fs::exists(label_file) && fs::isfile(label_file))
+        {
+            err::Err result = _load_labels_from_file(labels, label_file);
+            if (result != err::ERR_NONE)
+            {
+                log::error("Failed to load labels from file %s", label_file.c_str());
+                return result;
+            }
+        }
+        else
+        {
+            size_t start = 0;
+            size_t end = label_value.find(',');
+
+            while (end != std::string::npos)
+            {
+                std::string label = label_value.substr(start, end - start);
+
+                // 去掉前后空字符
+                label.erase(0, label.find_first_not_of(" \t\r\n"));
+                label.erase(label.find_last_not_of(" \t\r\n") + 1);
+
+                labels.push_back(label);
+                start = end + 1;
+                end = label_value.find(',', start);
+            }
+
+            // 处理最后一个标签
+            std::string label = label_value.substr(start);
+            label.erase(0, label.find_first_not_of(" \t\r\n"));
+            label.erase(label.find_last_not_of(" \t\r\n") + 1);
+            if (!label.empty())
+            {
+                labels.push_back(label);
+            }
+        }
+        return err::Err::ERR_NONE;
+    }
+
+    std::vector<std::string> MUD::parse_labels(const std::string key)
+    {
+        std::vector<std::string> labels;
+        parse_labels(labels, key);
+        return labels;
+    }
+
+
     err::Err MUD::load(const std::string &model_path)
     {
+        this->model_path = model_path;
         if (model_path.empty() || !fs::exists(model_path.c_str()))
         {
             log::error("model path %s not exists\n", model_path.c_str());
@@ -187,6 +277,21 @@ namespace maix::nn
     std::map<std::string, std::string> NN::extra_info()
     {
         return _mud.items["extra"];
+    }
+
+    std::vector<std::string> NN::extra_info_labels()
+    {
+        return _mud.parse_labels();
+    }
+
+    err::Err NN::extra_info_labels(std::vector<std::string> &labels)
+    {
+        return _mud.parse_labels(labels);
+    }
+
+    nn::MUD &NN::mud()
+    {
+        return _mud;
     }
 
     err::Err NN::forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result, bool dual_buff_wait)

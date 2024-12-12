@@ -158,33 +158,14 @@ namespace maix::nn
                 log::error("scale key not found");
                 return err::ERR_ARGS;
             }
-            if (_extra_info.find("labels") != _extra_info.end())
+            err::Err e = _model->extra_info_labels(labels);
+            if(e == err::Err::ERR_NONE)
             {
-                // if "," in labels, will treat as label list, else will treat as label file path
-                std::string &labels_str = _extra_info["labels"];
-                if (labels_str.find(",") != std::string::npos)
-                {
-                    split0(labels, labels_str, ",");
-                }
-                else if(labels_str.find(".") != std::string::npos)
-                {
-                    label_path = fs::dirname(model) + "/" + _extra_info["labels"];
-                    err::Err e = _load_labels_from_file(labels, label_path);
-                    if (e != err::ERR_NONE)
-                    {
-                        log::error("Load labels file %s failed", label_path.c_str());
-                        return e;
-                    }
-
-                }
-                else
-                {
-                    labels.push_back(labels_str);
-                }
+                log::print("\tlabels num: %ld\n", labels.size());
             }
             else
             {
-                log::error("labels key not found");
+                log::error("labels key not found: %s", err::to_str(e).c_str());
                 return err::ERR_ARGS;
             }
             _inputs = _model->inputs_info();
