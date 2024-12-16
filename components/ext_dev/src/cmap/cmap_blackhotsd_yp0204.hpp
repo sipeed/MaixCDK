@@ -3,7 +3,7 @@
 
 #include "cmap_utils.hpp"
 
-namespace maix::ext_dev::mlx90640::cmap {
+namespace maix::ext_dev::cmap {
 
 inline static const CmapArray blackhotsd_yp0204 = {
     rgb_tuple_from(230,238,243),

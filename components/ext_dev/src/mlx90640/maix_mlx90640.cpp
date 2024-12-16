@@ -2,17 +2,10 @@
 #include "MLX90640_I2C_Driver.h"
 #include "maix_basic.hpp"
 
-/* CMAP include */
-#include "cmap/cmap_white_hot_yp0103.hpp"
-#include "cmap/cmap_whitehotsd_yp0100.hpp"
-#include "cmap/cmap_black_hot_yp0203.hpp"
-#include "cmap/cmap_blackhotsd_yp0204.hpp"
-#include "cmap/cmap_red_hot_yp1303.hpp"
-#include "cmap/cmap_redhotsd_yp1304.hpp"
-#include "cmap/cmap_night_yp0901.hpp"
-#include "cmap/cmap_ironbow_yp0301.hpp"
-
 namespace maix::ext_dev::mlx90640 {
+
+using maix::ext_dev::cmap::Cmap;
+using maix::ext_dev::cmap::get;
 
 constexpr Point empty_point = {-1,-1,0.0};
 constexpr uint8_t MLX_ADDR = 0x33;
@@ -287,37 +280,37 @@ Point MLX90640Celsius::center_point()
 
 maix::image::Image* MLX90640Celsius::image_from(const CMatrix& matrix)
 {
-    const cmap::CmapArray* array = nullptr;
+    const cmap::CmapArray* array = get(this->_cmap);
 
-    switch (this->_cmap) {
-    case Cmap::WHITE_HOT:
-        array = &cmap::white_hot_yp0103;
-        break;
-    case Cmap::WHITE_HOT_SD:
-        array = &cmap::whitehotsd_yp0100;
-        break;
-    case Cmap::BLACK_HOT:
-        array = &cmap::black_hot_yp0203;
-        break;
-    case Cmap::BLACK_HOT_SD:
-        array = &cmap::blackhotsd_yp0204;
-        break;
-    case Cmap::RED_HOT:
-        array = &cmap::red_hot_yp1303;
-        break;
-    case Cmap::RED_HOT_SD:
-        array = &cmap::redhotsd_yp1304;
-        break;
-    case Cmap::NIGHT:
-        array = &cmap::night_yp0901;
-        break;
-    case Cmap::IRONBOW:
-        array = &cmap::ironbow_yp0301;
-        break;
-    default:
-        maix::log::error("%s Unknown CMAP!", TAG());
-        return {};
-    }
+    // switch (this->_cmap) {
+    // case Cmap::WHITE_HOT:
+    //     array = &cmap::white_hot_yp0103;
+    //     break;
+    // case Cmap::WHITE_HOT_SD:
+    //     array = &cmap::whitehotsd_yp0100;
+    //     break;
+    // case Cmap::BLACK_HOT:
+    //     array = &cmap::black_hot_yp0203;
+    //     break;
+    // case Cmap::BLACK_HOT_SD:
+    //     array = &cmap::blackhotsd_yp0204;
+    //     break;
+    // case Cmap::RED_HOT:
+    //     array = &cmap::red_hot_yp1303;
+    //     break;
+    // case Cmap::RED_HOT_SD:
+    //     array = &cmap::redhotsd_yp1304;
+    //     break;
+    // case Cmap::NIGHT:
+    //     array = &cmap::night_yp0901;
+    //     break;
+    // case Cmap::IRONBOW:
+    //     array = &cmap::ironbow_yp0301;
+    //     break;
+    // default:
+    //     maix::log::error("%s Unknown CMAP!", TAG());
+    //     return {};
+    // }
     uint8_t img_buffer[MLX_H][MLX_W][3];
 
     auto tmin = this->_min;
