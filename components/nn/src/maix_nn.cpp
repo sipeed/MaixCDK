@@ -107,6 +107,7 @@ namespace maix::nn
 
     NN::NN(const std::string &model_path, bool dual_buff)
     {
+        wait_first = dual_buff; // if dual_buff is true, wait first frame result
         _impl = nullptr;
 #if PLATFORM_MAIXCAM
         _impl = new NN_MaixCam(dual_buff);
@@ -201,6 +202,10 @@ namespace maix::nn
 
     tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result, bool dual_buff_wait)
     {
+        if(wait_first){
+            wait_first = false;
+            dual_buff_wait = true; // wait first frame result , to avoid empty return
+        }
         return _impl->forward_image(img, mean, scale, fit, copy_result, dual_buff_wait);
     }
 

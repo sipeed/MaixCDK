@@ -334,6 +334,7 @@ namespace maix::nn
     private:
         MUD _mud;
         NNBase *_impl;
+        bool wait_first; // wait result for first frame
     };
 
 }; // namespace maix::nn
