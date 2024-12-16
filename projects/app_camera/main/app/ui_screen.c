@@ -955,7 +955,7 @@ static void screen_timelapse_init(void)
     int obj_w = lv_pct(100);
     int obj_h = lv_pct(15);
 
-    int timelapse_list[] = {0, 1, 3, 5, 10, 30, 60};
+    int timelapse_list[] = {0, 1, 3, 5, 10, 15, 30, 45, 60, -1};
     for (size_t i = 0; i < sizeof(timelapse_list) / sizeof(timelapse_list[0]); i ++) {
         {
             obj = lv_obj_create(scr);
@@ -972,8 +972,10 @@ static void screen_timelapse_init(void)
             label = lv_label_create(obj);
             lv_obj_set_pos(label, 0, 0);
             lv_obj_set_align(label, LV_ALIGN_CENTER);
-            if (timelapse_list[i]  == 0) {
+            if (timelapse_list[i] == 0) {
                 lv_label_set_text(label, "OFF");
+            } else if (timelapse_list[i] == -1) {
+                lv_label_set_text(label, "AUTO");
             } else {
                 lv_label_set_text_fmt(label, "%d s", timelapse_list[i]);
             }
@@ -1438,5 +1440,5 @@ void ui_all_screen_init(void)
     screen_big_image();
     screen_video_running();
 
-    ui_set_record_time(2000 * 1000);
+    ui_set_record_time(0);
 }

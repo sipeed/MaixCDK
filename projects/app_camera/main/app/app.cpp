@@ -84,12 +84,16 @@ static void set_audio_enable(bool en)
 }
 
 static void timelapse_record_init(int second) {
-    priv.timelapse_s = second >= 0 ? second : 0;
+    priv.timelapse_s = second;
     priv.last_push_venc_ms = time::ticks_ms();
 }
 
 static bool timelapse_record_is_enable() {
     return priv.timelapse_s == 0 ? false : true;
+}
+
+static bool timelapse_record_is_auto() {
+    return priv.timelapse_s < 0 ? true : false;
 }
 
 static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
@@ -581,9 +585,13 @@ int app_base_loop(void)
             if (!timelapse_record_is_enable()) {
                 mmf_venc_push2(enc_ch, frame);
             } else {
-                if (time::ticks_ms() - priv.last_push_venc_ms > priv.timelapse_s * 1000) {
+                if (timelapse_record_is_auto()) {
                     mmf_venc_push2(enc_ch, frame);
-                    priv.last_push_venc_ms = time::ticks_ms();
+                } else {
+                    if (time::ticks_ms() - priv.last_push_venc_ms > (uint64_t)priv.timelapse_s * 1000) {
+                        mmf_venc_push2(enc_ch, frame);
+                        priv.last_push_venc_ms = time::ticks_ms();
+                    }
                 }
             }
 
