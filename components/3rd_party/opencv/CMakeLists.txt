@@ -62,6 +62,7 @@ if(PLATFORM_MAIXCAM AND NOT CONFIG_OPENCV_COMPILE_FROM_SOURCE AND NOT CONFIG_COM
                                             "${opencv_lib_dir}/dl_lib/libopencv_highgui.so.${so_suffix_number}"
                                             "${opencv_lib_dir}/dl_lib/libopencv_imgcodecs.so.${so_suffix_number}"
                                             "${opencv_lib_dir}/dl_lib/libopencv_imgproc.so.${so_suffix_number}"
+                                            "${opencv_lib_dir}/dl_lib/libopencv_video.so.${so_suffix_number}"
                                             # "${opencv_lib_dir}/dl_lib/libopencv_freetype.so.${so_suffix_number}"
                 )
                 list(APPEND ADD_DYNAMIC_LIB ${opencv_libs})
@@ -126,6 +127,7 @@ if(NOT ADD_INCLUDE)
                         "${opencv_install_dir}/lib/libopencv_highgui.so.${so_suffix_number}"
                         "${opencv_install_dir}/lib/libopencv_imgcodecs.so.${so_suffix_number}"
                         "${opencv_install_dir}/lib/libopencv_imgproc.so.${so_suffix_number}"
+                        "${opencv_install_dir}/lib/libopencv_video.so.${so_suffix_number}"
                         # "${opencv_install_dir}/lib/libopencv_freetype.so.${so_suffix_number}"
         )
         list(APPEND ADD_DYNAMIC_LIB ${opencv_libs})
