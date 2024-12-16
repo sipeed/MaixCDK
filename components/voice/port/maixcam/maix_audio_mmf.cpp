@@ -92,9 +92,9 @@ namespace maix::audio
 
     static int _read_wav_header(wav_header_t *header, uint8_t *data, size_t size)
     {
+        int cnt = 0;
         if (size < 44) return -1;
 
-        int cnt = 0;
         if (data[cnt ++] != 'R' || data[cnt ++] != 'I' || data[cnt ++] != 'F' || data[cnt ++] != 'F')
         {
             printf("RIFF not found in wav header!\r\n");
@@ -112,31 +112,34 @@ namespace maix::audio
         cnt += 4; // jump fmt
         cnt += 4;
 
-        int audio_format = (uint32_t)data[cnt ++]
-                        | ((uint32_t)data[cnt ++] << 8);
+        int audio_format = (uint32_t)data[cnt]
+                        | ((uint32_t)data[cnt + 1] << 8);
+        cnt += 2;
         if (audio_format != 1) {
             printf("audio format is not pcm!\r\n");
             return -3;
         }
 
-        header->channel = (uint32_t)data[cnt ++]
-                        | ((uint32_t)data[cnt ++] << 8);
-        header->sample_rate = (uint32_t)data[cnt ++]
-                            | ((uint32_t)data[cnt ++] << 8)
-                            | ((uint32_t)data[cnt ++] << 16)
-                            | ((uint32_t)data[cnt ++] << 24);
-        header->bitrate = (uint32_t)data[cnt ++]
-                            | ((uint32_t)data[cnt ++] << 8)
-                            | ((uint32_t)data[cnt ++] << 16)
-                            | ((uint32_t)data[cnt ++] << 24);
+        header->channel = (uint32_t)data[cnt]
+                        | ((uint32_t)data[cnt + 1] << 8);
         cnt += 2;
-        header->sample_bit = (uint32_t)data[cnt ++]
-                            | ((uint32_t)data[cnt ++] << 8);
+        header->sample_rate = (uint32_t)data[cnt]
+                            | ((uint32_t)data[cnt + 1] << 8)
+                            | ((uint32_t)data[cnt + 2] << 16)
+                            | ((uint32_t)data[cnt + 3] << 24);
         cnt += 4;
-        header->data_size = (uint32_t)data[cnt ++]
-                            | ((uint32_t)data[cnt ++] << 8)
-                            | ((uint32_t)data[cnt ++] << 16)
-                            | ((uint32_t)data[cnt ++] << 24);
+        header->bitrate = (uint32_t)data[cnt]
+                            | ((uint32_t)data[cnt + 1] << 8)
+                            | ((uint32_t)data[cnt + 2] << 16)
+                            | ((uint32_t)data[cnt + 3] << 24);
+        cnt += 6;
+        header->sample_bit = (uint32_t)data[cnt]
+                            | ((uint32_t)data[cnt + 1] << 8);
+        cnt += 6;
+        header->data_size = (uint32_t)data[cnt]
+                            | ((uint32_t)data[cnt + 1] << 8)
+                            | ((uint32_t)data[cnt + 2] << 16)
+                            | ((uint32_t)data[cnt + 3] << 24);
         return 0;
     }
 

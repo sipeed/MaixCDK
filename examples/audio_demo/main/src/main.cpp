@@ -187,7 +187,12 @@ int _main(int argc, char* argv[])
 {
     int cmd = 0;
     if (argc > 1) {
-        cmd = atoi(argv[1]);
+        if (!strcmp("-h", argv[1])) {
+            helper();
+            return 0;
+        } else {
+            cmd = atoi(argv[1]);
+        }
     } else {
         helper();
         return 0;
