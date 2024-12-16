@@ -1060,6 +1060,9 @@ void event_touch_select_timelapse_cb(lv_event_t * e)
             if (!strcmp("OFF", text)) {
                 priv.timelapse_s = 0;
                 lv_label_set_text(left_label, "OFF");
+            } else if (!strcmp("AUTO", text)) {
+                priv.timelapse_s = -1;
+                lv_label_set_text(left_label, "AUTO");
             } else {
                 priv.timelapse_s = atoi(text);
                 lv_label_set_text_fmt(left_label, "%d s", priv.timelapse_s);
@@ -1750,9 +1753,11 @@ void ui_set_timelapse_s(int timelapse, bool need_update)
     size_t idx = 0;
     if (timelapse == 0) {
         idx = 0;
+    } else if (timelapse < 0) {
+        idx = child_num_of_scr - 1;
     } else {
         idx = 1;
-        for (;idx < child_num_of_scr; idx++) {
+        for (;idx < child_num_of_scr - 1; idx++) {
             lv_obj_t *child = lv_obj_get_child(scr, idx);
             if (child) {
                 lv_obj_t *label = lv_obj_get_child(child, -1);
@@ -1776,7 +1781,11 @@ void ui_set_timelapse_s(int timelapse, bool need_update)
 
     // set timelapse
     idx = idx >= child_num_of_scr ? child_num_of_scr - 1 : idx;
-    child_timelapse_s = atoi(lv_label_get_text(lv_obj_get_child(lv_obj_get_child(scr, idx), -1)));
+    if (idx == child_num_of_scr - 1) {
+        child_timelapse_s = -1;
+    } else {
+        child_timelapse_s = atoi(lv_label_get_text(lv_obj_get_child(lv_obj_get_child(scr, idx), -1)));
+    }
     DEBUG_PRT("select child index: %ld  timelapse s:%d", idx, child_timelapse_s);
 
     lv_obj_t *child = lv_obj_get_child(scr, idx);
@@ -1794,6 +1803,8 @@ void ui_set_timelapse_s(int timelapse, bool need_update)
     if (left_label) {
         if (child_timelapse_s == 0) {
             lv_label_set_text(left_label, "OFF");
+        } else if (child_timelapse_s == -1) {
+            lv_label_set_text(left_label, "AUTO");
         } else {
             lv_label_set_text_fmt(left_label, "%d s", child_timelapse_s);
         }
