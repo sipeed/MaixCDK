@@ -41,6 +41,8 @@ void event_touch_iso_minus_cb(lv_event_t *e);
 void event_touch_raw_cb(lv_event_t * e);
 void event_touch_light_cb(lv_event_t * e);
 void event_touch_timestamp_cb(lv_event_t * e);
+void event_touch_timelapse_cb(lv_event_t * e);
+void event_touch_select_timelapse_cb(lv_event_t * e);
 
 bool ui_get_cam_snap_flag(void);
 bool ui_get_cam_video_start_flag(void);
@@ -94,6 +96,11 @@ int ui_get_bitrate();
 
 bool ui_get_timestamp_btn_update_flag();
 bool ui_get_timestamp_btn_touched();
+
+bool ui_get_timelapse_update_flag();
+int ui_get_timelapse_s();
+void ui_set_timelapse_s(int timelapse, bool need_update);
+
 
 typedef struct {
     unsigned int exposure_time_max;
