@@ -98,8 +98,9 @@ namespace maix::comm
 {
     static std::fstream testfile_s;
     static std::thread *_stop_th = nullptr;
-    CommBase *CommProtocol::_get_comm_obj(const std::string &method)
+    CommBase *CommProtocol::_get_comm_obj(const std::string &method, err::Err &error)
     {
+        error = err::Err::ERR_NONE;
         if (method == "uart")
         {
             std::vector<std::string> ports = uart::list_devices();
@@ -116,39 +117,51 @@ namespace maix::comm
             listener_priv::CommFileHandle::write_comm_info(ports[ports.size() - 1]);
             return new uart::UART(ports[ports.size() - 1], 115200);
         }
-        else
+        else if (method == "none")
         {
-            log::error("not support comm method: %s\n", method.c_str());
             return nullptr;
         }
+        error = err::Err::ERR_ARGS;
+        log::error("not support comm method: %s\n", method.c_str());
+        return nullptr;
         /* i2c device: /dev/i2c-x
             listener_priv::CommFileHandle::write_comm_info("/dev/i2c-x"); */
     }
 
-    CommProtocol::CommProtocol(int buff_size, uint32_t header)
+    CommProtocol::CommProtocol(int buff_size, uint32_t header, bool method_none_raise)
     {
         _tmp_buff_len = 128;
         _tmp_buff = new uint8_t[_tmp_buff_len];
         if (!_tmp_buff)
         {
-            throw std::bad_alloc();
+            throw err::Exception(err::ERR_NO_MEM);
         }
         _p = new protocol::Protocol(buff_size, header);
-        _comm_method = app::get_sys_config_kv("comm", "method", "uart");
-        _comm = _get_comm_obj(_comm_method);
+        _comm_method = CommProtocol::get_method();
+        _valid = false;
+        err::Err e;
+        _comm = _get_comm_obj(_comm_method, e);
         if (!_comm)
         {
-            std::string msg = "get comm " + _comm_method + " obj failed";
-            log::error(msg.c_str());
-            throw std::runtime_error(msg);
+            if(e != err::ERR_NONE)
+            {
+                std::string msg = "get comm " + _comm_method + " obj failed";
+                log::error(msg.c_str());
+                throw err::Exception(err::ERR_RUNTIME, msg);
+            }
+            log::info("comm protocol disabled");
+            if (method_none_raise)
+                throw err::Exception(err::ERR_ARGS, "comm protocol disabled");
+            return;
         }
-        err::Err e = _comm->open();
+        e = _comm->open();
         if (e != err::ERR_NONE)
         {
             std::string msg = "open comm " + _comm_method + " obj failed: " + err::to_str(e);
             log::error(msg.c_str());
-            throw std::runtime_error(msg);
+            throw err::Exception(err::ERR_RUNTIME, msg);
         }
+        _valid = true;
     }
 
     CommProtocol::~CommProtocol()
@@ -164,6 +177,18 @@ namespace maix::comm
             delete _tmp_buff;
             _tmp_buff = nullptr;
         }
+    }
+
+    err::Err CommProtocol::set_method(const std::string &method)
+    {
+        if(method != "uart" && method != "none")
+            return err::ERR_ARGS;
+        return app::set_sys_config_kv("comm", "method", method);
+    }
+
+    std::string CommProtocol::get_method()
+    {
+        return app::get_sys_config_kv("comm", "method", "uart");
     }
 
     static std::vector<std::string> find_string(char *data, uint32_t data_len, uint32_t try_find_cnt = 0)
@@ -472,6 +497,8 @@ namespace maix::comm
     protocol::MSG *CommProtocol::get_msg(int timeout)
     {
         protocol::MSG *msg = nullptr;
+        if(!_valid)
+            return msg;
         uint64_t t = time::ticks_ms();
         while (1)
         {
@@ -504,6 +531,8 @@ namespace maix::comm
 
     err::Err CommProtocol::resp_ok(uint8_t *buff, int buff_len, uint8_t cmd, uint8_t *body, int body_len)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         int len = _p->encode_resp_ok(buff, buff_len, cmd, body, body_len);
         if (len < 0)
         {
@@ -519,6 +548,8 @@ namespace maix::comm
 
     err::Err CommProtocol::resp_ok(uint8_t cmd, uint8_t *body, int body_len)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         Bytes *buff = _p->encode_resp_ok(cmd, body, body_len);
         if (!buff)
         {
@@ -535,6 +566,8 @@ namespace maix::comm
 
     err::Err CommProtocol::resp_ok(uint8_t cmd, Bytes *body)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         Bytes *buff = _p->encode_resp_ok(cmd, body);
         if (!buff)
         {
@@ -551,6 +584,8 @@ namespace maix::comm
 
     err::Err CommProtocol::report(uint8_t *buff, int buff_len, uint8_t cmd, uint8_t *body, int body_len)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         int len = _p->encode_report(buff, buff_len, cmd, body, body_len);
         if (len < 0)
         {
@@ -566,6 +601,8 @@ namespace maix::comm
 
     err::Err CommProtocol::report(uint8_t cmd, uint8_t *body, int body_len)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         Bytes *buff = _p->encode_report(cmd, body, body_len);
         if (!buff)
         {
@@ -582,6 +619,8 @@ namespace maix::comm
 
     err::Err CommProtocol::report(uint8_t cmd, Bytes *body)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         Bytes *buff = _p->encode_report(cmd, body);
         if (!buff)
         {
@@ -598,6 +637,8 @@ namespace maix::comm
 
     err::Err CommProtocol::resp_err(uint8_t *buff, int buff_len, uint8_t cmd, err::Err code, const std::string &msg)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         int len = _p->encode_resp_err(buff, buff_len, cmd, code, msg);
         if (len < 0)
         {
@@ -613,6 +654,8 @@ namespace maix::comm
 
     err::Err CommProtocol::resp_err(uint8_t cmd, err::Err code, const std::string &msg)
     {
+        if(!_valid)
+            return err::ERR_NOT_PERMIT;
         Bytes *buff = _p->encode_resp_err(cmd, code, msg);
         if (!buff)
         {
@@ -844,8 +887,11 @@ namespace maix::comm::listener_priv
         {
             this->protocol = nullptr;
         }
-        this->device = analyze_device(CommFileHandle::read_comm_info());
-        log::debug("[Default CommListener] Start listening on port %s", this->device.c_str());
+        if(this->protocol)
+        {
+            this->device = analyze_device(CommFileHandle::read_comm_info());
+            log::debug("[Default CommListener] Start listening on port %s", this->device.c_str());
+        }
     }
 
     CommListener::~CommListener()
@@ -919,7 +965,7 @@ namespace maix::comm::listener_priv
             maix::log::warn("Default CommListener thread already running!!! IGNORE.");
             return;
         }
-        if (this->protocol)
+        if (this->protocol && this->protocol->valid())
         {
             this->th = new std::thread([this]()
                                        { this->run(); });
