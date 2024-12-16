@@ -50,6 +50,7 @@ static struct {
     bool camera_resolution_update_flag;
     int camera_resolution_w;
     int camera_resolution_h;
+    int camera_fps;
     int resolution_index;
     camera::Camera *camera;
     display::Display *disp;
@@ -66,9 +67,30 @@ static struct {
 
     uint64_t last_read_pcm_ms;
     uint64_t last_read_cam_ms;
+    uint64_t last_push_venc_ms;
     uint64_t video_pts;
     uint64_t audio_pts;
+
+    int timelapse_s;
+    bool audio_en;
 } priv;
+
+static void set_audio_enable(bool en)
+{
+    priv.audio_en = en;
+    if (priv.ffmpeg_packer) {
+        err::check_bool_raise(!priv.ffmpeg_packer->config("has_audio", priv.audio_en), "rtmp config failed!");
+    }
+}
+
+static void timelapse_record_init(int second) {
+    priv.timelapse_s = second >= 0 ? second : 0;
+    priv.last_push_venc_ms = time::ticks_ms();
+}
+
+static bool timelapse_record_is_enable() {
+    return priv.timelapse_s == 0 ? false : true;
+}
 
 static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img);
 
@@ -98,6 +120,8 @@ int app_pre_init(void)
     priv.camera_resolution_h = 1440;
     priv.resolution_index = 0;  // 0: 2560x1440; 1: 1920x1080; 2: 1280x720; 3: 640x480
     priv.encoder_bitrate = 3 * 1000 * 1000;
+    priv.camera_fps = 30;
+    priv.audio_en = true;
     return 0;
 }
 
@@ -272,8 +296,7 @@ int app_base_init(void)
     mmf_deinit_v2(true);
 
     // init camera
-    int fps = 30;
-    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, fps, 3, true, priv.capture_raw_enable);
+    priv.camera = new camera::Camera(priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, NULL, priv.camera_fps, 3, true, priv.capture_raw_enable);
     err::check_bool_raise(priv.camera->is_opened(), "camera open failed");
 
     // // init region
@@ -292,7 +315,7 @@ int app_base_init(void)
 
     // init encoder
     priv.encoder_bitrate = _get_encode_bitrate_by_camera_resolution(priv.camera_resolution_w, priv.camera_resolution_h);
-    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, fps, 50, priv.encoder_bitrate);
+    priv.encoder = new video::Encoder("", priv.camera_resolution_w, priv.camera_resolution_h, image::Format::FMT_YVU420SP, video::VideoType::VIDEO_H264, priv.camera_fps, 50, priv.encoder_bitrate);
 
     // touch screen
     priv.touchscreen = new touchscreen::TouchScreen();
@@ -316,10 +339,10 @@ int app_base_init(void)
     err::check_bool_raise(!priv.ffmpeg_packer->config("video_width", priv.camera_resolution_w), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("video_height", priv.camera_resolution_h), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("video_bitrate", priv.encoder_bitrate), "rtmp config failed!");
-    err::check_bool_raise(!priv.ffmpeg_packer->config("video_fps", fps), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("video_fps", priv.camera_fps), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("video_pixel_format", AV_PIX_FMT_NV21), "rtmp config failed!");
 
-    err::check_bool_raise(!priv.ffmpeg_packer->config("has_audio", true), "rtmp config failed!");
+    err::check_bool_raise(!priv.ffmpeg_packer->config("has_audio", priv.audio_en), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("audio_sample_rate", 48000), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("audio_channels", 1), "rtmp config failed!");
     err::check_bool_raise(!priv.ffmpeg_packer->config("audio_bitrate", 128000), "rtmp config failed!");
@@ -507,7 +530,11 @@ int app_base_loop(void)
                         priv.video_pts = 0;
                         priv.last_read_cam_ms = time::ticks_ms();
                     } else {
-                        priv.video_pts += priv.ffmpeg_packer->video_us_to_pts((time::ticks_ms() - priv.last_read_cam_ms) * 1000);
+                        if (!timelapse_record_is_enable()) {
+                            priv.video_pts += priv.ffmpeg_packer->video_us_to_pts((time::ticks_ms() - priv.last_read_cam_ms) * 1000);
+                        } else {
+                            priv.video_pts += priv.ffmpeg_packer->video_us_to_pts(1000000 / priv.camera_fps);
+                        }
                         priv.last_read_cam_ms = time::ticks_ms();
                     }
                     // log::info("[VIDEO] pts:%d  pts %f s", priv.video_pts, priv.ffmpeg_packer->video_pts_to_us(priv.video_pts) / 1000000);
@@ -519,7 +546,7 @@ int app_base_loop(void)
             mmf_venc_free(enc_ch);
         }
 
-        if (priv.ffmpeg_packer->is_opened()) {
+        if (priv.audio_en && priv.ffmpeg_packer->is_opened()) {
             int frame_size_per_second = priv.ffmpeg_packer->get_audio_frame_size_per_second();
             uint64_t loop_ms = 0;
             int read_pcm_size = 0;
@@ -550,7 +577,16 @@ int app_base_loop(void)
 
         if (priv.video_start_flag && priv.video_prepare_is_ok) {
             uint64_t record_time = time::ticks_ms() - priv.video_start_ms;
-            mmf_venc_push2(enc_ch, frame);
+
+            if (!timelapse_record_is_enable()) {
+                mmf_venc_push2(enc_ch, frame);
+            } else {
+                if (time::ticks_ms() - priv.last_push_venc_ms > priv.timelapse_s * 1000) {
+                    mmf_venc_push2(enc_ch, frame);
+                    priv.last_push_venc_ms = time::ticks_ms();
+                }
+            }
+
             ui_set_record_time(record_time);
         }
         priv.loop_last_frame = frame;
@@ -608,6 +644,7 @@ int app_init(camera::Camera &cam)
     ui_set_iso_value(iso_num);
     ui_set_select_option(priv.resolution_index);
     ui_set_bitrate(priv.encoder_bitrate, false);
+    ui_set_timelapse_s(priv.timelapse_s, false);
     if (priv.capture_raw_enable) {
         ui_click_raw_button();
     }
@@ -825,6 +862,17 @@ static int app_config_param(void)
             priv.region = new Region(region_x, region_y, region_w, region_h, image::FMT_BGRA8888, priv.camera);
             err::check_null_raise(priv.region, "region open failed");
         }
+    }
+
+    if (ui_get_timelapse_update_flag()) {
+        int timelapse_s = ui_get_timelapse_s();
+        timelapse_record_init(timelapse_s);
+        if (timelapse_s == 0) {
+            set_audio_enable(true);
+        } else {
+            set_audio_enable(false);
+        }
+        log::info("timelapse_s update: %d s", timelapse_s);
     }
 
     return 0;

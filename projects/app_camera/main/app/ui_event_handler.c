@@ -30,6 +30,7 @@ extern lv_obj_t *g_menu_button;
 extern lv_obj_t *g_delay_setting;
 extern lv_obj_t *g_resolution_setting;
 extern lv_obj_t *g_bitrate_setting;
+extern lv_obj_t *g_timelapse_setting;
 extern lv_obj_t *g_menu_setting;
 extern lv_obj_t *g_shutter_button;
 extern lv_obj_t *g_iso_button;
@@ -50,6 +51,7 @@ extern lv_obj_t *g_light_button;
 extern lv_obj_t *g_bitrate_button;
 extern lv_obj_t *g_drop_down_img;
 extern lv_obj_t *g_timestamp_button;
+extern lv_obj_t *g_timelapse_button;
 
 static struct {
     unsigned int camera_snap_start_flag : 1;
@@ -78,10 +80,12 @@ static struct {
     unsigned int light_btn_update_flag : 1;
     unsigned int timestamp_btn_touched : 1;
     unsigned int timestamp_btn_update_flag : 1;
+    unsigned int bitrate_update_flag : 1;
+    unsigned int timelapse_update_flag : 1;
 
     unsigned int resolution_setting_idx;
     unsigned int bitrate;
-    unsigned int bitrate_update_flag : 1;
+    unsigned int timelapse_s;
 } priv = {
     .iso_auto_flag = 1,
     .shutter_auto_flag = 1,
@@ -103,14 +107,16 @@ static void _set_hidden_and_clear_checked(lv_obj_t *without_obj)
         g_delay_button,
         g_resolution_button,
         g_bitrate_button,
+        g_timelapse_button,
     };
     lv_obj_t *list2[] = {
         g_delay_setting,
         g_resolution_setting,
         g_bitrate_setting,
+        g_timelapse_setting,
     };
 
-    for (size_t i = 0; i < 3; i ++) {
+    for (size_t i = 0; i < sizeof(list) / sizeof(list[0]); i ++) {
         lv_obj_t *button = list[i];
         lv_obj_t *setting = list2[i];
 
@@ -183,6 +189,20 @@ void event_touch_bitrate_cb(lv_event_t * e)
             _set_hidden_and_clear_checked(g_bitrate_button);
         } else {
             lv_obj_add_flag(g_bitrate_setting, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void event_touch_timelapse_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        if (lv_obj_get_state(g_timelapse_button) != LV_STATE_FOCUSED) {
+            lv_obj_remove_flag(g_timelapse_setting, LV_OBJ_FLAG_HIDDEN);
+
+            _set_hidden_and_clear_checked(g_timelapse_button);
+        } else {
+            lv_obj_add_flag(g_timelapse_setting, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -1014,6 +1034,45 @@ void event_touch_select_bitrate_cb(lv_event_t * e)
     }
 }
 
+
+void event_touch_select_timelapse_cb(lv_event_t * e)
+{
+    DEBUG_EN(1);
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code == LV_EVENT_CLICKED) {
+        lv_obj_t *obj = (lv_obj_t *)lv_event_get_target(e);
+        if (lv_obj_get_state(obj) != LV_STATE_FOCUSED) {
+            lv_obj_t *parent = lv_obj_get_parent(obj);
+            for (size_t i = 0; i < lv_obj_get_child_count(parent); i++) {
+                lv_obj_t *child = lv_obj_get_child(parent, i);
+                if (child != obj) {
+                    lv_obj_remove_state(child, LV_STATE_CHECKED);
+                }
+            }
+
+            lv_obj_t *label = lv_obj_get_child(obj, -1);
+            char *text = lv_label_get_text(label);
+            lv_obj_set_user_data(parent, text);
+            LV_UNUSED(text);
+
+            lv_obj_t *left_label = lv_obj_get_child(g_timelapse_button, -1);
+
+            if (!strcmp("OFF", text)) {
+                priv.timelapse_s = 0;
+                lv_label_set_text(left_label, "OFF");
+            } else {
+                priv.timelapse_s = atoi(text);
+                lv_label_set_text_fmt(left_label, "%d s", priv.timelapse_s);
+            }
+
+            priv.timelapse_update_flag = 1;
+            DEBUG_PRT("select timelapse s: %s (%d)\n", text, priv.timelapse_s);
+        } else {
+            lv_obj_add_state(obj, LV_STATE_CHECKED);
+        }
+    }
+}
+
 bool ui_get_cam_snap_flag(void)
 {
     bool ret = priv.camera_snap_start_flag;
@@ -1668,4 +1727,76 @@ bool ui_get_timestamp_btn_update_flag() {
 
 bool ui_get_timestamp_btn_touched() {
     return priv.timestamp_btn_touched ? true : false;
+}
+
+
+bool ui_get_timelapse_update_flag() {
+    bool flag = priv.timelapse_update_flag ? true : false;
+    priv.timelapse_update_flag = false;
+    return flag;
+}
+
+int ui_get_timelapse_s() {
+    return priv.timelapse_s;
+}
+
+void ui_set_timelapse_s(int timelapse, bool need_update)
+{
+    DEBUG_EN(1);
+    lv_obj_t *scr = g_timelapse_setting;
+    int child_num_of_scr = lv_obj_get_child_count(scr);
+    int child_timelapse_s = 0;
+    // find the index of the timelapse
+    size_t idx = 0;
+    if (timelapse == 0) {
+        idx = 0;
+    } else {
+        idx = 1;
+        for (;idx < child_num_of_scr; idx++) {
+            lv_obj_t *child = lv_obj_get_child(scr, idx);
+            if (child) {
+                lv_obj_t *label = lv_obj_get_child(child, -1);
+                if (label) {
+                    int value = atoi(lv_label_get_text(label));
+                    if (value >= timelapse) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // clear all of checked flag
+    for (size_t i = 0; i < child_num_of_scr; i++) {
+        lv_obj_t *child = lv_obj_get_child(scr, i);
+        if (child) {
+            lv_obj_remove_state(child, LV_STATE_CHECKED);
+        }
+    }
+
+    // set timelapse
+    idx = idx >= child_num_of_scr ? child_num_of_scr - 1 : idx;
+    child_timelapse_s = atoi(lv_label_get_text(lv_obj_get_child(lv_obj_get_child(scr, idx), -1)));
+    DEBUG_PRT("select child index: %ld  timelapse s:%d", idx, child_timelapse_s);
+
+    lv_obj_t *child = lv_obj_get_child(scr, idx);
+    if (child) {
+        lv_obj_t *label = lv_obj_get_child(child, -1);
+        if (label) {
+            lv_obj_add_state(child, LV_STATE_CHECKED);
+            priv.timelapse_s = child_timelapse_s;
+            priv.timelapse_update_flag = need_update;
+        }
+    }
+
+    DEBUG_PRT("set timelapse update flag");
+    lv_obj_t *left_label = lv_obj_get_child(g_timelapse_button, -1);
+    if (left_label) {
+        if (child_timelapse_s == 0) {
+            lv_label_set_text(left_label, "OFF");
+        } else {
+            lv_label_set_text_fmt(left_label, "%d s", child_timelapse_s);
+        }
+    }
+    DEBUG_PRT("config label of timelapse button");
 }
