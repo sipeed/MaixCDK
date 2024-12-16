@@ -8,22 +8,9 @@
 #include "maix_image.hpp"
 #include "MLX90640_API.h"
 
-namespace maix::ext_dev::mlx90640 {
+#include "maix_cmap.hpp"
 
-/**
- * @brief Cmap
- * @maixpy maix.ext_dev.mlx90640.Cmap
- */
-enum class Cmap : uint8_t {
-    WHITE_HOT = 0,
-    BLACK_HOT,
-    IRONBOW,
-    NIGHT,
-    RED_HOT,
-    WHITE_HOT_SD,
-    BLACK_HOT_SD,
-    RED_HOT_SD
-};
+namespace maix::ext_dev::mlx90640 {
 
 /**
  * @brief MLX90640 FPS
@@ -112,7 +99,7 @@ public:
      */
     MLX90640Celsius(int i2c_bus_num,
                     ::maix::ext_dev::mlx90640::FPS fps=::maix::ext_dev::mlx90640::FPS::FPS_32,
-                    ::maix::ext_dev::mlx90640::Cmap cmap=::maix::ext_dev::mlx90640::Cmap::WHITE_HOT,
+                    ::maix::ext_dev::cmap::Cmap cmap=::maix::ext_dev::cmap::Cmap::WHITE_HOT,
                     float temp_min=-1, float temp_max=-1, float emissivity=0.95);
 
     /**
@@ -251,7 +238,7 @@ public:
     static Point center_point_from(const CMatrix& matrix);
 
 private:
-    Cmap _cmap;
+    maix::ext_dev::cmap::Cmap _cmap;
     float _min;
     float _max;
     float _emissivity;
@@ -291,7 +278,7 @@ public:
      */
     MLX90640Kelvin( int i2c_bus_num,
                     ::maix::ext_dev::mlx90640::FPS fps=::maix::ext_dev::mlx90640::FPS::FPS_32,
-                    ::maix::ext_dev::mlx90640::Cmap cmap=::maix::ext_dev::mlx90640::Cmap::WHITE_HOT,
+                    ::maix::ext_dev::cmap::Cmap cmap=::maix::ext_dev::cmap::Cmap::WHITE_HOT,
                     float temp_min=-1, float temp_max=-1,  float emissivity=0.95);
 
     /**

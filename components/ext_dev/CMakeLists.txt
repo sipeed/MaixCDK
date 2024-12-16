@@ -8,6 +8,9 @@ list(APPEND ADD_INCLUDE "src/tmc2209")
 list(APPEND ADD_INCLUDE "src/tmc2209/janelia-arduino_TMC2209")
 list(APPEND ADD_INCLUDE "src/axp2101")
 list(APPEND ADD_INCLUDE "src/mlx90640/mlx90640_lib")
+list(APPEND ADD_INCLUDE "src/cmap")
+list(APPEND ADD_INCLUDE "src/opns303x/opns303x_lib")
+
 
 append_srcs_dir(ADD_SRCS "src")
 append_srcs_dir(ADD_SRCS "src/bm8563")
@@ -20,6 +23,9 @@ append_srcs_dir(ADD_SRCS "src/axp2101")
 append_srcs_dir(ADD_SRCS "src/fp5510")
 append_srcs_dir(ADD_SRCS "src/mlx90640")
 append_srcs_dir(ADD_SRCS "src/mlx90640/mlx90640_lib")
+append_srcs_dir(ADD_SRCS "src/cmap")
+append_srcs_dir(ADD_SRCS "src/opns303x")
+append_srcs_dir(ADD_SRCS "src/opns303x/opns303x_lib")
 
 
 list(APPEND ADD_REQUIREMENTS basic peripheral vision)

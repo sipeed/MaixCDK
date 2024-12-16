@@ -100,6 +100,9 @@ namespace maix::display
             w = 552;
             h = 368;
             __g_panel_type = PanelType::LT9611;
+        } else if (!strcmp(panel_value, "st7701_d310t9362v1")) {
+            w = 480;
+            h = 800;
         }
 
         if(w == 0 || h == 0)

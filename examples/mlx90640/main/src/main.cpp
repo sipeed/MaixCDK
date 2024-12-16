@@ -12,7 +12,7 @@ int _main(int argc, char* argv[])
 {
     auto disp = display::Display();
 
-    auto mlx = MLX90640Celsius(5, FPS::FPS_32, Cmap::IRONBOW, 5, 50);
+    auto mlx = MLX90640Celsius(5, FPS::FPS_32, maix::ext_dev::cmap::Cmap::IRONBOW, 5, 50);
 
     while (true) {
         auto img = mlx.image();
