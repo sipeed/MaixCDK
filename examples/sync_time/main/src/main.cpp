@@ -313,7 +313,7 @@ static std::pair<bool,uint8_t> bm8563_is_exist()
 }
 
 
-static void deamon()
+static void deamon(bool keep_ntp)
 {
     namespace drv = maix::ext_dev;
 
@@ -354,16 +354,18 @@ static void deamon()
             }
         }
 
-        uint8_t print_flag = 0;
-        const uint8_t print_flag_max = 3;
-        constexpr int MAX_INTERNET_TRY = 10;
+        if (keep_ntp)
+            break;
+        // uint8_t print_flag = 0;
+        // const uint8_t print_flag_max = 3;
+        constexpr int MAX_INTERNET_TRY = 1;
         int internet_try = 0;
         while (!is_internet_connected(addrs)) {
-            if (++print_flag >= print_flag_max) {
-                print_flag = 0;
-                maix::log::info("[%s] Waiting for network connect...", get_time_string_from_system().c_str());
-            }
-            maix::time::sleep(1);
+            // if (++print_flag >= print_flag_max) {
+            //     print_flag = 0;
+            // }
+            maix::log::info("[%s] Waiting for network connect...", get_time_string_from_system().c_str());
+            maix::time::sleep_ms(20);
             ++internet_try;
             if (internet_try >= MAX_INTERNET_TRY) {
                 maix::log::info("[%s] Not network. Exit", get_time_string_from_system().c_str());
@@ -442,6 +444,7 @@ int _main(int argc, char* argv[])
     options.add_options()
         ("b,blocking", "Run in blocking mode.", cxxopts::value<bool>()->default_value("false"))
         ("d,debug", "Enable debugging", cxxopts::value<bool>()->default_value("false"))
+        ("s,sync_rtc_only", "", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage");
 
     cxxopts::ParseResult result;
@@ -459,13 +462,15 @@ int _main(int argc, char* argv[])
     }
 
     if (result["debug"].as<bool>()) {
-        // return check();
-        maix::log::warn("Unsupport");
-        return 1;
+        return check();
+        // maix::log::warn("Unsupport");
+        // return 1;
     }
 
+    bool sync_rtc_only = result["sync_rtc_only"].as<bool>();
+
     if (result["blocking"].as<bool>()) {
-        deamon();
+        deamon(sync_rtc_only);
         return 0;
     } else {
         pid_t pid = fork();
@@ -478,7 +483,7 @@ int _main(int argc, char* argv[])
             exit(0);
         }
         setup(argc, argv);
-        deamon();
+        deamon(sync_rtc_only);
         return 0;
     }
     // std::cout << options.help() << std::endl;
