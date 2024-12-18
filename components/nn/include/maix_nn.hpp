@@ -262,10 +262,10 @@ namespace maix::nn
          *                       If model_path not set, you can load model later by load function.
          * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
          *                      If you want to ensure every time forward output the input's result, set this arg to false please.
-         *                      Default true to ensure speed.
+         *                      Default false to ensure easy use.
          * @maixpy maix.nn.NN.__init__
          */
-        NN(const std::string &model = "", bool dual_buff = true);
+        NN(const std::string &model = "", bool dual_buff = false);
         ~NN();
 
         /**
