@@ -833,7 +833,7 @@ namespace maix::video
         /**
          * @brief Construct a new decoder object
          * @param path Path to the file to be decoded. Supports files with .264 and .mp4 extensions. Note that only mp4 files containing h.264 streams are supported.
-         * @param format Decoded output format, currently only support YUV420SP
+         * @param format Decoded output format, currently only support GRAYSCALE and YUV420SP
          * @maixpy maix.video.Decoder.__init__
          * @maixcdk maix.video.Decoder.Decoder
          */
