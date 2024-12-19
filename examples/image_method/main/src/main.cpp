@@ -47,7 +47,11 @@ int _main(int argc, char* argv[])
         g_param.cam = cam;
     } else {
         picture = image::load(priv.picture_path.c_str(), priv.cam_fmt);
-        image::Image *new_picture = picture->resize(priv.cam_w, priv.cam_h, image::FIT_COVER);
+        auto new_width = priv.cam_w > 0 ? priv.cam_w : picture->width();
+        new_width = new_width % 2 == 0 ? new_width : new_width+1;
+        auto new_height = priv.cam_h > 0 ? priv.cam_h : picture->height();
+        new_height = new_height % 2 == 0 ? new_height : new_height+1;
+        image::Image *new_picture = picture->resize(new_width, new_height, image::FIT_COVER);
         delete picture;
         picture = new_picture;
         log::info("picture path:%s size: %dx%d format:%s\n", priv.picture_path.c_str(), picture->width(), picture->height(), image::fmt_names[picture->format()]);
@@ -136,6 +140,7 @@ static int cmd_init(int argc, char* argv[])
     priv.method_list.push_back(image_method_t{"find_lines", test_find_lines});
     priv.method_list.push_back(image_method_t{"ed lib", test_ed_lib});
     priv.method_list.push_back(image_method_t{"tracking line", test_tracking_line});
+    priv.method_list.push_back(image_method_t{"find_barcode", test_find_barcode});
 
     // Get init param
     if (argc > 1) {
