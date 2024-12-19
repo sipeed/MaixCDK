@@ -876,6 +876,20 @@ namespace maix::image
                 throw err::Exception(err::ERR_NOT_IMPL, "not support format");
             }
             break;
+        case image::FMT_YVU420SP:
+            switch (format)
+            {
+            case image::FMT_GRAYSCALE:
+            {
+                auto img = new image::Image(_width, _height, image::FMT_GRAYSCALE);
+                memcpy(img->data(), _data, _width * _height);
+                return img;
+            }
+            break;
+            default:
+                throw err::Exception(err::ERR_NOT_IMPL, "not support format");
+            }
+            break;
         default:
             throw err::Exception(err::ERR_NOT_IMPL, "not support format");
         }
