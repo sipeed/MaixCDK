@@ -305,6 +305,13 @@ namespace maix::peripheral::pinmap
                 "SDIO1_CLK"};
             return funcs;
         }
+        else if (pin == "P24")
+        {
+            std::vector<std::string> funcs = {
+                "GPIOP24",
+                "PWM2",};
+            return funcs;
+        }
         else
         {
             throw err::Exception(err::ERR_ARGS);
@@ -699,6 +706,20 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010E4, 0);
                 set_pinmux(0x0502706c, 0x44);
             } else {
+                return err::ERR_ARGS;
+            }
+
+            return err::ERR_NONE;
+        }
+        else if (pin == "P24")
+        {
+            if (func == "GPIOP24") {
+                set_pinmux(0x030011D0, 3);
+                set_pinmux(0x050270E0, 0x44);
+            } else if (func == "PWM2") {
+                set_pinmux(0x030011D0, 4);
+                set_pinmux(0x050270E0, 0x44);
+            }else {
                 return err::ERR_ARGS;
             }
 
