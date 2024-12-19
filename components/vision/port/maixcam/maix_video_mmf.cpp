@@ -1855,7 +1855,7 @@ _exit:
 
     Decoder::Decoder(std::string path, image::Format format) {
         av_log_set_callback(custom_log_callback);
-        err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Decoder only support FMT_YVU420SP format!");
+        err::check_bool_raise(format == image::Format::FMT_YVU420SP || format == image::Format::FMT_GRAYSCALE, "Decoder only support FMT_GRAYSCALE or FMT_YVU420SP format!");
         _path = path;
         _format_out = format;
         _param = (decoder_param_t *)malloc(sizeof(decoder_param_t));
@@ -1933,7 +1933,7 @@ _exit:
             vdec_chn_attr.u32PicHeight = _height;
             vdec_chn_attr.u32FrameBufCnt = 3;
             vdec_chn_attr.u32StreamBufSize = _width * _height;
-            err::check_bool_raise(!mmf_add_vdec_channel_v2(ch, mmf_invert_format_to_mmf(format), 8, &vdec_chn_attr), "mmf_add_vdec_channel_v2 failed");
+            err::check_bool_raise(!mmf_add_vdec_channel_v2(ch, mmf_invert_format_to_mmf(image::Format::FMT_YVU420SP), 8, &vdec_chn_attr), "mmf_add_vdec_channel_v2 failed");
 
             switch (video_format) {
                 case VIDEO_FORMAT_H264:
