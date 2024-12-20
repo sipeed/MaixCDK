@@ -77,13 +77,6 @@ void UvcServer::stop() {
     maix::log::info("server restart\r\n");
 }
 
-/**
-    * cannot include it, because it brokes maixpy_wrapper.cpp:1027:38: error: expected unqualified-id before numeric constant
-    *  1027 |         .value("SEEK_SET", fs::SEEK::SEEK_SET)
-    */ 
-// #include <fcntl.h>
-#define O_RDWR 2
-
 #define atomic_load(ptr) __atomic_load_n(ptr, __ATOMIC_SEQ_CST)
 #define atomic_store(ptr, value) __atomic_store_n(ptr, value, __ATOMIC_SEQ_CST)
 
