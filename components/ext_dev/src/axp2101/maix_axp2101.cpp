@@ -9,6 +9,7 @@
 #include "maix_axp2101.hpp"
 #include <mutex>
 #include <iostream>
+#include <unistd.h>
 
 #define _BV(b)                          (1ULL << (uint64_t)(b))
 
@@ -174,7 +175,7 @@ err::Err AXP2101::poweroff()
         return err::Err::ERR_RUNTIME;
     }
     buffer |= 0x01;
-    system("sync");
+    sync();
     ret = priv::maix_i2c_write(priv::dev_addr, AXP2101_COM_CFG, &buffer, 1);
     if (ret != err::Err::ERR_NONE) {
         log::error("[%s]: maix_i2c_write failed. Error code:%d", priv::TAG, ret);

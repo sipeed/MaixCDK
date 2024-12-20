@@ -57,6 +57,9 @@ typedef struct
 }sortable_box_t;
 
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+
 static int nms_comparator(const void *pa, const void *pb)
 {
     sortable_box_t* a = (sortable_box_t *)pa;
@@ -70,6 +73,8 @@ static int nms_comparator(const void *pa, const void *pb)
     // return 0;
     return (int)(-*(int32_t*)(&diff));
 }
+
+#pragma GCC diagnostic pop
 
 static void do_nms_sort(uint32_t boxes_number, float nms_value, float score_thresh, std::vector<nn::Object>* faces)
 {
