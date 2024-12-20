@@ -11,6 +11,7 @@
 #include "maix_image.hpp"
 #include "maix_nn_F.hpp"
 #include "maix_nn_object.hpp"
+#include <math.h>
 
 namespace maix::nn
 {
@@ -18,7 +19,8 @@ namespace maix::nn
     {
         DETECT = 0,
         POSE = 1,
-        SEG = 2
+        SEG = 2,
+        OBB = 3
     };
 
     class _KpInfoYolo11
@@ -207,6 +209,10 @@ namespace maix::nn
                 {
                     _type = YOLO11_Type::SEG;
                 }
+                else if (_extra_info["type"] == "obb")
+                {
+                    _type = YOLO11_Type::OBB;
+                }
                 else if (_extra_info["type"] != "detector")
                 {
                     log::error("type [%s] not support, suport detector and pose", _extra_info["type"].c_str());
@@ -305,11 +311,14 @@ namespace maix::nn
          * @param points keypoits, int list type, [x, y, x, y ...]
          * @param radius radius of points.
          * @param color color of points.
+         * @param colors assign colors for points, list type, element is image.Color object.
          * @param body true, if points' length is 17*2 and body is ture, will draw lines as human body, if set to false won't draw lines, default true.
+         * @param close connect all points to close a polygon, default false.
          * @maixpy maix.nn.YOLO11.draw_pose
          */
-        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, bool body = true)
+        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, const std::vector<image::Color> &colors = std::vector<image::Color>(), bool body = true, bool close = false)
         {
+            bool line_drawed = false;
             if (points.size() < 2 || points.size() % 2 != 0)
             {
                 throw std::runtime_error("keypoints size must >= 2 and multiple of 2");
@@ -332,6 +341,7 @@ namespace maix::nn
                 int y = (points[5 * 2 + 1] + points[6 * 2 + 1]) / 2;
                 if (!(points[5 * 2] < 0 || points[5 * 2 + 1] < 0 || points[6 * 2] < 0 || points[6 * 2 + 1] < 0 || x < 0 || y < 0 || points[0] < 0 || points[1] < 0))
                     img.draw_line(points[0], points[1], x, y, color, 2);
+                line_drawed = true;
             }
             for (size_t i = 0; i < points.size() / 2; ++i)
             {
@@ -339,7 +349,25 @@ namespace maix::nn
                 int y = points[i * 2 + 1];
                 if (x < 0 || y < 0)
                     continue;
-                img.draw_circle(x, y, radius, color, -1);
+                auto &_color = color;
+                if (colors.size() > i)
+                {
+                    _color = colors[i];
+                }
+                img.draw_circle(x, y, radius, _color, -1);
+            }
+            if(close && !line_drawed)
+            {
+                for (size_t i = 0; i < points.size() / 2; ++i)
+                {
+                    int x1 = points[i * 2];
+                    int y1 = points[i * 2 + 1];
+                    int x2 = points[(i + 1) % (points.size() / 2) * 2];
+                    int y2 = points[(i + 1) % (points.size() / 2) * 2 + 1];
+                    if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
+                        continue;
+                    img.draw_line(x1, y1, x2, y2, color, 2);
+                }
             }
         }
 
@@ -485,11 +513,11 @@ namespace maix::nn
             tensor::Tensor *box_out = NULL;   // shape 1,  1,    4, 8400
             for (auto i : *outputs)
             {
-                if (i.second->shape()[2] == 4)
+                if (i.second->shape()[2] == 4 && !box_out)
                 {
                     box_out = i.second;
                 }
-                else if (strstr(i.first.c_str(), "Sigmoid") != NULL)
+                else if (strstr(i.first.c_str(), "Sigmoid") != NULL && !score_out)
                 {
                     score_out = i.second;
                     if((size_t)score_out->shape()[1] != labels.size())
@@ -507,7 +535,7 @@ namespace maix::nn
                     *kp_out = i.second;
                 }
             }
-            if (!score_out || !kp_out)
+            if (!score_out || !box_out)
             {
                 throw err::Exception(err::ERR_ARGS, "model output not valid");
             }
@@ -520,30 +548,74 @@ namespace maix::nn
                 0,
                 (int)(h / stride[0] * w / stride[0]),
                 (int)(h / stride[0] * w / stride[0] + h / stride[1] * w / stride[1])};
-            for (int i = 0; i < 3; i++)
+            if (_type == YOLO11_Type::OBB)
             {
-                int nh = h / stride[i];
-                int nw = w / stride[i];
-                for (int ay = 0; ay < nh; ++ay)
+                float *angle_ptr = (float *)(*kp_out)->data();
+                for (int i = 0; i < 3; i++)
                 {
-                    for (int ax = 0; ax < nw; ++ax)
+                    int nh = h / stride[i];
+                    int nw = w / stride[i];
+                    for (int ay = 0; ay < nh; ++ay)
                     {
-                        int offset = idx_start[i] + ay * nw + ax;
-                        int class_id = _argmax(scores_ptr + offset, class_num, total_box_num);
-                        // int max_idx = _argmax2(scores_ptr + offset, class_num * total_box_num - offset, total_box_num);
-                        // int class_id = (offset + max_idx) / total_box_num;
-                        float obj_score = scores_ptr[offset + class_id * total_box_num];
-                        if (obj_score <= conf_thresh)
+                        for (int ax = 0; ax < nw; ++ax)
                         {
-                            continue;
+                            int offset = idx_start[i] + ay * nw + ax;
+                            int class_id = _argmax(scores_ptr + offset, class_num, total_box_num);
+                            // int max_idx = _argmax2(scores_ptr + offset, class_num * total_box_num - offset, total_box_num);
+                            // int class_id = (offset + max_idx) / total_box_num;
+                            float obj_score = scores_ptr[offset + class_id * total_box_num];
+                            if (obj_score <= conf_thresh)
+                            {
+                                continue;
+                            }
+                            float angle = (angle_ptr[offset] - 0.25);
+                            float angle_rad = angle * M_PI;
+                            float cos_angle = cosf(angle_rad);
+                            float sin_angle = sinf(angle_rad);
+                            float lt_x = dets_ptr[offset];
+                            float lt_y = dets_ptr[offset + total_box_num];
+                            float rb_x = dets_ptr[offset + total_box_num * 2];
+                            float rb_y = dets_ptr[offset + total_box_num * 3];
+                            float xf = (rb_x - lt_x) / 2.0;
+                            float yf = (rb_y - lt_y) / 2.0;
+                            float bbox_w = (lt_x + rb_x) * stride[i];
+                            float bbox_h = (lt_y + rb_y) * stride[i];
+                            float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5) * stride[i] - bbox_w * 0.5;
+                            float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5) * stride[i] - bbox_h * 0.5;
+                            _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
+                            Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score, {}, angle);
+                            obj.temp = (void *)kp_info;
                         }
-                        float bbox_x = (ax + 0.5 - dets_ptr[offset]) * stride[i];
-                        float bbox_y = (ay + 0.5 - dets_ptr[offset + total_box_num]) * stride[i];
-                        float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
-                        float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
-                        _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
-                        Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
-                        obj.temp = (void *)kp_info;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    int nh = h / stride[i];
+                    int nw = w / stride[i];
+                    for (int ay = 0; ay < nh; ++ay)
+                    {
+                        for (int ax = 0; ax < nw; ++ax)
+                        {
+                            int offset = idx_start[i] + ay * nw + ax;
+                            int class_id = _argmax(scores_ptr + offset, class_num, total_box_num);
+                            // int max_idx = _argmax2(scores_ptr + offset, class_num * total_box_num - offset, total_box_num);
+                            // int class_id = (offset + max_idx) / total_box_num;
+                            float obj_score = scores_ptr[offset + class_id * total_box_num];
+                            if (obj_score <= conf_thresh)
+                            {
+                                continue;
+                            }
+                            float bbox_x = (ax + 0.5 - dets_ptr[offset]) * stride[i];
+                            float bbox_y = (ay + 0.5 - dets_ptr[offset + total_box_num]) * stride[i];
+                            float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
+                            float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
+                            _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
+                            Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
+                            obj.temp = (void *)kp_info;
+                        }
                     }
                 }
             }
@@ -575,7 +647,7 @@ namespace maix::nn
             {
                 if (a->score != 0)
                 {
-                    Object &obj = result->add(a->x, a->y, a->w, a->h, a->class_id, a->score, a->points);
+                    Object &obj = result->add(a->x, a->y, a->w, a->h, a->class_id, a->score, a->points, a->angle);
                     if (obj.x < 0)
                     {
                         obj.w += obj.x;
