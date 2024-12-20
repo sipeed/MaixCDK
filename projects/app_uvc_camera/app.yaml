@@ -1,0 +1,12 @@
+id: uvc_camera
+name: UVC Camera
+name[zh]: UVC相机
+version: 1.0.0
+icon: assets/uvc_camera.json
+author: Sipeed Ltd
+desc: UVC Camera APP, show pictures on your PC
+desc[zh]: UVC照相机应用，在你的电脑上显示画面
+files:
+  app.yaml: app.yaml
+  assets: assets
+
