@@ -37,11 +37,11 @@ namespace maix::sys
 
     /**
      * Get device configs, we also say board configs. e.g. for MaixCAM it read form /boot/board
-     * @param cache read id from cache(if exists, or will call device_configs first internally) if true,
+     * @param cache read config from cache(if exists, or will call device_configs first internally) if true,
      * if false, always read fron config file.
-     * @return device id, e.g. "maixcam" "maixcam_pro"
+     * @return device config,json format
      * @throw If board config file error will throw out exception(err.Exception)
-     * @maixpy maix.sys.device_id
+     * @maixpy maix.sys.device_configs
      */
     std::map<std::string, std::string> device_configs(bool cache = true);
 
