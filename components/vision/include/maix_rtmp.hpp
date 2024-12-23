@@ -82,7 +82,7 @@ namespace maix::rtmp
         /**
          * @brief Get bitrate
          * @return bitrate
-         * @maixpy maix.rtmp.Rtmp.push_video
+         * @maixpy maix.rtmp.Rtmp.bitrate
         */
         int bitrate() {
             return _bitrate;
@@ -234,7 +234,7 @@ namespace maix::rtmp
         /**
          * @brief Check whether push streaming has started
          * @return If rtmp thread is running, returns true
-         * @maixpy maix.rtmp.Rtmp.get_path
+         * @maixpy maix.rtmp.Rtmp.is_started
         */
         bool is_started() {
             return _start ? true : false;

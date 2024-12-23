@@ -523,7 +523,7 @@ namespace maix::image
          * @param height new height, if value is -1, will use width to calculate aspect ratio
          * @param method resize method, by default is bilinear
          * @return new transformed image object
-         * @maixpy maix.image.Image.affine
+         * @maixpy maix.image.Image.perspective
          */
         image::Image* perspective(std::vector<int> src_points, std::vector<int> dst_points, int width = -1, int height = -1, image::ResizeMethod method = image::ResizeMethod::BILINEAR);
 
@@ -1513,7 +1513,7 @@ namespace maix::image
          * @param w original rectagle width, can be -1 if not use this arg, default -1.
          * @param h original rectagle height, can be -1 if not use this arg, default -1.
          * @return list type, [x, y] if map point, [x, y, w, h] if resize rectangle.
-         * @maixpy maix.image.resize_map_pos
+         * @maixpy maix.image.Image.resize_map_pos
         */
         std::vector<int> resize_map_pos(int w_out, int h_out, image::Fit fit, int x, int y, int w = -1, int h = -1)
         {

@@ -46,7 +46,7 @@ namespace maix::http
         /**
          * @brief stop http
          * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.http.JpegStreamer.start
+         * @maixpy maix.http.JpegStreamer.stop
         */
         err::Err stop();
 

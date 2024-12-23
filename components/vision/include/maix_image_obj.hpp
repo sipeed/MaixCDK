@@ -2847,7 +2847,7 @@ namespace maix::image
          * @param type The line list type, @see image::LineType
          * @param lines The line list
          * @param points Point sets of line
-         * @maixpy maix.image.HaarCascade.__init__
+         * @maixpy maix.image.LineGroup.__init__
         */
         LineGroup(int id, image::LineType type, std::vector<image::Line> lines, std::vector<std::vector<std::vector<int>>> points = std::vector<std::vector<std::vector<int>>>()) {
             _id = id;

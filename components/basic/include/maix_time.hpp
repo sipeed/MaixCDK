@@ -228,9 +228,9 @@ namespace maix::time
          * FPS is average value of recent n(buff_len) times, and you can call fps_set_buff_len(10) to change buffer length, default is 20.
          * Multiple invoke this function will calculate fps between two invoke, and you can also call fps_start() fisrt to manually assign fps calulate start point.
          * @return float type, current fps since last call this method
-         * @maixpy maix.time.FPS.fps
+         * @maixpy maix.time.FPS.end
         */
-        inline float end()
+        float end()
         {
             return fps();
         }
@@ -409,7 +409,7 @@ namespace maix::time
      * @param city string type, which city to set, can be empty means only get current, default empty.
      * @return list type, return current timezone setting, first is region, second is city.
      * @attention when set new timezone, time setting not take effect in this process for some API, so you need to restart program.
-     * @maixpy maix.time.timezone
+     * @maixpy maix.time.timezone2
     */
     std::vector<std::string> timezone2(const std::string &region = "", const std::string &city = "");
 

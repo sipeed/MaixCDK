@@ -70,8 +70,12 @@ def get_code_def(code):
         #   std::string hello = "hello"
         # func definition:
         #   std::map<std::string, int> get_dict(std::map<std::string, int> in, int i, const char *j = "10")
+        #   Bytes &operator=(const Bytes &other)
         idx = code.find(";")
-        idx3 = code.find("=")
+        if code.find("operator") >= 0:
+            idx3 = -1
+        else:
+            idx3 = code.find("=")
         start_idx = code.find("(")
         sub_count = 1
         idx2 = -1
@@ -163,10 +167,28 @@ def get_var_name_value(definition):
     if "=" in definition:
         name, value = definition.rsplit("=", 1)
         value = value.strip()
+    elif "{" in definition:
+        name, value = definition.rsplit("{", 1)
+        value = "{" + value.strip()
+    elif ";" in definition:
+        name = definition.rsplit(";", 1)[0]
+        value = None
     else:
         value = None
         name = definition.strip()
-    name = name.rsplit(" ", 1)[1].strip()
+    words = name.split()
+    new_words = []
+    for word in words:
+        # remove word startswith const, static, volatile, mutable, __attribute__, __restrict, extern
+        rms = ["const", "static", "volatile", "mutable", "__attribute__", "__restrict", "extern"]
+        valid = True
+        for rm in rms:
+            if word.startswith(rm):
+                valid = False
+                break
+        if valid:
+            new_words.append(word)
+    name = new_words[-1].strip()
     if name.startswith("&"):
         name = name.rsplit("&", 1)[1]
     elif name.startswith("*"):
@@ -243,7 +265,7 @@ def get_func_def_info(code):
         func_name = re.findall(r"([\*&]*)([\S]+)", func_name)[0]
         return_type = (return_type + func_name[0]).strip()
         func_name = func_name[1]
-        if return_type.startswith("static"):
+        if return_type.startswith("static") or return_type.startswith("extern"):
             return_type = return_type.split(" ", 1)[1].strip()
     func_name = func_name.strip()
     except_pair = {
@@ -386,10 +408,46 @@ def parse_api_item_info(item):
                 raise Exception("parse_api_info key {} value error: {} => {}".format(api, item, kv_str))
     return api, info
 
-def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, module_name = "maix"):
+def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, module_name = "maix", header_path = None):
 
     # if not header_name.endswith("api_example.hpp"):
         # return apis, "", False, []
+
+    def parse_item_code_def(item):
+        def_code = code[item["start_idx"]:]
+        idx = def_code.find(api)
+        idx = def_code.find("*/", idx) + 2
+        idx = def_code.find("\n", idx) + 1
+        item["type"], definition, (idx, idx2) = get_code_def(def_code[idx:])
+        # parse args values flags etc.
+        if item["type"] == "class":
+            words = definition.split("\n")[0].split()
+            if "class" in words:
+                item["name"] = words[words.index("class") + 1].split(":")[0].split("{")[0]
+            else:
+                item["name"] = words[words.index("struct") + 1].split(":")[0].split("{")[0]
+        elif item["type"] == "enum":
+            item["values"] = get_enum_values(definition)
+            words = definition.split("\n")[0].split()
+            if "class" in words:
+                item["name"] = words[words.index("class") + 1].split(":")[0].split("{")[0]
+            else:
+                item["name"] = words[words.index("enum") + 1].split(":")[0].split("{")[0]
+        elif item["type"] == "func":
+            item["type"] = "func"
+            item["name"], item["args"], item["ret_type"] = get_func_def_info(definition)
+        elif item["type"] == "var":
+            item["name"], item["value"] = get_var_name_value(definition)
+            if definition.startswith("const"):
+                item["kv"]["readonly"] = True
+        elif item["type"] == "module":
+            item["name"] = definition.split()[1].split(":")[-1]
+        else:
+            raise Exception("item type no valid: {}, {}".format(item["type"], definition))
+        if definition.startswith("static"):
+            item["kv"]["static"] = True
+        item["def_idx"] = [idx, idx2]
+        item["def"] = definition
 
     comments_parsed = find_comments(code)
 
@@ -409,7 +467,17 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
         info["start_idx"] = comment["start_idx"]
         comment.pop("start_idx")
         if api in items:
-            # return None, "parse_api error: API {} multiple defined, info: {}, another: {}".format(api, info, items[api]), False, []
+            if ["maixpy"] == sdks: # only for maixpy, not allow overload
+                try:
+                    parse_item_code_def(info)
+                    parse_item_code_def(items[api])
+                    def1 = info["def"]
+                    def2 = items[api]["def"]
+                except Exception:
+                    def1 = ""
+                    def2 = ""
+                return None, "parse_api error:\n\nAPI \033[1;31m {} \033[0m multiple defined !!!\n\n\033[1;31mOne\033[0m:\n  \033[1;33m{}\033[0m\n    brief: {}\n    info: {},\n\n\033[1;31mAnother\033[0m:\n  \033[1;33m{}\033[0m\n    brief: {}\n    info: {}\n".format(
+                    api, def1, info["doc"]["brief"], info, def2, items[api]["doc"]["brief"], items[api]), False, []
             print("-- API {} is overloaded".format(api))
             if not "overload" in items[api]:
                 items[api]["overload"] = []
@@ -459,36 +527,13 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
         },
     }
     '''
-    def parse_item_code_def(item):
-        def_code = code[item["start_idx"]:]
-        idx = def_code.find(api)
-        idx = def_code.find("*/", idx) + 2
-        idx = def_code.find("\n", idx) + 1
-        item["type"], definition, (idx, idx2) = get_code_def(def_code[idx:])
-        # parse args values flags etc.
-        if item["type"] == "class":
-            item["name"] = definition.split()[1].split(":")[0] # class AA: B\n{}
-        elif item["type"] == "enum":
-            item["values"] = get_enum_values(definition)
-            item["name"] = definition.split()[1] # enum AA\n{}
-        elif item["type"] == "func":
-            item["type"] = "func"
-            item["name"], item["args"], item["ret_type"] = get_func_def_info(definition)
-        elif item["type"] == "var":
-            item["name"], item["value"] = get_var_name_value(definition)
-            if definition.startswith("const"):
-                item["kv"]["readonly"] = True
-        elif item["type"] == "module":
-            item["name"] = definition.split()[1]
-        else:
-            raise Exception("item type no valid: {}, {}".format(item["type"], definition))
-        if definition.startswith("static"):
-            item["kv"]["static"] = True
-        item["def_idx"] = [idx, idx2]
-        item["def"] = definition
 
     for api, item in items.items():
         parse_item_code_def(item)
+        py_name = api.split(".")[-1]
+        if not py_name.startswith("__") and item["name"] != py_name:
+            return None, "API name \033[1;31m{} \033[0m not match with code definition name \033[1;31m{}\033[0m, def: {}".format(
+                api, item["name"], item["def"]), False, []
         for overload in item.get("overload", []):
             parse_item_code_def(overload)
 
@@ -566,6 +611,11 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
         parent = root
         for name in parents:
             parent = parent["members"][name]
+        if api_name in parent["members"]:
+            msg = "parse_api error: \033[1;31m{}\033[0m multiple define in different headers".format(api)
+            if "header_path" in parent["members"][api_name]:
+                msg += f": \033[1;31m{parent['members'][api_name]['header_path']}\033[0m and \033[1;31m{header_path}\033[0m"
+            raise Exception(msg)
         return parent, api_name
 
     for key in final_keys:
@@ -604,7 +654,8 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
                         "value": item["value"],
                         "static": item["kv"].get("static", False),
                         "readonly": item["kv"].get("readonly", False),
-                        "def": item["def"]
+                        "def": item["def"],
+                        "header_path": header_path
                     }
         elif item["type"] == "class":
             parent, name = get_parent_node(apis, key)
@@ -613,7 +664,8 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
                         "name": item["name"],
                         "doc": item["doc"],
                         "members": {},
-                        "def": item["def"]
+                        "def": item["def"],
+                        "header_path": header_path
                     }
         elif item["type"] == "func":
             parent, name = get_parent_node(apis, key)
@@ -624,7 +676,8 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
                         "args": item["args"], # [["const char *", "i", None], ["int", "j", "10"]]
                         "ret_type": item["ret_type"],
                         "static": item["kv"].get("static", False),
-                        "def": item["def"]
+                        "def": item["def"],
+                        "header_path": header_path
                     }
             # overload method
             if "overload" in item:
@@ -637,7 +690,8 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
                             "args": overload["args"], # [["const char *", "i", None], ["int", "j", "10"]]
                             "ret_type": overload["ret_type"],
                             "static": overload["kv"].get("static", False),
-                            "def": overload["def"]
+                            "def": overload["def"],
+                            "header_path": header_path
                         })
         elif item["type"] == "enum":
             parent, name = get_parent_node(apis, key)
@@ -646,7 +700,8 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
                         "name": item["name"],
                         "doc": item["doc"],
                         "values": item["values"], # [("KIND_DOG", "0"), ("KIND_CAT", None)]
-                        "def": item["def"]
+                        "def": item["def"],
+                        "header_path": header_path
                     }
         else:
             return None, "parse_api error: {} not support when generate tree".format(item["type"]), False, []
@@ -657,13 +712,13 @@ def parse_api_from_header(header_path, api_tree = {}, sdks = ["maixpy"], module_
     with open(header_path, "r", encoding="utf-8") as f:
         code = f.read()
     try:
-        api_tree, msg, updated, keys = parse_api(code, api_tree, sdks, os.path.basename(header_path), module_name)
-        if api_tree is None:
-            raise Exception("parse_api_from_header {} error: {}".format(header_path, msg))
+        api_tree, msg, updated, keys = parse_api(code, api_tree, sdks, os.path.basename(header_path), module_name, header_path=header_path)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise Exception("parse_api_from_header {} error: {}".format(header_path, e))
+        raise Exception("\n\nparse_api_from_header \033[1;31m {} \033[0m error:\n{}".format(header_path, e))
+    if api_tree is None:
+        raise Exception("\n\nparse_api_from_header \033[1;31m {} \033[0m error:\n{}".format(header_path, msg))
     return api_tree, updated, keys
 
 

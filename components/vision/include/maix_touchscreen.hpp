@@ -76,7 +76,7 @@ namespace maix::touchscreen
          * @param y y coordinate
          * @param pressed pressed state
          * @return error code, err::ERR_NONE means success, others means failed, if no event return err::ERR_NOT_READY
-         * @maixcdk maix.touchscreen.TouchScreen.read
+         * @maixcdk maix.touchscreen.TouchScreen.read0
          */
         err::Err read0(int &x, int &y, bool &pressed);
 
@@ -85,7 +85,7 @@ namespace maix::touchscreen
          * @attention This method will return immediately if have event, so it's better to use available() to check if have more event in buffer,
          *            or too much event in buffer when your program call this read() interval is too long will make your program slow.
          * @return Returns a list include x, y, pressed state
-         * @maixpy maix.touchscreen.TouchScreen.read
+         * @maixpy maix.touchscreen.TouchScreen.read0
          */
         std::vector<int> read0();
 

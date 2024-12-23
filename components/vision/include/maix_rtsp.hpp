@@ -105,7 +105,7 @@ namespace maix::rtsp
         /**
          * @brief stop rtsp
          * @return error code, err::ERR_NONE means success, others means failed
-         * @maixpy maix.rtsp.Rtsp.start
+         * @maixpy maix.rtsp.Rtsp.stop
         */
         err::Err stop();
 
