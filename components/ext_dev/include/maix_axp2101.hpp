@@ -157,7 +157,7 @@ namespace maix::ext_dev::axp2101 {
         /**
          * @brief Get the battery voltage.
          * @return uint16_t type, return battery voltage.
-         * @maixpy maix.ext_dev.axp2101.AXP2101.get_charger_status
+         * @maixpy maix.ext_dev.axp2101.AXP2101.get_bat_vol
          */
         uint16_t get_bat_vol();
 
