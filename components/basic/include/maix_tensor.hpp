@@ -586,7 +586,7 @@ namespace maix
             /**
              * Operator []
              * @maixpy maix.tensor.Tensors.__getitem__
-             * @maixcdk maix.tensor.Tensors.[]
+             * @maixcdk maix.tensor.Tensors.operator[]
             */
             tensor::Tensor &operator[](const std::string &key)
             {

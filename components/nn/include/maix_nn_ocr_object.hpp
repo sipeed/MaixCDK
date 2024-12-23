@@ -262,7 +262,7 @@ namespace maix::nn
         /**
          * Get object item
          * @maixpy maix.nn.OCR_Objects.__getitem__
-         * @maixcdk maix.nn.OCR_Objects.[]
+         * @maixcdk maix.nn.OCR_Objects.operator[]
          */
         nn::OCR_Object &operator[](int idx)
         {

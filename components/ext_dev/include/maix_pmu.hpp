@@ -109,7 +109,7 @@ public:
     /**
      * @brief Get the battery voltage.
      * @return uint16_t type, return battery voltage.
-     * @maixpy maix.ext_dev.pmu.PMU.get_vat_vol
+     * @maixpy maix.ext_dev.pmu.PMU.get_bat_vol
      */
     uint16_t get_bat_vol();
 

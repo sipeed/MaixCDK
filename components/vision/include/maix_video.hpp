@@ -879,21 +879,21 @@ namespace maix::video
         /**
          * @brief Get sample rate of audio (only valid in the context of audio)
          * @return sample rate
-         * @maixpy maix.video.Context.audio_sample_rate
+         * @maixpy maix.video.Decoder.audio_sample_rate
         */
         int audio_sample_rate() { return _audio_sample_rate; }
 
         /**
          * @brief Get channels of audio (only valid in the context of audio)
          * @return channels
-         * @maixpy maix.video.Context.audio_channels
+         * @maixpy maix.video.Decoder.audio_channels
         */
         int audio_channels() { return _audio_channels; }
 
         /**
          * @brief Get format of audio (only valid in the context of audio)
          * @return audio format. @see audio::Format
-         * @maixpy maix.video.Context.audio_format
+         * @maixpy maix.video.Decoder.audio_format
         */
         audio::Format audio_format() { return _audio_format; }
 

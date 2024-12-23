@@ -213,7 +213,7 @@ namespace maix::nn
         /**
          * Get object item
          * @maixpy maix.nn.FaceObjects.__getitem__
-         * @maixcdk maix.nn.FaceObjects.[]
+         * @maixcdk maix.nn.FaceObjects.operator[]
          */
         nn::FaceObject &operator[](int idx)
         {
