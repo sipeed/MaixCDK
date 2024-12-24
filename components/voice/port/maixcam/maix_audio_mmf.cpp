@@ -560,6 +560,14 @@ _retry:
         return audio::Format::FMT_NONE;
     }
 
+    void Recorder::reset(bool start) {
+        snd_pcm_t *handle = (snd_pcm_t *)_handle;
+        snd_pcm_prepare(handle);
+        if (start) {
+            snd_pcm_start(handle);
+        }
+    }
+
     maix::Bytes *Recorder::record(int record_ms) {
         snd_pcm_t *handle = (snd_pcm_t *)_handle;
         void *buffer = _buffer;
@@ -593,26 +601,49 @@ _retry:
             }
         }
 
+        auto state = snd_pcm_state(handle);
+        if (state != SND_PCM_STATE_RUNNING) {
+            snd_pcm_start(handle);
+        }
+
         if (record_ms > 0) {
-            uint64_t start_ms = time::ticks_ms();
-            if (_path.size() <= 0) {
-                log::error("If you pass in the record_ms parameter, you must also set the correct path in audio::Audio()\r\n");
-                return new Bytes();
+            auto bytes_per_frame = this->frame_size();
+            auto period_size = bytes_per_frame * _period_size;
+            auto read_remain_size = record_ms * _sample_rate * bytes_per_frame / 1000;
+            auto period_ms = period_size * 1000 / _sample_rate / bytes_per_frame;
+
+            if (read_remain_size < period_size) {
+                auto err_msg = "the record time must be greater than " + std::to_string(period_ms) + " ms";
+                err::check_raise(err::ERR_ARGS, err_msg);
             }
 
-            while (time::ticks_ms() - start_ms <= (uint64_t)record_ms) {
-                len = 0;
-                while (len >= 0) {
-                    len = _alsa_capture_pop(handle, format, channel, _period_size, buffer, buffer_size);
-                    if (len > 0) {
-                        if (_file)
-                            fwrite(buffer, 1, len, _file);
-                    }
+            auto out_bytes = new Bytes(nullptr, read_remain_size);
+            err::check_null_raise(out_bytes, "Create new bytes failed!");
+            while (read_remain_size > 0 && !app::need_exit()) {
+                if (this->remain_size() < period_size) {
+                    time::sleep_ms(1);
+                    continue;
                 }
-                time::sleep_ms(10);
+
+                auto buffer_size = read_remain_size;
+                auto buffer = out_bytes->data + out_bytes->data_len - read_remain_size;
+
+                auto len = (int)snd_pcm_readi(handle, buffer, buffer_size / bytes_per_frame);
+                if (len == -EPIPE) {
+                    snd_pcm_prepare(handle);
+                } else if (len < 0) {
+                    log::error("pcm read error: %s", snd_strerror(len));
+                    return new Bytes();
+                } else {
+                    read_remain_size -= len * bytes_per_frame;
+                }
+                // log::info("pcm read total %d, remain %d len %d", out_bytes->data_len, read_remain_size, len * bytes_per_frame);
             }
 
-            return new Bytes();
+            if (_file)
+                fwrite(out_bytes->data, 1, out_bytes->data_len, _file);
+
+            return out_bytes;
         } else {
             int add_len = 4096;
             int valid_len = 0;
@@ -645,6 +676,17 @@ _retry:
         }
 
         return new Bytes();
+    }
+
+    int Recorder::frame_size() {
+        snd_pcm_format_t format = _alsa_format_from_maix(_format);
+        int format_width = snd_pcm_format_width(format) / 8;
+        return format_width * _channel;
+    }
+
+    int Recorder::remain_size() {
+        snd_pcm_t *handle = (snd_pcm_t *)_handle;
+        return snd_pcm_avail_update(handle);
     }
 
     maix::Bytes *Recorder::record_bytes(int record_size) {
@@ -898,5 +940,11 @@ _retry:
         }
 
         return ret;
+    }
+
+    int Player::frame_size() {
+        snd_pcm_format_t format = _alsa_format_from_maix(_format);
+        int format_width = snd_pcm_format_width(format) / 8;
+        return format_width * _channel;
     }
 } // namespace maix::audio

@@ -82,6 +82,13 @@ namespace maix::audio
         bool mute(int data = -1);
 
         /**
+         * Reset record status
+         * @param start start prepare audio data, default is True
+         * @maixpy maix.audio.Recorder.reset
+        */
+        void reset(bool start = true);
+
+        /**
          * Record, Read all cached data in buffer and return. If there is no audio data in the buffer, may return empty data.
          * @param record_ms Block and record audio data lasting `record_ms` milliseconds and save it to a file, the return value does not return audio data. Only valid if the initialisation `path` is set.
          * @return pcm data. datatype @see Bytes. If you pass in record_ms parameter, the return value is an empty Bytes object.
@@ -104,6 +111,20 @@ namespace maix::audio
          * @maixpy maix.audio.Recorder.finish
         */
         err::Err finish();
+
+        /**
+         * Get bytes per frame
+         * @return bytes per frame
+         * @maixpy maix.audio.Recorder.frame_size
+        */
+        int frame_size();
+
+        /**
+         * Get remaining readable bytes
+         * @return remain size
+         * @maixpy maix.audio.Recorder.remain_size
+        */
+        int remain_size();
 
         /**
          * Get sample rate
@@ -180,6 +201,13 @@ namespace maix::audio
          * @maixpy maix.audio.Player.play
         */
         err::Err play(maix::Bytes *data = maix::audio::Player::NoneBytes);
+
+        /**
+         * Get bytes per frame
+         * @return bytes per frame
+         * @maixpy maix.audio.Player.frame_size
+        */
+        int frame_size();
 
         /**
          * Get sample rate
