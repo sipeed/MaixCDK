@@ -78,10 +78,10 @@ int _main(int argc, char *argv[])
 
     std::unique_ptr<uvc::UvcServer> pUvc = std::make_unique<uvc::UvcServer>(my_uvc_video_fill_mjpg_buffer);
     if (fs::exists("/boot/usb.uvc")) {
+        pUvc->run();
         img.draw_string(100, disp.height()/2, std::string("UVC started. Please use 'Guvcview'\n and mjpeg channel.\n'Cheese' on Ubuntu is incompatible."), image::Color::from_rgb(0, 255, 0), 1.3);
         disp.show(img);
     } else {
-        pUvc->run();
         img.draw_string(100, disp.height()/2, std::string("Enable UVC first.\n [App Settings/USB settings/UVC]"), image::Color::from_rgb(255, 255, 255), 1.3);
         disp.show(img);
     }
