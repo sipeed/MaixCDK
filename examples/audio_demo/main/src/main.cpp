@@ -171,7 +171,7 @@ static void helper(void)
     log::info(
     "==================================\r\n"
     "Please input command:\r\n"
-    "0 [path] [record_ms] [sample_rate] [channel] [format]: record block, ./audio_demo 0 output.pcm 3\r\n"
+    "0 [path] [ms_per_record] [sample_rate] [channel] [format]: record block, ./audio_demo 0 output.pcm 30\r\n"
     "1 [path] [sample_rate] [channel] [format]: record nonblock, ./audio_demo 1 output.pcm 48000 1 2\r\n"
     "2 [volumn]: set recorder volume, ./audio_demo 2 12\r\n"
     "3 [path] [sample_rate] [channel] [format]: playback block, ./audio_demo 3 output.pcm\r\n"
@@ -201,11 +201,11 @@ int _main(int argc, char* argv[])
     switch (cmd) {
     case 0:
     {
-        std::string path = "output.pcm";
-        int sample_rate = 48000, channel = 1, record_ms = 3000;
+        std::string path = "output.wav";
+        int sample_rate = 48000, channel = 1, record_ms = 50;
         audio::Format format = audio::Format::FMT_S16_LE;
         if (argc > 2) path = argv[2];
-        if (argc > 3) record_ms = atoi(argv[3]) * 1000;
+        if (argc > 3) record_ms = atoi(argv[3]);
         if (argc > 4) sample_rate = atoi(argv[4]);
         if (argc > 5) channel = atoi(argv[5]);
         if (argc > 6) {
@@ -221,11 +221,14 @@ int _main(int argc, char* argv[])
 
         log::info("Ready to record %ld ms, and save to %s\r\n", record_ms, path.c_str());
         audio::Recorder r = audio::Recorder(path, sample_rate, format, channel);
-        r.record(record_ms);
+        r.volume(100);
+        r.reset();
 
         log::info("Record over!\r\n");
         while (!app::need_exit()) {
-            time::sleep_ms(1000);
+            auto t = time::ticks_ms();
+            auto data = r.record(record_ms);
+            log::info("Record %ld ms, bytes:%d, used %lld ", record_ms, data->size(), time::ticks_ms() - t);
         }
         break;
     }
