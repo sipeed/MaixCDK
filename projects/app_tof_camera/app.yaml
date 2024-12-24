@@ -1,0 +1,13 @@
+id: tof_camera
+name: ToF Camera
+name[zh]: ToF
+version: 1.0.0
+icon: assets/tof.json
+author: Sipeed Ltd
+desc: ToF
+desc[zh]: ToF
+files:
+  app.yaml: app.yaml
+  assets: assets
+  README.md: README.md
+
