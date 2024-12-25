@@ -79,7 +79,6 @@ def check_icon_file(files, icon):
     found = False
     for src, dst in files.items():
         if os.path.isfile(dst):
-            print(dst, icon)
             if dst == icon:
                 found = True
                 break
@@ -140,6 +139,9 @@ def pack(project_path, bin_path="main.py", extra_files = {}):
     app_info["files"][bin_path] = bin_name
     app_info["files"][app_yaml] = app_yaml
     app_info["files"].update(extra_files)
+    icon = app_info.get("icon", "")
+    if icon and icon not in app_info["files"]:
+        app_info["files"][icon] = icon
     check_icon_file(app_info["files"], app_info.get("icon", ""))
     copy_files(app_info["files"], project_path, temp_dir)
     # zip
