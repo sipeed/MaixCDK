@@ -1,8 +1,12 @@
 #include "maix_image.hpp"
 #include "maix_time.hpp"
 #include "maix_image_util.hpp"
+#include "opencv2/opencv.hpp"
 #include <vector>
+#include <iostream>
 #include <list>
+
+using namespace maix;
 
 #define __DEBUG     (0)
 #if __DEBUG
@@ -17,6 +21,12 @@
     if (g_debug_flag)                                                       \
         printf(fmt, __func__, __LINE__, ##__VA_ARGS__);   \
 } while(0)
+#define DEBUG_WAIT(en) do { \
+    if (en) {               \
+        printf("Press enter to continue...\r\n"); \
+        std::cin.get();     \
+    }                       \
+} while (0)
 #else
 #define DEBUG_EN(fmt, ...)
 #define DEBUG_PRT(fmt, ...)
@@ -24,708 +34,742 @@
 #define DEBUG_IS_ENABLE(fmt, ...)
 #endif
 
-namespace maix::image {
+#if __DEBUG
+image::Color debug_get_color()
+{
+    int static color_count = 0;
+    color_count += 1;
+    switch (color_count) {
+    case 0: return image::COLOR_BLUE;
+    case 1: return image::COLOR_GREEN;
+    case 2: return image::COLOR_PURPLE;
+    case 3: return image::COLOR_ORANGE;
+    case 4: return image::COLOR_GRAY;
+    default:
+        color_count = 0;
+        return image::COLOR_BLUE;
+    }
+}
+#endif
 
+namespace maix::image {
 typedef struct {
     int x, y;
 } point_t;
 
-typedef struct {
-    point_t p1, p2;
-} line_t;
-
-class LinePoint : public std::list<point_t> {
-    int _sum_x = 0;
-    int _sum_y = 0;
-    int _sum_xy = 0;
-    int _sum_xx = 0;
-    double _angle;
-    double _m;
-    double _b;
-    point_t _first_point;
-    std::list<LinePoint> bifurcation_lines;
-public:
-    void push_back(const point_t& p) {
-        if (empty()) {
-            _first_point = p;
-        }
-        std::list<point_t>::push_back(p);
-
-        _sum_x += p.x;
-        _sum_y += p.y;
-        _sum_xy += p.x * p.y;
-        _sum_xx += p.x * p.x;
-
-        calculate_m_and_b(size(), _sum_x, _sum_y, _sum_xx, _sum_xy, _m, _b, _angle);
+static void sort_vertical_point(cv::Point start, cv::Point end, cv::Point &top, cv::Point &bottom) {
+    if (start.y <= end.y) {
+        top = start;
+        bottom = end;
+    } else {
+        top = end;
+        bottom = start;
     }
+}
 
-    bool check_point_is_valid(point_t new_point, double max_angle, double max_distance) {
-        DEBUG_EN(0);
-        DEBUG_PRT("check new point(%d,%d) max angle:%f", new_point.x, new_point.y, max_angle);
-        if (size() <= 1) return true;
+static void sort_horizontal_point(cv::Point start, cv::Point end, cv::Point &left, cv::Point &right) {
+    if (start.x <= end.x) {
+        left = start;
+        right = end;
+    } else {
+        left = end;
+        right = start;
+    }
+}
 
-        auto tmp_sum_x = _sum_x + new_point.x;
-        auto tmp_sum_y = _sum_y + new_point.y;
-        auto tmp_sum_xy = _sum_xy + new_point.x * new_point.y;
-        auto tmp_sum_xx = _sum_xx + new_point.x * new_point.x;
+static double compute_average_theta(double &theta1, double &theta2) {
+    DEBUG_EN(0);
+    DEBUG_PRT("theta1:%f theta2:%f", theta1, theta2);
+    if (std::abs(theta2 - theta1) > M_PI / 2) {
+        return (theta1 + theta2 + M_PI) / 2;
+    } else {
+        return (theta1 + theta2) / 2;
+    }
+}
 
-        double m = 0, b = 0, angle = 0;
-        calculate_m_and_b(size() + 1, tmp_sum_x, tmp_sum_y, tmp_sum_xx, tmp_sum_xy, m, b, angle);
-
-        double distance = point_to_line_distance(new_point);
-        DEBUG_PRT("angle of line:%f, max distance %f, _m:%f _b:%f new point angle:%f distance:%f", _angle, max_distance, _m, _b, angle, distance);
-        if (abs(angle - _angle) <= max_angle && distance < max_distance) return true;
+static bool is_vertical(double angle)
+{
+    if ((0 <= angle && angle <= 45) || (135 <= angle && angle <= 180)) {
+        return true;
+    } else {
         return false;
     }
-
-    double point_to_line_distance(point_t &p) {
-        if ((int)_angle == 90) {
-            return fabs(p.x - _b);
-        } else {
-            return fabs(_m * p.x - p.y + _b) / std::sqrt(_m * _m + 1);
-        }
-    }
-
-    static void calculate_m_and_b(int n, int sum_x, int sum_y, int sum_xx, int sum_xy, double &m, double &b, double &angle)
-    {
-        if (n * sum_xx - sum_x * sum_x == 0) {
-            m = 0;          // invalid
-            b = sum_x / n;
-            angle = 90;
-        } else {
-            m = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x * sum_x);
-            b = ((double)sum_y - m * sum_x) / n;
-            angle = atan(m) * (180.0 / M_PI);
-        }
-    }
-
-    double m() {return _m;}
-    double b() {return _b;}
-
-    void add_bifurcation_line(LinePoint &line) {bifurcation_lines.push_back(line);}
-    auto get_bifurcation_lines() {return bifurcation_lines;}
-
-    auto first_point() {return _first_point;}
-};
-typedef std::list<LinePoint> LinePointGroup;
-
-static double slope_to_angle(double slope) {
-    return atan(slope) * (180.0 / M_PI);
 }
 
-// static double angle_to_slope(double angle) {
-//     return tan(angle * M_PI / 180.0);
-// }
-
-static double calculate_angle(point_t point1, point_t point2)
-{
-    if (point2.x == point1.x) {
-        return 90;
-    }
-
-    double k = (double)(point2.y - point1.y) / (point2.x - point1.x);
-    auto angle = slope_to_angle(k);
-    return angle;
-}
-
-static double calculate_slope(point_t point1, point_t point2)
-{
-    if (point2.x == point1.x) {
-        return 10000;
-    }
-    return (point2.y - point1.y) / (point2.x - point1.x);
-}
-
-static std::vector<int> get_center_point(std::vector<std::vector<int>> points)
-{
-    std::vector<int> out;
-    auto points_size = points.size();
-    if (points_size) {
-        int total_x = 0, total_y = 0;
-        for (auto &point: points) {
-            total_x += point[0];
-            total_y += point[1];
-        }
-
-        total_x /= points_size;
-        total_y /= points_size;
-
-        out = {total_x, total_y};
-    }
-
-    return out;
-}
-
-
-static point_t get_center_point2(std::list<point_t> points)
-{
-    point_t out;
-    auto points_size = points.size();
-    if (points_size) {
-        int total_x = 0, total_y = 0;
-        for (auto &point: points) {
-            total_x += point.x;
-            total_y += point.y;
-        }
-
-        total_x /= points_size;
-        total_y /= points_size;
-
-        out = {total_x, total_y};
-    }
-
-    return out;
-}
-
-static std::vector<std::vector<int>> blobs_to_points(std::vector<std::vector<image::Blob>> blobs_vector)
-{
-    std::vector<std::vector<int>> output;
-    for (auto &blobs : blobs_vector) {
-        for (auto &b : blobs) {
-            auto mini_corners = b.mini_corners();
-            auto center_pointer = get_center_point(mini_corners);
-            if (!center_pointer.empty()) {
-                output.push_back(center_pointer);
-            }
-        }
-    }
-
-    return output;
-}
-
-static int get_points_distance(std::vector<int> point1, std::vector<int> point2)
-{
-    return std::sqrt(std::pow(point2[0] - point1[0], 2) + std::pow(point2[1] - point1[1], 2));
-}
-
-static int get_points_distance2(point_t point1, point_t point2)
-{
-    return std::sqrt(std::pow(point2.x - point1.x, 2) + std::pow(point2.y - point1.y, 2));
-}
-
-static std::vector<std::vector<int>> merge_points(std::vector<std::vector<int>> points, int distance)
-{
-    DEBUG_EN(0);
-    DEBUG_PRT("max distance of merge:%d", distance);
-    std::vector<std::vector<int>> new_points;
-
+#if 0
+static void found_the_y_of_max_and_min_value(std::vector<cv::Point> &points, cv::Point &min, cv::Point &max) {
+    int min_y = 100000, max_y = 0;
+    int x_from_min_y = 0, x_from_max_y = 0;
     for (size_t i = 0; i < points.size(); i ++) {
-        std::vector<std::vector<int>> temp_points;
-        DEBUG_PRT("check points size:%ld", points.size());
-        for (size_t j = 0; j < points.size(); j ++) {
-            if (i == j) continue;
-            if (points[i][0] < 0 || points[i][1] < 0 || points[j][0] < 0 || points[j][1] < 0) continue;
-
-            auto new_distance = get_points_distance(points[i], points[j]);
-            DEBUG_PRT("(%ld,%ld) p1(%d,%d) p2(%d,%d) distance:%d", i, j, points[i][0], points[i][1], points[j][0], points[j][1], new_distance);
-            if (distance >= new_distance) {
-                temp_points.push_back({points[i][0], points[i][1]});
-                temp_points.push_back({points[j][0], points[j][1]});
-                points[j] = {-1, -1};
+        if (points[i].y < min_y) {
+            min_y = points[i].y;
+            x_from_min_y = points[i].x;
+        } else if (points[i].y == min_y) {
+            if (points[i].x < x_from_min_y) {
+                x_from_min_y = points[i].x;
             }
         }
 
-        DEBUG_PRT("temp points size:%ld", temp_points.size());
-        auto center_point = get_center_point(temp_points);
-        if (!center_point.empty()) {
-            new_points.push_back(center_point);
+        if (points[i].y > max_y) {
+            max_y = points[i].y;
+            x_from_max_y = points[i].x;
+        } else if (points[i].y == min_y) {
+            if (points[i].x > x_from_max_y) {
+                x_from_max_y = points[i].x;
+            }
         }
     }
 
-    for (size_t i = 0; i < points.size(); i ++) {
-        if (points[i][0] < 0 || points[i][1] < 0) continue;
-        new_points.push_back(points[i]);
-    }
-
-    return new_points;
+    min = {x_from_min_y, min_y};
+    max = {x_from_max_y, max_y};
 }
-
-
-static point_t found_the_first_point(std::list<point_t> &points_list)
-{
-    auto min_point = points_list.front();
-    auto min_point_it = points_list.begin();
-    for (auto it = points_list.begin(); it != points_list.end(); ++ it) {
-        auto item = *it;
-        if (item.y == min_point.y) {
-            if (item.x >= min_point.x) {
-                min_point = item;
-                min_point_it = it;
-            }
-        } else if (item.y >= min_point.y) {
-            min_point = item;
-            min_point_it = it;
-        }
-    }
-    points_list.erase(min_point_it);
-    return min_point;
-}
-
-__attribute__((unused)) static void print_points_list(std::string msg, std::list<point_t> points)
-{
-    DEBUG_EN(0);
-#if __DEBUG
-    if (DEBUG_IS_ENABLE()) {
-        printf("%s(%ld):\r\n", msg.c_str(), points.size());
-        int i = 0;
-        for (auto &point: points) {
-            printf("p[%2d](%3d,%3d) ", i, point.x, point.y);
-            i ++;
-            if (i % 5 == 0) {
-                printf("\r\n");
-            }
-        }
-        printf("\r\n");
-    }
 #endif
-}
+class NewLine {
+public:
+    cv::Point start;
+    cv::Point end;
+    cv::Point center;
+    double magnitude;
+    double theta;
+    double rho;
+    double A;
+    double B;
+    double C;
+    double m;
+    double b;
+    int sum_n = 0;
+    double sum_x = 0;
+    double sum_y = 0;
+    double sum_xx = 0;
+    double sum_xy = 0;
 
-static LinePoint sort_line_points_list(point_t first_point, LinePoint input)
-{
-    input.sort([first_point](point_t a, point_t b) {
-        auto distance_a = get_points_distance2(a, first_point);
-        auto distance_b = get_points_distance2(b, first_point);
-        if (distance_a <= distance_b) {
+    void push_new_point(cv::Point &point) {
+        DEBUG_EN(0);
+        sum_x += point.x;
+        sum_y += point.y;
+        sum_xx += point.x * point.x;
+        sum_xy += point.x * point.y;
+        sum_n += 1;
+        DEBUG_PRT("sum_n:%d sum_x:%f sum_y:%f sum_xx:%f sum_xy:%f, point(%d,%d)", sum_n, sum_x, sum_y, sum_xx, sum_xy, point.x, point.y);
+    }
+
+    void compute_m_and_b(double &m, double &b) {
+        DEBUG_EN(0);
+        m = (sum_n * sum_xy - sum_x * sum_y) / (sum_n * sum_xx - sum_x * sum_x);
+        b = (sum_y - m * sum_x) / sum_n;
+        DEBUG_PRT("compute m:%f b:%f", m, b);
+    }
+
+    void compute_x_with_m_and_b(int y, int &x) {
+        DEBUG_EN(0);
+        x = (y - b) / m;
+        DEBUG_PRT("input y:%d, x = (%d - (%f)) / (%f) = %d", y, y, b, m, x);
+    }
+
+    void compute_y_with_m_and_b(int x, int &y) {
+        DEBUG_EN(0);
+        y = m * x + b;
+        DEBUG_PRT("input x:%d, y = (%d * (%f)) + (%f) = %d", x, x, m, b, y);
+    }
+
+    static int get_points_distance2(point_t point1, point_t point2)
+    {
+        return std::sqrt(std::pow(point2.x - point1.x, 2) + std::pow(point2.y - point1.y, 2));
+    }
+
+    static double slope_to_angle(double slope) {
+        return atan(slope) * (180.0 / M_PI);
+    }
+
+    static double calculate_angle(point_t point1, point_t point2)
+    {
+        if (point2.x == point1.x) {
+            return 90;
+        }
+
+        double k = (double)(point2.y - point1.y) / (point2.x - point1.x);
+        auto angle = slope_to_angle(k);
+        return angle;
+    }
+
+    static void calculate_magnitude_theta_and_rho(point_t p1, point_t p2, double &A, double &B, double &C, double &magnitude, double &theta, double &rho)
+    {
+        DEBUG_EN(0);
+        // Ax + By + C = 0
+        A = p2.y - p1.y;
+        B = p1.x - p2.x;
+        C = p2.x * p1.y - p1.x * p2.y;
+
+        rho = - C / sqrt(A * A + B * B);
+        if (B == 0) {
+            theta = 0;
+        } else {
+            theta = atan2(B, A);
+        }
+
+        DEBUG_PRT("p1(%d,%d) p2(%d,%d)", p1.x, p1.y, p2.x, p2.y);
+        DEBUG_PRT("A:%f B:%f C:%f theta:%f rho:%f", A, B, C, theta, rho);
+    }
+
+    NewLine() {
+
+    }
+    NewLine(cv::Point &start_point, cv::Point &end_point) {
+        start = start_point;
+        end = end_point;
+        center = cv::Point(start.x + (end.x - start.x) / 2, start.y + (end.y - start.y) / 2);
+        calculate_magnitude_theta_and_rho({start.x, start.y}, {end.x, end.y}, A, B, C, magnitude, theta, rho);
+    }
+
+    double degree(bool use_other_theta = false, double other_theta = -1) {
+        double new_theta = 0;
+        if (use_other_theta) {
+            new_theta = other_theta;
+        } else {
+            new_theta = theta;
+        }
+        if (new_theta < 0) {
+            new_theta += M_PI;
+        }
+        auto degree = new_theta * 180.0 / M_PI;
+        return degree;
+    }
+
+    int center_distance(int cx, int cy) {
+        return get_points_distance2({cx, cy}, {center.x, center.y});
+    }
+
+    int point_distance(int x, int y) {
+        auto distance = (int)(fabs(A * x + B * y + C) / sqrt(A * A + B * B));
+        return distance;
+    }
+
+    int point_distance_without_abs(int x, int y) {
+        auto distance = (int)(A * x + B * y + C) / sqrt(A * A + B * B);
+        return distance;
+    }
+
+    bool compute_x(int y, int &x, bool use_new_param = false, double new_theta = -1, double new_rho = -1) {
+        DEBUG_EN(0);
+        double t, r;
+        if (use_new_param) {
+            t = new_theta;
+            r = new_rho;
+        } else {
+            t = theta;
+            r = rho;
+        }
+        float sin_theta = std::sin(t);
+        float cos_theta = std::cos(t);
+        if (std::abs(sin_theta) < 1e-6) {
+            return false;
+        }
+        DEBUG_PRT("A:%f B:%f C:%f theta:%f cos(theta):%f sin(theta):%f rho:%f", A, B, C, t, cos(t), sin(t), r);
+        x = (r - y * sin_theta) / cos_theta;
+        DEBUG_PRT("input x:%d theta:%f rho:%f cos_theta:%f sin_theta:%f output y:%d", x, t, r, cos_theta, sin_theta, y);
+        return true;
+    }
+
+    bool compute_y(int x, int &y, bool use_new_param = false, double new_theta = -1, double new_rho = -1) {
+        DEBUG_EN(0);
+        double t, r;
+        if (use_new_param) {
+            t = new_theta;
+            r = new_rho;
+        } else {
+            t = theta;
+            r = rho;
+        }
+        float sin_theta = std::sin(t);
+        float cos_theta = std::cos(t);
+        if (std::abs(sin_theta) < 1e-6) {
+            return false;
+        }
+        DEBUG_PRT("A:%f B:%f C:%f theta:%f cos(theta):%f sin(theta):%f rho:%f", A, B, C, t, cos(t), sin(t), r);
+        y = (r - x * cos_theta) / sin_theta;
+        DEBUG_PRT("input x:%d theta:%f rho:%f cos_theta:%f sin_theta:%f output y:%d", x, t, r, cos_theta, sin_theta, y);
+        return true;
+    }
+
+    bool compute_intersection(NewLine &line, int &x, int &y) {
+        if (line.theta == theta) {
+            return false;
+        }
+
+        double denominator = A * line.B - line.A * B;
+        x = (B * line.C - line.B * C) / denominator;
+        y = (line.A * C - A * line.C) / denominator;
+        return true;
+    }
+
+    void merge_line(NewLine &line) {
+        DEBUG_EN(0);
+        DEBUG_PRT("line1 start:(%d,%d) end:(%d,%d) theta:%f rho:%f degree:%f", start.x, start.y, end.x, end.y, theta, rho, degree());
+        DEBUG_PRT("line2 start:(%d,%d) end:(%d,%d) theta:%f rho:%f degree:%f", line.start.x, line.start.y, line.end.x, line.end.y, line.theta, line.rho, line.degree());
+
+        auto average_theta = compute_average_theta(theta, line.theta);
+        auto average_rho = (rho + line.rho) / 2;
+        auto average_degree = degree(true, average_theta);
+        cv::Point new_start = {0}, new_end = {0};
+        float max_rotation_degree = 5;
+        DEBUG_PRT("average theta:%f average rho:%f average degree:%f", average_theta, average_rho, average_degree);
+        if (is_vertical(average_degree)) {     // vertical
+            DEBUG_PRT("merged line is [vertival], average_degree:%f", average_degree);
+            cv::Point top1 = {0}, bottom1 = {0}, top2 = {0}, bottom2 = {0};
+            sort_vertical_point(start, end, top1, bottom1);
+            sort_vertical_point(line.start, line.end, top2, bottom2);
+            DEBUG_PRT("top1 (%d,%d) bottom1 (%d,%d) top2 (%d,%d) bottom2 (%d,%d)", top1.x, top1.y, bottom1.x, bottom1.y, top2.x, top2.y, bottom2.x, bottom2.y);
+            int min_y = std::min(top1.y, top2.y);
+            int max_y = std::max(bottom1.y, bottom2.y);
+            if (average_degree <= max_rotation_degree || average_degree >= 180 - max_rotation_degree) {
+                new_start.x = (bottom1.x + bottom2.x) / 2;
+                new_start.y = max_y;
+                new_end.x = (top1.x + top2.x) / 2;
+                new_end.y = min_y;
+            } else {
+                int top_x = 0, bottom_x = 0;
+                compute_x(min_y, top_x, true, average_theta, average_rho);
+                compute_x(max_y, bottom_x, true, average_theta, average_rho);
+                new_start.x = bottom_x;
+                new_start.y = max_y;
+                new_end.x = top_x;
+                new_end.y = min_y;
+            }
+        } else {                                            // horizontal
+            DEBUG_PRT("merged line is [hotizontal], average_degree:%f(cos_theta:%f)", average_degree, std::abs(cos_theta));
+            cv::Point left1 = {0}, right1 = {0}, left2 = {0}, right2 = {0};
+            sort_horizontal_point(start, end, left1, right1);
+            sort_horizontal_point(line.start, line.end, left2, right2);
+            DEBUG_PRT("left1 (%d,%d) right1 (%d,%d) left2 (%d,%d) right2 (%d,%d)", left1.x, left1.y, right1.x, right1.y, left2.x, left2.y, right2.x, right2.y);
+            int min_x = std::min(left1.x, left2.x);
+            int max_x = std::max(right1.x, right2.x);
+            if (90 - max_rotation_degree <= average_degree && average_degree <= 90 + max_rotation_degree) {
+                new_start.x = min_x;
+                new_start.y = (left1.y + left2.y) / 2;
+                new_end.x = max_x;
+                new_end.y = (right1.y + right2.y) / 2;
+            } else {
+                int left_y = 0, right_y = 0;
+                compute_y(min_x, left_y, true, average_theta, average_rho);
+                compute_y(max_x, right_y, true, average_theta, average_rho);
+                new_start.x = min_x;
+                new_start.y = left_y;
+                new_end.x = max_x;
+                new_end.y = right_y;
+            }
+        }
+
+        start = new_start;
+        end = new_end;
+
+        // FIXME:
+        if ((B > 0 && start.x - end.x < 0) || (B < 0 && start.x - end.x > 0))
+        {
+            auto tmp = end;
+            end = start;
+            start = tmp;
+        }
+
+        center = cv::Point(center.x + (end.x - start.x) / 2, start.y + (end.y - start.y) / 2);
+        calculate_magnitude_theta_and_rho({start.x, start.y}, {end.x, end.y}, A, B, C, magnitude, theta, rho);
+        DEBUG_PRT("merged line start:(%d,%d) end:(%d,%d) theta:%f rho:%f degree:%f", start.x, start.y, end.x, end.y, theta, rho, degree());
+    }
+
+    bool check_lower_line(NewLine &line) {
+        if (start.y < line.start.y
+            || start.y < line.end.y
+            || end.y < line.start.y
+            || end.y < line.end.y) {
             return true;
         } else {
             return false;
         }
-    });
-
-    return input;
-}
-
-static LinePointGroup search_new_lines_group(std::list<point_t> &point_sets, std::list<point_t> bifurcation_points, int p2p_max_distance, int p2l_max_distance, double max_angle, bool has_first_print, point_t first_point = {0, 0})
-{
-    DEBUG_EN(0);
-    DEBUG_PRT(" =================== search new lines ================= max distance:%d", p2p_max_distance);
-    LinePointGroup new_group;
-    if (bifurcation_points.empty()) {
-        DEBUG_PRT("bifurcation sets is empty");
-        return new_group;
     }
 
-    if (point_sets.empty()) {
-        DEBUG_PRT("point sets is empty");
-        for (auto it = bifurcation_points.begin(); it != bifurcation_points.end(); ++ it) {
-            auto next_point = *it;
-
-            LinePoint new_line;
-            if (has_first_print) {
-                new_line.push_back(first_point);
-            }
-            new_line.push_back(next_point);
-            new_group.push_back(new_line);
-            it = bifurcation_points.erase(it);
-        }
-
-        return new_group;
-    }
-
-    for (auto it = bifurcation_points.begin(); it != bifurcation_points.end(); ++ it) {
-        auto next_point = *it;
-        LinePoint new_line;
-        std::list<point_t> bifurcation_points;
-        LinePoint temp_points;
-
-        // insert the first point
-        if (has_first_print) {
-            new_line.push_back(first_point);
-        }
-        new_line.push_back(next_point);
-
-        while (1) {
-            DEBUG_PRT("found next point, current point(%d,%d) new_line size:%ld point sets size:%ld", next_point.x, next_point.y, new_line.size(), point_sets.size());
-            // find next point
-            bifurcation_points.clear();
-            temp_points.clear();
-            print_points_list("point sets", point_sets);
-            for (auto it = point_sets.begin(); it != point_sets.end(); ++ it) {
-                auto item = *it;
-                auto new_distance = get_points_distance2(item, next_point);
-                // DEBUG_PRT("find point(%d,%d) distance:%d", item.x, item.y, new_distance);
-                if (p2p_max_distance >= new_distance) {
-                    if (new_line.check_point_is_valid(item, max_angle, p2l_max_distance)) {
-                        DEBUG_PRT("search point(%d, %d) is [VALID]", item.x, item.y);
-                        temp_points.push_back(item);
-                        point_sets.erase(it);
-                    } else {
-                        DEBUG_PRT("search point(%d, %d) is [INVALID]", item.x, item.y);
-                        bifurcation_points.push_back(item);
-                        point_sets.erase(it);
-                    }
-                }
-            }
-
-            // push new point
-            if (!temp_points.empty()) {
-                auto first_point = next_point;
-                sort_line_points_list(first_point, temp_points);
-                for (auto &point: temp_points) {
-                    new_line.push_back(point);
-                }
-                next_point = temp_points.front();
-
-                for (auto &point: bifurcation_points) {
-                    point_sets.push_back(point);
-                }
+    image::LineType get_lines_type(NewLine &line, int min_diff_of_degree = 70, int max_point_to_line_distance = 10) {
+        DEBUG_EN(0);
+        DEBUG_PRT("l1 (%d,%d) (%d,%d)", start.x, start.y, end.x, end.y);
+        DEBUG_PRT("l2 (%d,%d) (%d,%d)", line.start.x, line.start.y, line.end.x, line.end.y);
+        DEBUG_PRT("l1 degree:%f l2 degree:%f min_diff_of_degree:%d max_point_to_line_distance:%d", degree(), line.degree(), min_diff_of_degree, max_point_to_line_distance);
+        if (abs(line.degree() - degree()) >= min_diff_of_degree) {
+            auto distance1 = point_distance_without_abs(line.start.x, line.start.y);
+            auto distance2 = point_distance_without_abs(line.end.x, line.end.y);
+            auto distance3 = line.point_distance_without_abs(start.x, start.y);
+            auto distance4 = line.point_distance_without_abs(end.x, end.y);
+            DEBUG_PRT("distance1:%d distance2:%d distance3:%d distance4:%d", distance1, distance2, distance3, distance4);
+            if ((distance1 <= max_point_to_line_distance
+                    || distance2 <= max_point_to_line_distance)
+                    && (distance3 <= max_point_to_line_distance
+                    || distance4 <= max_point_to_line_distance)) {
+                return image::LineType::LINE_L;
+            } else if (distance1 <= max_point_to_line_distance
+                    || distance2 <= max_point_to_line_distance
+                    || distance3 <= max_point_to_line_distance
+                    || distance4 <= max_point_to_line_distance) {
+                return image::LineType::LINE_T;
             } else {
-                if (!bifurcation_points.empty()) {
-                    DEBUG_PRT(" =================== search new bifurcation lines =================");
-                    DEBUG_PRT("bifurcation_points size:%ld", bifurcation_points.size());
-                    DEBUG_PRT("bifurcation points to line");
-                    LinePointGroup point_group;
-                    std::list<point_t> current_point;
-                    current_point.push_back(next_point);
-                    auto check_group = search_new_lines_group(bifurcation_points, current_point, p2p_max_distance, p2l_max_distance, max_angle, false);
-                    DEBUG_PRT("check bifurcation group size %ld", check_group.size());
-                    for (auto &l: check_group) {
-                        l.pop_front();
-                        auto it = l.begin();
-                        if (it != l.end()) {
-                            auto item = *it;
-                            bifurcation_points.push_back(item);
-                            l.erase(it);
-                        }
-
-                        for (auto &p: l) {
-                            point_sets.push_back(p);
-                        }
-                    }
-#if __DEBUG
-                    print_points_list("bifuration_points", bifurcation_points);
-#endif
-
-                    // find others line
-                    auto group = search_new_lines_group(point_sets, bifurcation_points, p2p_max_distance, p2l_max_distance, max_angle, true, next_point);
-                    DEBUG_PRT("found group size:%ld", group.size());
-                    DEBUG_PRT("insert bifurcation lines");
-                    for (auto &line: group) {
-                        new_group.push_back(line);
-                        // new_line.add_bifurcation_line(line);
-                    }
-                } else {
-                    break;
-                }
+                return image::LineType::LINE_CROSS;
             }
+        } else {
+            return image::LineType::LINE_NORMAL;
         }
-        new_group.push_back(new_line);
-
-        it = bifurcation_points.erase(it);
     }
+};
 
-    return new_group;
-}
-
-static std::vector<LinePointGroup> search_lines_group(std::vector<std::vector<int>> points, int p2p_distance, int p2l_distance, double angle)
+static image::LineType get_group_type(NewLine &front_line, NewLine &back_line, int min_diff_of_degree = 70, int max_point_to_line_distance = 10)
 {
-    DEBUG_EN(0);
-    std::vector<LinePointGroup> new_groups;
-    std::list<std::list<point_t>> new_lines;
-    std::list<point_t> points_list;
-    for (auto &point: points) {
-        points_list.push_back({point[0], point[1]});
-    }
-
-    while (points_list.size() > 0) {
-        // found first point
-        auto first_point = found_the_first_point(points_list);
-        DEBUG_PRT("check a new line, first point(%d,%d)", first_point.x, first_point.y);
-
-        // found points
-        std::list<point_t> current_point;
-        current_point.push_back(first_point);
-        auto new_group = search_new_lines_group(points_list, current_point, p2p_distance, p2l_distance, angle, false);
-        if (!new_group.empty()) {
-            new_groups.push_back(new_group);
-        }
-#if __DEBUG
-        if (DEBUG_IS_ENABLE()) {
-            for (auto &line: new_group) {
-                print_points_list("group list", line);
-            }
-        }
-#endif
-    }
-
-    return new_groups;
-}
-
-static void calculate_magnitude_theta_and_rho(point_t p1, point_t p2, int &magnitude, int &theta, int &rho)
-{
-    DEBUG_EN(0);
-    auto angle = calculate_angle(p1, p2);
-    DEBUG_PRT("angle %f", angle);
-    magnitude = get_points_distance2(p1, p2);
-    theta = 90 - angle;
-    if (theta < 0) theta += 180;
-    rho = fabs((p2.y - p1.y) * p1.x - (p2.x - p1.x) * p1.y) / sqrt(pow(p2.y - p1.y, 2) + pow(p2.x - p1.x, 2));
-    DEBUG_PRT("magnitude %d theta:%d rho:%d", magnitude, theta, rho);
-}
-
-static image::Line points_to_line(std::list<point_t> points)
-{
-    DEBUG_EN(0);
-
-    auto first_point = points.front();
-    auto center_point = get_center_point2(points);
-    auto back_point = points.back();
-    DEBUG_PRT("Get first point(%d,%d) center point(%d,%d) back point(%d,%d)",
-        first_point.x, first_point.y, center_point.x, center_point.y, back_point.x, back_point.y);
-    point_t second_point;
-    if (first_point.x == center_point.x) {
-        second_point.x = first_point.x;
-        second_point.y = back_point.y;
+    NewLine ver_line, hor_line;
+    // Check the straight line towards the bottom of the screen
+    if (is_vertical(front_line.degree())) {
+        ver_line = front_line;
+        hor_line = back_line;
     } else {
-        auto k = calculate_slope(first_point, center_point);
-        auto b = first_point.y - first_point.x * k;
-        second_point.y = back_point.y;
-        second_point.x = (second_point.y - b) / k;
+        ver_line = back_line;
+        hor_line = front_line;
     }
-    DEBUG_PRT("Calculate line points front(%d,%d) back(%d,%d)", first_point.x, first_point.y, back_point.x, back_point.y);
 
-    int magnitude = 0, theta = 0, rho = 0;
-    calculate_magnitude_theta_and_rho(first_point, back_point, magnitude, theta, rho);
-    return image::Line(first_point.x, first_point.y, back_point.x, back_point.y, magnitude, theta, rho);
+    cv::Point top, bottom, left, right;;
+    sort_vertical_point(ver_line.start, ver_line.end, top, bottom);
+    sort_horizontal_point(hor_line.start, hor_line.end, left, right);
+
+    // compute intersection point
+    point_t intersection_point = {0, 0};
+    ver_line.compute_intersection(hor_line, intersection_point.x, intersection_point.y);
+
+    DEBUG_EN(0);
+    DEBUG_PRT("ver_line (%d,%d) (%d,%d)", top.x, top.y, bottom.x, bottom.y);
+    DEBUG_PRT("hor_line (%d,%d) (%d,%d)",left.x, left.y, right.x, right.y);
+    DEBUG_PRT("ver_line degree:%f hor_line degree:%f min_diff_of_degree:%d max_point_to_line_distance:%d", ver_line.degree(), hor_line.degree(), min_diff_of_degree, max_point_to_line_distance);
+    if (abs(ver_line.degree() - hor_line.degree()) >= min_diff_of_degree) {
+        auto left_to_ver_dist = ver_line.point_distance_without_abs(left.x, left.y);
+        auto right_to_ver_dist = ver_line.point_distance_without_abs(right.x, right.y);
+        auto top_to_hor_dist = hor_line.point_distance_without_abs(top.x, top.y);
+        auto bottom_to_hor_dist = hor_line.point_distance_without_abs(bottom.x, bottom.y);
+
+        // FIXME:
+        if (right.x > intersection_point.x) {
+            right_to_ver_dist = right_to_ver_dist > 0 ? -right_to_ver_dist : right_to_ver_dist;
+        }
+
+        if (left.x < intersection_point.x) {
+            left_to_ver_dist = left_to_ver_dist < 0 ? -left_to_ver_dist : left_to_ver_dist;
+        }
+        DEBUG_PRT("left_to_ver_dist:%d right_to_ver_dist:%d top_to_hor_dist:%d bottom_to_hor_dist:%d", left_to_ver_dist, right_to_ver_dist, top_to_hor_dist, bottom_to_hor_dist);
+
+        if (right_to_ver_dist <= (-max_point_to_line_distance) && left_to_ver_dist >= max_point_to_line_distance && top_to_hor_dist >= max_point_to_line_distance && bottom_to_hor_dist <= (-max_point_to_line_distance)) {
+            /**
+             *     |
+             * ----|----
+             *     |
+            */
+            return image::LineType::LINE_CROSS;
+        }  else if (
+            /**
+             * -------
+             *    |
+             *    |
+            */
+            (left_to_ver_dist >= max_point_to_line_distance && right_to_ver_dist <= (-max_point_to_line_distance) && top_to_hor_dist <= max_point_to_line_distance)
+            /**
+             *    |
+             *    |
+             * -------
+            */
+            || (left_to_ver_dist >= max_point_to_line_distance && right_to_ver_dist <= (-max_point_to_line_distance) && bottom_to_hor_dist >= (-max_point_to_line_distance))
+            /**
+             * |
+             * |------
+             * |
+            */
+            || (left_to_ver_dist <= max_point_to_line_distance && top_to_hor_dist >= max_point_to_line_distance && bottom_to_hor_dist <= (-max_point_to_line_distance))
+            /**
+             *       |
+             * ------|
+             *       |
+            */
+            || (right_to_ver_dist >= (-max_point_to_line_distance) && top_to_hor_dist >= max_point_to_line_distance && bottom_to_hor_dist <= (-max_point_to_line_distance))) {
+            return image::LineType::LINE_T;
+        } else if (
+            /**
+             * -----
+             * |
+             * |
+            */
+            (left_to_ver_dist <= max_point_to_line_distance && top_to_hor_dist <= max_point_to_line_distance)
+            /**
+             * |
+             * |
+             * -----
+            */
+            || (left_to_ver_dist <= max_point_to_line_distance && bottom_to_hor_dist >= (-max_point_to_line_distance))
+            /**
+             * -----
+             *     |
+             *     |
+            */
+            || (right_to_ver_dist >= (-max_point_to_line_distance) && top_to_hor_dist <= max_point_to_line_distance)
+            /**
+             *     |
+             *     |
+             * -----
+            */
+            || (right_to_ver_dist >= (-max_point_to_line_distance) && bottom_to_hor_dist >= (-max_point_to_line_distance))) {
+            return image::LineType::LINE_L;
+        } else {
+            return image::LineType::LINE_NORMAL;
+        }
+    } else {
+        return image::LineType::LINE_NORMAL;
+    }
 }
 
-
-typedef struct {
-    image::Line line;
-    LinePoint points;
-} temp_line_t;
-
-static std::vector<temp_line_t>  sort_image_line_and_get_type(std::vector<temp_line_t> temp_lines, LineType &type)
+static std::vector<image::LineGroup> found_path(std::list<NewLine> &merged_lines, int min_len_of_new_path)
 {
     DEBUG_EN(0);
-    std::sort(temp_lines.begin(), temp_lines.end(), [](temp_line_t line1, temp_line_t line2) {
-        return line1.line.magnitude() < line2.line.magnitude();
-    });
+    std::vector<image::LineGroup> groups;
+    auto group_type = image::LineType::LINE_NORMAL;
+    int group_idx = 0;
+    if (merged_lines.size() == 2) {
+        auto front_line = merged_lines.front();
+        auto back_line = merged_lines.back();
+        group_idx = 0;
+        group_type = get_group_type(front_line, back_line, 70, min_len_of_new_path);
+        std::vector<image::Line> lines;
 
-    #define CHECK_IS_PERPENDICULAR(theta_diff)  (theta_diff >= 75 && theta_diff <= 105)
-    #define CHECK_IS_PARALLEL(theta_diff)       (theta_diff >= -15 && theta_diff <= 15)
-
-    DEBUG_PRT("calculate the type of lines(%ld)", temp_lines.size());
-    switch (temp_lines.size()) {
-    case 2:
-    {
-        auto l1 = temp_lines[0].line;
-        auto l2 = temp_lines[1].line;
-        auto theta1 = l1.theta();
-        auto theta2 = l2.theta();
-        auto theta_diff = abs(theta2 - theta1);
-        if (CHECK_IS_PERPENDICULAR(theta_diff)) {
-            type = LineType::LINE_L;
-        } else {
-            type = LineType::LINE_NORMAL;
-        }
-        DEBUG_PRT("theta1:%d theta2:%d theta diff:%d type:%d", theta1, theta2, theta_diff, (int)type);
-        break;
-    }
-    case 3:
-    {
-        auto l1 = temp_lines[0].line;
-        auto l2 = temp_lines[1].line;
-        auto l3 = temp_lines[2].line;
-        auto theta1 = l1.theta();
-        auto theta2 = l2.theta();
-        auto theta3 = l3.theta();
-        auto theta12_diff = abs(theta1 - theta2);
-        // auto theta23_diff = abs(theta2 - theta3);
-        auto theta13_diff = abs(theta1 - theta3);
-
-        if (CHECK_IS_PERPENDICULAR(theta12_diff)) {
-            if (CHECK_IS_PARALLEL(theta13_diff)) {
-                type = LineType::LINE_T;
+        switch (group_type) {
+        case image::LineType::LINE_L:
+        {
+            NewLine ver_line, hor_line;
+            // Check the straight line towards the bottom of the screen
+            if (is_vertical(front_line.degree())) {
+                ver_line = front_line;
+                hor_line = back_line;
             } else {
-                type = LineType::LINE_NORMAL;
+                ver_line = back_line;
+                hor_line = front_line;
             }
-        } else if (CHECK_IS_PERPENDICULAR(theta13_diff)) {
-            if (CHECK_IS_PARALLEL(theta12_diff)) {
-                type = LineType::LINE_T;
+
+            // compute intersection point
+            point_t intersection_point = {0, 0};
+            ver_line.compute_intersection(hor_line, intersection_point.x, intersection_point.y);
+
+            // push vertical line
+            cv::Point start, end;
+            sort_vertical_point(ver_line.start, ver_line.end, start, end);
+            end = {intersection_point.x, intersection_point.y};
+            lines.push_back(image::Line(start.x, start.y, end.x, end.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+
+            // push horizontal line
+            start = {intersection_point.x, intersection_point.y};
+            auto distance1 = ver_line.point_distance(hor_line.start.x, hor_line.start.y);
+            auto distance2 = ver_line.point_distance(hor_line.end.x, hor_line.end.y);
+            if (distance1 >= distance2) {
+                end = {hor_line.start.x, hor_line.start.y};
             } else {
-                type = LineType::LINE_NORMAL;
+                end = {hor_line.end.x, hor_line.end.y};
             }
-        } else {
-            type = LineType::LINE_NORMAL;
+            lines.push_back(image::Line(start.x, start.y, end.x, end.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
         }
-
-        DEBUG_PRT("theta12_diff:%d theta23_diff:%d theta13_diff:%d type:%d", theta12_diff, theta23_diff, theta13_diff, (int)type);
         break;
-    }
-    case 4:
-    {
-        auto l1 = temp_lines[0].line;
-        auto l2 = temp_lines[1].line;
-        auto l3 = temp_lines[2].line;
-        auto l4 = temp_lines[2].line;
-        auto theta1 = l1.theta();
-        auto theta2 = l2.theta();
-        auto theta3 = l3.theta();
-        auto theta4 = l4.theta();
-        auto theta12_diff = abs(theta1 - theta2);
-        auto theta13_diff = abs(theta1 - theta3);
-        auto theta14_diff = abs(theta1 - theta4);
-        // auto theta23_diff = abs(theta2 - theta3);
-        auto theta24_diff = abs(theta2 - theta4);
-        // auto theta34_diff = abs(theta3 - theta4);
+        case image::LineType::LINE_T:
+        {
+            NewLine ver_line, hor_line;
+            // Check the straight line towards the bottom of the screen
+            if (is_vertical(front_line.degree())) {
+                ver_line = front_line;
+                hor_line = back_line;
+            } else {
+                ver_line = back_line;
+                hor_line = front_line;
+            }
 
-        if (CHECK_IS_PERPENDICULAR(theta12_diff) && CHECK_IS_PERPENDICULAR(theta14_diff) && CHECK_IS_PARALLEL(theta13_diff) && CHECK_IS_PARALLEL(theta24_diff)) {
-            type = LineType::LINE_CROSS;
-        } else {
-            type = LineType::LINE_NORMAL;
+            // compute intersection point
+            point_t intersection_point = {0, 0};
+            ver_line.compute_intersection(hor_line, intersection_point.x, intersection_point.y);
+
+            cv::Point top, bottom, left, right;;
+            sort_vertical_point(ver_line.start, ver_line.end, top, bottom);
+            sort_horizontal_point(hor_line.start, hor_line.end, left, right);
+            if (hor_line.point_distance(top.x, top.y) <= min_len_of_new_path) {
+                /**
+                 * -------
+                 *    |
+                */
+                // push vertical line
+                lines.push_back(image::Line(bottom.x, bottom.y, intersection_point.x, intersection_point.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+
+                // push horizontal line
+                lines.push_back(image::Line(left.x, left.y, intersection_point.x, intersection_point.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+                lines.push_back(image::Line(intersection_point.x, intersection_point.y, right.x, right.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+            } else if (hor_line.point_distance(bottom.x, bottom.y) <= min_len_of_new_path) {
+                /**
+                 *    |
+                 * -------
+                */
+                // push vertical line
+                lines.push_back(image::Line(intersection_point.x, intersection_point.y, top.x, top.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+
+                // push horizontal line
+                lines.push_back(image::Line(left.x, left.y, intersection_point.x, intersection_point.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+                lines.push_back(image::Line(intersection_point.x, intersection_point.y, right.x, right.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+            } else {
+                /**
+                 *      |    |
+                 *  ----| or |----
+                 *      |    |
+                */
+                // push vertical line
+                lines.push_back(image::Line(top.x, top.y, intersection_point.x, intersection_point.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+                lines.push_back(image::Line(intersection_point.x, intersection_point.y, bottom.x, bottom.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+
+                // push vertical line
+                if (ver_line.point_distance(right.x, right.y) <= min_len_of_new_path) {
+                    lines.push_back(image::Line(intersection_point.x, intersection_point.y, left.x, left.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+                } else {
+                    lines.push_back(image::Line(intersection_point.x, intersection_point.y, right.x, right.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+                }
+            }
         }
-
-        DEBUG_PRT("theta12_diff:%d theta23_diff:%d theta13_diff:%d type:%d", theta12_diff, theta23_diff, theta13_diff, (int)type);
         break;
-    }
-    default:
-        type = LineType::LINE_NORMAL;
-        DEBUG_PRT("A normal type:%d", (int)type);
+        case image::LineType::LINE_CROSS:
+        {
+            NewLine ver_line, hor_line;
+            // Check the straight line towards the bottom of the screen
+            if (is_vertical(front_line.degree())) {
+                ver_line = front_line;
+                hor_line = back_line;
+            } else {
+                ver_line = back_line;
+                hor_line = front_line;
+            }
+
+            // compute intersection point
+            point_t intersection_point = {0, 0};
+            ver_line.compute_intersection(hor_line, intersection_point.x, intersection_point.y);
+
+            // push vertical line
+            cv::Point start, end;
+            sort_vertical_point(ver_line.start, ver_line.end, start, end);
+            lines.push_back(image::Line(start.x, start.y, intersection_point.x, intersection_point.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+            lines.push_back(image::Line(intersection_point.x, intersection_point.y, end.x, end.y, ver_line.magnitude, ver_line.theta, ver_line.rho));
+            DEBUG_PRT("ver line start(%d,%d) end(%d,%d)", ver_line.start.x, ver_line.start.y, ver_line.end.x, ver_line.end.y);
+            DEBUG_PRT("ver sort line start(%d,%d) end(%d,%d)", start.x, start.y, end.x, end.y);
+
+            // push horizontal line
+            cv::Point left, right;
+            sort_horizontal_point(hor_line.start, hor_line.end, left, right);
+            lines.push_back(image::Line(left.x, left.y, intersection_point.x, intersection_point.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+            lines.push_back(image::Line(intersection_point.x, intersection_point.y, right.x, right.y, hor_line.magnitude, hor_line.theta, hor_line.rho));
+        }
         break;
+        default:
+            for (const auto& l : merged_lines) {
+                cv::Point start, end;
+                sort_vertical_point(l.start, l.end, start, end);
+                lines.push_back(image::Line(start.x, start.y, end.x, end.y, l.magnitude, l.theta, l.rho));
+            }
+        break;
+        }
+        groups.push_back(image::LineGroup(group_idx, group_type, lines));
+    } else {
+        group_type = image::LineType::LINE_NORMAL;
+        for (const auto& l : merged_lines) {
+            std::vector<image::Line> lines;
+            lines.push_back(image::Line(l.start.x, l.start.y, l.end.x, l.end.y, l.magnitude, l.theta, l.rho));
+            groups.push_back(image::LineGroup(group_idx, group_type, lines));
+            group_idx ++;
+        }
     }
 
-    return temp_lines;
+    return groups;
 }
 
-std::vector<image::LineGroup> Image::search_line_path(std::vector<std::vector<int>> thresholds, int detect_pixel_size, int point_merge_size, int connection_max_size, int connection_max_distance, int connection_max_angle)
+std::vector<image::LineGroup> Image::search_line_path(int threshold, int merge_degree, int min_len_of_new_path)
 {
     DEBUG_EN(0);
-    std::vector<LineGroup> line_group;
     auto gray_img = (image::Image *)nullptr;
     auto need_free_gray_img = false;
-    if (format() != image::FMT_GRAYSCALE) {
+    if (this->format() != image::FMT_GRAYSCALE) {
+        // auto new_img = this->binary(thresholds, false, false, nullptr, false, true);
+        // gray_img = new_img->to_format(image::FMT_GRAYSCALE);
+        // delete new_img;
+
         gray_img = this->to_format(image::FMT_GRAYSCALE);
         need_free_gray_img = true;
     } else {
+        // gray_img = this->binary(thresholds, false, false, nullptr, false, true);
+
         gray_img = this;
         need_free_gray_img = false;
     }
 
-#if __DEBUG
-    uint64_t t = time::ticks_ms(), t2 = 0;
-#endif
-    auto gray_img_width = gray_img->width();
-    auto gray_img_height = gray_img->height();
+    cv::Mat edges;
+    cv::Mat gray = cv::Mat(gray_img->height(), gray_img->width(), CV_8UC((int)image::fmt_size[gray_img->format()]), gray_img->data());
 
-    // found blobs
-    std::vector<std::vector<image::Blob>> result_of_find_blobs;
-    int x_stride = 2;
-    int y_stride = 1;
-    int area_threshold = 10;
-    int pixels_threshold = detect_pixel_size * detect_pixel_size / 4;
-    for (int h = 0; h < gray_img_height; h += detect_pixel_size) {
-        for (int w = 0; w < gray_img_width; w += detect_pixel_size) {
-            std::vector<int> roi = {w, h, detect_pixel_size, detect_pixel_size};
-            auto blobs = gray_img->find_blobs(thresholds, false, roi, x_stride, y_stride, area_threshold, pixels_threshold);
-            result_of_find_blobs.push_back(blobs);
+    // cv::GaussianBlur(gray, gray, cv::Size(5, 5), 0);
+    cv::Canny(gray, edges, 50, 150);
+
+    std::vector<cv::Vec4i> lines;
+    cv::HoughLinesP(edges, lines, 1, CV_PI / 180, threshold, 10, 100);
+
+    std::list<NewLine> new_lines;
+    std::list<NewLine> merged_lines;
+
+    for (const auto& l : lines) {
+        cv::Point start(l[0], l[1]);
+        cv::Point end(l[2], l[3]);
+        new_lines.push_back(NewLine(start, end));
+    }
+
+#if __DEBUG
+    // this->save("/root/0.jpg");
+    log::info(" ========== HoughLinesP found lines size:%ld ========== ", new_lines.size());
+    for (auto it = new_lines.begin(); it != new_lines.end(); it ++) {
+        auto line = *it;
+        this->draw_line(line.start.x, line.start.y, line.end.x, line.end.y, image::COLOR_RED, 1);
+    }
+#endif
+
+    while (!new_lines.empty()) {
+        auto it1 = new_lines.begin();
+        if (it1 == new_lines.end()) {
+            break;
         }
-    }
-#if __DEBUG
-    t2 = time::ticks_ms(), log::info("find blobs use %lld ms", t2 - t), t = time::ticks_ms();
-#endif
-    // collect points
-    auto blobs_to_points_res = blobs_to_points(result_of_find_blobs);
-#if _DEBUG
-    t2 = time::ticks_ms(), log::info("collect points use %lld ms", t2 - t);
-#endif
-#if 0
-    for (auto &p: blobs_to_points_res) {
-        this->draw_cross(p[0], p[1], image::COLOR_RED, 5, 2);
-    }
-#endif
-#if __DEBUG
-    if (DEBUG_IS_ENABLE()) {
-        DEBUG_PRT("blobs_to_points_res size:%ld", blobs_to_points_res.size());
-    }
-#endif
-#if __DEBUG
-    t = time::ticks_ms();
-#endif
-    // merge points
-    auto merge_points_res = merge_points(blobs_to_points_res, point_merge_size);
-#if __DEBUG
-    t2 = time::ticks_ms(), log::info("merge points use %lld ms", t2 - t);
-#endif
 
-#if 1
-    for (auto &p: merge_points_res) {
-        this->draw_cross(p[0], p[1], image::COLOR_GRAY, 5, 2);
-    }
-#endif
-#if __DEBUG
-    if (DEBUG_IS_ENABLE()) {
-        DEBUG_PRT("merge_points_res size:%ld", merge_points_res.size());
-    }
-#endif
-#if __DEBUG
-    t = time::ticks_ms();
-#endif
-    // search lines group
-    auto search_lines_group_res = search_lines_group(merge_points_res, connection_max_size, connection_max_distance, connection_max_angle);
-#if __DEBUG
-    t2 = time::ticks_ms(), log::info("search lines group use %lld ms", t2 - t), t = time::ticks_ms();
-#endif
-
-#if __DEBUG
-    if (DEBUG_IS_ENABLE()) {
-        auto g_count = 0, l_count = 0;
-        DEBUG_PRT("search_lines_group_res size:%ld", search_lines_group_res.size());
-        for (auto &group: search_lines_group_res) {
-            DEBUG_PRT("group[%d] size:%ld", g_count, group.size());
-            for (auto &line: group) {
-                DEBUG_PRT("group[%d] line[%d] size:%ld", g_count, l_count ++, line.size());
-            }
-            g_count ++;
-        }
-    }
-#endif
-#if __DEBUG
-    t = time::ticks_ms();
-#endif
-    int group_id = 0;
-    for (auto &group: search_lines_group_res) {
-        std::vector<temp_line_t> temp_lines;
-
-        auto type = image::LineType::LINE_NORMAL;
-
-        bool group_is_valid = false;
-        for (auto &points: group) {
-#if __DEBUG
-            if (DEBUG_IS_ENABLE()) {
-                print_points_list("print points", points);
-            }
-#endif
-            if (points.size() >= 3) {
-                points = sort_line_points_list(points.front(), points);
-                auto new_line = points_to_line(points);
-                temp_lines.push_back({new_line, points});
-                group_is_valid = true;
+        auto line1 = *it1;
+        DEBUG_PRT(" ========== merge line[%ld] line1 degree:%f ========== ", merged_lines.size(), line1.degree());
+        for (auto it2 = std::next(it1); it2 != new_lines.end();) {
+            auto line2 = *it2;
+            auto line1_degree = line1.degree();
+            auto line2_degree = line2.degree();
+            auto degree_diff = fabs(line1_degree - line2_degree);
+            DEBUG_PRT("[CHECK] degree1:%f, degree2:%f degree diff:%f merge_degree:[0, %d] or [%d, 180]", line1_degree, line2_degree, fabs(line1_degree - line2_degree), merge_degree, 180 - merge_degree);
+            if (degree_diff <= merge_degree || (degree_diff >= 180 - merge_degree && merge_degree <= 180)) {
+                line1.merge_line(line2);
+                it2 = new_lines.erase(it2);
+            } else {
+                it2 ++;
             }
         }
 
-        if (group_is_valid) {
-            std::vector<image::Line> new_lines;
-            std::vector<std::vector<std::vector<int>>> new_points;
-            temp_lines = sort_image_line_and_get_type(temp_lines, type);
-            for (auto &temp_line: temp_lines) {
-                std::vector<std::vector<int>> points;
-                for (auto &p: temp_line.points) {
-                    points.push_back({p.x, p.y});
-                }
-                new_points.push_back(points);
-                new_lines.push_back(temp_line.line);
-            }
-            LineGroup new_group(group_id ++, type, new_lines, new_points);
-            line_group.push_back(new_group);
-        }
+        merged_lines.push_back(line1);
+        new_lines.erase(it1);
     }
+
 #if __DEBUG
-    t2 = time::ticks_ms(), log::info("create result use %lld ms", t2 - t), t = time::ticks_ms();
+    log::info(" ========== Merged lines size:%d ========== ", merged_lines.size());
+    for (auto it = merged_lines.begin(); it != merged_lines.end(); it ++) {
+        auto line = *it;
+        this->draw_line(line.start.x, line.start.y, line.end.x, line.end.y, image::COLOR_GREEN, 1);
+    }
 #endif
+
+    auto groups = found_path(merged_lines, min_len_of_new_path);
+
     if (need_free_gray_img) {
         delete gray_img;
     }
-    return line_group;
+
+    return groups;
 }
 }

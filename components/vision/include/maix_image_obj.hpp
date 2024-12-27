@@ -2838,7 +2838,6 @@ namespace maix::image
         int _id;
         LineType _type;
         std::vector<image::Line> _lines;
-        std::vector<std::vector<std::vector<int>>> _points;
     public:
         /**
          * LineGroup constructor
@@ -2846,14 +2845,12 @@ namespace maix::image
          * @param id The id of line
          * @param type The line list type, @see image::LineType
          * @param lines The line list
-         * @param points Point sets of line
          * @maixpy maix.image.LineGroup.__init__
         */
-        LineGroup(int id, image::LineType type, std::vector<image::Line> lines, std::vector<std::vector<std::vector<int>>> points = std::vector<std::vector<std::vector<int>>>()) {
+        LineGroup(int id, image::LineType type, std::vector<image::Line> lines) {
             _id = id;
             _type = type;
             _lines = lines;
-            _points = points;
         }
 
         ~LineGroup(){}
@@ -2881,12 +2878,5 @@ namespace maix::image
          * @maixpy maix.image.LineGroup.lines
         */
         std::vector<image::Line> lines() {return _lines;}
-
-        /**
-         * Get the key points of line
-         * @return returns a list composed of (x,y) coordnates.
-         * @maixpy maix.image.LineGroup.points
-        */
-        std::vector<std::vector<std::vector<int>>> points() {return _points;}
     };
 }
