@@ -196,6 +196,38 @@ namespace maix::camera
         return mclk_id;
     }
 
+    static std::vector<int> _get_lane_id_from_board_file() {
+        std::vector<int> lane_id;
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("lane_id");
+        if (it != device_configs.end()) {
+            auto lane_id_str = it->second;
+            std::string item;
+            std::stringstream ss(lane_id_str);
+            while (std::getline(ss, item, ',')) {
+                lane_id.push_back(std::stoi(item));
+            }
+        }
+
+        return lane_id;
+    }
+
+    static std::vector<int> _get_pn_swap_from_board_file() {
+        std::vector<int> pn_swap;
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("pn_swap");
+        if (it != device_configs.end()) {
+            auto pn_swap_str = it->second;
+            std::string item;
+            std::stringstream ss(pn_swap_str);
+            while (std::getline(ss, item, ',')) {
+                pn_swap.push_back(std::stoi(item));
+            }
+        }
+
+        return pn_swap;
+    }
+
     static std::vector<bool> _get_cam_flip_mirror(void) {
         char path[64];
         bool flip = 0, mirror = 0;
@@ -557,6 +589,16 @@ _retry:
             }
         } else {
             err::check_raise(err::ERR_RUNTIME, "unknown board name!");
+        }
+
+        auto board_config_lane_id = _get_lane_id_from_board_file();
+        if (board_config_lane_id.size() == 5) {
+            sensor_cfg.lane_id = board_config_lane_id;
+        }
+
+        auto board_config_pn_swap = _get_pn_swap_from_board_file();
+        if (board_config_pn_swap.size() == 5) {
+            sensor_cfg.pn_swap = board_config_pn_swap;
         }
 
         stIniCfg.enSnsType[0] = sensor_cfg.sns_type;
