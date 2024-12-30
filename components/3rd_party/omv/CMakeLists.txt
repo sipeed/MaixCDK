@@ -107,7 +107,7 @@ set_property(SOURCE "${src_path}/alloc" PROPERTY GENERATED 1)
 #### Just for this component, won't affect other
 #### modules, including component that depend
 #### on this component
-# list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
+list(APPEND ADD_DEFINITIONS_PRIVATE -w)
 
 #### Add compile option for this component
 #### Add components that depend on this component
