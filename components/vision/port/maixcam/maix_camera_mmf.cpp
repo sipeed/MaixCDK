@@ -288,6 +288,22 @@ namespace maix::camera
         peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
 
 _retry:
+        if (retry_count < 1) {
+            int mclk_id = _get_mclk_id();
+            if (mclk_id == 0) {
+                system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
+            } else if (mclk_id == 1) {
+                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+                system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
+            } else {
+                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MCLK1
+            }
+            retry_count ++;
+            goto _retry;
+        }
+
         std::vector<int> addr_list = i2c_obj.scan();
         for (size_t i = 0; i < addr_list.size(); i++) {
             // log::info("i2c4 addr: 0x%02x", addr_list[i]);
@@ -315,19 +331,6 @@ _retry:
                     return {true, name};
                 default: break;
             }
-        }
-
-        if (retry_count < 1) {
-            int mclk_id = _get_mclk_id();
-            if (mclk_id == 0) {
-                system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
-                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
-            } else {
-                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
-                system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
-            }
-            retry_count ++;
-            goto _retry;
         }
 
         // log::info("sensor address not found , use gcore_gc4653\n" );
