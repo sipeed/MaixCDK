@@ -82,12 +82,17 @@ namespace maix::display
             {
                 log::warn("screen max supported width: %d, but set %d\n", mode.w, _width);
                 _width = mode.w;
+            }else if(_width == -1){ //fix bug of displaying with width and height of -1 in linux SDL mode
+                _width = mode.w;
             }
             if (_height > mode.h)
             {
                 log::warn("screen max supported height: %d, but set %d\n", mode.h, _height);
                 _height = mode.h;
+            }else if(_height == -1){ //fix bug of displaying with width and height of -1 in linux SDL mode
+                _height = mode.h;
             }
+
             _screen = SDL_CreateWindow("Maix", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, _width, _height, SDL_WINDOW_SHOWN);
             if (!_screen)
             {
