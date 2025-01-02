@@ -11,6 +11,8 @@ def get_depends(component, data):
     depends = data[component] if component in data else []
     sub_depends = []
     for d in depends:
+        if d == component:
+            continue
         sub_depends += get_depends(d, data)
     return depends + sub_depends
 

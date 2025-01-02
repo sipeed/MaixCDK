@@ -67,12 +67,15 @@
 ###############################################
 
 if(PLATFORM_LINUX)
-    set(compile_for_host 1)
+    set(compile_from_src 0)
 else()
-    set(compile_for_host 0)
+    set(compile_from_src 1)
+endif()
+if(CONFIG_OPENSSL_COMPILE_FROM_SOURCE)
+    set(compile_from_src 1)
 endif()
 
-if(NOT compile_for_host)
+if(compile_from_src)
     if(NOT ADD_INCLUDE) # compile from source code
         execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE arch)
         string(REGEX REPLACE "([^-]+)-.*" "\\1" arch "${arch}")
@@ -80,6 +83,9 @@ if(NOT compile_for_host)
             string(LENGTH "${CONFIG_TOOLCHAIN_PREFIX}" toolchain_prefix_len)
             math(EXPR toolchain_prefix_len "${toolchain_prefix_len} - 1")
             string(SUBSTRING "${CONFIG_TOOLCHAIN_PREFIX}" 0 ${toolchain_prefix_len} host_prefix)
+            set(host_prefix "${host_prefix}-")
+        elseif(PLATFORM_LINUX)
+            set(host_prefix "")
         else()
             message(FATAL_ERROR "openssle compile not support this platform yet, please edit CMakeLists.txt to support")
         endif()
@@ -96,7 +102,7 @@ if(NOT compile_for_host)
 
         set(openssl_src_path "${DL_EXTRACTED_PATH}/openssl/openssl-3.0.12")
         set(openssl_install_path "${target_install_dir}")
-        set(openssl_compile_cmd COMMAND set -x && cd ${openssl_src_path} && echo "-- compile openssl now" && make distclean || true && chmod +x ./Configure && ./Configure linux-generic32 shared  -DL_ENDIAN --openssldir=${openssl_install_path} --prefix=${openssl_install_path} && export PATH=${CONFIG_TOOLCHAIN_PATH}:$ENV{PATH} &&  make CC="${host_prefix}"-gcc RANLIB="${host_prefix}"-ranlib LD="${host_prefix}"-ld MAKEDEPPROG="${host_prefix}"-gcc PROCESSOR=${arch} -j`nproc` && make install_sw)
+        set(openssl_compile_cmd COMMAND set -x && cd ${openssl_src_path} && echo "-- compile openssl now" && make distclean || true && chmod +x ./Configure && ./Configure linux-generic32 shared  -DL_ENDIAN --openssldir=${openssl_install_path} --prefix=${openssl_install_path} && export PATH=${CONFIG_TOOLCHAIN_PATH}:$ENV{PATH} &&  make CC="${host_prefix}"gcc RANLIB="${host_prefix}"ranlib LD="${host_prefix}"ld MAKEDEPPROG="${host_prefix}"gcc PROCESSOR=${arch} -j`nproc` && make install_sw)
 
         add_custom_command(OUTPUT ${target_h_path}
                     ${openssl_compile_cmd}
