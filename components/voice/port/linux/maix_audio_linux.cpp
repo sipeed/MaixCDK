@@ -29,10 +29,25 @@ namespace maix::audio
         return 0;
     }
 
+    void Recorder::reset(bool start) {
+        (void)start;
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+    }
+
     maix::Bytes *Recorder::record(int record_ms) {
         (void)record_ms;
         err::check_raise(err::ERR_NOT_IMPL, "not support this function");
         return NULL;
+    }
+
+    int Recorder::frame_size() {
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+        return 0;
+    }
+
+    int Recorder::remain_size() {
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+        return 0;
     }
 
     maix::Bytes *Recorder::record_bytes(int record_size) {
@@ -75,5 +90,10 @@ namespace maix::audio
     err::Err Player::play(maix::Bytes *data) {
         err::check_raise(err::ERR_NOT_IMPL, "not support this function");
         return err::ERR_NOT_IMPL;
+    }
+
+    int Player::frame_size() {
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+        return 0;
     }
 } // namespace maix::audio
