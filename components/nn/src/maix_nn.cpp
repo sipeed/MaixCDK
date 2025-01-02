@@ -304,9 +304,9 @@ namespace maix::nn
         return _impl->forward(inputs, copy_result, dual_buff_wait);
     }
 
-    tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result, bool dual_buff_wait)
+    tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result, bool dual_buff_wait, bool chw)
     {
-        return _impl->forward_image(img, mean, scale, fit, copy_result, dual_buff_wait);
+        return _impl->forward_image(img, mean, scale, fit, copy_result, dual_buff_wait, chw);
     }
 
     int SelfLearnClassifier::learn()

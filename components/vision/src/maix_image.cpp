@@ -25,10 +25,12 @@ namespace maix::image
     static bool path_is_format(const std::string &str, const std::string ext)
     {
         std::string lower_path(str);
-            std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
+        std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
+                       [](unsigned char c)
+                       { return std::tolower(c); });
 
-        if (lower_path.size() >= ext.size() && lower_path.compare(lower_path.size() - ext.size(), ext.size(), ext) == 0) {
+        if (lower_path.size() >= ext.size() && lower_path.compare(lower_path.size() - ext.size(), ext.size(), ext) == 0)
+        {
             return true;
         }
         return false;
@@ -36,19 +38,28 @@ namespace maix::image
 
     static uint8_t _get_char_size(const uint8_t c)
     {
-        if ((c & 0x80) == 0x00) {
+        if ((c & 0x80) == 0x00)
+        {
             // 0xxxxxxx: 1 byte character
             return 1;
-        } else if ((c & 0xE0) == 0xC0) {
+        }
+        else if ((c & 0xE0) == 0xC0)
+        {
             // 110xxxxx: 2 byte character
             return 2;
-        } else if ((c & 0xF0) == 0xE0) {
+        }
+        else if ((c & 0xF0) == 0xE0)
+        {
             // 1110xxxx: 3 byte character
             return 3;
-        } else if ((c & 0xF8) == 0xF0) {
+        }
+        else if ((c & 0xF8) == 0xF0)
+        {
             // 11110xxx: 4 byte character
             return 4;
-        } else {
+        }
+        else
+        {
             // Invalid UTF-8 start byte, default to 1
             return 1;
         }
@@ -57,14 +68,14 @@ namespace maix::image
     static image::Image *_mat_to_image(const cv::Mat &mat, image::Format format, void *buff, int buff_size, bool copy_data = true)
     {
         image::Image *img = nullptr;
-        if(buff)
+        if (buff)
         {
-            if(buff_size < image::fmt_size[format])
+            if (buff_size < image::fmt_size[format])
             {
                 log::error("convert format failed, buffer size not enough, need %d, but %d\n", image::fmt_size[format], buff_size);
                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
             }
-            img = new image::Image(mat.cols, mat.rows, format, (uint8_t*)buff, mat.cols * mat.rows * image::fmt_size[format], false);
+            img = new image::Image(mat.cols, mat.rows, format, (uint8_t *)buff, mat.cols * mat.rows * image::fmt_size[format], false);
         }
         else
             img = new image::Image(mat.cols, mat.rows, format);
@@ -76,14 +87,14 @@ namespace maix::image
     static image::Image *_new_image(int w, int h, image::Format format, void *buff, int buff_size)
     {
         image::Image *img = nullptr;
-        if(buff)
+        if (buff)
         {
-            if(buff_size < image::fmt_size[format])
+            if (buff_size < image::fmt_size[format])
             {
                 log::error("convert format failed, buffer size not enough, need %d, but %d\n", image::fmt_size[format], buff_size);
                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
             }
-            img = new image::Image(w, h, format, (uint8_t*)buff, w * h * image::fmt_size[format], false);
+            img = new image::Image(w, h, format, (uint8_t *)buff, w * h * image::fmt_size[format], false);
         }
         else
             img = new image::Image(w, h, format);
@@ -100,9 +111,10 @@ namespace maix::image
         uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
         err::check_null_raise(uv_temp, "malloc uv_temp failed");
         memcpy(uv_temp, nv21_data + offset, nv_len);
-        for (int i = 0; i < half_len; i ++) {
-            nv21_data[offset + i * 2] = uv_temp[i];    // V
-            nv21_data[offset + i * 2 + 1] = uv_temp[half_len + i];           // U
+        for (int i = 0; i < half_len; i++)
+        {
+            nv21_data[offset + i * 2] = uv_temp[i];                // V
+            nv21_data[offset + i * 2 + 1] = uv_temp[half_len + i]; // U
         }
         if (uv_temp)
             free(uv_temp);
@@ -347,14 +359,17 @@ namespace maix::image
         if (width <= 0 || height <= 0)
             throw err::Exception(err::ERR_ARGS, "image width and height should > 0");
 
-        if (_format > Format::FMT_COMPRESSED_MIN) {
+        if (_format > Format::FMT_COMPRESSED_MIN)
+        {
             if (!data || data_size < 0)
-                throw err::Exception(err::ERR_ARGS,"image data and data_size are incorrect");
+                throw err::Exception(err::ERR_ARGS, "image data and data_size are incorrect");
             _data_size = data_size;
-        } else {
+        }
+        else
+        {
             // not use data_size, uncompressed image only use fiexed size.
             int size_calc = width * height * image::fmt_size[format];
-            if(data_size > 0 && data_size != size_calc)
+            if (data_size > 0 && data_size != size_calc)
             {
                 log::error("data_size not match image content size, data_size: %d, image content size: %d\n", data_size, size_calc);
                 throw err::Exception(err::ERR_ARGS, "data_size not match image content size");
@@ -373,7 +388,7 @@ namespace maix::image
         }
         else
         {
-            if(!copy)
+            if (!copy)
             {
                 _data = data;
                 _actual_data = _data;
@@ -402,8 +417,8 @@ namespace maix::image
     {
         // if(!data)
         // {
-            _create_image(width, height, format, nullptr, 0, false);
-            // return;
+        _create_image(width, height, format, nullptr, 0, false);
+        // return;
         // }
         // _create_image(width, height, format, data->data, data->size(), copy);
     }
@@ -434,9 +449,9 @@ namespace maix::image
 
     void Image::operator=(const image::Image &img)
     {
-        if(_data)
+        if (_data)
         {
-            if(_is_malloc)
+            if (_is_malloc)
             {
                 log::info("free _actual_data");
                 free(_actual_data);
@@ -468,7 +483,7 @@ namespace maix::image
 
     Bytes *Image::to_bytes(bool copy)
     {
-        if(copy)
+        if (copy)
             return new Bytes((uint8_t *)_data, _data_size, true, true);
         return new Bytes((uint8_t *)_data, _data_size, false, false);
     }
@@ -507,91 +522,100 @@ namespace maix::image
             log::error("convert format failed, already the format %d\n", format);
             throw err::Exception(err::ERR_ARGS, "convert format failed, already the format");
         }
-        cv::Mat src(_format > FMT_COMPRESSED_MIN ? 1 : _height, _format > FMT_COMPRESSED_MIN ? _data_size :  _width, CV_8UC((int)image::fmt_size[_format]), _data);
+        cv::Mat src(_format > FMT_COMPRESSED_MIN ? 1 : _height, _format > FMT_COMPRESSED_MIN ? _data_size : _width, CV_8UC((int)image::fmt_size[_format]), _data);
         cv::ColorConversionCodes cvt_code;
 
         // special for convert to jpeg and png
-        if(format == image::FMT_JPEG) // compress
+        if (format == image::FMT_JPEG) // compress
         {
-            switch (_format) {
+            switch (_format)
+            {
 #ifdef PLATFORM_MAIXCAM
             case image::FMT_GRAYSCALE:
-                {
+            {
                 image::Image *img = nullptr;
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_GRAYSCALE), 95)) {
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_GRAYSCALE), 95))
+                {
                     uint8_t *data;
                     int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        if(buff)
+                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                    {
+                        if (buff)
                         {
-                            if(buff_size < (size_t)data_size)
+                            if (buff_size < (size_t)data_size)
                                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                             memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
                         }
                         else
                             img = new image::Image(_width, _height, format, data, data_size, true);
                         mmf_enc_jpg_free(0);
                     }
                 }
-                if(!img)
+                if (!img)
                     throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
                 break;
-                }
+            }
             case image::FMT_YVU420SP:
-                {
+            {
                 image::Image *img = nullptr;
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), 95)) {
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), 95))
+                {
                     uint8_t *data;
                     int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        if(buff)
+                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                    {
+                        if (buff)
                         {
-                            if(buff_size < (size_t)data_size)
+                            if (buff_size < (size_t)data_size)
                                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                             memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
                         }
                         else
                             img = new image::Image(_width, _height, format, data, data_size, true);
                         mmf_enc_jpg_free(0);
                     }
                 }
-                if(!img)
+                if (!img)
                     throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
                 break;
-                }
+            }
 #endif
             default:
-                {
+            {
 #ifdef PLATFORM_MAIXCAM
                 image::Image *p_img = nullptr;
                 image::Image *img = nullptr;
                 bool src_alloc = false;
-                if(_format != Format::FMT_RGB888)
+                if (_format != Format::FMT_RGB888)
                 {
                     p_img = to_format(image::FMT_RGB888);
                     src_alloc = true;
-                } else {
+                }
+                else
+                {
                     p_img = this;
                 }
 
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), 80)) {
+                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), 80))
+                {
                     uint8_t *data;
                     int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
-                        if(buff)
+                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                    {
+                        if (buff)
                         {
-                            if(buff_size < (size_t)data_size)
+                            if (buff_size < (size_t)data_size)
                             {
                                 if (src_alloc)
                                     delete p_img;
                                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                             }
                             memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t*)buff, data_size, false);
+                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
                         }
                         else
                             img = new image::Image(_width, _height, format, data, data_size, true);
@@ -601,7 +625,7 @@ namespace maix::image
 
                 if (src_alloc)
                     delete p_img;
-                if(!img)
+                if (!img)
                     throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
                 return img;
 #else
@@ -609,7 +633,7 @@ namespace maix::image
                 image::Image *p_img = nullptr;
                 cv::Mat *p_src = &src;
                 bool src_alloc = false;
-                if(_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
+                if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
                 {
                     p_img = to_format(image::FMT_BGR888);
                     p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGR888]), p_img->_data);
@@ -622,11 +646,11 @@ namespace maix::image
                 params.push_back(95);
                 cv::imencode(".jpg", input, jpeg_buff, params);
                 image::Image *img;
-                if(buff)
+                if (buff)
                 {
-                    if(buff_size < jpeg_buff.size())
+                    if (buff_size < jpeg_buff.size())
                     {
-                        if(src_alloc)
+                        if (src_alloc)
                         {
                             delete p_img;
                             delete p_src;
@@ -634,11 +658,11 @@ namespace maix::image
                         throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                     }
                     memcpy(buff, jpeg_buff.data(), jpeg_buff.size());
-                    img = new image::Image(src.cols, src.rows, format, (uint8_t*)buff, jpeg_buff.size(), false);
+                    img = new image::Image(src.cols, src.rows, format, (uint8_t *)buff, jpeg_buff.size(), false);
                 }
                 else
-                    img = new image::Image(src.cols, src.rows, format, (uint8_t*)jpeg_buff.data(), jpeg_buff.size(), true);
-                if(src_alloc)
+                    img = new image::Image(src.cols, src.rows, format, (uint8_t *)jpeg_buff.data(), jpeg_buff.size(), true);
+                if (src_alloc)
                 {
                     delete p_img;
                     delete p_src;
@@ -646,16 +670,15 @@ namespace maix::image
                 return img;
 #endif
                 break;
-                }
             }
-
+            }
         }
-        else if(format == image::FMT_PNG)
+        else if (format == image::FMT_PNG)
         {
             image::Image *p_img = nullptr;
             cv::Mat *p_src = &src;
             bool src_alloc = false;
-            if(_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
+            if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
             {
                 p_img = to_format(image::FMT_BGRA8888);
                 p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGRA8888]), p_img->_data);
@@ -668,11 +691,11 @@ namespace maix::image
             params.push_back(3);
             cv::imencode(".png", input, png_buff, params);
             image::Image *img;
-            if(buff)
+            if (buff)
             {
-                if(buff_size < png_buff.size())
+                if (buff_size < png_buff.size())
                 {
-                    if(src_alloc)
+                    if (src_alloc)
                     {
                         delete p_img;
                         delete p_src;
@@ -680,11 +703,11 @@ namespace maix::image
                     throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
                 }
                 memcpy(buff, png_buff.data(), png_buff.size());
-                img = new image::Image(src.cols, src.rows, format, (uint8_t*)buff, png_buff.size(), false);
+                img = new image::Image(src.cols, src.rows, format, (uint8_t *)buff, png_buff.size(), false);
             }
             else
                 img = new image::Image(src.cols, src.rows, format, png_buff.data(), png_buff.size(), true);
-            if(src_alloc)
+            if (src_alloc)
             {
                 delete p_img;
                 delete p_src;
@@ -693,40 +716,45 @@ namespace maix::image
         }
 
         // jpeg/png to other format
-        if(_format == image::FMT_JPEG || _format == image::FMT_PNG)
+        if (_format == image::FMT_JPEG || _format == image::FMT_PNG)
         {
             switch (format)
             {
             case image::FMT_GRAYSCALE:
             {
                 cv::Mat dst = cv::imdecode(src, cv::IMREAD_GRAYSCALE);
-                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (dst.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 return _mat_to_image(dst, format, buff, buff_size);
             }
             case image::FMT_BGR888:
             {
                 cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
-                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (dst.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 return _mat_to_image(dst, format, buff, buff_size);
             }
             case image::FMT_RGB888:
             {
                 cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
-                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (dst.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 cv::cvtColor(dst, dst, cv::COLOR_BGR2RGB);
                 return _mat_to_image(dst, format, buff, buff_size);
             }
             case image::FMT_RGBA8888:
             {
-                if(_format == FMT_PNG)
+                if (_format == FMT_PNG)
                 {
                     cv::Mat dst = cv::imdecode(src, cv::IMREAD_UNCHANGED);
-                    if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                    if (dst.empty())
+                        throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                     cv::cvtColor(dst, dst, cv::COLOR_BGRA2RGBA);
                     return _mat_to_image(dst, format, buff, buff_size);
                 }
                 cv::Mat bgr = cv::imdecode(src, cv::IMREAD_COLOR);
-                if(bgr.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (bgr.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 image::Image *img = _new_image(bgr.cols, bgr.rows, format, buff, buff_size);
                 cv::Mat dst(bgr.rows, bgr.cols, CV_8UC4, img->data());
                 cv::cvtColor(bgr, dst, cv::COLOR_BGR2RGBA);
@@ -734,14 +762,16 @@ namespace maix::image
             }
             case image::FMT_BGRA8888:
             {
-                if(_format == FMT_PNG)
+                if (_format == FMT_PNG)
                 {
                     cv::Mat dst = cv::imdecode(src, cv::IMREAD_UNCHANGED);
-                    if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                    if (dst.empty())
+                        throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                     return _mat_to_image(dst, format, buff, buff_size);
                 }
                 cv::Mat bgr = cv::imdecode(src, cv::IMREAD_COLOR);
-                if(bgr.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (bgr.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 image::Image *img = _new_image(bgr.cols, bgr.rows, format, buff, buff_size);
                 cv::Mat dst(bgr.rows, bgr.cols, CV_8UC4, img->data());
                 cv::cvtColor(bgr, dst, cv::COLOR_BGR2BGRA);
@@ -750,7 +780,8 @@ namespace maix::image
             case image::FMT_YVU420SP:
             {
                 cv::Mat dst = cv::imdecode(src, cv::IMREAD_COLOR);
-                if(dst.empty()) throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
+                if (dst.empty())
+                    throw err::Exception(err::ERR_ARGS, "decode jpeg failed");
                 image::Image *img = _mat_to_image(dst, format, buff, buff_size, false);
                 cv::Mat dst_nv21(img->height() + img->height() / 2, img->width(), CV_8UC1, img->data());
                 _cv_rgb_nv21(dst, dst_nv21, img->width(), img->height(), true);
@@ -894,25 +925,28 @@ namespace maix::image
             throw err::Exception(err::ERR_NOT_IMPL, "not support format");
         }
         image::Image *img;
-        if(buff)
+        if (buff)
         {
-            if(buff_size < image::fmt_size[format])
+            if (buff_size < image::fmt_size[format])
             {
                 log::error("convert format failed, buffer size not enough, need %d, but %d\n", image::fmt_size[format], buff_size);
                 throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
             }
-            img = new image::Image(src.cols, src.rows, format, (uint8_t*)buff, src.cols * src.rows * image::fmt_size[format], false);
+            img = new image::Image(src.cols, src.rows, format, (uint8_t *)buff, src.cols * src.rows * image::fmt_size[format], false);
         }
         else
             img = new image::Image(src.cols, src.rows, format);
 
-        if (_format == image::FMT_GRAYSCALE && format == image::FMT_YVU420SP) {
+        if (_format == image::FMT_GRAYSCALE && format == image::FMT_YVU420SP)
+        {
             cv::Mat dst(src.rows * 3 / 2, src.cols, CV_8UC((int)image::fmt_size[format]), img->data());
             int nv_len = src.cols * src.rows / 2;
             int offset = src.cols * src.rows;
             memcpy(dst.data, src.data, src.cols * src.rows);
             memset(dst.data + offset, 128, nv_len);
-        } else if (format == image::FMT_YVU420SP) {
+        }
+        else if (format == image::FMT_YVU420SP)
+        {
             cv::Mat dst(src.rows * 3 / 2, src.cols, CV_8UC((int)image::fmt_size[format]), img->data());
             cv::cvtColor(src, dst, cvt_code);
             int nv_len = src.cols * src.rows / 2;
@@ -922,30 +956,36 @@ namespace maix::image
             uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
             err::check_null_raise(uv_temp, "malloc uv_temp failed");
             memcpy(uv_temp, nv21 + offset, nv_len);
-            for (int i = 0; i < half_len; i ++) {
-                nv21[offset + i * 2] = uv_temp[i];    // V
-                nv21[offset + i * 2 + 1] = uv_temp[half_len + i];           // U
+            for (int i = 0; i < half_len; i++)
+            {
+                nv21[offset + i * 2] = uv_temp[i];                // V
+                nv21[offset + i * 2 + 1] = uv_temp[half_len + i]; // U
             }
             if (uv_temp)
                 free(uv_temp);
-        } else if (_format == image::FMT_RGB888 && format == image::FMT_GRAYSCALE) {
+        }
+        else if (_format == image::FMT_RGB888 && format == image::FMT_GRAYSCALE)
+        {
             int height = _width;
             int width = _height;
             uint8_t *src = (uint8_t *)_data;
             uint8_t *dst = (uint8_t *)img->data();
-            for (int i = 0; i < height; i ++) {
-                for (int j = 0; j < width; j ++) {
+            for (int i = 0; i < height; i++)
+            {
+                for (int j = 0; j < width; j++)
+                {
                     dst[i * width + j] = (src[(i * width + j) * 3 + 0] * 38 + src[(i * width + j) * 3 + 1] * 75 + src[(i * width + j) * 3 + 2] * 15) >> 7;
                 }
             }
-        } else {
+        }
+        else
+        {
             cv::Mat dst(src.rows, src.cols, CV_8UC((int)image::fmt_size[format]), img->data());
             cv::cvtColor(src, dst, cvt_code);
         }
 
         return img;
     }
-
 
     image::Image *Image::to_format(const image::Format &format)
     {
@@ -955,20 +995,23 @@ namespace maix::image
     image::Image *Image::to_jpeg(int quality)
     {
         image::Format format = image::Format::FMT_JPEG;
-        if(quality <= 50)
+        if (quality <= 50)
         {
             quality = 51;
         }
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
-        switch (_format) {
+        switch (_format)
+        {
         case image::FMT_YVU420SP:
-            {
+        {
 #ifdef PLATFORM_MAIXCAM
             image::Image *img = nullptr;
-            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), quality)) {
+            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), quality))
+            {
                 uint8_t *data;
                 int data_size;
-                if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
+                if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                {
                     img = new image::Image(_width, _height, format, data, data_size, true);
                     mmf_enc_jpg_free(0);
                 }
@@ -976,25 +1019,29 @@ namespace maix::image
             return img;
 #endif
             break;
-            }
+        }
         default:
-            {
+        {
 #ifdef PLATFORM_MAIXCAM
             image::Image *p_img = nullptr;
             image::Image *img = nullptr;
             bool src_alloc = false;
-            if(_format != Format::FMT_RGB888)
+            if (_format != Format::FMT_RGB888)
             {
                 p_img = to_format(image::FMT_RGB888);
                 src_alloc = true;
-            } else {
+            }
+            else
+            {
                 p_img = this;
             }
 
-            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), quality)) {
+            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), quality))
+            {
                 uint8_t *data;
                 int data_size;
-                if (!mmf_enc_jpg_pop(0, &data, &data_size)) {
+                if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                {
                     img = new image::Image(_width, _height, format, data, data_size, true);
                     mmf_enc_jpg_free(0);
                 }
@@ -1009,7 +1056,7 @@ namespace maix::image
             image::Image *p_img = nullptr;
             cv::Mat *p_src = &src;
             bool src_alloc = false;
-            if(_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
+            if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
             {
                 p_img = to_format(image::FMT_BGR888);
                 p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGR888]), p_img->_data);
@@ -1022,8 +1069,8 @@ namespace maix::image
             params.push_back(95);
             cv::imencode(".jpg", input, jpeg_buff, params);
             image::Image *img;
-            img = new image::Image(src.cols, src.rows, format, (uint8_t*)jpeg_buff.data(), jpeg_buff.size(), true);
-            if(src_alloc)
+            img = new image::Image(src.cols, src.rows, format, (uint8_t *)jpeg_buff.data(), jpeg_buff.size(), true);
+            if (src_alloc)
             {
                 delete p_img;
                 delete p_src;
@@ -1031,13 +1078,14 @@ namespace maix::image
             return img;
 #endif
             break;
-            }
+        }
         }
 
         return nullptr;
     }
 
-    static cv::Rect _adjustRectToFit(const cv::Rect& rect, const cv::Size& dstSize) {
+    static cv::Rect _adjustRectToFit(const cv::Rect &rect, const cv::Size &dstSize)
+    {
         int newX = std::max(rect.x, 0);
         int newY = std::max(rect.y, 0);
         int newWidth = std::min(rect.width - (newX - rect.x), dstSize.width - newX);
@@ -1061,7 +1109,8 @@ namespace maix::image
         int srcX = std::max(0, -x);
         int srcY = std::max(0, -y);
         cv::Rect srcRect(srcX, srcY, adjustedRect.width, adjustedRect.height);
-        if (adjustedRect.width <= 0 || adjustedRect.height <= 0) {
+        if (adjustedRect.width <= 0 || adjustedRect.height <= 0)
+        {
             throw err::Exception(err::ERR_ARGS, "range error");
         }
         if (_format == fmt && image::fmt_size[fmt] < 4)
@@ -1091,7 +1140,7 @@ namespace maix::image
             }
             else // merge two BGRA images
             {
-                uint8_t *data = (uint8_t*)_data;
+                uint8_t *data = (uint8_t *)_data;
                 for (int y = 0; y < adjustedRect.height; y++)
                 {
                     for (int x = 0; x < adjustedRect.width; x++)
@@ -1135,7 +1184,7 @@ namespace maix::image
         _get_cv_format_color(_format, color, &ch_format, cv_color);
         cv::Mat img(_height, _width, ch_format, _data);
         cv::Rect rect(x, y, w, h);
-        if( color.alpha != 1 && (_format == Format::FMT_RGBA8888 || _format == Format::FMT_BGRA8888))
+        if (color.alpha != 1 && (_format == Format::FMT_RGBA8888 || _format == Format::FMT_BGRA8888))
         {
             cv::Mat roi = img(rect);
             cv::Mat color_mat(roi.size(), roi.type(), cv_color);
@@ -1177,7 +1226,7 @@ namespace maix::image
     }
 
     image::Image *image::Image::draw_string(int x, int y, const std::string &text, const image::Color &color, float scale, int thickness,
-                                          bool wrap, int wrap_space, const std::string &font)
+                                            bool wrap, int wrap_space, const std::string &font)
     {
         int ch_format = 0;
         cv::Scalar cv_color;
@@ -1212,7 +1261,7 @@ namespace maix::image
             int text_height = size.height;
             int text_max_width = _width - x;
             bool wrap_now = false;
-            if(strstr(text.c_str(), "\n") != NULL || strstr(text.c_str(), "\r") != NULL)
+            if (strstr(text.c_str(), "\n") != NULL || strstr(text.c_str(), "\r") != NULL)
                 wrap_now = true;
 
             // auto wrap
@@ -1229,14 +1278,14 @@ namespace maix::image
                 {
                     char c = text[idx];
                     wrap_now = false;
-                    if(c == '\r')
+                    if (c == '\r')
                     {
                         last_is_r = true;
                         wrap_now = true;
                     }
-                    else if(c == '\n')
+                    else if (c == '\n')
                     {
-                        if(last_is_r)
+                        if (last_is_r)
                         {
                             last_is_r = false;
                             ++idx;
@@ -1249,7 +1298,7 @@ namespace maix::image
                     {
                         last_is_r = false;
                     }
-                    if(wrap_now)
+                    if (wrap_now)
                     {
                         _put_text(img, text_tmp, point, cv_color, scale, thickness, *final_font, final_font_id);
                         point.x = x;
@@ -1331,7 +1380,8 @@ namespace maix::image
             return nullptr;
         }
 
-        if (fill) {
+        if (fill)
+        {
             thickness = -1;
         }
 
@@ -1348,32 +1398,36 @@ namespace maix::image
         _get_cv_format_color(_format, color, &ch_format, cv_color);
         cv::Mat img(_height, _width, ch_format, _data);
 
-        if (keypoints.size() < 2 || keypoints.size() % 2 != 0) {
+        if (keypoints.size() < 2 || keypoints.size() % 2 != 0)
+        {
             throw std::runtime_error("keypoints size must >= 2 and multiple of 2");
             return nullptr;
         }
-        for(size_t i=0; i<keypoints.size() / 2; ++i)
+        for (size_t i = 0; i < keypoints.size() / 2; ++i)
         {
             cv::Point center(keypoints[i * 2], keypoints[i * 2 + 1]);
-            if(center.x < 0 || center.y < 0)
+            if (center.x < 0 || center.y < 0)
                 continue;
             int radius = size;
             cv::circle(img, center, radius, cv_color, thickness);
         }
 
         // Draw lines between consecutive keypoints if line_thickness is greater than 0
-        if (line_thickness > 0) {
-            for (size_t i = 1; i < keypoints.size() / 2; ++i) {
+        if (line_thickness > 0)
+        {
+            for (size_t i = 1; i < keypoints.size() / 2; ++i)
+            {
                 cv::Point pt1(keypoints[(i - 1) * 2], keypoints[(i - 1) * 2 + 1]);
                 cv::Point pt2(keypoints[i * 2], keypoints[i * 2 + 1]);
                 if (pt1.x < 0 || pt1.y < 0 || pt2.x < 0 || pt2.y < 0)
-                    continue;  // Skip invalid lines with negative coordinates
+                    continue; // Skip invalid lines with negative coordinates
                 cv::line(img, pt1, pt2, cv_color, line_thickness);
             }
             // Draw a line from the last point to the first point to close the loop
             cv::Point pt_first(keypoints[0], keypoints[1]);
             cv::Point pt_last(keypoints[keypoints.size() - 2], keypoints[keypoints.size() - 1]);
-            if (pt_first.x >= 0 && pt_first.y >= 0 && pt_last.x >= 0 && pt_last.y >= 0) {
+            if (pt_first.x >= 0 && pt_first.y >= 0 && pt_last.x >= 0 && pt_last.y >= 0)
+            {
                 cv::line(img, pt_last, pt_first, cv_color, line_thickness);
             }
         }
@@ -1436,13 +1490,16 @@ namespace maix::image
         cv::InterpolationFlags inter_method = (cv::InterpolationFlags)method;
         if (object_fit == image::Fit::FIT_FILL)
         {
-            if (_format == image::FMT_YVU420SP) {
+            if (_format == image::FMT_YVU420SP)
+            {
                 cv::Mat rgb, resize_rgb;
                 cv::cvtColor(img, rgb, cv::COLOR_YUV2RGB_NV21);
                 cv::resize(rgb, resize_rgb, cv::Size(width, height), 0, 0, inter_method);
                 dst = cv::Mat(cv_dst_h, width, pixel_num, ret->data());
                 _cv_rgb_nv21(resize_rgb, dst, width, height);
-            } else {
+            }
+            else
+            {
                 dst = cv::Mat(height, width, pixel_num, ret->data());
                 cv::resize(img, dst, cv::Size(width, height), 0, 0, inter_method);
             }
@@ -1541,7 +1598,7 @@ namespace maix::image
         return ret;
     }
 
-    image::Image* Image::perspective(std::vector<int> src_points, std::vector<int> dst_points, int width, int height, image::ResizeMethod method)
+    image::Image *Image::perspective(std::vector<int> src_points, std::vector<int> dst_points, int width, int height, image::ResizeMethod method)
     {
         if (width < 0 && height < 0)
         {
@@ -1565,7 +1622,7 @@ namespace maix::image
         }
 
         // Create output image
-        image::Image* ret = new image::Image(width, height, _format);
+        image::Image *ret = new image::Image(width, height, _format);
 
         // Convert source and destination points to cv::Point2f
         std::vector<cv::Point2f> srcPts, dstPts;
@@ -1643,26 +1700,27 @@ namespace maix::image
         return ret;
     }
 
-
-    Image* Image::flip(const FlipDir dir) {
+    Image *Image::flip(const FlipDir dir)
+    {
         int pixel_num = _get_cv_pixel_num(_format);
-        Image* ret = new Image(_width, _height, _format);
+        Image *ret = new Image(_width, _height, _format);
         cv::Mat img(_height, _width, pixel_num, _data);
         cv::Mat dst(_height, _width, pixel_num, ret->data());
 
         int flipCode;
-        switch (dir) {
-            case FlipDir::X:
-                flipCode = 0; // 垂直翻转
-                break;
-            case FlipDir::Y:
-                flipCode = 1; // 水平翻转
-                break;
-            case FlipDir::XY:
-                flipCode = -1; // 同时进行垂直和水平翻转
-                break;
-            default:
-                throw err::Exception(err::ERR_ARGS);
+        switch (dir)
+        {
+        case FlipDir::X:
+            flipCode = 0; // 垂直翻转
+            break;
+        case FlipDir::Y:
+            flipCode = 1; // 水平翻转
+            break;
+        case FlipDir::XY:
+            flipCode = -1; // 同时进行垂直和水平翻转
+            break;
+        default:
+            throw err::Exception(err::ERR_ARGS);
         }
         cv::flip(img, dst, flipCode);
         return ret;
@@ -1713,32 +1771,33 @@ namespace maix::image
         case FMT_BGR888:
         case FMT_BGRA8888:
             ok = cv::imwrite(path, img, params);
-            if(!ok)
+            if (!ok)
                 return err::ERR_RUNTIME;
             break;
         case FMT_RGB888:
             cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
             ok = cv::imwrite(path, img, params);
             cv::cvtColor(img, img, cv::COLOR_RGB2BGR);
-            if(!ok)
+            if (!ok)
                 return err::ERR_RUNTIME;
             break;
         case FMT_RGBA8888:
             cv::cvtColor(img, img, cv::COLOR_RGBA2BGRA);
             ok = cv::imwrite(path, img, params);
             cv::cvtColor(img, img, cv::COLOR_RGBA2BGRA);
-            if(!ok)
+            if (!ok)
                 return err::ERR_RUNTIME;
             break;
         case FMT_JPEG:
         {
             std::string lower_path(path);
             std::transform(lower_path.begin(), lower_path.end(), lower_path.begin(),
-                   [](unsigned char c){ return std::tolower(c); });
-            if(path_is_format(path, ".jpeg") || path_is_format(path, ".jpg"))
+                           [](unsigned char c)
+                           { return std::tolower(c); });
+            if (path_is_format(path, ".jpeg") || path_is_format(path, ".jpg"))
             {
                 fs::File *f = fs::open(path, "wb");
-                if(!f)
+                if (!f)
                     return err::ERR_IO;
                 f->write(_data, _data_size);
                 f->close();
@@ -1747,22 +1806,22 @@ namespace maix::image
             else
             {
                 Image *tmp = to_format(FMT_BGR888);
-                if(!tmp)
+                if (!tmp)
                     return err::ERR_ARGS;
                 cv::Mat img2(_height, _width, CV_8UC3, tmp->data());
                 ok = cv::imwrite(path, img2, params);
                 delete tmp;
-                if(!ok)
+                if (!ok)
                     return err::ERR_RUNTIME;
             }
             break;
         }
         case FMT_PNG:
         {
-            if(path_is_format(path, ".png"))
+            if (path_is_format(path, ".png"))
             {
                 fs::File *f = fs::open(path, "wb");
-                if(!f)
+                if (!f)
                     return err::ERR_IO;
                 f->write(_data, _data_size);
                 f->close();
@@ -1771,12 +1830,12 @@ namespace maix::image
             else
             {
                 Image *tmp = to_format(FMT_BGR888);
-                if(!tmp)
+                if (!tmp)
                     return err::ERR_ARGS;
                 cv::Mat img2(_height, _width, CV_8UC3, tmp->data());
                 ok = cv::imwrite(path, img2, params);
                 delete tmp;
-                if(!ok)
+                if (!ok)
                     return err::ERR_RUNTIME;
             }
             break;
@@ -1810,108 +1869,244 @@ namespace maix::image
         return Size(size.width, size.height);
     }
 
-    std::vector<int> resize_map_pos(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h) {
+    err::Err image2cv(image::Image &img, cv::Mat &mat, bool ensure_bgr, bool copy)
+    {
+        int width = img.width();
+        int height = img.height();
+        int channels = img.shape()[2];
+        uint8_t *img_data = (uint8_t *)img.data();
+
+        if (width <= 0 || height <= 0 || channels <= 0 || img_data == nullptr)
+        {
+            log::error("image2cv arg error");
+            return err::Err::ERR_ARGS;
+        }
+
+        if (channels == 1)
+        {
+            if (copy)
+            {
+                mat = cv::Mat(height, width, CV_8UC1);
+                if(ensure_bgr)
+                {
+                    cv::cvtColor(mat, mat, cv::COLOR_GRAY2BGR);
+                }
+                else
+                {
+                    memcpy(mat.data, img_data, width * height);
+                }
+            }
+            else
+            {
+                mat = cv::Mat(height, width, CV_8UC1, (void *)img_data);
+            }
+        }
+        else if (channels == 3)
+        {
+            if (copy)
+            {
+                mat = cv::Mat(height, width, CV_8UC3);
+                memcpy(mat.data, img_data, width * height * 3);
+                if(ensure_bgr && img.format() == image::FMT_RGB888)
+                {
+                    cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
+                }
+            }
+            else
+            {
+                mat = cv::Mat(height, width, CV_8UC3, (void *)img_data);
+            }
+        }
+        else if (channels == 4)
+        {
+            if (copy)
+            {
+                mat = cv::Mat(height, width, CV_8UC4);
+                memcpy(mat.data, img_data, width * height * 4);
+                if(ensure_bgr && img.format() == image::FMT_RGBA8888)
+                {
+                    cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGRA);
+                }
+            }
+            else
+            {
+                mat = cv::Mat(height, width, CV_8UC4, (void *)img_data);
+            }
+        }
+        else
+        {
+            log::error("not support channel num %d", channels);
+            return err::Err::ERR_ARGS;
+        }
+        return err::ERR_NONE;
+    }
+
+    image::Image *cv2image(cv::Mat &mat, bool bgr = true, bool copy = true)
+    {
+        int width = mat.cols;
+        int height = mat.rows;
+        int channels = mat.channels();
+        image::Format format = image::FMT_RGB888;
+        if (channels == 1)
+        {
+            format = image::FMT_GRAYSCALE;
+        }
+        else if (channels == 3)
+        {
+            format = bgr ? image::FMT_BGR888 : image::FMT_RGB888;
+        }
+        else if (channels == 4)
+        {
+            format = bgr ? image::FMT_BGRA8888 : image::FMT_RGBA8888;
+        }
+        else
+        {
+            log::error("not support channel num %d", channels);
+            return nullptr;
+        }
+        return new image::Image(width, height, format, mat.data, width * height * channels, copy);
+    }
+
+    std::vector<int> resize_map_pos(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h)
+    {
         float scale_x = static_cast<float>(w_out) / w_in;
         float scale_y = static_cast<float>(h_out) / h_in;
         std::vector<int> result;
 
-        if (fit == image::Fit::FIT_FILL) {
+        if (fit == image::Fit::FIT_FILL)
+        {
             x = static_cast<int>(x * scale_x);
             y = static_cast<int>(y * scale_y);
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w * scale_x);
             }
-            if (h > 0) {
+            if (h > 0)
+            {
                 h = static_cast<int>(h * scale_y);
             }
-        } else if (fit == image::Fit::FIT_CONTAIN) {
+        }
+        else if (fit == image::Fit::FIT_CONTAIN)
+        {
             float scale = std::min(scale_x, scale_y);
-            if (w_out > h_out) {
+            if (w_out > h_out)
+            {
                 x = static_cast<int>((w_out - w_in * scale) / 2 + x * scale);
                 y = static_cast<int>(y * scale);
-            } else {
+            }
+            else
+            {
                 x = static_cast<int>(x * scale);
                 y = static_cast<int>((h_out - h_in * scale) / 2 + y * scale);
             }
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w * scale);
                 h = static_cast<int>(h * scale);
             }
-        } else if (fit == image::Fit::FIT_COVER) {
+        }
+        else if (fit == image::Fit::FIT_COVER)
+        {
             float scale = std::max(scale_x, scale_y);
-            if (w_out > h_out) {
+            if (w_out > h_out)
+            {
                 x = static_cast<int>(x * scale);
                 y = static_cast<int>((h_out - h_in * scale) / 2 + y * scale);
-            } else {
+            }
+            else
+            {
                 x = static_cast<int>((w_out - w_in * scale) / 2 + x * scale);
                 y = static_cast<int>(y * scale);
             }
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w * scale);
                 h = static_cast<int>(h * scale);
             }
-        } else {
+        }
+        else
+        {
             throw err::Exception(err::ERR_ARGS, "Unsupported fit mode");
         }
 
         // Populate the result vector
         result.push_back(x);
         result.push_back(y);
-        if (w > 0 && h > 0) {
+        if (w > 0 && h > 0)
+        {
             result.push_back(w);
             result.push_back(h);
         }
         return result;
     }
 
-    std::vector<int> resize_map_pos_reverse(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h) {
+    std::vector<int> resize_map_pos_reverse(int w_in, int h_in, int w_out, int h_out, image::Fit fit, int x, int y, int w, int h)
+    {
         float scale_x = static_cast<float>(w_out) / w_in;
         float scale_y = static_cast<float>(h_out) / h_in;
         std::vector<int> result;
 
-        if (fit == image::Fit::FIT_FILL) {
+        if (fit == image::Fit::FIT_FILL)
+        {
             x = static_cast<int>(x / scale_x);
             y = static_cast<int>(y / scale_y);
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w / scale_x);
             }
-            if (h > 0) {
+            if (h > 0)
+            {
                 h = static_cast<int>(h / scale_y);
             }
-        } else if (fit == image::Fit::FIT_CONTAIN) {
+        }
+        else if (fit == image::Fit::FIT_CONTAIN)
+        {
             float scale = std::min(scale_x, scale_y);
-            if (w_out > h_out) {
+            if (w_out > h_out)
+            {
                 x = static_cast<int>((x - (w_out - w_in * scale) / 2) / scale);
                 y = static_cast<int>(y / scale);
-            } else {
+            }
+            else
+            {
                 x = static_cast<int>(x / scale);
                 y = static_cast<int>((y - (h_out - h_in * scale) / 2) / scale);
             }
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w / scale);
                 h = static_cast<int>(h / scale);
             }
-        } else if (fit == image::Fit::FIT_COVER) {
+        }
+        else if (fit == image::Fit::FIT_COVER)
+        {
             float scale = std::max(scale_x, scale_y);
-            if (w_out > h_out) {
+            if (w_out > h_out)
+            {
                 x = static_cast<int>(x / scale);
                 y = static_cast<int>((y - (h_out - h_in * scale) / 2) / scale);
-            } else {
+            }
+            else
+            {
                 x = static_cast<int>((x - (w_out - w_in * scale) / 2) / scale);
                 y = static_cast<int>(y * scale);
             }
-            if (w > 0) {
+            if (w > 0)
+            {
                 w = static_cast<int>(w / scale);
                 h = static_cast<int>(h / scale);
             }
-        } else {
+        }
+        else
+        {
             throw err::Exception(err::ERR_ARGS, "Unsupported fit mode");
         }
 
         // Populate the result vector
         result.push_back(x);
         result.push_back(y);
-        if (w > 0 && h > 0) {
+        if (w > 0 && h > 0)
+        {
             result.push_back(w);
             result.push_back(h);
         }
@@ -1960,7 +2155,7 @@ namespace maix::image
     int Image::_get_cv_pixel_num(image::Format &format)
     {
         int pixel_num = 0;
-        switch (_format)
+        switch (format)
         {
         case image::FMT_RGB888:
         case image::FMT_BGR888:
@@ -1984,34 +2179,45 @@ namespace maix::image
         return pixel_num;
     }
 
-    std::vector<int> Image::_get_available_roi(std::vector<int> roi, std::vector<int> other_roi) {
+    std::vector<int> Image::_get_available_roi(std::vector<int> roi, std::vector<int> other_roi)
+    {
         int src_x, src_y, src_w, src_h;
 
-        if (other_roi.size() == 0) {
+        if (other_roi.size() == 0)
+        {
             src_x = 0;
             src_y = 0;
             src_w = _width;
             src_h = _height;
-        } else if (other_roi.size() == 4) {
+        }
+        else if (other_roi.size() == 4)
+        {
             src_x = other_roi[0];
             src_y = other_roi[1];
             src_w = other_roi[2];
             src_h = other_roi[3];
-        } else {
+        }
+        else
+        {
             throw err::Exception("other_roi size must be 4");
         }
 
-        if (roi.size() == 0) {
+        if (roi.size() == 0)
+        {
             return std::vector<int>{0, 0, _width, _height};
-        } else if (roi.size() != 4) {
+        }
+        else if (roi.size() != 4)
+        {
             throw err::Exception("roi size must be 4");
         }
 
-        if (roi[2] <= 0 || roi[3] <= 0) {
+        if (roi[2] <= 0 || roi[3] <= 0)
+        {
             throw err::Exception("roi width and height must > 0");
         }
 
-        if ((roi[0] >= (src_x + src_w)) || (roi[1] >= (src_y + src_h)) || (roi[0] + roi[2] <= src_x) || (roi[1] + roi[3] <= src_y)) {
+        if ((roi[0] >= (src_x + src_w)) || (roi[1] >= (src_y + src_h)) || (roi[0] + roi[2] <= src_x) || (roi[1] + roi[3] <= src_y))
+        {
             throw err::Exception("roi does not overlap on the image!");
         }
 

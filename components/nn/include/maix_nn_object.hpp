@@ -301,6 +301,21 @@ namespace maix::nn
         }
 
         /**
+         * Add object to objects
+         * @throw Throw exception if no memory
+         * @maixcdk maix.nn.Objects.add
+         */
+        nn::Object &add(const nn::Object &obj)
+        {
+            Object *obj_new = new Object(obj.x, obj.y, obj.w, obj.h, obj.class_id, obj.score, obj.points, obj.angle);
+            if(!obj_new)
+                throw err::Exception(err::ERR_NO_MEM);
+            obj_new->seg_mask = NULL;
+            objs.push_back(obj_new);
+            return *obj_new;
+        }
+
+        /**
          * Remove object form objects
          * @maixpy maix.nn.Objects.remove
          */

@@ -245,7 +245,7 @@ namespace maix::nn
          *           default is image.Fit.FIT_FILL for easy coordinate calculation, but for more accurate result, use image.Fit.FIT_CONTAIN is better.
          * @return output tensor
          */
-        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = {}, std::vector<float> scale = {}, image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool dual_buff_wait = false) = 0;
+        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = {}, std::vector<float> scale = {}, image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool dual_buff_wait = false, bool chw = true) = 0;
     };
 
     /**
@@ -375,12 +375,13 @@ namespace maix::nn
          * @param copy_result If set true, will copy result to a new variable; else will use a internal memory, you can only use it until to the next forward.
          *                    Default true to avoid problems, you can set it to false manually to make speed faster.
          * @param dual_buff_wait bool type, only for dual_buff mode, if true, will inference this image and wait for result, default false.
+         * @param chw chw channel format, forward model with hwc format image input if set to false, default true(chw).
          * @return output tensor. In C++, you should manually delete tensors in return value and return value.
          *         If dual_buff mode, it can be NULL(None in MaixPy) means not ready.
          * @throw If error occurs, like arg error or alloc memory failed, will raise err.Exception.
          * @maixpy maix.nn.NN.forward_image
          */
-        tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_FILL, bool copy_result = true, bool dual_buff_wait = false);
+        tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_FILL, bool copy_result = true, bool dual_buff_wait = false, bool chw = true);
 
     private:
         MUD _mud;
