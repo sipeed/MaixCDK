@@ -882,6 +882,11 @@ namespace maix::comm::listener_priv
         try
         {
             this->protocol = new maix::comm::CommProtocol();
+            if(!this->protocol->valid())
+            {
+                delete this->protocol;
+                this->protocol = nullptr;
+            }
         }
         catch (const std::exception &e)
         {
