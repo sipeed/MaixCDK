@@ -409,7 +409,7 @@ namespace maix::peripheral::key
             if (fd < 0)
             {
                 std::vector<std::string> key_devices;
-                if (sys::device_id() == "maixcam_pro") {
+                if (sys::device_id() == "maixcam_pro" && fs::exists(KEY_DEVICE1)) {
                     key_devices = {KEY_DEVICE0, KEY_DEVICE1};
                 } else {
                     key_devices = {KEY_DEVICE0};
