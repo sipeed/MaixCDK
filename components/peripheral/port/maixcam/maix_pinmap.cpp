@@ -121,6 +121,7 @@ namespace maix::peripheral::pinmap
             "A28",
             "A29",
             "B3",
+            "C2",
             "P18",
             "P19",
             "P20",
@@ -243,6 +244,13 @@ namespace maix::peripheral::pinmap
             return std::vector<std::string>{
                 "GPIOB3",
                 "ADC"
+            };
+        }
+        else if (pin == "C2")
+        {
+            return std::vector<std::string>{
+                "GPIOC2",
+                "CAM_MCLK0"
             };
         }
         else if (pin == "P18")
@@ -571,6 +579,16 @@ namespace maix::peripheral::pinmap
         else if (pin == "B3")
         {
             set_pinmux(0x030010F8, 3);
+            return err::ERR_NONE;
+        }
+        else if (pin == "C2")
+        {
+            if (func == "GPIOC2")
+                set_pinmux(0x0300116C, 3);
+            else if (func == "CAM_MCLK0")
+                set_pinmux(0x0300116C, 5);
+            else
+                return err::ERR_ARGS;
             return err::ERR_NONE;
         }
         else if (pin == "P18")
