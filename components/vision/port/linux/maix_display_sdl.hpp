@@ -115,9 +115,12 @@ namespace maix::display
         {
             SDL_Display *disp = (SDL_Display *)args_in;
             SDL_Event event;
-            while (1)
+            while (!disp->exit)
             {
-                SDL_WaitEvent(&event);
+                int ret = SDL_WaitEventTimeout(&event,100);
+                if(ret == 0){
+                    continue;
+                }
                 if (event.type == SDL_QUIT)
                 {
                     log::debug("SDL_QUIT\n");
