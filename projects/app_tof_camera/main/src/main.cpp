@@ -54,7 +54,7 @@ void show_error(display::Display& disp, touchscreen::TouchScreen& ts)
 {
     ui_total_deinit();
     auto img = Image(disp.width(), disp.height());
-    std::string msg = "Devices Not Found!\nSupport list:\nOPNS3031\n\nClicked to exit.";
+    std::string msg = "Devices Not Found!\nSupport list:\nPMOD_TOF100\n\nClicked to exit.";
     img.draw_string(0, 100, msg);
     disp.show(img);
     while (!app::need_exit()) {
