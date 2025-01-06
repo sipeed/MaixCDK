@@ -1,6 +1,8 @@
 # Thermal camera
 
 
-## support list
+## Supported List
 
-* mlx90640
+[Consult purchase address](https://wiki.sipeed.com/en/store.html)
+
+* PMOD_Thermal32

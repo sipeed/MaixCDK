@@ -293,7 +293,7 @@ Slave::~Slave()
 ::maix::err::Err Slave::__receive__()
 {
     this->rc_ = ::modbus_receive(this->ctx_.get(), this->query_);
-    if (this->rc_ >= 0) {
+    if (this->rc_ > 0) {
         if (this->debug_) {
             log::info("%s receive, len: %d", this->TAG().c_str(), this->rc_);
         }

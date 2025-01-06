@@ -51,7 +51,7 @@ struct BoolResult {
 
 BoolResult find_device()
 {
-    std::string suffix = "Support list:\nMLX90640\n\nClicked to exit.";
+    std::string suffix = "Support list:\nPMOD_Thermal32\n\nClicked to exit.";
     BoolResult res;
 
     bool total_flag = false;

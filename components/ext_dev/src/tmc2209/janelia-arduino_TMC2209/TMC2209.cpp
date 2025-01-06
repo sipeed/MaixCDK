@@ -740,7 +740,6 @@ int TMC2209::serialRead()
   //   auto all_datas = this->_uart->read(buffer+next_index, num, num);
   //   next_index += num;
   //   for (int i = 0; i < num; ++i) {
-      
   //   }
   // }
 
@@ -995,7 +994,7 @@ uint32_t TMC2209::read(uint8_t register_address)
 
   // if (reply_delay >= REPLY_DELAY_MAX_MICROSECONDS)
   // {
-  //   return 0;  
+  //   return 0;
   // }
 
   // this->serialRead();
