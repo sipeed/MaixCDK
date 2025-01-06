@@ -118,7 +118,7 @@ typedef struct _ISP_SNS_OBJ_S {
 extern ISP_SNS_OBJ_S stSnsBG0808_Obj;
 extern ISP_SNS_OBJ_S stSnsBF2253L_Obj;
 extern ISP_SNS_OBJ_S stSnsCV4001_Obj;
-extern ISP_SNS_OBJ_S stSnsGc02m1b_Obj;
+extern ISP_SNS_OBJ_S stSnsGc02m1_Obj;
 extern ISP_SNS_OBJ_S stSnsGc0312_Obj;
 extern ISP_SNS_OBJ_S stSnsGc0329_Obj;
 extern ISP_SNS_OBJ_S stSnsGc1054_Obj;

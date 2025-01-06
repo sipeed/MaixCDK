@@ -19,6 +19,7 @@ append_srcs_dir(middleware_src_dir  ${middleware_src_path}/v2/sample/common
                                     ${middleware_src_path}/v2/component/isp/sensor/sg200x/ov_ov2685
                                     ${middleware_src_path}/v2/component/isp/sensor/sg200x/lontium_lt6911
                                     ${middleware_src_path}/v2/component/isp/sensor/sg200x/ov_os04a10
+                                    ${middleware_src_path}/v2/component/isp/sensor/sg200x/gcore_gc02m1
                                     )
 list(APPEND ADD_SRCS        ${middleware_src_dir})
 set_property(SOURCE ${middleware_src_dir} PROPERTY GENERATED 1)
@@ -70,4 +71,5 @@ list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_SMS_SC035GS
 list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_OV_OV2685)
 list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_LONTIUM_LT6911)
 list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_OV_OS04A10)
+list(APPEND ADD_DEFINITIONS_PRIVATE -DSENSOR_GCORE_GC02M1)
 register_component(DYNAMIC)
