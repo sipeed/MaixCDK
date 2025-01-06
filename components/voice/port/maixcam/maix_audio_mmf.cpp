@@ -838,8 +838,8 @@ _retry:
         // alsa init
         snd_pcm_t *handle = NULL;
         snd_pcm_hw_params_t *hwparams;
-        snd_pcm_format_t format_p = _alsa_format_from_maix(format);
-        err::check_bool_raise(0 <= _alsa_player_init(&handle, &hwparams, &_period_size, format_p, sample_rate, channel, 24000), "capture init failed");
+        snd_pcm_format_t format_p = _alsa_format_from_maix(_format);
+        err::check_bool_raise(0 <= _alsa_player_init(&handle, &hwparams, &_period_size, format_p, _sample_rate, _channel, 24000), "capture init failed");
         _handle = handle;
         snd_pcm_uframes_t buffer_size = 0;
         _buffer = _alsa_prepare_buffer(format_p, channel, _period_size, &buffer_size);
