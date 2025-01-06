@@ -17,9 +17,9 @@ static constexpr int TRY_NUM = 5;
  * speed ==> (360/step_angle)/(screw_pitch/speed) ==> 400 fullsteps/s
  * speed_factor ==> speed/SPEED_EACH_FACTOR ==> ((360/step_angle)/(screw_pitch/speed))/SPEED_EACH_FACTOR ==> 555
  */
-static inline uint16_t calculate_speed_factor(uint16_t speed_mm_s, float step_angle, uint16_t screw_pitch)
+static inline uint16_t calculate_speed_factor(float speed_mm_s, float step_angle, float screw_pitch)
 {
-    return static_cast<uint16_t>(((360/step_angle)/(static_cast<float>(screw_pitch)/speed_mm_s))/SPEED_EACH_FACTOR);
+    return static_cast<uint16_t>(((360.0f/step_angle)/(screw_pitch/speed_mm_s))/SPEED_EACH_FACTOR);
 }
 
 class FileHandler {
@@ -782,6 +782,7 @@ void ScrewSlide::move(float oft, int speed_mm_s, std::function<bool(float)> call
                                 this->speed_factor_ : \
                                 calculate_speed_factor(static_cast<uint16_t>(speed_mm_s),
                                     this->step_angle, this->screw_pitch);
+    // maix::log::info("speed factor:%u", speed_factor);
     // maix::log::info("std::abs(oft): %0.3f", std::abs(oft));
     // maix::log::info("this->micro_step_distance: %0.8f", this->micro_step_distance);
     // maix::log::info("std::abs(oft) / this->micro_step_distance: %0.3f", std::abs(oft) / this->micro_step_distance);
