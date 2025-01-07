@@ -294,6 +294,11 @@ static int _get_encode_bitrate_by_camera_resolution(int w, int h) {
     }
 }
 
+static void trim(std::string &str) {
+    str.erase(0, str.find_first_not_of(" \t\n\r"));
+    str.erase(str.find_last_not_of(" \t\n\r") + 1);
+}
+
 int app_base_init(void)
 {
     // FIXME: camera can't switch to other sensor config online.
@@ -330,8 +335,13 @@ int app_base_init(void)
     auto light_io = std::string("B3");          // default use GPIOB3
     auto it = device_configs.find("cam_light_io");
     if (it != device_configs.end()) {
-        light_io = it->second;
+        auto new_io = it->second;
+        trim(new_io);
+        if (new_io.size() > 0) {
+            light_io = new_io;
+        }
     }
+    log::info("light_io: %s", light_io.c_str());
     pinmap::set_pin_function(light_io, "GPIO" + light_io);
     priv.light = new gpio::GPIO(light_io, gpio::Mode::OUT);
     err::check_null_raise(priv.light, "light gpio open failed");
