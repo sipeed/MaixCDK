@@ -326,10 +326,16 @@ int app_base_init(void)
     err::check_bool_raise(priv.touchscreen->is_opened(), "touchscreen open failed");
 
     // init light
-    pinmap::set_pin_function("B3", "GPIOB3");
-    priv.light = new gpio::GPIO("B3", gpio::Mode::OUT);
-    priv.light->low();
+    auto device_configs = sys::device_configs();
+    auto light_io = std::string("B3");          // default use GPIOB3
+    auto it = device_configs.find("cam_light_io");
+    if (it != device_configs.end()) {
+        light_io = it->second;
+    }
+    pinmap::set_pin_function(light_io, "GPIO" + light_io);
+    priv.light = new gpio::GPIO(light_io, gpio::Mode::OUT);
     err::check_null_raise(priv.light, "light gpio open failed");
+    priv.light->low();
 
     // init audio
     priv.audio_recorder = new audio::Recorder();
