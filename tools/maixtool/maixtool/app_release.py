@@ -65,6 +65,7 @@ def get_files(project_path, exclude = [], black_list = []):
                 continue
             valid = True
             for e in exclude:
+                e = e.replace("\\", "/")
                 if e == path or path.startswith(e + "/"):
                     valid = False
                     break
@@ -95,6 +96,12 @@ def check_icon_file(files, icon):
             break
     if not found:
         raise FileNotFoundError("icon file {} not found in files".format(icon))
+
+def check_update_files(files):
+    final = {}
+    for k, v in files.items():
+        final[k.replace("\\", "/")] = v.replace("\\", "/")
+    return final
 
 def pack(project_path, bin_path="main.py", extra_files = {}):
     '''
@@ -138,11 +145,13 @@ def pack(project_path, bin_path="main.py", extra_files = {}):
         bin_name = app_id
     app_info["files"][bin_path] = bin_name
     app_info["files"][app_yaml] = app_yaml
+    app_info["files"] = check_update_files(app_info["files"])
+    extra_files = check_update_files(extra_files)
     app_info["files"].update(extra_files)
-    icon = app_info.get("icon", "")
+    icon = app_info.get("icon", "").replace("\\", "/")
     if icon and icon not in app_info["files"]:
         app_info["files"][icon] = icon
-    check_icon_file(app_info["files"], app_info.get("icon", ""))
+    check_icon_file(app_info["files"], icon)
     copy_files(app_info["files"], project_path, temp_dir)
     # zip
     version_str = "_v" + app_info["version"]
