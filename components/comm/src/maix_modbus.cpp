@@ -149,6 +149,11 @@ Slave::Slave(maix::comm::modbus::Mode mode, const std::string& ip_or_device,
             return ::maix::err::Err::ERR_RUNTIME;
             // __error_and_throw__(msg);
         }
+        if (::modbus_set_response_timeout(this->ctx_.get(), this->curr_timeout_sec_, this->curr_timeout_usec_) < 0) {
+            std::string msg(this->TAG()+" set timeout failed");
+            log::warn(msg.c_str());
+            return ::maix::err::Err::ERR_RUNTIME;
+        }
         return ::maix::err::Err::ERR_NONE;
     }
 
@@ -299,6 +304,8 @@ Slave::~Slave()
         }
         return ::maix::err::Err::ERR_NONE;
     }
+    /* flush */
+    ::modbus_flush(this->ctx_.get());
     if (this->debug_) {
         log::warn("%s receive failed", this->TAG().c_str());
     }
