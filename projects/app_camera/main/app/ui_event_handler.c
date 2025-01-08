@@ -7,11 +7,11 @@
 #define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
 #define DEBUG_EN(x)                                                         \
-    bool g_debug_flag = x;
+    [[maybe_unused]]bool g_debug_flag = x;
 
 #define DEBUG_PRT(fmt, ...) do {                                            \
     if (g_debug_flag)                                                       \
-        printf("[%s][%d]: "fmt"\r\n", __func__, __LINE__, ##__VA_ARGS__);   \
+        printf("[%s][%d]: " fmt "\r\n", __func__, __LINE__, ##__VA_ARGS__);   \
 } while(0)
 #else
 #define DEBUG_EN(fmt, ...)
@@ -90,6 +90,8 @@ static struct {
     .iso_auto_flag = 1,
     .shutter_auto_flag = 1,
 };
+
+int g_camera_mode = 0;
 
 void event_touch_exit_cb(lv_event_t * e)
 {
@@ -258,29 +260,99 @@ void event_touch_option_cb(lv_event_t * e)
     }
 }
 
+void touch_video_camera()
+{
+    DEBUG_EN(0);
+    if (lv_obj_has_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE)) {
+        if (lv_obj_get_state(g_start_snap_button) == LV_STATE_CHECKED) {
+            lv_obj_send_event(g_start_snap_button, LV_EVENT_RELEASED, NULL);
+            lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+            DEBUG_PRT("video try stop!\n");
+
+            priv.camera_video_try_stop_flag = 1;
+        }
+        lv_obj_remove_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
+        DEBUG_PRT("ready to snap photo!\n");
+        g_camera_mode = 0;
+    } else {
+        lv_obj_add_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
+        lv_obj_add_state(g_start_snap_button, LV_STATE_CHECKED);
+        DEBUG_PRT("ready to record video!\n");
+        g_camera_mode = 1;
+    }
+}
+
 void event_touch_video_camera_cb(lv_event_t * e)
 {
     DEBUG_EN(0);
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
-        if (lv_obj_has_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE)) {
-            if (lv_obj_get_state(g_start_snap_button) == LV_STATE_CHECKED) {
-                lv_obj_send_event(g_start_snap_button, LV_EVENT_RELEASED, NULL);
-                lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
-                DEBUG_PRT("video try stop!\n");
+        touch_video_camera();
+    }
+}
 
-                priv.camera_video_try_stop_flag = 1;
-            }
-            lv_obj_remove_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
-            lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
-            DEBUG_PRT("ready to snap photo!\n");
+static void touch_start_video_start(void)
+{
+    DEBUG_EN(1);
+    lv_obj_remove_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
+    lv_obj_add_state(g_start_snap_button, LV_STATE_USER_1);
+    DEBUG_PRT("video start\n");
+    priv.camera_video_start_flag = 1;
+}
+static void touch_start_video_stop(void)
+{
+    DEBUG_EN(1);
+    lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+    // lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
+    lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
+    if (lv_obj_has_state(g_start_snap_button, LV_STATE_PRESSED)) {
+        printf("press\n");
+    }
+    DEBUG_PRT("video stop\n");
+    priv.camera_video_stop_flag = 1;
+}
+
+LV_IMG_DECLARE(img_photo_release);
+LV_IMG_DECLARE(img_photo_clicked);
+LV_IMG_DECLARE(img_video_ready);
+LV_IMG_DECLARE(img_video_stop);
+void touch_start_video(int flag)
+{
+    DEBUG_EN(0);
+    DEBUG_PRT("[video]\n");
+
+    // auto __start = []() {
+    //     lv_obj_remove_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
+    //     lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
+    //     lv_obj_add_state(g_start_snap_button, LV_STATE_USER_1);
+    //     DEBUG_PRT("video start\n");
+    //     priv.camera_video_start_flag = 1;
+    // }
+
+    if (flag > 0) {
+        lv_image_dsc_t* img_desc = (lv_image_dsc_t*)lv_obj_get_style_bg_image_src(g_start_snap_button, 0);
+        if (img_desc == &img_video_ready) {
+            touch_start_video_start();
         } else {
-            lv_obj_add_flag(g_start_snap_button, LV_OBJ_FLAG_CHECKABLE);
-            lv_obj_add_state(g_start_snap_button, LV_STATE_CHECKED);
-            DEBUG_PRT("ready to record video!\n");
-
+            touch_start_video_stop();
+        }
+    } else {
+        if (lv_obj_get_state(g_start_snap_button) == LV_STATE_FOCUSED) {
+            touch_start_video_start();
+        } else {
+            touch_start_video_stop();
         }
     }
+}
+
+void touch_start_pic()
+{
+    DEBUG_EN(0);
+    DEBUG_PRT("[photo]\n");
+    DEBUG_PRT("camera snap start\n");
+    priv.camera_snap_start_flag = 1;
 }
 
 void event_touch_start_cb(lv_event_t * e)
@@ -289,27 +361,9 @@ void event_touch_start_cb(lv_event_t * e)
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_CLICKED) {
         if (lv_obj_get_state(g_camera_video_button) == LV_STATE_CHECKED) {
-            DEBUG_PRT("[video]\n");
-            if (lv_obj_get_state(g_start_snap_button) == LV_STATE_FOCUSED) {
-                lv_obj_remove_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
-                lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
-                lv_obj_add_state(g_start_snap_button, LV_STATE_USER_1);
-                DEBUG_PRT("video start\n");
-                priv.camera_video_start_flag = 1;
-            } else {
-                lv_obj_add_flag(g_video_running_screen, LV_OBJ_FLAG_HIDDEN);
-                // lv_obj_remove_state(g_start_snap_button, LV_STATE_PRESSED);
-                lv_obj_remove_state(g_start_snap_button, LV_STATE_USER_1);
-                if (lv_obj_has_state(g_start_snap_button, LV_STATE_PRESSED)) {
-                    printf("press\n");
-                }
-                DEBUG_PRT("video stop\n");
-                priv.camera_video_stop_flag = 1;
-            }
+            touch_start_video(-1);
         } else {
-            DEBUG_PRT("[photo]\n");
-            DEBUG_PRT("camera snap start\n");
-            priv.camera_snap_start_flag = 1;
+            touch_start_pic();
         }
     }
 }

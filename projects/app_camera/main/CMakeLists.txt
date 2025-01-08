@@ -23,7 +23,7 @@ append_srcs_dir(ADD_SRCS "assets")
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic lvgl FFmpeg)
+list(APPEND ADD_REQUIREMENTS basic lvgl FFmpeg peripheral ext_dev)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
@@ -36,8 +36,8 @@ list(APPEND ADD_REQUIREMENTS basic lvgl FFmpeg)
 ###############################################
 
 #### Add compile option for this component ####
-#### Just for this component, won't affect other 
-#### modules, including component that depend 
+#### Just for this component, won't affect other
+#### modules, including component that depend
 #### on this component
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 

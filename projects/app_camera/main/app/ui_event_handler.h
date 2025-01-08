@@ -8,6 +8,14 @@ extern "C" {
 #include "lvgl.h"
 #include "stdint.h"
 
+/**
+ * 0: pic
+ * 1: video
+ */
+extern int g_camera_mode;
+void touch_start_video(int flag);
+void touch_start_pic();
+
 void event_left_screen_scroll_cb(lv_event_t * e);
 void event_touch_exit_cb(lv_event_t * e);
 void event_touch_delay_cb(lv_event_t * e);
