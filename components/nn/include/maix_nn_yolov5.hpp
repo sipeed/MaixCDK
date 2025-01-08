@@ -214,11 +214,12 @@ namespace maix::nn
          * @param conf_th Confidence threshold, default 0.5.
          * @param iou_th IoU threshold, default 0.45.
          * @param fit Resize method, default image.Fit.FIT_CONTAIN.
+         * @param sort sort result according to object size, default 0 means not sort, 1 means bigger in front, -1 means smaller in front.
          * @throw If image format not match model input format, will throw err::Exception.
          * @return Object list. In C++, you should delete it after use.
          * @maixpy maix.nn.YOLOv5.detect
         */
-        std::vector<nn::Object> *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN)
+        std::vector<nn::Object> *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, int sort = 0)
         {
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
@@ -232,7 +233,7 @@ namespace maix::nn
             {
                 return new std::vector<nn::Object>();
             }
-            std::vector<nn::Object> * res = _post_process(outputs, img.width(), img.height(), fit);
+            std::vector<nn::Object> * res = _post_process(outputs, img.width(), img.height(), fit, sort);
             delete outputs;
             if(res == NULL)
             {
@@ -345,7 +346,7 @@ namespace maix::nn
             return err::ERR_NONE;
         }
 
-        std::vector<nn::Object> *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
+        std::vector<nn::Object> *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit, int sort)
         {
             std::vector<nn::Object> *objects = new std::vector<nn::Object>();
             int layer_num = outputs->size();
@@ -370,6 +371,10 @@ namespace maix::nn
                 std::vector<nn::Object> *objects_total = objects;
                 objects = _nms(*objects);
                 delete objects_total;
+                if(sort != 0)
+                {
+                    _sort_objects(*objects, sort);
+                }
             }
             if(objects->size() > 0)
                 _correct_bbox(*objects, img_w, img_h, fit);
@@ -466,6 +471,16 @@ namespace maix::nn
                 }
             }
             return result;
+        }
+
+        void _sort_objects(std::vector<nn::Object> &objects, int sort)
+        {
+            if (sort > 0)
+                std::sort(objects.begin(), objects.end(), [](const nn::Object a, const nn::Object b)
+                      { return (a.w * a.h) > (b.w * b.h); });
+            else
+                std::sort(objects.begin(), objects.end(), [](const nn::Object a, const nn::Object b)
+                      { return (a.w * a.h) < (b.w * b.h); });
         }
 
         void _correct_bbox(std::vector<nn::Object> &objs, int img_w, int img_h, maix::image::Fit fit)

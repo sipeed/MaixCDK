@@ -236,12 +236,13 @@ namespace maix::nn
          * @param iou_th IoU threshold, default 0.45.
          * @param fit Resize method, default image.Fit.FIT_CONTAIN.
          * @param keypoint_th keypoint threshold, default 0.5, only for yolo11-pose model.
+         * @param sort sort result according to object size, default 0 means not sort, 1 means bigger in front, -1 means smaller in front.
          * @throw If image format not match model input format, will throw err::Exception.
          * @return Object list. In C++, you should delete it after use.
          *         If model is yolo11-pose, object's points have value, and if points' value < 0 means that point is invalid(conf < keypoint_th).
          * @maixpy maix.nn.YOLO11.detect
          */
-        nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5)
+        nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5, int sort = 0)
         {
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
@@ -256,7 +257,7 @@ namespace maix::nn
             {
                 return new nn::Objects();
             }
-            nn::Objects *res = _post_process(outputs, img.width(), img.height(), fit);
+            nn::Objects *res = _post_process(outputs, img.width(), img.height(), fit, sort);
             delete outputs;
             if(!res)
             {
@@ -471,7 +472,7 @@ namespace maix::nn
             return err::ERR_NONE;
         }
 
-        nn::Objects *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit)
+        nn::Objects *_post_process(tensor::Tensors *outputs, int img_w, int img_h, maix::image::Fit fit, int sort)
         {
             nn::Objects *objects = new nn::Objects();
             tensor::Tensor *kp_out = NULL;
@@ -489,6 +490,10 @@ namespace maix::nn
                 nn::Objects *objects_total = objects;
                 objects = _nms(*objects);
                 delete objects_total;
+                if(sort != 0)
+                {
+                    _sort_objects(*objects, sort);
+                }
             }
             // decode keypoints
             if (_type == YOLO11_Type::POSE)
@@ -675,6 +680,16 @@ namespace maix::nn
                 }
             }
             return result;
+        }
+
+        void _sort_objects(nn::Objects &objects, int sort)
+        {
+            if (sort > 0)
+                std::sort(objects.begin(), objects.end(), [](const nn::Object *a, const nn::Object *b)
+                      { return (a->w * a->h) > (b->w * b->h); });
+            else
+                std::sort(objects.begin(), objects.end(), [](const nn::Object *a, const nn::Object *b)
+                      { return (a->w * a->h) < (b->w * b->h); });
         }
 
         void _decode_keypoints(nn::Objects &objs, tensor::Tensor *kp_out)
