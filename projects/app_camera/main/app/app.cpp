@@ -18,6 +18,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "app_ex.hpp"
+
+#include <numeric>
+#include <future>
+#include <filesystem>
+#include <ctime>
 
 using namespace maix;
 using namespace maix::peripheral;
@@ -126,6 +132,15 @@ int app_pre_init(void)
     priv.encoder_bitrate = 3 * 1000 * 1000;
     priv.camera_fps = 30;
     priv.audio_en = true;
+
+
+    /* app ex init */
+    tmc2209_init();
+    TMC2209_EXIST_DO(
+        log::info("found device: tmc2209");
+        hp_shot_init();
+        snap_init();
+    )
     return 0;
 }
 
@@ -434,8 +449,395 @@ int app_base_deinit(void)
     return 0;
 }
 
+static bool _stack_save = false;
+static float _stack_dis = 0;
+static float _stack_cla = 0;
+static char _stack_buf[128];
+static int _stack_pic_cnt = 0;
+
+void auto_focus_main(const std::function<float(bool)>& get_clarity, bool& auto_focus_start)
+{
+    constexpr bool enable_filt = true;
+    static int filt_cnt = 0;
+    [[maybe_unused]]constexpr float fast_up_len = 4;
+    [[maybe_unused]]constexpr float fast_down_len = 4;
+    [[maybe_unused]]constexpr float nomal_up_len = 1;
+    [[maybe_unused]]constexpr float nomal_down_len = 1;
+    [[maybe_unused]]constexpr float fast_total_len = fast_up_len + fast_down_len;
+    [[maybe_unused]]constexpr float nomal_total_len = nomal_up_len + nomal_down_len;
+    static float focus_curr_pos = 0;
+    static int focus_mode = 0;
+    static float max_cla = std::numeric_limits<float>::min();
+    static float max_cla_pos_with_focus_curr_pos = 0;
+    static int _cnt = 0;
+    [[maybe_unused]]int fast_steps = g_tmc2209_status.steps * 5;
+    [[maybe_unused]]int nomal_steps = g_tmc2209_status.steps;
+    float cla = 0;
+
+    maix::log::info("focus_mode=%d", focus_mode);
+
+    switch (focus_mode) {
+    case 0: {
+        /* skip fast mode */
+        focus_mode = 5;
+        break;
+        /* step0: init 2209 --> 1mm mode */
+        /* only support 1mmx1 */
+        tmc2209_init_with(__high_speed_1mmx1);
+        focus_mode = 1;
+        break;
+    }
+    case 1: {
+        /* step1: fast up, len<fast_up_len> */
+        if constexpr (!enable_filt) {
+            for (int i = 0; i < fast_up_len; i+=g_tmc2209_status.step_len) {
+                g_slide->move(g_tmc2209_status.step_len);
+            }
+            focus_mode = 2;
+        } else {
+            constexpr int filt_num = 10;
+            float filt_step_len = g_tmc2209_status.step_len / filt_num;
+            int cnt_max = fast_up_len / filt_step_len;
+            g_slide->move(filt_step_len);
+            filt_cnt++;
+            if (filt_cnt >= cnt_max) {
+                focus_mode = 2;
+                filt_cnt = 0;
+            }
+        }
+        break;
+    }
+    case 2: {
+        /* step2: reserve */
+        focus_mode = 3;
+        break;
+    }
+    case 3: {
+        /* step3: fast scan */
+        if constexpr (!enable_filt) {
+            cla = get_clarity(false);
+            maix::log::info("fast focus mode, cla: %f", cla);
+            max_cla_pos_with_focus_curr_pos += g_tmc2209_status.step_len;
+            if (cla > max_cla) {
+                max_cla = cla;
+                max_cla_pos_with_focus_curr_pos = 0;
+                _cnt = 0;
+            }
+            // else if (cla < max_cla-10.0) {
+            //     focus_mode = 4;
+            // }
+            // for (int i = 0; i < __low_speed_22um4x1.steps; ++i) {
+            //     g_slide->move(-__low_speed_22um4x1.step_len);
+            // }
+            g_slide->move(-g_tmc2209_status.step_len);
+            // time::sleep_ms(1);
+            _cnt++;
+            // focus_curr_pos += __low_speed_22um4x1.step_len * __low_speed_22um4x1.steps;
+            focus_curr_pos += g_tmc2209_status.step_len;
+            if (focus_curr_pos > fast_total_len || almost_eq(fast_total_len, focus_curr_pos, nomal_up_len)) {
+                focus_mode = 4;
+            }
+        } else {
+            constexpr int filt_num = 10;
+            float filt_step_len = g_tmc2209_status.step_len / filt_num;
+            // int cnt_max = fast_total_len / filt_step_len;
+
+            if (filt_cnt % filt_num == 0) {
+                cla = get_clarity(false);
+                maix::log::info("fast focus mode, cla: %f", cla);
+                if (filt_cnt != 0) {
+                    max_cla_pos_with_focus_curr_pos += g_tmc2209_status.step_len;
+                    if (cla > max_cla) {
+                        max_cla = cla;
+                        max_cla_pos_with_focus_curr_pos = 0;
+                        _cnt = 0;
+                    }
+                    _cnt++;
+                    focus_curr_pos += g_tmc2209_status.step_len;
+                    if (focus_curr_pos > fast_total_len ||
+                        almost_eq(fast_total_len, focus_curr_pos, nomal_up_len) ||
+                        cla <= max_cla*0.75) {
+                        focus_mode = 4;
+                    }
+                }
+            }
+            if (focus_mode == 4) {
+                maix::log::info("fast focus mode finish, max cla:%f, need return:%f",
+                    max_cla, max_cla_pos_with_focus_curr_pos);
+                filt_cnt = 0;
+                break;
+            }
+            g_slide->move(-filt_step_len);
+            filt_cnt++;
+        }
+        break;
+    }
+    case 4: {
+        /* step4: backtrack */
+        if constexpr (!enable_filt) {
+            maix::log::info("fast focus mode finish, max cla:%f, need return:%f", max_cla, max_cla_pos_with_focus_curr_pos);
+            g_slide->move(max_cla_pos_with_focus_curr_pos);
+            focus_mode = 5; /* skip nomal mode */
+            // focus_mode = 100; /* skip nomal mode */
+        } else {
+            constexpr float filt_step_len = 0.1;
+            // int filt_num = static_cast<int>(g_tmc2209_status.step_len/filt_step_len);
+            int cnt_max = max_cla_pos_with_focus_curr_pos / filt_step_len;
+            g_slide->move(filt_step_len);
+            filt_cnt++;
+            if (filt_cnt >= cnt_max) {
+                filt_cnt = 0;
+                focus_mode = 5;
+            }
+        }
+        break;
+    }
+    case 5: {
+        /* step5: init 2209 --> 22um4x1 mode */
+        tmc2209_init_with(__low_speed_22um4x1);
+        max_cla_pos_with_focus_curr_pos = 0;
+        // max_cla = std::numeric_limits<float>::min();
+        focus_curr_pos = 0;
+        focus_mode = 6;
+        break;
+    }
+    case 6: {
+        /* step6: nomal up, len<nomal_up_len> */
+        if constexpr (!enable_filt) {
+            for (float i = 0; i < nomal_up_len; i+=__low_speed_22um4x1.step_len) {
+                g_slide->move(__low_speed_22um4x1.step_len);
+            }
+            focus_mode = 7;
+        } else {
+            auto __step_len = __low_speed_22um4x1.step_len;
+            g_slide->move(__step_len);
+            filt_cnt++;
+            if (almost_eq(filt_cnt, nomal_up_len/__step_len) || filt_cnt > nomal_up_len/__step_len) {
+                filt_cnt = 0;
+                focus_mode = 7;
+            }
+        }
+        break;
+    }
+    case 7: {
+        /* step7: nomal scan */
+        constexpr int skip_frame_max = 2;
+        static int skip_frame = 0;
+        if (skip_frame < skip_frame_max) {
+            skip_frame++;
+            break;
+        }
+        cla = get_clarity(false);
+        maix::log::info("nomal focus mode, cla: %f", cla);
+        max_cla_pos_with_focus_curr_pos += __low_speed_22um4x1.step_len;
+        if (cla > max_cla) {
+            max_cla = cla;
+            max_cla_pos_with_focus_curr_pos = 0;
+            _cnt = 0;
+        }
+        // else if (cla < max_cla-10.0) {
+        //     focus_mode = 8;
+        // }
+        g_slide->move(-__low_speed_22um4x1.step_len);
+        time::sleep_ms(1);
+        _cnt++;
+        focus_curr_pos += __low_speed_22um4x1.step_len;
+        if (focus_curr_pos > nomal_total_len ||
+            almost_eq(nomal_total_len, focus_curr_pos) ||
+            cla <= max_cla*0.75) {
+            focus_mode = 8;
+        }
+        skip_frame = 0;
+        break;
+    }
+    case 8:{
+        /* step8: backtract */
+        maix::log::info("nomal focus mode finish, max cla:%f, need return:%f", max_cla, max_cla_pos_with_focus_curr_pos);
+        g_slide->move(max_cla_pos_with_focus_curr_pos);
+        focus_mode = 9;
+        break;
+    }
+    default: {
+        /* finish: reset data and exit auto focus */
+        tmc2209_init_with(__low_speed_2um8x4);
+        focus_curr_pos = 0;
+        focus_mode = 0;
+        max_cla = std::numeric_limits<float>::min();
+        max_cla_pos_with_focus_curr_pos = 0;
+        auto_focus_start = false;
+        g_auto_focus = std::nullopt;
+        break;
+    }
+    };
+}
+
+void shot_tp_main(void)
+{
+    TMC2209_EXIST_DO(
+        constexpr uint64_t snap_check_time = 1000; /* 1s限制,防止误触一直拍摄/录像 */
+        static auto prev_snap_check_timepoint = time::ticks_ms();
+        auto curr_snap_check_timepoint = time::ticks_ms();
+        if (curr_snap_check_timepoint-prev_snap_check_timepoint>=snap_check_time && snap_check(1)) {
+            prev_snap_check_timepoint = curr_snap_check_timepoint;
+            hp_shot_trigger();
+            // priv.cam_snap_flag = true;
+            if (g_camera_mode == 0) {
+                touch_start_pic();
+            } else if (g_camera_mode == 1) {
+                touch_start_video(4598);
+            }
+        }
+    )
+}
+
+void slide_run_main(int& pic_cnt)
+{
+    TMC2209_EXIST_DO(
+        static TMC2209Status prev_tmc2209_status{
+            .run = false, // ignore
+            .step_len = 0.0,
+            .steps = 0,
+            .up = true, // ignore
+        };
+
+        if (g_tmc2209_status.run) {
+            if (almost_eq(prev_tmc2209_status.step_len, g_tmc2209_status.step_len)
+                || prev_tmc2209_status.steps != g_tmc2209_status.steps) {
+                tmc2209_init_with(g_tmc2209_status);
+                prev_tmc2209_status.step_len = g_tmc2209_status.step_len;
+                prev_tmc2209_status.steps = g_tmc2209_status.steps;
+            }
+            float step_len = g_tmc2209_status.up ? g_tmc2209_status.step_len : -g_tmc2209_status.step_len;
+            maix::log::info("step_len %d: %f", g_tmc2209_status.up?1:0, step_len);
+            for (int i = 0; i < g_tmc2209_status.steps; ++i) {
+                g_slide->move(step_len);
+                if (g_ui_stack_status.is_set_start_point && !g_ui_stack_status.is_set_end_point) {
+                    g_ui_stack_status.move_len += step_len;
+                }
+            }
+            g_tmc2209_status.run = false;
+        }
+
+        if (g_camera_mode == 0) {
+            static bool __can_move = true;
+            static std::future<void> __fut = std::async([](){});
+            if (g_ui_stack_status.need_reset) {
+                maix::log::info("reset start");
+
+                g_ui_stack_status.reset_len = -g_ui_stack_status.move_len;
+                // g_ui_stack_status.reset_len = std::fabs(g_ui_stack_status.reset_len);
+                // g_ui_stack_status.reset_len = (g_ui_stack_status.move_len>=0) ?
+                //     -g_ui_stack_status.reset_len : g_ui_stack_status.reset_len;
+
+                float _fast_len = floor(g_ui_stack_status.reset_len);
+                float _nom_len = g_ui_stack_status.reset_len - static_cast<int>(g_ui_stack_status.reset_len);
+                int _nom_steps = static_cast<int>(_nom_len / 0.0028);
+
+                tmc2209_init_with(__high_speed_1mmx1);
+                for (int i = 0; i < std::fabs(_fast_len); ++i) {
+                    g_slide->move((g_ui_stack_status.reset_len>=0)?1:-1);
+                }
+                tmc2209_init_with(__low_speed_2um8x4);
+                for (int i = 0; i < std::fabs(_nom_steps); ++i) {
+                    g_slide->move((g_ui_stack_status.reset_len>=0)?0.0224:-0.0224);
+                }
+
+                g_ui_stack_status.reset_len = 4000;
+                g_ui_stack_status.run = 2;
+
+                ui_stack_status_reset();
+                g_ui_stack_status.need_reset = 0;
+            }
+            do {if (g_ui_stack_status.run == 2) {
+                // auto rt = time::ticks_ms();
+                // if (rt - _stack_lt < static_cast<decltype(rt)>(g_ui_stack_status.wait_time_ms)) {
+                //     break;
+                // }
+                // _stack_lt = rt;
+                // maix::log::info("stack cap start, %d", g_ui_stack_status.shot_steps_cnt);
+                if (!__can_move) {
+                    break;
+                }
+                tmc2209_init_with(__low_speed_2um8x4);
+                if (pic_cnt >= g_ui_stack_status.shot_number) {
+                    pic_cnt = 0;
+                    g_ui_stack_status.run = 0;
+                    if (g_ui_stack_status.reset_at_end_mode)
+                        g_ui_stack_status.need_reset = 1;
+                    update_stack_start_btn();
+                    reset_stack_start_btn();
+                }
+                float _a = std::fabs(g_ui_stack_status.move_len / 0.0028 / g_ui_stack_status.shot_number);
+                float step_len = g_ui_stack_status.move_len>=0 ? __low_speed_2um8x4.step_len : -__low_speed_2um8x4.step_len;
+                // maix::log::info("steps cnt: %f, step: %f", _a, step_len);
+                for (int i = 0; i < _a; ++i) {
+                    g_slide->move(step_len);
+                }
+                g_ui_stack_status.reset_len += g_ui_stack_status.shot_steps_cnt*0.0028;
+                __fut.get();
+                __fut = std::move(std::async(std::launch::async, [&](){
+                    // maix::log::info("need wait %d ms, sleep start", g_ui_stack_status.wait_time_ms);
+                    // auto _slt = time::ticks_ms();
+                    // maix::log::info("sleep lt: %llu", _slt);
+                    time::sleep_ms(g_ui_stack_status.wait_time_ms);
+                    // auto _srt = time::ticks_ms();
+                    // maix::log::info("sleep rt: %llu, %llu", _srt, _srt-_slt);
+                    // time::sleep_ms(5);
+                    touch_start_pic();
+                    pic_cnt++;
+                    __can_move = true;
+                }));
+                __can_move = false;
+            }} while(0);
+            if (g_ui_stack_status.run == 1) {
+                if (!almost_eq(g_ui_stack_status.reset_len, 4000)) {
+                    maix::log::info("reset start point and start");
+                    g_ui_stack_status.reset_len = -g_ui_stack_status.move_len;
+
+                    float _fast_len = floor(g_ui_stack_status.reset_len);
+                    float _nom_len = g_ui_stack_status.reset_len - static_cast<int>(g_ui_stack_status.reset_len);
+                    int _nom_steps = std::abs(static_cast<int>(_nom_len / 0.0028));
+
+                    // maix::log::info("fast len: %f, nom len: %f, nom step: %d", _fast_len, _nom_len, _nom_steps);
+
+                    tmc2209_init_with(__high_speed_1mmx1);
+                    for (int i = 0; i < std::fabs(floor(_fast_len)); ++i) {
+                        g_slide->move((g_ui_stack_status.reset_len>=0)?1:-1);
+                    }
+                    tmc2209_init_with(__low_speed_2um8x4);
+                    for (int i = 0; i < _nom_steps; ++i) {
+                        g_slide->move((g_ui_stack_status.reset_len>=0)?0.0224:-0.0224);
+                    }
+                }
+                g_ui_stack_status.reset_len = 0;
+                g_ui_stack_status.run = 2;
+                __can_move = true;
+
+                memset(_stack_buf, 0x00, std::size(_stack_buf));
+                std::time_t now = std::time(nullptr);
+                std::tm* local_time = std::localtime(&now);
+                int hour = local_time->tm_hour;
+                int minute = local_time->tm_min;
+                int second = local_time->tm_sec;
+                snprintf(_stack_buf, std::size(_stack_buf), "%d_%d_%d", hour, minute, second);
+                _stack_pic_cnt = 0;
+            }
+        } else {
+            if (g_ui_stack_status.run) {
+                ui_stack_status_reset();
+                g_ui_stack_status.run = 0;
+            }
+        }
+    )
+}
+
 int app_base_loop(void)
 {
+    static int pic_cnt = 0;
+
+    slide_run_main(pic_cnt);
+    shot_tp_main();
+
     void *frame = NULL;
     bool found_camera_frame = false;
     mmf_frame_info_t f;
@@ -464,6 +866,68 @@ int app_base_loop(void)
         // Push frame to encoder
         int enc_ch = 1;
 
+        static std::unique_ptr<ImageClarityEvaluationMethod> icem = std::make_unique<EngeryOfGradient>();
+        static int focus_x = 0;
+        static int focus_y = 0;
+        static bool auto_focus_start = false;
+
+        auto get_clarity = [&](bool save=false){
+            // auto lt = maix::time::ticks_ms();
+            cv::Mat cv_img;
+            std::unique_ptr<image::Image> grayi;
+            {
+                image::Format fmt = image::Format::FMT_YVU420SP;
+                std::unique_ptr<image::Image> img = std::make_unique<image::Image>(f.w, f.h, fmt, (uint8_t *)f.data, f.len, true);
+                int crop_w = (f.w == 640) ? 320 : 640;
+                int crop_h = (f.h == 480) ? 240 : 480;
+                int start_x = std::max(0, focus_x - crop_w / 2);
+                int start_y = std::max(0, focus_y - crop_h / 2);
+                if (start_x + crop_w > img->width()) {
+                    start_x = img->width() - crop_w;
+                }
+                if (start_y + crop_h > img->height()) {
+                    start_y = img->height() - crop_h;
+                }
+                /* Unsupport */
+                // std::unique_ptr<image::Image> cropi = std::unique_ptr<image::Image>(img->crop(start_x, start_y, crop_w, crop_h));
+                // grayi = std::unique_ptr<image::Image>(cropi->to_format(image::Format::FMT_GRAYSCALE));
+                std::unique_ptr<image::Image> __tmpi = std::unique_ptr<image::Image>(img->to_format(image::Format::FMT_GRAYSCALE));
+                grayi = std::unique_ptr<image::Image>(__tmpi->crop(start_x, start_y, crop_w, crop_h));
+                cv_img = cv::Mat(grayi->height(), grayi->width(), CV_8UC1, grayi->data());
+            }
+            // maix::log::info("get a cvMat");
+            auto ret_ = icem->clarity(cv_img, focus_x, focus_y);
+
+            if (save) {
+                // memset(_stack_buf, 0x00, std::size(_stack_buf));
+                _stack_dis = std::fabs(g_ui_stack_status.reset_len);
+                _stack_cla = ret_;
+                // snprintf(_stack_buf, std::size(_stack_buf), "dis_%0.4f_cla_%0.2f.png", _stack_dis, _stack_cla);
+                // maix::log::info("dis = %0.5f, clarity=%0.2f", _stack_dis, _stack_cla);
+            }
+            _stack_save = save;
+            // maix::log::info("cla used: %llu", maix::time::ticks_ms()-lt);
+            return ret_;
+        };
+
+        /* auto focus */
+        TMC2209_EXIST_DO(
+            do {
+                if (!auto_focus_start && !g_ui_stack_status.run) {
+                    if (g_auto_focus == std::nullopt) break;
+                    focus_x = g_auto_focus.value().x;
+                    focus_y = g_auto_focus.value().y;
+                    g_auto_focus = std::nullopt;
+                    auto_focus_start = true;
+                }
+
+                if (auto_focus_start) {
+                    auto_focus_main(get_clarity, auto_focus_start);
+                }
+
+            } while (0);
+        )
+
         // Snap picture
         if (priv.cam_snap_flag) {
             priv.cam_snap_flag = false;
@@ -475,6 +939,11 @@ int app_base_loop(void)
                 _mmf_vi_frame_free(ch, &frame);
                 return -1;
             }
+
+            focus_x = f.w/2;
+            focus_y = f.h/2;
+            get_clarity(true);
+            // get_clarity(false);
 
             _capture_image(*priv.camera, img);
             delete img;
@@ -935,6 +1404,19 @@ static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img
                 image::Image *load_img = image::load((char *)picture_save_path.c_str());
                 maix::image::Image *thumbnail_img = load_img->resize(128, 128, image::Fit::FIT_COVER);
                 thumbnail_img->save(thumbnail_path.c_str());
+                if (_stack_save) {
+                    _stack_pic_cnt++;
+                    std::filesystem::path stack_save_path = picture_path;
+                    stack_save_path = stack_save_path/std::string(_stack_buf);
+                    if (!std::filesystem::exists(stack_save_path)) {
+                        std::filesystem::create_directory(stack_save_path);
+                        maix::log::info("create stack save path: %s", stack_save_path.c_str());
+                    }
+                    stack_save_path = stack_save_path/std::to_string(_stack_pic_cnt).append(".jpg");
+                    try {
+                        std::filesystem::copy_file(picture_save_path, stack_save_path, std::filesystem::copy_options::overwrite_existing);
+                    } catch (...) {}
+                }
                 delete thumbnail_img;
                 delete load_img;
 
@@ -942,7 +1424,8 @@ static void _capture_image(maix::camera::Camera &camera, maix::image::Image *img
 
                 printf("update small and big img\n");
                 maix::image::Image *new_img = maix::image::load((char *)picture_save_path.c_str(), maix::image::FMT_RGB888);
-                ui_anim_run_save_img();
+                if (!g_ui_stack_status.run)
+                    ui_anim_run_save_img();
                 _ui_update_pic_img(new_img);
                 delete new_img;
             } else {
