@@ -60,11 +60,6 @@ namespace maix::nn
             }
         }
 
-        std::string type()
-        {
-            return _extra_info["type"];
-        }
-
         /**
          * Load model from file
          * @param model Model path want to load
