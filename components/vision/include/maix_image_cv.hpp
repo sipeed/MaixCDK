@@ -1,3 +1,5 @@
+#pragma once
+
 #include "maix_image.hpp"
 #include "opencv2/opencv.hpp"
 
