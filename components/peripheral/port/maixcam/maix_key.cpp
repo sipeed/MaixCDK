@@ -15,6 +15,8 @@
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <dirent.h>
+#include <fstream>
+#include <sstream>
 #include "maix_app.hpp"
 #include "maix_log.hpp"
 #include "maix_i2c.hpp"
@@ -300,7 +302,7 @@ namespace maix::peripheral::key
         if (data->io_fd > 0) {
             close(data->io_fd);
         }
-        fs::remove(KEY_DEVICE1);
+        ::unlink(KEY_DEVICE1);
     }
 
     Key::Key(std::function<void(int, int)> callback, bool open, const string &device, int long_press_time)
@@ -310,6 +312,7 @@ namespace maix::peripheral::key
         this->_callback = callback;
         this->_data = nullptr;
         this->_device = device;
+        this->_device_list = {};
         Port_Data *data = new Port_Data();
         this->_data = data;
         if (!this->_data)
@@ -329,9 +332,18 @@ namespace maix::peripheral::key
         data->key = this;
         data->callback = callback;
 
-        if (sys::device_id() == "maixcam_pro" && 
+        err::Err e = get_key_devices();
+        if (e != err::Err::ERR_NONE || _device_list.empty()) {
+            log::warn("Failed to get key devices, use default device: %s.", KEY_DEVICE0);
+            _device_list.push_back(KEY_DEVICE0);
+        } else {
+            log::info("Get key devices success.");
+        }
+
+        if (std::find(_device_list.begin(), _device_list.end(), KEY_DEVICE1) != _device_list.end() &&
             !fs::exists(KEY_DEVICE1) &&
-            (device == "" || device == KEY_DEVICE1)) {
+            (device == "" || device == KEY_DEVICE1))
+        {
             log::info("%s: Init pmu power key.", sys::device_name().c_str());
             _init_power_key((void*)data);
         }
@@ -408,13 +420,7 @@ namespace maix::peripheral::key
             int fd = ::open(KEY_DEVICE, O_RDONLY);
             if (fd < 0)
             {
-                std::vector<std::string> key_devices;
-                if (sys::device_id() == "maixcam_pro" && fs::exists(KEY_DEVICE1)) {
-                    key_devices = {KEY_DEVICE0, KEY_DEVICE1};
-                } else {
-                    key_devices = {KEY_DEVICE0};
-                }
-                for (const auto& device : key_devices) {
+                for (const auto& device : _device_list) {
                     int fd = ::open(device.c_str(), O_RDONLY);
                     if (fd == -1) {
                         log::error(("Failed to open device: " + device).c_str());
@@ -544,6 +550,35 @@ namespace maix::peripheral::key
         } else {
             return data->long_press_time = press_time;
         }
+    }
+
+    err::Err Key::get_key_devices()
+    {
+        std::ifstream file("/boot/board");
+        if (!file.is_open()) {
+            return err::Err::ERR_NOT_FOUND;
+        }
+
+        auto device_configs = sys::device_configs();
+        auto it = device_configs.find("key_devices");
+
+        if (it == device_configs.end()) {
+            return err::Err::ERR_NOT_FOUND;
+        }
+
+        std::stringstream ss(it->second);
+        std::string device;
+
+        _device_list.clear();
+        while (std::getline(ss, device, ',')) {
+            device.erase(device.find_last_not_of(" \n\r\t")+1);
+            device.erase(0, device.find_first_not_of(" \n\r\t"));
+            if (!device.empty()) {
+                _device_list.push_back(device);
+            }
+        }
+
+        return err::Err::ERR_NONE;
     }
 
 } // namespace maix::peripheral::key
