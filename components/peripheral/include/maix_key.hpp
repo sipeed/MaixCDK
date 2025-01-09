@@ -22,6 +22,9 @@ namespace maix::peripheral::key
     enum Keys{
         KEY_NONE   = 0x000,
         KEY_ESC    = 0x001,
+        KEY_SPACE  = 0x039,
+        KEY_LEFT   = 0x069,
+        KEY_RIGHT  = 0x06a,
         KEY_POWER  = 0x074,
         KEY_OK     = 0x160,
         KEY_OPTION = 0x165,
@@ -115,8 +118,11 @@ namespace maix::peripheral::key
     private:
         std::vector<int> _fds;
         std::string _device;
+        std::vector<std::string> _device_list;
         std::function<void(int, int)> _callback;
         void *_data;
+
+        err::Err get_key_devices();
     };
 
     /**

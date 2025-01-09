@@ -142,6 +142,7 @@ namespace maix::peripheral::key
         this->_callback = callback;
         this->_data = nullptr;
         this->_device = "";
+        this->_device_list = {};
         Port_Data *data = new Port_Data();
         this->_data = data;
         if (!this->_data)
@@ -338,6 +339,11 @@ namespace maix::peripheral::key
         } else {
             return data->long_press_time = press_time;
         }
+    }
+
+    err::Err Key::get_key_devices()
+    {
+        return err::Err::ERR_NOT_IMPL;
     }
 
 } // namespace maix::peripheral::key
