@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <string.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string>
 #include <array>
