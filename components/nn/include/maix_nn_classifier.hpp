@@ -34,6 +34,7 @@ namespace maix::nn
         {
             _model = nullptr;
             _dual_buff = dual_buff;
+            _chw = true;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -102,6 +103,10 @@ namespace maix::nn
                 {
                     _input_img_fmt = maix::image::FMT_BGR888;
                 }
+                else if (input_type == "gray")
+                {
+                    _input_img_fmt = maix::image::FMT_GRAYSCALE;
+                }
                 else
                 {
                     log::error("unknown input type: %s", input_type.c_str());
@@ -158,6 +163,12 @@ namespace maix::nn
                 log::error("scale key not found");
                 return err::ERR_ARGS;
             }
+            if (_extra_info.find("input_channel") != _extra_info.end())
+            {
+                std::string channel_str = _extra_info["input_channel"];
+                if(channel_str == "hwc")
+                    _chw = false;
+            }
             err::Err e = _model->extra_info_labels(labels);
             if(e == err::Err::ERR_NONE)
             {
@@ -169,7 +180,10 @@ namespace maix::nn
                 return err::ERR_ARGS;
             }
             _inputs = _model->inputs_info();
-            _input_size = image::Size(_inputs[0].shape[3], _inputs[0].shape[2]);
+            if(_chw)
+                _input_size = image::Size(_inputs[0].shape[3], _inputs[0].shape[2]);
+            else
+                _input_size = image::Size(_inputs[0].shape[2], _inputs[0].shape[1]);
             return err::ERR_NONE;
         }
 
@@ -212,7 +226,7 @@ namespace maix::nn
                 throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
             }
             tensor::Tensors *outputs;
-            outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
+            outputs = _model->forward_image(img, this->mean, this->scale, fit, false, false, _chw);
             if (!outputs)
             {
                 std::vector<std::pair<int, float>> *res = new std::vector<std::pair<int, float>>(1);
@@ -334,6 +348,7 @@ namespace maix::nn
         image::Format _input_img_fmt;
         bool _input_is_img;
         bool _dual_buff;
+        bool _chw;
         nn::NN *_model;
         std::map<string, string> _extra_info;
         image::Size _input_size;
