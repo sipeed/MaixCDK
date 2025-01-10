@@ -272,14 +272,19 @@ namespace maix::nn
          * @param x,y,w,h face rectangle, x,y is left-top point.
          * @param img source image
          * @param points  2 points, eye_left_x, eye_left_y, eye_right_x, eye_right_y
+         * @param scale crop size scale relative to rectangle's max side length(w or h), final value is `scale *max(w, h)`,default 1.2.
          * @maixpy maix.nn.FaceLandmarks.crop_image
          */
-        maix::image::Image *crop_image(maix::image::Image &img, int x, int y, int w, int h, std::vector<int> points)
+        maix::image::Image *crop_image(maix::image::Image &img, int x, int y, int w, int h, std::vector<int> points, int new_width = -1, int new_height = -1, float scale = 1.2)
         {
+            if(new_width == -1)
+                new_width = _input_size.width();
+            if(new_height == -1)
+                new_height = _input_size.height();
             int cx = x + w * 0.5;
             int cy = y + h * 0.5;
             int new_size = w > h ? w : h;
-            new_size += new_size * 0.2;
+            new_size *= scale;
             float theta = atan2(points[3] - points[1], points[2] - points[0]);
             cv::Mat A = (cv::Mat_<float>(4, 2) << -1, -1, -1, 1, 1, 1, 1, -1);
             cv::Mat R = (cv::Mat_<float>(2, 2) << cos(theta), sin(theta), -sin(theta), cos(theta));
@@ -291,18 +296,18 @@ namespace maix::nn
                 C.at<float>(i, 1) += cy;
             }
             cv::Mat element = C(cv::Range(0, 3), cv::Range(0, 2));
-            cv::Mat dst = (cv::Mat_<float>(3, 2) << 0, 0, 0, _input_size.height(), _input_size.width(), _input_size.height());
+            cv::Mat dst = (cv::Mat_<float>(3, 2) << 0, 0, 0, new_height, new_width, new_height);
             auto M = cv::getAffineTransform(element, dst);
-            image::Image *img_dst = new image::Image(_input_size.width(), _input_size.height(), image::FMT_RGB888);
+            image::Image *img_dst = new image::Image(new_width, new_height, image::FMT_RGB888);
             if(!img_dst)
             {
                 log::error("no memory");
                 return nullptr;
             }
-            cv::Mat img_dst2(_input_size.height(), _input_size.width(), CV_8UC3, img_dst->data());
+            cv::Mat img_dst2(new_height, new_width, CV_8UC3, img_dst->data());
             cv::Mat img_src;
             image::image2cv(img, img_src, false, false);
-            cv::warpAffine(img_src, img_dst2, M, cv::Size(_input_size.width(), _input_size.height()), cv::INTER_NEAREST);
+            cv::warpAffine(img_src, img_dst2, M, cv::Size(new_width, new_height), cv::INTER_NEAREST);
             assert(img_dst2.data() == img_dst->data());
 
             cv::invertAffineTransform(M, _M_inverse);

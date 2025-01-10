@@ -60,6 +60,7 @@ int _main(int argc, char *argv[])
             detector.draw_pose(*img, r->points, 4, image::COLOR_RED);
         }
         img->save("result.jpg");
+        log::info("saved result image to result.jpg");
         delete result;
         delete img;
     }
