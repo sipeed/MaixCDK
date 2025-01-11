@@ -25,13 +25,13 @@
 #include "app.hpp"
 
 #include "maix_cmap.hpp"
-#include "maix_opns303x.hpp"
+#include "maix_tof100.hpp"
 #include "mix.hpp"
 
 using namespace maix;
 using namespace maix::image;
 
-using namespace maix::ext_dev::opns303x;
+using namespace maix::ext_dev::tof100;
 
 void point_map_init_with_res(Resolution res)
 {
@@ -80,19 +80,19 @@ int _main(int argc, char **argv)
 
     float aspect_ratio = static_cast<float>(disp.width()) / disp.height();
 
-    std::unique_ptr<Opns303x> opns;
+    std::unique_ptr<Tof100> opns;
     int OPNS_MIN_DIS_MM = 40; // 4cm
     int OPNS_MAX_DIS_MM = 750; // 100cm
 
     try {
         /* try to init opns */
-        opns.reset(new Opns303x(4, prev_res, prev_cmap, OPNS_MIN_DIS_MM, OPNS_MAX_DIS_MM));
+        opns.reset(new Tof100(4, prev_res, prev_cmap, OPNS_MIN_DIS_MM, OPNS_MAX_DIS_MM));
     } catch (...) {
         eprintln("Device Not Found!");
         show_error(disp, touchscreen);
     }
 
-    // opns.reset(new Opns303x(4, prev_res, prev_cmap, OPNS_MIN_DIS_MM, OPNS_MAX_DIS_MM));
+    // opns.reset(new Tof100(4, prev_res, prev_cmap, OPNS_MIN_DIS_MM, OPNS_MAX_DIS_MM));
     ui_total_init(disp.width(), disp.height());
     point_map_init_with_res(prev_res);
     std::unique_ptr<camera::Camera> cam = std::make_unique<camera::Camera>(cam_onfo_o.w, cam_onfo_o.h);
@@ -101,7 +101,7 @@ int _main(int argc, char **argv)
             prev_cmap = g_cmap;
             prev_res = g_res;
             point_map_init_with_res(prev_res);
-            opns.reset(new Opns303x(4, prev_res, prev_cmap, 40, 1000));
+            opns.reset(new Tof100(4, prev_res, prev_cmap, 40, 1000));
         }
 
         auto matrix = opns->matrix();

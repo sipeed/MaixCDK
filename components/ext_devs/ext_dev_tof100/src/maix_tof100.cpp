@@ -1,8 +1,9 @@
-#include "maix_opns303x.hpp"
+#include "maix_tof100.hpp"
 #include "dragonfly.h"
 #include "maix_basic.hpp"
 #include "maix_pinmap.hpp"
 #include "maix_gpio.hpp"
+#include "dragonfly.h"
 
 #include <functional>
 
@@ -23,12 +24,12 @@
                             throw std::runtime_error(std::string(_buff));} while(0)
 
 
-namespace maix::ext_dev::opns303x {
+namespace maix::ext_dev::tof100 {
 
 constexpr TOFPoint empty_point{-1,-1, 0};
 
 const char* TAG() {
-    return "Maix OPNS303x";
+    return "Maix Tof100";
 }
 
 void _for_each_in_matrix(const TOFMatrix& matrix, std::function<void(int,int,uint32_t)> cb)
@@ -46,7 +47,7 @@ void _for_each_in_matrix(const TOFMatrix& matrix, std::function<void(int,int,uin
 }
 
 
-Opns303x::Opns303x(int spi_bus_num, Resolution resolution, ::maix::ext_dev::cmap::Cmap cmap, int dis_min, int dis_max)
+Tof100::Tof100(int spi_bus_num, Resolution resolution, ::maix::ext_dev::cmap::Cmap cmap, int dis_min, int dis_max)
     : _cmap(cmap), _min(dis_min), _max(dis_max), _wh(static_cast<uint32_t>(resolution)), _fps_limit(20) /* FPS: auto */
 {
 
@@ -87,11 +88,11 @@ Opns303x::Opns303x(int spi_bus_num, Resolution resolution, ::maix::ext_dev::cmap
 
     // msl_process_startup(this->_wh, this->_fps_limit, true);
     if (this->_wh == 25) {
-        this->_mode = MSL_BinningMode2_4x4;
+        this->_mode = static_cast<uint32_t>(MSL_BinningMode2_4x4);
     } else if (this->_wh == 50) {
-        this->_mode = MSL_BinningMode1_2x2;
+        this->_mode = static_cast<uint32_t>(MSL_BinningMode1_2x2);
     } else if (this->_wh == 100) {
-        this->_mode = MSL_BinningMode0_1x1;
+        this->_mode = static_cast<uint32_t>(MSL_BinningMode0_1x1);
     }
 
     msl_setup(this->_fps_limit, static_cast<BinningMode>(this->_mode), 1);
@@ -114,7 +115,7 @@ Opns303x::Opns303x(int spi_bus_num, Resolution resolution, ::maix::ext_dev::cmap
 
 }
 
-TOFMatrix Opns303x::matrix()
+TOFMatrix Tof100::matrix()
 {
     uint8_t* FrameBuf = this->_frame_buffer.get();
     int ret = SPII2CBurstDataRead(DATA_BASE_ADDRESS + DATA_OFFSET_ADDRESS,
@@ -211,27 +212,27 @@ TOFMatrix Opns303x::matrix()
     return res;
 }
 
-::maix::image::Image* Opns303x::image()
+::maix::image::Image* Tof100::image()
 {
     return this->image_from(this->matrix());
 }
 
-TOFPoint Opns303x::max_dis_point()
+TOFPoint Tof100::max_dis_point()
 {
     return this->_dis_max;
 }
 
-TOFPoint Opns303x::min_dis_point()
+TOFPoint Tof100::min_dis_point()
 {
     return this->_dis_min;
 }
 
-TOFPoint Opns303x::center_point()
+TOFPoint Tof100::center_point()
 {
     return this->_dis_center;
 }
 
-::maix::image::Image* Opns303x::image_from(const TOFMatrix& matrix)
+::maix::image::Image* Tof100::image_from(const TOFMatrix& matrix)
 {
     if (matrix.empty()) return nullptr;
 
@@ -292,7 +293,7 @@ TOFPoint Opns303x::center_point()
     return new ::maix::image::Image(this->_wh, this->_wh, image::FMT_RGB888, buffer, this->_data_size*3, true);
 }
 
-TOFPoint Opns303x::max_dis_point_from(const TOFMatrix& matrix)
+TOFPoint Tof100::max_dis_point_from(const TOFMatrix& matrix)
 {
     int _x, _y;
     uint32_t v = std::numeric_limits<uint32_t>::min();
@@ -306,7 +307,7 @@ TOFPoint Opns303x::max_dis_point_from(const TOFMatrix& matrix)
     return std::make_tuple(_x, _y, v);
 }
 
-TOFPoint Opns303x::min_dis_point_from(const TOFMatrix& matrix)
+TOFPoint Tof100::min_dis_point_from(const TOFMatrix& matrix)
 {
     int _x, _y;
     uint32_t v = std::numeric_limits<uint32_t>::max();
@@ -320,7 +321,7 @@ TOFPoint Opns303x::min_dis_point_from(const TOFMatrix& matrix)
     return std::make_tuple(_x, _y, v);
 }
 
-TOFPoint Opns303x::center_point_from(const TOFMatrix& matrix)
+TOFPoint Tof100::center_point_from(const TOFMatrix& matrix)
 {
     return std::make_tuple(matrix.size()/2, matrix.at(0).size()/2, matrix[matrix.at(0).size()/2][matrix.size()/2]);
 }

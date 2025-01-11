@@ -6,7 +6,7 @@
 #include <memory>
 #include <tuple>
 #include "maix_cmap.hpp"
-#include "maix_opns303x.hpp"
+#include "maix_tof100.hpp"
 
 #include "calibration.hpp"
 
@@ -73,7 +73,7 @@ LV_OBJ_NEW_WITH_NULL(clear_setting);
 
 /* default cmap */
 using namespace maix::ext_dev::cmap;
-using namespace maix::ext_dev::opns303x;
+using namespace maix::ext_dev::tof100;
 inline static Cmap g_cmap{Cmap::JET};
 inline static Resolution g_res{Resolution::RES_50x50};
 
