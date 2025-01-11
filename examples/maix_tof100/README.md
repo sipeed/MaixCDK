@@ -1,4 +1,4 @@
-tof_opns303x Project based on MaixCDK
+tof100 Project based on MaixCDK
 ====
 
 

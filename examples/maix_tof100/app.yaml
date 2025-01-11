@@ -1,10 +1,10 @@
-id: tof_opns303x
-name: tof_opns303x
+id: maix_tof100
+name: maix_tof100
 name[zh]:
 version: 1.0.0
 #icon: assets/hello.png
-author: 
-desc: 
+author:
+desc:
 desc[zh]:
 files:
   # assets: assets

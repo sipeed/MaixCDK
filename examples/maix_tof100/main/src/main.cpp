@@ -3,12 +3,12 @@
 #include "main.h"
 
 #include "maix_display.hpp"
-#include "maix_opns303x.hpp"
+#include "maix_tof100.hpp"
 #include "maix_pinmap.hpp"
 
 using namespace maix;
 using namespace maix::display;
-using namespace maix::ext_dev::opns303x;
+using namespace maix::ext_dev::tof100;
 using namespace maix::peripheral::pinmap;
 using namespace maix::ext_dev::cmap;
 
@@ -31,7 +31,7 @@ int _main(int argc, char* argv[])
 
     auto disp = Display();
 
-    auto tof = Opns303x(4, Resolution::RES_100x100, Cmap::JET, 40, 1000);
+    auto tof = Tof100(4, Resolution::RES_100x100, Cmap::JET, 40, 1000);
 
     while (!app::need_exit()) {
         auto img = tof.image();

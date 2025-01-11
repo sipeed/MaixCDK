@@ -7,6 +7,7 @@
 #include "maix_basic.hpp"
 
 #include "pointing_device.hpp"
+#include "lv_indev_private.h"
 
 // extern "C" {
 // #include "cursor_48.c"
@@ -99,6 +100,7 @@ namespace maix
          * Use the 'mouse' driver which reads the PC's mouse*/
 #if CONFIG_LVGL_USE_MOUSE
         lv_indev_t * indev = lv_indev_create();
+        indev->long_press_repeat_time = 100;
         lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
         pointing_device_init(indev);
         lv_indev_set_read_cb(indev, pointing_device_read);

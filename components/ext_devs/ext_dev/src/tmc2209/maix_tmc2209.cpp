@@ -3,6 +3,7 @@
 #include <fstream>
 #include <deque>
 #include <memory>
+#include "TMC2209.h"
 
 namespace maix::ext_dev::tmc2209 {
 
@@ -572,6 +573,8 @@ Slide::Slide(const char* port, uint8_t addr, long baud, /* Uart init param */
     this->tmc2209->setMicrostepsPerStep(micro_step);
 }
 
+Slide::~Slide() {}
+
 void Slide::load_conf(std::string path)
 {
     if (path.empty()) {
@@ -775,6 +778,8 @@ ScrewSlide::ScrewSlide(const char* port, uint8_t addr, long baud, /* Uart init p
     this->tmc2209->enableCoolStep();
     this->tmc2209->setMicrostepsPerStep(micro_step);
 }
+
+ScrewSlide::~ScrewSlide() {}
 
 void ScrewSlide::move(float oft, int speed_mm_s, std::function<bool(float)> callback)
 {

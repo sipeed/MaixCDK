@@ -18,7 +18,6 @@
 #include "maix_basic.hpp"
 #include "maix_gpio.hpp"
 #include "maix_spi.hpp"
-// #include "maix_pinmap.hpp"
 
 
 #define bflb_platform_delay_ms(ms) maix::time::sleep_ms(ms)
@@ -49,9 +48,6 @@ using namespace maix::peripheral::gpio;
 inline static std::unique_ptr<SPI> _spi{nullptr};
 
 #define g_spi (_spi.get())
-
-// std::vector<uint8_t> tof_packet(const std::vector<uint32_t>& data);
-// std::vector<uint8_t> opns303x_read(SPI& spi, uint32_t start_addr, uint32_t rlen);
 
 int tof_init(int spi_id)
 {
@@ -90,21 +86,6 @@ void clone_with_rearrange_rx(const uint8_t* from, uint32_t fsize, uint32_t* to) 
 
 int spi_transmit_receive(SPI* dev, const void *send_buf, void *recv_buf, uint32_t length, uint8_t type)
 {
-    // if (type != 3)
-    //     return -1;
-
-    // void *modifiable_send_buf = const_cast<void*>(send_buf);
-    // uint8_t* tp = reinterpret_cast<uint8_t*>(modifiable_send_buf);
-    // uint8_t* rp = reinterpret_cast<uint8_t*>(recv_buf);
-    // uint32_t p_len = length*4;
-    // maix::Bytes tb(tp, p_len, false, false);
-    // // maix::Bytes rb(rp, p_len, false, false);
-
-    // auto rb = dev->write_read(&tb, p_len);
-    // ::memcpy(rp, rb->data, rb->data_len);
-    // delete rb;
-
-    // return 0;
     if (type != 3)
         return -1;
 
@@ -115,7 +96,6 @@ int spi_transmit_receive(SPI* dev, const void *send_buf, void *recv_buf, uint32_
 
     auto rx_b = std::unique_ptr<maix::Bytes>(dev->write_read(&tx_b, u8_len));
     clone_with_rearrange_rx(rx_b->data, length, reinterpret_cast<uint32_t*>(recv_buf));
-    // delete rx_b;
 
 #if 0
     maix::log::info0("spi_transmit_receive [RW]Tx: ");
@@ -134,12 +114,6 @@ int spi_transmit_receive(SPI* dev, const void *send_buf, void *recv_buf, uint32_
 
 int spi_transmit(SPI* dev, void *buffer, uint32_t size, uint8_t type)
 {
-    // if (type != 3)
-    //     return -1;
-    // uint8_t* p = reinterpret_cast<uint8_t*>(buffer);
-    // uint32_t p_size = size*4;
-    // maix::Bytes b(p, p_size, false, false);
-    // return dev->write(&b);
     if (type != 3)
         return -1;
 
@@ -157,48 +131,5 @@ int spi_transmit(SPI* dev, void *buffer, uint32_t size, uint8_t type)
 
     return dev->write(&tx_b)>0 ? 0 : -1;
 }
-
-// std::vector<uint8_t> tof_packet(const std::vector<uint32_t>& data)
-// {
-//     auto vec_u8_push_u32 = [](std::vector<uint8_t>& result_, uint32_t d) {
-//         result_.push_back(static_cast<uint8_t>((d>>24)&0xFF));
-//         result_.push_back(static_cast<uint8_t>((d>>16)&0xFF));
-//         result_.push_back(static_cast<uint8_t>((d>>8)&0xFF));
-//         result_.push_back(static_cast<uint8_t>(d&0xFF));
-//     };
-
-//     std::vector<uint8_t> result;
-
-//     for (const auto i : data) {
-//         vec_u8_push_u32(result, i);
-//     }
-
-//     return result;
-// }
-
-// std::vector<uint8_t> opns303x_read(SPI& spi, uint32_t start_addr, uint32_t rlen)
-// {
-//     const std::vector<uint32_t> u32_data {
-//         0x00000001,
-//         start_addr,
-//         0x00000000,
-//         0x00000000,
-//     };
-
-//     auto u8_data = tof_packet(u32_data);
-//     uint32_t u8_data_len = static_cast<uint32_t>(u8_data.size());
-
-//     auto r = spi.write_read(u8_data, u8_data_len+rlen);
-
-//     return {r.begin()+u8_data_len, r.end()};
-// }
-
-
-
-
-
-
-
-
 
 #endif
