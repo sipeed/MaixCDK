@@ -19,11 +19,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "app_ex.hpp"
+#include "maix_fp5510.hpp"
+#include "focus.hpp"
 
 #include <numeric>
 #include <future>
 #include <filesystem>
 #include <ctime>
+
+#include <mutex>
+#include <thread>
 
 using namespace maix;
 using namespace maix::peripheral;
@@ -80,6 +85,31 @@ static struct {
     int timelapse_s;
     bool audio_en;
 } priv;
+
+static void __find_fp5510(bool& flag, int id=-1, int slave_addr=-1, int freq=-1)
+{
+    using maix::ext_dev::fp5510::FP5510;
+    try {
+        if (id == -1 && slave_addr == -1 && freq == -1) {
+            FP5510{};
+        } else {
+            FP5510(id, slave_addr, freq);
+        }
+    } catch (...) {
+        flag = false;
+        return;
+    }
+    flag = true;
+    log::info("Found FP5510");
+}
+
+static bool fp5510_exist(int id=-1, int slave_addr=-1, int freq=-1)
+{
+    static bool cached = false;
+    static std::once_flag flag;
+    std::call_once(flag, __find_fp5510, cached, id, slave_addr, freq);
+    return cached;
+}
 
 static void set_audio_enable(bool en)
 {
@@ -450,8 +480,8 @@ int app_base_deinit(void)
 }
 
 static bool _stack_save = false;
-static float _stack_dis = 0;
-static float _stack_cla = 0;
+// static float _stack_dis = 0;
+// static float _stack_cla = 0;
 static char _stack_buf[128];
 static int _stack_pic_cnt = 0;
 
@@ -831,8 +861,21 @@ void slide_run_main(int& pic_cnt)
     )
 }
 
+// static void show_loop_used_time()
+// {
+//     static uint64_t ltime = time::ticks_ms();
+//     auto rtime = time::ticks_ms();
+//     log::info("loop used %llu ms", rtime - ltime);
+//     ltime = rtime;
+// }
+
 int app_base_loop(void)
 {
+    // auto fps = time::fps();
+    // log::info("curr fps: %0.2f", fps);
+
+    // show_loop_used_time();
+
     static int pic_cnt = 0;
 
     slide_run_main(pic_cnt);
@@ -869,10 +912,23 @@ int app_base_loop(void)
         static std::unique_ptr<ImageClarityEvaluationMethod> icem = std::make_unique<EngeryOfGradient>();
         static int focus_x = 0;
         static int focus_y = 0;
+        static int focus_x_map = 0;
+        static int focus_y_map = 0;
+        static MAIX_FOCUS_NAMESPACE::PointMapper focus_point_mapper{640, 480, f.w, f.h};
         static bool auto_focus_start = false;
 
         auto get_clarity = [&](bool save=false){
             // auto lt = maix::time::ticks_ms();
+            _stack_save = save;
+            if (save) {
+                // memset(_stack_buf, 0x00, std::size(_stack_buf));
+                // _stack_dis = std::fabs(g_ui_stack_status.reset_len);
+                // _stack_cla = ret_;
+                // snprintf(_stack_buf, std::size(_stack_buf), "dis_%0.4f_cla_%0.2f.png", _stack_dis, _stack_cla);
+                // maix::log::info("dis = %0.5f, clarity=%0.2f", _stack_dis, _stack_cla);
+                return 0.0f;
+            }
+
             cv::Mat cv_img;
             std::unique_ptr<image::Image> grayi;
             {
@@ -898,14 +954,6 @@ int app_base_loop(void)
             // maix::log::info("get a cvMat");
             auto ret_ = icem->clarity(cv_img, focus_x, focus_y);
 
-            if (save) {
-                // memset(_stack_buf, 0x00, std::size(_stack_buf));
-                _stack_dis = std::fabs(g_ui_stack_status.reset_len);
-                _stack_cla = ret_;
-                // snprintf(_stack_buf, std::size(_stack_buf), "dis_%0.4f_cla_%0.2f.png", _stack_dis, _stack_cla);
-                // maix::log::info("dis = %0.5f, clarity=%0.2f", _stack_dis, _stack_cla);
-            }
-            _stack_save = save;
             // maix::log::info("cla used: %llu", maix::time::ticks_ms()-lt);
             return ret_;
         };
@@ -926,7 +974,199 @@ int app_base_loop(void)
                 }
 
             } while (0);
-        )
+        ) else if (fp5510_exist()) {
+            do {
+#define FP5510_HILLCLIMBING 1
+#define FP5510_FULLSCAN 2
+#define FP5510_HILLCLIMBING_FUTURE 3
+#define FP5510_HILLCLIMBING_FUTURE_MINI 4
+#define FP5510_HILLCLIMBING_FUTURE_MINI_YVUCROP 5
+#define FP5510_ONLY_SET_POS_MIN_MAX 6
+
+#define FP5510_FOCUS_TYPE FP5510_HILLCLIMBING_FUTURE_MINI_YVUCROP
+
+                using namespace MAIX_FOCUS_NAMESPACE;
+                static maix::ext_dev::fp5510::FP5510 fp5510{};
+                static int fp5510_focus_w = 0;
+                static int fp5510_focus_h = 0;
+
+#if FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING
+                static Box<AutoFocusHillClimbing> fp5510_focus_impl{nullptr};
+#elif FP5510_FOCUS_TYPE == FP5510_FULLSCAN
+                static Box<FullScan> full_scan_impl{nullptr};
+                static int full_scan_cnt = 0;
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE
+                static Box<AutoFocusHCFuture> fp5510_focus_impl{nullptr};
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI || FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI_YVUCROP
+                static Box<AutoFocusHCFutureMini> fp5510_focus_impl{nullptr};
+#elif FP5510_FOCUS_TYPE == FP5510_ONLY_SET_POS_MIN_MAX
+                static int fp5510_pos = 0;
+#endif
+                /* dbg */
+                static uint64_t dbg_focus_total_ltime;
+                if (!auto_focus_start) {
+                    if (g_auto_focus == std::nullopt) break;
+                    bool impl_need_reset = false;
+                    auto point = g_auto_focus.value();
+                    if (focus_x != point.x || focus_y != point.y) {
+                        focus_x = point.x;
+                        focus_y = point.y;
+#if FP5510_FOCUS_TYPE != FP5510_FULLSCAN
+                        std::tie(focus_x_map, focus_y_map) =
+                            focus_point_mapper.map_s2d(focus_x, focus_y);
+#else
+                        std::tie(focus_x_map, focus_y_map) =
+                            focus_point_mapper.map_s2d(320, 240);
+#endif
+                        impl_need_reset = true;
+                    }
+                    if (f.w <= 640 && f.h <= 480 &&
+                        fp5510_focus_w != f.w /2 &&
+                        fp5510_focus_h != f.h / 2) {
+                        fp5510_focus_w = f.w / 2;
+                        fp5510_focus_h = f.h / 2;
+                        impl_need_reset = true;
+                    // } else if (fp5510_focus_w != 640 && fp5510_focus_h != 480) {
+                    //     fp5510_focus_w = 640;
+                    //     fp5510_focus_h = 480;
+                    //     impl_need_reset = true;
+                    // }
+                    } else if (fp5510_focus_w != 320 && fp5510_focus_h != 240) {
+                        fp5510_focus_w = 320;
+                        fp5510_focus_h = 240;
+                        impl_need_reset = true;
+                    }
+                    if (impl_need_reset) {
+                        maix::log::info("reset fp5510 focus impl");
+#if FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING
+                        fp5510_focus_impl.release();
+                        fp5510_focus_impl = std::make_unique<AutoFocusHillClimbing>(
+                            std::make_unique<CVMatCreater>(
+                                std::make_unique<ImageCropper>(
+                                    focus_x_map, focus_y_map, fp5510_focus_w, fp5510_focus_h,
+                                    std::make_unique<ImageGrayCreater>()
+                                )
+                            ),
+                            std::make_unique<CALaplace>(),
+                            [&](int pos) {
+                                pos = std::max(0, pos);
+                                fp5510.set_pos(pos);
+                            }, 0, 1023, -1, -1, 1
+                        );
+#elif FP5510_FOCUS_TYPE == FP5510_FULLSCAN
+                        maix::log::info("full scan %dx%d (%d,%d)",
+                            fp5510_focus_w, fp5510_focus_h, focus_x_map, focus_y_map);
+                        full_scan_impl.release();
+                        full_scan_impl = std::make_unique<FullScan>(
+                            std::make_unique<CVMatCreater>(
+                                std::make_unique<ImageGrayCreater>(
+                                    std::make_unique<ImageYVU420SPNV21Cropper>(
+                                        focus_x_map, focus_y_map, fp5510_focus_w, fp5510_focus_h
+                                    )
+                                )
+                            ),
+                            std::make_unique<CALaplace>(),
+                            [&](int pos) {
+                                pos = std::max(0, pos);
+                                fp5510.set_pos(pos);
+                            }, 0, 1023, 1, 1
+                        );
+                        full_scan_impl->set_save_path("/root/focus_full_scan");
+                        full_scan_cnt = 0;
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE
+                        fp5510_focus_impl.release();
+                        fp5510_focus_impl = std::make_unique<AutoFocusHCFuture>(
+                            std::make_unique<CVMatCreater>(
+                                std::make_unique<ImageGrayCreater>(
+                                    std::make_unique<ImageYVU420SPNV21Cropper>(
+                                        focus_x_map, focus_y_map, fp5510_focus_w, fp5510_focus_h
+                                    )
+                                )
+                            ),
+                            std::make_unique<CALaplace>(),
+                            [&](int pos) {
+                                pos = std::max(0, pos);
+                                fp5510.set_pos(pos);
+                            }, 0, 1023, -1, -1, 2
+                        );
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI
+                        fp5510_focus_impl.release();
+                        fp5510_focus_impl = std::make_unique<AutoFocusHCFutureMini>(
+                            std::make_unique<CVMatCreater>(
+                                std::make_unique<ImageCropper>(
+                                    focus_x_map, focus_y_map, fp5510_focus_w, fp5510_focus_h,
+                                    std::make_unique<ImageGrayCreater>()
+                                )
+                            ),
+                            std::make_unique<CALaplace>(),
+                            [&](int pos) {
+                                pos = std::max(0, pos);
+                                fp5510.set_pos(pos);
+                            }, 0, 1023, -1, -1, 2
+                        );
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI_YVUCROP
+                        fp5510_focus_impl.release();
+                        fp5510_focus_impl = std::make_unique<AutoFocusHCFutureMini>(
+                            std::make_unique<CVMatCreater>(
+                                std::make_unique<ImageGrayCreater>(
+                                    std::make_unique<ImageYVU420SPNV21Cropper>(
+                                        focus_x_map, focus_y_map, fp5510_focus_w, fp5510_focus_h
+                                    )
+                                )
+                            ),
+                            std::make_unique<CALaplace>(),
+                            [&](int pos) {
+                                pos = std::max(0, pos);
+                                fp5510.set_pos(pos);
+                            }, 0, 1023, -1, -1, 2
+                        );
+#endif
+                    }
+                    g_auto_focus = std::nullopt;
+                    auto_focus_start = true;
+                    dbg_focus_total_ltime = time::ticks_ms();
+                }
+                if (auto_focus_start) {
+                    // auto _create_oimg_lt = time::ticks_ms();
+                    image::Format fmt = image::Format::FMT_YVU420SP;
+                    ArcBox<image::Image> img = ArcBox<image::Image>(
+                            new image::Image(f.w, f.h, fmt, (uint8_t *)f.data, f.len, false)
+                    );
+                    // maix::log::info("create_oimg used %d", time::ticks_ms()-_create_oimg_lt);
+
+                    // auto dbg_focus_lt = time::ticks_ms();
+#if FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING
+                    if (fp5510_focus_impl->focus(img) == AutoFocusHillClimbing::AFMode::STOP) {
+                        auto_focus_start = false;
+                        log::info("FOCUS total used %llu ms", time::ticks_ms()-dbg_focus_total_ltime);
+                    }
+#elif FP5510_FOCUS_TYPE == FP5510_FULLSCAN
+                    full_scan_cnt++;
+                    if (full_scan_impl->scan(img) == FullScan::Mode::STOP
+                        /* || full_scan_cnt >= 100 */ ) {
+                        auto_focus_start = false;
+                        full_scan_impl->save("/root/focus_full_scan/info.txt");
+                    }
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE
+                    if (fp5510_focus_impl->focus(img) == AutoFocusHCFuture::Mode::STOP) {
+                        auto_focus_start = false;
+                        log::info("FOCUS total used %llu ms", time::ticks_ms()-dbg_focus_total_ltime);
+                    }
+#elif FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI || FP5510_FOCUS_TYPE == FP5510_HILLCLIMBING_FUTURE_MINI_YVUCROP
+                    if (fp5510_focus_impl->focus(img) == AutoFocusHCFutureMini::Mode::STOP) {
+                        auto_focus_start = false;
+                        log::info("FOCUS total used %llu ms", time::ticks_ms()-dbg_focus_total_ltime);
+                    }
+#elif FP5510_FOCUS_TYPE == FP5510_ONLY_SET_POS_MIN_MAX
+                    fp5510.set_pos(fp5510_pos);
+                    maix::log::info("now set pos: %d", fp5510_pos);
+                    fp5510_pos = fp5510_pos ? 0 : 1023;
+                    auto_focus_start = false;
+#endif
+                    // log::info("focus 1 frame used %d", time::ticks_ms()-dbg_focus_lt);
+                }
+            } while(0);
+        }
 
         // Snap picture
         if (priv.cam_snap_flag) {
