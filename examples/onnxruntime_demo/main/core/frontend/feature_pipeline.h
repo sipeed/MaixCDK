@@ -85,6 +85,8 @@ class FeaturePipeline {
   // in feature_queue_ and the input is not finished.
   bool Read(int num_frames, std::vector<std::vector<float>>* feats);
 
+  bool Empty() { return feature_queue_.Empty(); }
+  size_t Size() { return feature_queue_.Size(); }
   void Reset();
   bool IsLastFrame(int frame) const {
     return input_finished_ && (frame == num_frames_ - 1);

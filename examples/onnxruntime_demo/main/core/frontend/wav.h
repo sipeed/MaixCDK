@@ -50,6 +50,8 @@ class WavReader {
   explicit WavReader(const std::string& filename) { Open(filename); }
 
   bool Open(const std::string& filename) {
+    num_samples_ = 16000;
+    data_ = nullptr;
     FILE* fp = fopen(filename.c_str(), "rb");
     if (NULL == fp) {
       LOG(WARNING) << "Error in read " << filename;

@@ -93,7 +93,7 @@ bool FeaturePipeline::Read(int num_frames,
                            std::vector<std::vector<float>>* feats) {
   feats->clear();
   std::vector<float> feat;
-  while (feats->size() < num_frames) {
+  while (feats->size() < (size_t)num_frames) {
     if (ReadOne(&feat)) {
       feats->push_back(std::move(feat));
     } else {

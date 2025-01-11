@@ -16,7 +16,7 @@ append_srcs_dir(ADD_SRCS "src"
 "core/kws"
 )       # append source file in src dir to var ADD_SRCS
 
-list(APPEND ADD_DYNAMIC_LIB "onnxruntime-src/lib/libonnxruntime.so")
+list(APPEND ADD_DYNAMIC_LIB "onnxruntime-src/lib/libonnxruntime.so.1")
 
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -31,6 +31,7 @@ list(APPEND ADD_DYNAMIC_LIB "onnxruntime-src/lib/libonnxruntime.so")
 ###############################################
 
 ###### Add required/dependent components ######
+list(APPEND ADD_REQUIREMENTS basic vision kaldi-native-fbank)
 
 ###############################################
 

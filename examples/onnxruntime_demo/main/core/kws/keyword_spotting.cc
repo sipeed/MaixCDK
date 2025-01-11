@@ -67,7 +67,7 @@ void KeywordSpotting::Forward(
   int num_frames = feats.size();
   int feature_dim = feats[0].size();
   std::vector<float> slice_feats;
-  for (int i = 0; i < feats.size(); i++) {
+  for (size_t i = 0; i < feats.size(); i++) {
     slice_feats.insert(slice_feats.end(), feats[i].begin(), feats[i].end());
   }
   const int64_t feats_shape[3] = {1, num_frames, feature_dim};
@@ -102,7 +102,7 @@ void KeywordSpotting::Forward(
     num_outputs = type_info.GetShape()[1];
     output_dim = type_info.GetShape()[2];
   } else {
-    printf("unknowdn shape size:%d", shape.size());
+    printf("unknowdn shape size:%ld", shape.size());
     return;
   }
 
