@@ -7,7 +7,7 @@ append_srcs_dir(ADD_SRCS "src")
 append_srcs_dir(ADD_SRCS "src/mlx90640_lib")
 
 
-list(APPEND ADD_REQUIREMENTS basic peripheral vision)
+list(APPEND ADD_REQUIREMENTS basic peripheral vision ext_dev)
 
 # if (PLATFORM_LINUX)
 #     append_srcs_dir(ADD_SRCS "port/linux")
