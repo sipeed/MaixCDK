@@ -1,12 +1,12 @@
 #include <memory>
 #include <string>
 #include <cmath>
-#include "TMC2209.h"
 #include "maix_basic.hpp"
 #include <functional>
 
-namespace maix::ext_dev::tmc2209 {
+class TMC2209;
 
+namespace maix::ext_dev::tmc2209 {
 
 template<typename T>
 class SlideErrorHandler {
@@ -138,6 +138,8 @@ public:
     Slide(Slide&&)                    = default;
     Slide& operator=(Slide&&)         = default;
 
+    ~Slide();
+
     /**
      * @brief Load configuration from a file
      *
@@ -225,7 +227,7 @@ public:
     uint8_t stop_default_per_;
 
 private:
-    std::unique_ptr<TMC2209> tmc2209;
+    std::unique_ptr<TMC2209> tmc2209{nullptr};
     float step_angle;
     uint16_t micro_step;
     float round_mm;
@@ -274,6 +276,8 @@ public:
     ScrewSlide& operator=(const ScrewSlide&)    = delete;
     ScrewSlide(ScrewSlide&&)                    = default;
     ScrewSlide& operator=(ScrewSlide&&)         = default;
+
+    ~ScrewSlide();
 
     /**
      * @brief Move the slide by a specified length
@@ -334,7 +338,7 @@ public:
 
 
 private:
-    std::unique_ptr<TMC2209> tmc2209;
+    std::unique_ptr<TMC2209> tmc2209{nullptr};
     float step_angle;
     uint16_t micro_step;
     float screw_pitch;
