@@ -116,6 +116,7 @@ def get_components_find_dirs(configs):
         configs.get("PY_USR_PKG_COMPONENTS_PATH", ""),
         os.path.join(configs["SDK_PATH"], "components"),
         os.path.join(configs["SDK_PATH"], "components", "3rd_party"),
+        os.path.join(configs["SDK_PATH"], "components", "ext_devs"),
         configs["PROJECT_PATH"],
         os.path.join(configs["PROJECT_PATH"], "components"),
         os.path.join(configs["PROJECT_PATH"], "..", "components"),

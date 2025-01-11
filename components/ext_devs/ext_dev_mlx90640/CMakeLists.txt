@@ -1,31 +1,10 @@
 
 list(APPEND ADD_INCLUDE "include")
-list(APPEND ADD_INCLUDE "src/bm8563")
-list(APPEND ADD_INCLUDE "src/bm8563/tuupola_bm8563")
-list(APPEND ADD_INCLUDE "src/qmi8658")
-list(APPEND ADD_INCLUDE "src/qmi8658/ALICHOUCHENE_Qmi8658c")
-list(APPEND ADD_INCLUDE "src/tmc2209")
-list(APPEND ADD_INCLUDE "src/tmc2209/janelia-arduino_TMC2209")
-list(APPEND ADD_INCLUDE "src/axp2101")
-list(APPEND ADD_INCLUDE "src/mlx90640/mlx90640_lib")
-list(APPEND ADD_INCLUDE "src/cmap")
-list(APPEND ADD_INCLUDE "src/opns303x/opns303x_lib")
+list(APPEND ADD_PRIVATE_INCLUDE "src/mlx90640_lib")
 
 
 append_srcs_dir(ADD_SRCS "src")
-append_srcs_dir(ADD_SRCS "src/bm8563")
-append_srcs_dir(ADD_SRCS "src/bm8563/tuupola_bm8563")
-append_srcs_dir(ADD_SRCS "src/qmi8658")
-append_srcs_dir(ADD_SRCS "src/qmi8658/ALICHOUCHENE_Qmi8658c")
-append_srcs_dir(ADD_SRCS "src/tmc2209")
-append_srcs_dir(ADD_SRCS "src/tmc2209/janelia-arduino_TMC2209")
-append_srcs_dir(ADD_SRCS "src/axp2101")
-append_srcs_dir(ADD_SRCS "src/fp5510")
-append_srcs_dir(ADD_SRCS "src/mlx90640")
-append_srcs_dir(ADD_SRCS "src/mlx90640/mlx90640_lib")
-append_srcs_dir(ADD_SRCS "src/cmap")
-append_srcs_dir(ADD_SRCS "src/opns303x")
-append_srcs_dir(ADD_SRCS "src/opns303x/opns303x_lib")
+append_srcs_dir(ADD_SRCS "src/mlx90640_lib")
 
 
 list(APPEND ADD_REQUIREMENTS basic peripheral vision)
