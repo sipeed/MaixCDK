@@ -369,9 +369,9 @@ namespace maix::nn
          */
         void draw_face(image::Image &img, const std::vector<int> &points, int num, const std::vector<int> &points_z=std::vector<int>(), int r_min = 2, int r_max = 4)
         {
-            if (points.size() == 0 || points.size() % 2 != 0)
+            if (points.size() == 0 || points.size() % 2 != 0 || num * 2 > points.size())
             {
-                throw std::runtime_error("keypoints size must > 0 and x,y,...,x,y format");
+                throw std::runtime_error("keypoints size must > 0 and x,y,...,x,y format, num must <= points size");
             }
             bool have_z = points_z.size() != 0;
             if(!have_z)
@@ -385,6 +385,10 @@ namespace maix::nn
             }
             else
             {
+                if(num > points_z.size())
+                {
+                    throw std::runtime_error("num must <= points_z size");
+                }
                 int max_z = INT_MIN, min_z = INT_MAX;
                 for (size_t i = 0; i < points_z.size(); ++i)
                 {
