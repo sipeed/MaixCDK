@@ -20,7 +20,7 @@ namespace maix::ext_dev::tof100 {
 
 /**
  * @brief Tof100 Resolution
- * @maixpy maix.ext_dev.Tof100.Resolution
+ * @maixpy maix.ext_dev.tof100.Resolution
  */
 enum class Resolution : uint32_t {
     RES_100x100 = 100,
@@ -30,7 +30,7 @@ enum class Resolution : uint32_t {
 
 /**
  * @brief Tof100 TOF
- * @maixpy maix.ext_dev.Tof100.Tof100
+ * @maixpy maix.ext_dev.tof100.Tof100
  */
 class Tof100 final {
 public:
@@ -47,7 +47,7 @@ public:
      *                 the maximum distance in the frame is taken as the maximum reference distance,
      *                 and the minimum distance in the frame is taken as the minimum reference distance.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.__init__
+     * @maixpy maix.ext_dev.tof100.Tof100.__init__
      */
     Tof100(int spi_bus_num,
             ::maix::ext_dev::tof100::Resolution resolution=::maix::ext_dev::tof100::Resolution::RES_50x50,
@@ -70,7 +70,7 @@ public:
      *         It is the responsibility of the caller to free this memory
      *         in C/C++ to prevent memory leaks.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.image
+     * @maixpy maix.ext_dev.tof100.Tof100.image
      */
     ::maix::image::Image* image();
 
@@ -81,7 +81,7 @@ public:
      *         (x, y, distance) of the pixel with the maximum distance.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.max_dis_point
+     * @maixpy maix.ext_dev.tof100.Tof100.max_dis_point
      */
     TOFPoint max_dis_point();
 
@@ -92,7 +92,7 @@ public:
      *         (x, y, distance) of the pixel with the minimum distance.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.min_dis_point
+     * @maixpy maix.ext_dev.tof100.Tof100.min_dis_point
      */
     TOFPoint min_dis_point();
 
@@ -103,7 +103,7 @@ public:
      *         (x, y, distance) of the center pixel in the distance matrix.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.center_point
+     * @maixpy maix.ext_dev.tof100.Tof100.center_point
      */
     TOFPoint center_point();
 
@@ -115,7 +115,7 @@ public:
      *         It is the responsibility of the caller to free this memory
      *         in C/C++ to prevent memory leaks.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.image_from
+     * @maixpy maix.ext_dev.tof100.Tof100.image_from
      */
     ::maix::image::Image* image_from(const TOFMatrix& matrix);
 
@@ -127,7 +127,7 @@ public:
      *         (x, y, distance) of the pixel with the maximum distance.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.max_dis_point_from
+     * @maixpy maix.ext_dev.tof100.Tof100.max_dis_point_from
      */
     static TOFPoint max_dis_point_from(const TOFMatrix& matrix);
 
@@ -139,7 +139,7 @@ public:
      *         (x, y, distance) of the pixel with the minimum distance.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.min_dis_point_from
+     * @maixpy maix.ext_dev.tof100.Tof100.min_dis_point_from
      */
     static TOFPoint min_dis_point_from(const TOFMatrix& matrix);
 
@@ -151,7 +151,7 @@ public:
      *         (x, y, distance) of the center pixel in the matrix.
      *         If the operation fails, the return values will be x, y < 0.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.center_point_from
+     * @maixpy maix.ext_dev.tof100.Tof100.center_point_from
      */
     static TOFPoint center_point_from(const TOFMatrix& matrix);
 
