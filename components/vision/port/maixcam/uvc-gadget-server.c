@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include <glob.h>
 
@@ -234,31 +235,31 @@ static int uvc_video_stream(struct uvc_device *dev, int enable);
  * UVC generic stuff
  */
 
-static int uvc_video_set_format(struct uvc_device *dev)
-{
-    struct v4l2_format fmt;
-    int ret;
+// static int uvc_video_set_format(struct uvc_device *dev)
+// {
+//     struct v4l2_format fmt;
+//     int ret;
 
-    CLEAR(fmt);
+//     CLEAR(fmt);
 
-    fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-    fmt.fmt.pix.width = dev->width;
-    fmt.fmt.pix.height = dev->height;
-    fmt.fmt.pix.pixelformat = dev->fcc;
-    fmt.fmt.pix.field = V4L2_FIELD_NONE;
-    if (dev->fcc == V4L2_PIX_FMT_MJPEG)
-        fmt.fmt.pix.sizeimage = dev->imgsize * 1.5;
+//     fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+//     fmt.fmt.pix.width = dev->width;
+//     fmt.fmt.pix.height = dev->height;
+//     fmt.fmt.pix.pixelformat = dev->fcc;
+//     fmt.fmt.pix.field = V4L2_FIELD_NONE;
+//     if (dev->fcc == V4L2_PIX_FMT_MJPEG)
+//         fmt.fmt.pix.sizeimage = dev->imgsize * 1.5;
 
-    ret = ioctl(dev->uvc_fd, VIDIOC_S_FMT, &fmt);
-    if (ret < 0) {
-        printf("UVC: Unable to set format %s (%d).\n", strerror(errno), errno);
-        return ret;
-    }
+//     ret = ioctl(dev->uvc_fd, VIDIOC_S_FMT, &fmt);
+//     if (ret < 0) {
+//         printf("UVC: Unable to set format %s (%d).\n", strerror(errno), errno);
+//         return ret;
+//     }
 
-    printf("UVC: Setting format to: %c%c%c%c %ux%u\n", pixfmtstr(dev->fcc), dev->width, dev->height);
+//     printf("UVC: Setting format to: %c%c%c%c %ux%u\n", pixfmtstr(dev->fcc), dev->width, dev->height);
 
-    return 0;
-}
+//     return 0;
+// }
 
 static int uvc_video_stream(struct uvc_device *dev, int enable)
 {
@@ -418,8 +419,6 @@ static void uvc_video_fill_buffer(struct uvc_device *dev, struct v4l2_buffer *bu
 static int uvc_video_process(struct uvc_device *dev)
 {
     struct v4l2_buffer ubuf;
-    struct v4l2_buffer vbuf;
-    unsigned int i;
     int ret;
     /*
      * Return immediately if UVC video output device has not started
@@ -631,7 +630,7 @@ err:
 static int uvc_video_reqbufs_userptr(struct uvc_device *dev, int nbufs)
 {
     struct v4l2_requestbuffers rb;
-    unsigned int i, j, bpl, payload_size;
+    unsigned int bpl = 0, payload_size = 0;
     int ret;
 
     CLEAR(rb);
@@ -673,9 +672,11 @@ static int uvc_video_reqbufs_userptr(struct uvc_device *dev, int nbufs)
             // important
             payload_size = dev->width * dev->height * 3 / 2;
             break;
+        default:
+            assert(0);
         }
 
-        for (i = 0; i < rb.count; ++i) {
+        for (unsigned int i = 0; i < rb.count; ++i) {
             dev->dummy_buf[i].length = payload_size;
             dev->dummy_buf[i].start = malloc(payload_size);
             if (!dev->dummy_buf[i].start) {
@@ -1365,7 +1366,7 @@ static void uvc_events_process(struct uvc_device *dev)
 static void uvc_events_init(struct uvc_device *dev)
 {
     struct v4l2_event_subscription sub;
-    unsigned int payload_size;
+    unsigned int payload_size = 0;
 
     switch (dev->fcc) {
     case V4L2_PIX_FMT_YUYV:
@@ -1374,6 +1375,8 @@ static void uvc_events_init(struct uvc_device *dev)
     case V4L2_PIX_FMT_MJPEG:
         payload_size = dev->width * dev->height * 3/2;
         break;
+    default:
+        assert(0);
     }
 
     uvc_fill_streaming_control(dev, &dev->probe, 0, 0);
@@ -1461,14 +1464,13 @@ static void usage(const char *argv0)
 int uvc_main_exist = 0;
 int uvc_main(int argc, char *argv[])
 {
-    struct uvc_device *udev;
+    struct uvc_device *udev = NULL;
     struct timeval tv;
-    struct v4l2_format fmt;
     char *uvc_devname = "/dev/video0";
     char *mjpeg_image = NULL;
 
     fd_set fdsu;
-    int ret, opt, nfds;
+    int ret, opt;
     int bulk_mode = 0;
     int dummy_data_gen_mode = 0;
     /* Frame format/resolution related params. */

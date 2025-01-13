@@ -7,7 +7,6 @@
 
 #pragma once
 #include "maix_basic.hpp"
-#include "axp2101.h"
 
 namespace maix::ext_dev::axp2101 {
 

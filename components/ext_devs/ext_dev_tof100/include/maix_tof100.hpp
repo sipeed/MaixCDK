@@ -59,7 +59,7 @@ public:
      *
      * @return Matrix containing the distance data, or an empty matrix ([]) if the operation fails.
      *
-     * @maixpy maix.ext_dev.Tof100.Tof100.matrix
+     * @maixpy maix.ext_dev.tof100.Tof100.matrix
      */
     TOFMatrix matrix();
 

@@ -21,6 +21,14 @@ from file_downloader import download_extract_files
 
 thread_num = cpu_count()
 
+def execute_component_py_func(py_path : str, func : str, *args, **kwargs):
+    g = {}
+    with open(py_path, "r", encoding="utf-8") as f:
+        exec(f.read(), g)
+        if func not in g:
+            return False, None
+    return True, g[func](*args, **kwargs)
+
 def parse_kconfigs(config_path, toolchain_config_path):
     configs = {}
     with open(config_path, "r") as f:
@@ -61,21 +69,21 @@ def get_components_files(components, valid_components, kconfigs):
         py_path = os.path.join(components[name], "component.py")
         if not os.path.exists(py_path):
             continue
-        g = {}
-        with open(py_path, "r", encoding="utf-8") as f:
-            exec(f.read(), g)
-        if "add_file_downloads" in g:
-            try:
-                files[name] = g["add_file_downloads"](kconfigs)
-            except Exception as e:
-                print("\n\n---- ERROR -----")
-                traceback.print_exc()
-                print("----------------")
-                print(f"[ERROR] execute compoent [{name}]'s component.py failed")
-                sys.exit(1)
+        found, files[name] = execute_component_py_func(py_path, "add_file_downloads", kconfigs)
+        if not found:
+            files[name] = []
     return files
 
-def find_valid_components(components):
+def get_component_requirements(component_name, component_dir, find_dirs):
+    requires = []
+    component_py = os.path.join(component_dir, "component.py")
+    if os.path.exists(component_py):
+        found, requires = execute_component_py_func(component_py, "add_requirements", find_dirs)
+        if not found:
+            requires = []
+    return requires
+
+def find_valid_components(components, find_dirs):
     '''
         get project depends(not accurately, just exclude some obvious not depend components)
         return valid components name
@@ -83,17 +91,22 @@ def find_valid_components(components):
     # get components quire
     depends = {}
     for name, dir in components.items():
-        cmakelist = os.path.join(dir, "CMakeLists.txt")
-        with open(cmakelist, "r", encoding="utf-8") as f:
-            content = f.read()
-            match = re.findall(r'list\(APPEND ADD_REQUIREMENTS(.*?)\)', content, re.DOTALL|re.MULTILINE)
-            match = list(set(" ".join(match).split()))
-            depends[name] = []
-            for r in match:
-                if r in components:
-                    if name == r:
-                        continue
-                    depends[name].append(r)
+        component_py = os.path.join(dir, "component.py")
+        found = False
+        if os.path.exists(component_py):
+            found, depends_component = execute_component_py_func(component_py, "add_requirements", find_dirs)
+        if not found:
+            cmakelist = os.path.join(dir, "CMakeLists.txt")
+            with open(cmakelist, "r", encoding="utf-8") as f:
+                content = f.read()
+                match = re.findall(r'list\(APPEND ADD_REQUIREMENTS(.*?)\)', content, re.DOTALL|re.MULTILINE)
+                depends_component = list(set(" ".join(match).split()))
+        depends[name] = []
+        for r in depends_component:
+            if r in components:
+                if name == r:
+                    continue
+                depends[name].append(r)
     # find main depends
     def get_depend_recursive(name, seen={}):
         if name in seen:
@@ -129,7 +142,7 @@ def get_components_find_dirs(configs):
 
 def get_all_components_dl_info(find_dirs, kconfigs):
     components = get_components_dirs(find_dirs)
-    valid_components = find_valid_components(components)
+    valid_components = find_valid_components(components, find_dirs)
     files_info = get_components_files(components, valid_components, kconfigs)
     return files_info
 
@@ -306,6 +319,12 @@ if __name__ == "__main__":
             if " " in dir:
                 raise Exception("Path can not contain space or special characters")
         components = get_components_dirs(find_dirs)
-        valid_components = find_valid_components(components)
+        valid_components = find_valid_components(components, find_dirs)
         print(";".join(valid_components), end="")
-
+    elif cmd == "get_requirements":
+        find_dirs = sys.argv[4:]
+        for dir in find_dirs:
+            if " " in dir:
+                raise Exception("Path can not contain space or special characters")
+        requires = get_component_requirements(sys.argv[2], sys.argv[3], find_dirs)
+        print(";".join(requires), end="")

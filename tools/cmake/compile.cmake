@@ -230,6 +230,16 @@ function(register_component)
     endif()
 
     # Add requirements
+    # get requirements from component.py
+    set(cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/build.py get_requirements ${component_name} ${component_dir} ${SDK_PATH}/components ${SDK_PATH}/components/3rd_party ${SDK_PATH}/components/ext_devs ${MAIXCDK_EXTRA_COMPONENTS_PATH} ${PY_PKG_COMPONENTS_PATH} ${PY_USR_PKG_COMPONENTS_PATH} ${PROJECT_SOURCE_DIR}/../components ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/components)
+    execute_process(${cmd} RESULT_VARIABLE cmd_res OUTPUT_VARIABLE component_requires)
+    if(NOT cmd_res EQUAL 0)
+        message(FATAL_ERROR "Get valid components failed")
+    endif()
+    if(component_requires)
+        message("-- component ${component_name} depend on components from component.py: ${component_requires}")
+        list(APPEND ADD_REQUIREMENTS ${component_requires})
+    endif()
     target_link_libraries(${component_name} ${include_type} ${ADD_REQUIREMENTS})
     set(save_req_cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/components_depends.py
                             append

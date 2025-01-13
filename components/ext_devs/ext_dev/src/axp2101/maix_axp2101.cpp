@@ -10,6 +10,7 @@
 #include <mutex>
 #include <iostream>
 #include <unistd.h>
+#include "axp2101.h"
 
 #define _BV(b)                          (1ULL << (uint64_t)(b))
 
