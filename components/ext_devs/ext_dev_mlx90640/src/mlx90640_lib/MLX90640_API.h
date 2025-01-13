@@ -81,7 +81,7 @@ extern "C" {
 
 #define SCALEALPHA 0.000001
 
-typedef struct
+struct paramsMLX90640
 {
     int16_t kVdd;
     int16_t vdd25;
@@ -110,7 +110,7 @@ typedef struct
     float ilChessC[3];
     uint16_t brokenPixels[5];
     uint16_t outlierPixels[5];
-} paramsMLX90640;
+};
 
 int MLX90640_DumpEE(uint8_t slaveAddr, uint16_t *eeData);
 int MLX90640_SynchFrame(uint8_t slaveAddr);

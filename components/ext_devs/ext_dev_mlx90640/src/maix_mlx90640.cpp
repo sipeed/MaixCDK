@@ -1,5 +1,6 @@
 #include "maix_mlx90640.hpp"
 #include "MLX90640_I2C_Driver.h"
+#include "MLX90640_API.h"
 #include "maix_basic.hpp"
 
 namespace maix::ext_dev::mlx90640 {
@@ -58,21 +59,6 @@ KMatrix to_kmatrix(const CMatrix& matrix)
     });
 
     return kmatrix;
-
-    // size_t rows = matrix.size();
-    // size_t cols = rows > 0 ? matrix[0].size() : 0;
-
-    // KMatrix kmatrix(rows, std::vector<uint16_t>(cols));
-
-    // for (size_t i = 0; i < rows; ++i) {
-    //     for (size_t j = 0; j < cols; ++j) {
-    //         float celsius = matrix[i][j];
-    //         float kelvin = (celsius+KC);
-    //         kmatrix[i][j] = static_cast<uint16_t>(kelvin*100);
-    //     }
-    // }
-
-    // return kmatrix;
 }
 
 CMatrix to_cmatrix(const KMatrix& matrix)
@@ -91,21 +77,6 @@ CMatrix to_cmatrix(const KMatrix& matrix)
     });
 
     return cmatrix;
-
-    // size_t rows = matrix.size();
-    // size_t cols = rows > 0 ? matrix[0].size() : 0;
-
-    // CMatrix cmatrix(rows, std::vector<float>(cols));
-
-    // for (size_t i = 0; i < rows; ++i) {
-    //     for (size_t j = 0; j < cols; ++j) {
-    //         float kelvin = static_cast<float>(matrix[i][j])/100;
-    //         float celsius = kelvin-KC;
-    //         cmatrix[i][j] = celsius;
-    //     }
-    // }
-
-    // return cmatrix;
 }
 
 void make_maix_image_pixel(float min, float max, float value, uint8_t* buffer, const cmap::CmapArray* array)
@@ -146,6 +117,8 @@ MLX90640Kelvin::MLX90640Kelvin(int i2c_bus_num, FPS fps, Cmap cmap, float temp_m
 
     this->_mlx = std::make_unique<MLX90640Celsius>(i2c_bus_num, fps, cmap, ctemp_min, ctemp_max, emissivity);
 }
+
+
 
 KMatrix MLX90640Kelvin::matrix()
 {
@@ -198,6 +171,7 @@ MLX90640Celsius::MLX90640Celsius(int i2c_bus_num, FPS fps, Cmap cmap, float temp
     this->_max = temp_max;
     this->_min = temp_min;
     this->_emissivity = emissivity;
+    this->_mlx90640 = std::make_unique<paramsMLX90640>();
 
     ::memset(this->_eeMLX90640, 0x00, std::size(this->_eeMLX90640)*sizeof(uint16_t));
     ::memset(this->_frame, 0x00, std::size(this->_frame)*sizeof(uint16_t));
@@ -209,19 +183,21 @@ MLX90640Celsius::MLX90640Celsius(int i2c_bus_num, FPS fps, Cmap cmap, float temp
 
     MLX90640_SetChessMode(MLX_ADDR);
     MLX90640_DumpEE(MLX_ADDR, this->_eeMLX90640);
-    MLX90640_ExtractParameters(this->_eeMLX90640, &this->_mlx90640);
+    MLX90640_ExtractParameters(this->_eeMLX90640, this->_mlx90640.get());
 
 }
+
+MLX90640Celsius::~MLX90640Celsius() {}
 
 CMatrix MLX90640Celsius::matrix()
 {
 
     MLX90640_GetFrameData(MLX_ADDR, this->_frame);
 
-    auto eTa = MLX90640_GetTa(this->_frame, &this->_mlx90640);
+    auto eTa = MLX90640_GetTa(this->_frame, this->_mlx90640.get());
     auto eTr = eTa-8.0;
 
-    MLX90640_CalculateTo(this->_frame, &this->_mlx90640, this->_emissivity, eTr, this->_mlx90640To);
+    MLX90640_CalculateTo(this->_frame, this->_mlx90640.get(), this->_emissivity, eTr, this->_mlx90640To);
 
     CMatrix m(MLX_H, std::vector<float>(MLX_W));
 

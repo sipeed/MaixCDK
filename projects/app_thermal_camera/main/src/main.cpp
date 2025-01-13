@@ -98,7 +98,7 @@ int _main(int argc, char **argv)
 
     float temp_min = 5.0f;
     float temp_max = 45.0f;
-    float temp_cmap_oft = 2.0f;
+    // float temp_cmap_oft = 2.0f;
 
 
     auto ret = find_device();

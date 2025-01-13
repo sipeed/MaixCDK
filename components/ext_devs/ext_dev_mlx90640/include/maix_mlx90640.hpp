@@ -6,9 +6,10 @@
 #include <cstdint>
 
 #include "maix_image.hpp"
-#include "MLX90640_API.h"
 
 #include "maix_cmap.hpp"
+
+struct paramsMLX90640;
 
 namespace maix::ext_dev::mlx90640 {
 
@@ -101,6 +102,8 @@ public:
                     ::maix::ext_dev::mlx90640::FPS fps=::maix::ext_dev::mlx90640::FPS::FPS_32,
                     ::maix::ext_dev::cmap::Cmap cmap=::maix::ext_dev::cmap::Cmap::WHITE_HOT,
                     float temp_min=-1, float temp_max=-1, float emissivity=0.95);
+
+    ~MLX90640Celsius();
 
     /**
      * @brief Retrieves sensor data and returns a temperature matrix of size MLX_H * MLX_W
@@ -245,7 +248,8 @@ private:
     uint16_t _eeMLX90640[832];
     uint16_t _frame[834];
     float _mlx90640To[768];
-    paramsMLX90640 _mlx90640;
+    // paramsMLX90640 _mlx90640;
+    std::unique_ptr<paramsMLX90640> _mlx90640;
     Point _temp_min;
     Point _temp_max;
     Point _center;
