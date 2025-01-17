@@ -96,10 +96,13 @@ int _main(int argc, char **argv)
 
     maix::ext_dev::cmap::Cmap prev_cmap = g_cmap;
 
-    float temp_min = 5.0f;
-    float temp_max = 45.0f;
+    // float temp_min = 5.0f;
+    // float temp_max = 60.0f;
+    float temp_min = -1;
+    float temp_max = -1;
     // float temp_cmap_oft = 2.0f;
 
+    bool _fuf = false;
 
     auto ret = find_device();
 
@@ -120,6 +123,12 @@ int _main(int argc, char **argv)
             std::unique_ptr<Image> img;
             std::vector<uint8_t> mix_data;
             if (g_fusion_mode) {
+                if (!_fuf) {
+                    g_mlx_c.release();
+                    g_mlx_c.reset(new MLXC(5, FPS::FPS_32, prev_cmap, 5.0f, 45.0f));
+                    _fuf = true;
+                    continue;
+                }
                 if (cam_need_reset) {
                     println("cam reset!");
                     cam.reset(nullptr);
@@ -143,13 +152,18 @@ int _main(int argc, char **argv)
                 // float _t = (std::get<2>(g_mlx_c->max_temp_point()) - std::get<2>(g_mlx_c->min_temp_point())) / 2 + std::get<2>(g_mlx_c->min_temp_point()) + temp_cmap_oft;
                 float _tx = 26.0;
                 float _tn = 10.0f;
-                mix_data = std::move(mix2(matrix, temp_max, temp_min, _tx, _tn, crop_img ? (uint8_t*)crop_img->data() : (uint8_t*)cam_img->data(), 0.5));
+                // auto [_1, _2, _tx] = g_mlx_c->max_temp_point();
+                // auto [_3, _4, _tn] = g_mlx_c->min_temp_point();
+                // temp_min = _tn;
+                // temp_max = _tx;
+                mix_data = std::move(mix2(matrix, 45.0f, 5.0f, _tx, _tn, crop_img ? (uint8_t*)crop_img->data() : (uint8_t*)cam_img->data(), 0.5));
                 if (mix_data.empty()) continue;
                 // println("create img");
                 img.reset(new Image(32, 24, FMT_RGB888, mix_data.data(), mix_data.size(), false));
                 // img.reset(Image(32, 24, FMT_RGB888, mix_data.data(), mix_data.size(), false).resize(640, 480, FIT_FILL, BILINEAR));
             } else {
                 img.reset(g_mlx_c->image_from(matrix));
+                _fuf = false;
             }
 
             // auto img = g_mlx_c->image_from(matrix);
