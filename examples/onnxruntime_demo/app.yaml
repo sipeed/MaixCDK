@@ -1,5 +1,5 @@
-id: onnxruntime
-name: onnxruntime
+id: onnxruntime_demo
+name: onnxruntime_demo
 name[zh]:
 version: 1.0.0
 #icon: assets/hello.png

@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "onnxruntime_cxx_api.h"  // NOLINT
+#include "onnxruntime/onnxruntime_cxx_api.h"  // NOLINT
 
 namespace wekws {
 

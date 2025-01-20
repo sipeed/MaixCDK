@@ -1,8 +1,7 @@
 ############### Add include ###################
 list(APPEND ADD_INCLUDE "include"
     )
-list(APPEND ADD_PRIVATE_INCLUDE "onnxruntime-src/include"
-"core"
+list(APPEND ADD_PRIVATE_INCLUDE "core"
 )
 
 ###############################################
@@ -15,8 +14,6 @@ append_srcs_dir(ADD_SRCS "src"
 "core/frontend"
 "core/kws"
 )       # append source file in src dir to var ADD_SRCS
-
-list(APPEND ADD_DYNAMIC_LIB "onnxruntime-src/lib/libonnxruntime.so.1")
 
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -31,7 +28,7 @@ list(APPEND ADD_DYNAMIC_LIB "onnxruntime-src/lib/libonnxruntime.so.1")
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic vision kaldi-native-fbank)
+list(APPEND ADD_REQUIREMENTS basic vision onnxruntime kaldi-native-fbank)
 
 ###############################################
 
