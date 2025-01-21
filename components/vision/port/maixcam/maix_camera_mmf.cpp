@@ -510,7 +510,11 @@ _retry:
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
-                sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                if (width <= 1280 && height <= 720 && fps >= 80) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
+                } else {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                }
                 sensor_cfg.lane_id = {2, 3, 1, 4, 0};
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
                 sensor_cfg.mclk_en = 0;
@@ -579,7 +583,11 @@ _retry:
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
-                sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                if (width <= 1280 && height <= 720 && fps >= 80) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
+                } else {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                }
                 sensor_cfg.lane_id = {2, 1, 3, 0, 4};
                 sensor_cfg.pn_swap = {0, 0, 0, 0, 0};
                 sensor_cfg.mclk_en = 0;
@@ -743,6 +751,11 @@ _retry:
             char new_value[10];
             snprintf(new_value, sizeof(new_value), "%d", (int)_fps);
             setenv(MAIX_SENSOR_FPS, new_value, 0);
+        } else if (!strcmp(getenv(MMF_SENSOR_NAME), "ov_os04a10")) {
+            if (_width <= 1280 && _height <= 720 && priv->fps >= 80) {
+                priv->fps = 90;
+                _fps = 90;
+            }
         }
 
         int pool_num = 3;
@@ -1069,7 +1082,6 @@ _error:
             int read_block_ms = block_ms < 0 ? (1000.0 / _fps * 3) : block_ms;
             image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, read_block_ms);
             err::check_null_raise(img, "camera read failed");
-
             // FIXME: delete me and fix driver bug
             uint64_t wait_us = 1000000 / _fps;
             while (time::ticks_us() - _last_read_us < wait_us) {
@@ -1268,6 +1280,7 @@ _error:
             new_fps = fps / 2;
         break;
         case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+        case OV_OS04A10_MIPI_4M_720P90_12BIT:
         {
             int exp_time_ms = (int)(1000.0 / fps);
             _config_extern_register_of_os04a10(exp_time_ms);
@@ -1298,6 +1311,7 @@ _error:
         } else {
             switch (priv->sns_type) {
             case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+            case OV_OS04A10_MIPI_4M_720P90_12BIT:
                 mmf_set_exptime(_ch, value);
                 _config_extern_register_of_os04a10(value / 1000);
             break;
@@ -1515,6 +1529,7 @@ _error:
         } else {
             switch (priv->sns_type) {
             case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
+            case OV_OS04A10_MIPI_4M_720P90_12BIT:
                 if (value == 0) {
                     _config_extern_register_of_os04a10(0);  // revert exposure time register of os04a10
                 }
