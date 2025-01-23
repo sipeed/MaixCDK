@@ -1225,11 +1225,7 @@ int app_base_loop(void)
                                 }
 
                                 if (priv.audio_recorder) {
-                                    Bytes *pcm_data = priv.audio_recorder->record();
-                                    if (pcm_data) {
-                                        delete pcm_data;
-                                        pcm_data = NULL;
-                                    }
+                                    priv.audio_recorder->reset();
                                 }
 
                                 priv.last_read_pcm_ms = 0;
@@ -1290,6 +1286,14 @@ int app_base_loop(void)
 
                 read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
                 priv.audio_pts += priv.ffmpeg_packer->audio_us_to_pts(loop_ms * 1000);
+            }
+
+            auto remain_frame_count = priv.audio_recorder->get_remaining_frames();
+            auto bytes_per_frame = priv.audio_recorder->frame_size();
+            auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+            read_pcm_size = (read_pcm_size + 1023) & ~1023;
+            if (read_pcm_size > remain_frame_bytes) {
+                read_pcm_size = remain_frame_bytes;
             }
 
             Bytes *pcm_data = priv.audio_recorder->record_bytes(read_pcm_size);

@@ -9,6 +9,9 @@ list(APPEND ADD_PRIVATE_INCLUDE "")
 #                       "src/test.c"
 #     )
 append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD_SRCS
+
+# append_srcs_dir(ADD_SRCS "tinyalsa/src")
+# list(APPEND ADD_INCLUDE "tinyalsa/include")
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")

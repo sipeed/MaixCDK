@@ -36,7 +36,7 @@ list(APPEND ADD_REQUIREMENTS basic)
 if(PLATFORM_LINUX)
     list(APPEND ADD_REQUIREMENTS )
 elseif(PLATFORM_MAIXCAM)
-    list(APPEND ADD_REQUIREMENTS alsa_lib)
+    list(APPEND ADD_REQUIREMENTS tinyalsa)
 endif()
 ###############################################
 

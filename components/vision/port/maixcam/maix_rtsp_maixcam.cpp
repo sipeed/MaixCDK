@@ -299,6 +299,14 @@ namespace maix::rtsp
                 uint64_t loop_ms = time::ticks_ms() - last_read_pcm_ms;
                 last_read_pcm_ms = time::ticks_ms();
                 int read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+
+                auto remain_frame_count = param->audio_recorder->get_remaining_frames();
+                auto bytes_per_frame = param->audio_recorder->frame_size();
+                auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+                read_pcm_size = (read_pcm_size + 1023) & ~1023;
+                if (read_pcm_size > remain_frame_bytes) {
+                    read_pcm_size = remain_frame_bytes;
+                }
                 pcm = param->audio_recorder->record_bytes(read_pcm_size);
             }
 
@@ -454,6 +462,11 @@ namespace maix::rtsp
         }
         param->ffmpeg_packer->open();
 
+        // start audio
+        if (param->bind_audio_recorder) {
+            param->audio_recorder->reset(true);
+        }
+
         // create runtime thread
         param->status = RTSP_RUNNING;
         _thread = new thread::Thread(_camera_push_thread, param);
@@ -481,6 +494,11 @@ namespace maix::rtsp
 			time::sleep_ms(100);
 			log::info("wait rtsp thread exit..");
 		}
+
+        // stop audio
+        if (param->bind_audio_recorder) {
+            param->audio_recorder->reset(false);
+        }
 
         if (param->ffmpeg_packer) {
             delete param->ffmpeg_packer;

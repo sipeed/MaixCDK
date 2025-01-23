@@ -3614,6 +3614,14 @@ _exit:
                     AVFormatContext *outputFormatContext = param->packager.outputFormatContext;
                     AVPacket *audio_packet = param->packager.audio_packet;
                     int pcm_size = audio_frame->sample_rate * audio_frame->channels * av_get_bytes_per_sample(param->packager.audio_format) / param->venc.fps;
+
+                    auto remain_frame_count = pcm_recorder->get_remaining_frames();
+                    auto bytes_per_frame = pcm_recorder->frame_size();
+                    auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+                    pcm_size = (pcm_size + 1023) & ~1023;
+                    if (pcm_size > remain_frame_bytes) {
+                        pcm_size = remain_frame_bytes;
+                    }
                     pcm = pcm_recorder->record_bytes(pcm_size);
                     // log::info("[%s][%d] pcm read(%d) use %lld ms", __func__, __LINE__, pcm_size, time::ticks_ms() - t);
                     if (pcm) {

@@ -334,7 +334,7 @@ namespace maix::peripheral::key
 
         err::Err e = get_key_devices();
         if (e != err::Err::ERR_NONE || _device_list.empty()) {
-            log::warn("Failed to get key devices, use default device: %s.", KEY_DEVICE0);
+            // log::warn("Failed to get key devices, use default device: %s.", KEY_DEVICE0);
             _device_list.push_back(KEY_DEVICE0);
         } else {
             log::info("Get key devices success.");

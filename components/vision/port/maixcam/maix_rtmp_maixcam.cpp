@@ -826,6 +826,14 @@ namespace maix::rtmp {
                     read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
                     audio_pts += rtmp_client->ms_to_pts(rtmp_client->get_audio_timebase(), loop_ms);
                 }
+
+                auto remain_frame_count = audio_recorder->get_remaining_frames();
+                auto bytes_per_frame = audio_recorder->frame_size();
+                auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+                read_pcm_size = (read_pcm_size + 1023) & ~1023;
+                if (read_pcm_size > remain_frame_bytes) {
+                    read_pcm_size = remain_frame_bytes;
+                }
                 // log::info("pts:%d  pts %f s", audio_pts, rtmp_client->timebase_to_ms(rtmp_client->get_audio_timebase(), audio_pts) / 1000);
                 Bytes *pcm_data = audio_recorder->record_bytes(read_pcm_size);
                 if (pcm_data) {
@@ -891,6 +899,7 @@ namespace maix::rtmp {
 			has_audio = false;
 		} else {
             has_audio = true;
+            _audio_recorder->reset(true);
         }
 
 		video_encoder_width = _camera->width();
@@ -950,6 +959,10 @@ _error:
         if (_video_encoder) {
             delete _video_encoder;
             _video_encoder = nullptr;
+        }
+
+        if (_audio_recorder) {
+            _audio_recorder->reset(false);
         }
 
 		return err::ERR_NONE;
