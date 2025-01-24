@@ -137,6 +137,10 @@ namespace maix::audio
         return 0;
     }
 
+    void Player::reset(bool start) {
+        err::check_raise(err::ERR_NOT_IMPL, "not support this function");
+    }
+
     int Player::sample_rate() {
         return 0;
     }
