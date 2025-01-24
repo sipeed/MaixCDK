@@ -432,8 +432,12 @@ namespace maix::audio
             record_size = remaining_bytes;
         } else {
             if (!param->block) {
-                if (record_size < remaining_bytes) {
+                if ((uint32_t)record_size > remaining_bytes) {
                     record_size = remaining_bytes;
+                }
+
+                if (record_size == 0) {
+                    return new Bytes();
                 }
             }
         }

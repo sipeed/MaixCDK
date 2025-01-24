@@ -526,7 +526,7 @@ int _main(int argc, char* argv[])
         }
 
         log::info("Ready to record %ld ms, and save to %s\r\n", record_ms, path.c_str());
-        audio::Recorder r = audio::Recorder(path, sample_rate, format, channel, true);
+        audio::Recorder r = audio::Recorder(path, sample_rate, format, channel, block);
         r.reset();
         err::check_bool_raise(r.sample_rate() == sample_rate);
         err::check_bool_raise(r.format() == format);
@@ -540,33 +540,24 @@ int _main(int argc, char* argv[])
             if (block) {
                 if (record_ms < 0) {
                     record_bytes = record_ms;
-                    auto data = r.record_bytes(record_bytes);
+                    auto data = r.record(record_ms);
                     log::info("Record %ld ms, bytes:%d, used %lld ms", record_ms, data->size(), time::ticks_ms() - t);
                     time::sleep_ms(100);
                 } else {
-                    auto data = r.record_bytes(record_bytes);
+                    auto data = r.record(record_ms);
                     err::check_bool_raise(data->data_len == (size_t)record_bytes, "Record bytes error");
                     log::info("Record %ld ms, bytes:%d, used %lld ms", record_ms, data->size(), time::ticks_ms() - t);
                 }
             } else {
                 if (record_ms < 0) {
                     record_bytes = record_ms;
-                    auto data = r.record_bytes(record_bytes);
+                    auto data = r.record(record_ms);
                     log::info("Record %ld ms, bytes:%d, used %lld ms", record_ms, data->size(), time::ticks_ms() - t);
-                    time::sleep_ms(100);
+                    time::sleep_ms(record_ms);
                 } else {
-                    auto remain_bytes = r.get_remaining_frames() * bytes_per_frame;
-                    record_bytes = (record_bytes + 1023) & ~1023;
-                    if (record_bytes > remain_bytes) {
-                        record_bytes = remain_bytes;
-                    }
-
-                    if (record_bytes != 0) {
-                        log::info("remain bytes: %d, record bytes: %d", remain_bytes, record_bytes);
-                        auto data = r.record_bytes(record_bytes);
-                        err::check_bool_raise(data->data_len == (size_t)record_bytes, "Record bytes error");
-                        log::info("Record %ld ms, bytes:%d, used %lld ms", record_ms, data->size(), time::ticks_ms() - t);
-                    }
+                    auto data = r.record(record_ms);
+                    log::info("Record %ld ms, bytes:%d, used %lld ms", record_ms, data->size(), time::ticks_ms() - t);
+                    time::sleep_ms(record_ms);
                 }
             }
         }
@@ -674,7 +665,7 @@ int _main(int argc, char* argv[])
                 log::info("Play bytes:%d, used %lld ms", data.size(), time::ticks_ms() - t);
             } else {
                 auto bytes_per_frames = p.frame_size();
-                while (p.get_remaining_frames() * bytes_per_frames < data.size() && !app::need_exit()) {
+                while ((size_t)(p.get_remaining_frames() * bytes_per_frames) < data.size() && !app::need_exit()) {
                     time::sleep_ms(1);
                 }
 
