@@ -18,6 +18,8 @@ if(PLATFORM_LINUX)
 append_srcs_dir(ADD_SRCS "port/linux")
 elseif(PLATFORM_MAIXCAM)
 append_srcs_dir(ADD_SRCS "port/maixcam")
+elseif(PLATFORM_MAIXCAM2)
+append_srcs_dir(ADD_SRCS "port/maixcam2")
 endif()
 
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test.c")
