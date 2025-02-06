@@ -1168,7 +1168,7 @@ namespace maix::video
     };
 
     /**
-     * Video Recorder class. This module is not fully supported and may be deprecated in the future.
+     * Video Recorder class. This module is not fully supported and may be deprecated in the future. You can use the camera, encoder, and audio modules to achieve similar functionality.
      * @maixpy maix.video.VideoRecorder
      */
     class VideoRecorder
