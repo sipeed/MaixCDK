@@ -189,6 +189,10 @@ namespace maix::video
         return value * 1000 / ((double)timebase[1] / timebase[0]);
     }
 
+    uint64_t ms_to_pts(std::vector<int> timebase, uint64_t ms) {
+        return ms * ((double)timebase[1] / timebase[0]) / 1000;
+    }
+
     typedef struct {
         AVFormatContext *outputFormatContext;
         AVStream *outputStream;
@@ -532,7 +536,6 @@ namespace maix::video
     }
 
     video::Frame *Encoder::encode(image::Image *img, Bytes *pcm) {
-#if 1
         uint8_t *stream_buffer = NULL;
         int stream_size = 0;
         uint64_t pts = 0, dts = 0;
@@ -1023,8 +1026,11 @@ namespace maix::video
                 }
 
                 if (stream_size != 0) {
+                    bool is_first_frame = false;
                     if (!param->find_sps_pps && stream.count > 2) {
+                        is_first_frame = true;
                         param->find_sps_pps = true;
+                        param->video_frame_last_ms = time::ticks_ms();
                     }
 
                     if (param->find_sps_pps) {
@@ -1036,25 +1042,59 @@ namespace maix::video
                             goto _exit;
                         }
 
-                        AVPacket *pPacket = param->pPacket;
-                        pPacket->stream_index = param->outputStream->index;
-                        pPacket->duration = param->outputStream->time_base.den / (param->outputStream->time_base.num * _framerate);
-                        pPacket->pts = param->frame_index * pPacket->duration;
-                        pPacket->dts = param->frame_index * pPacket->duration;
-                        param->frame_index ++;
-
                         if (stream.count > 0) {
                             int copy_length = 0;
                             for (int i = 0; i < stream.count; i ++) {
                                 memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
                                 copy_length += stream.data_size[i];
                             }
-                            pPacket->data = stream_buffer;
-                            pPacket->size = copy_length;
 
-                            // std::vector<int> timebase = {param->outputStream->time_base.num, param->outputStream->time_base.den};
-                            // log::info("[VIDEO] pts:%d duration:%d time:%.2f", pPacket->pts, pPacket->duration, timebase_to_ms(timebase, pPacket->pts) / 1000);
-                            err::check_bool_raise(av_interleaved_write_frame(param->outputFormatContext, pPacket) >= 0, "av_interleaved_write_frame failed!");
+                            auto frame_buffer = (uint8_t *)av_malloc(stream_size);
+                            if (!frame_buffer) {
+                                log::error("malloc failed!\r\n");
+                                free(stream_buffer);
+                                stream_buffer = NULL;
+                                mmf_venc_free(MMF_VENC_CHN);
+                                mmf_del_venc_channel(MMF_VENC_CHN);
+                                goto _exit;
+                            }
+                            memcpy(frame_buffer, stream_buffer, stream_size);
+
+                            auto curr_ms = time::ticks_ms();
+                            if (is_first_frame) {
+                                param->pPacket->stream_index = param->outputStream->index;
+                                param->pPacket->duration = -1;
+                                param->pPacket->pts = 0;
+                                param->pPacket->dts = 0;
+                                param->pPacket->data = frame_buffer;
+                                param->pPacket->size = copy_length;
+                            } else {
+                                std::vector<int> timebase = {param->outputStream->time_base.num, param->outputStream->time_base.den};
+                                AVPacket *new_packet = av_packet_alloc();
+                                err::check_null_raise(new_packet, "malloc failed!");
+                                new_packet->stream_index = param->outputStream->index;
+                                new_packet->duration = -1;
+                                new_packet->pts = ms_to_pts(timebase, curr_ms - param->video_frame_last_ms);
+                                new_packet->dts = ms_to_pts(timebase, curr_ms - param->video_frame_last_ms);
+                                new_packet->data = frame_buffer;
+                                new_packet->size = copy_length;
+
+                                param->pPacket->duration = new_packet->pts - param->pPacket->pts;
+                                auto last_frame_buffer = param->pPacket->data;
+
+                                // log::info("[VIDEO] pts:%d duration:%d time:%.2f", param->pPacket->pts, param->pPacket->duration, timebase_to_ms(timebase, param->pPacket->pts) / 1000);
+                                err::check_bool_raise(av_interleaved_write_frame(param->outputFormatContext, param->pPacket) >= 0, "av_interleaved_write_frame failed!");
+                                if (last_frame_buffer) {
+                                    av_free(last_frame_buffer);
+                                }
+                                av_packet_unref(param->pPacket);
+                                av_packet_free(&param->pPacket);
+                                param->pPacket = new_packet;
+                            }
+                        } else {
+                            free(stream_buffer);
+                            stream_buffer = NULL;
+                            stream_size = 0;
                         }
                     }
                 }
@@ -1204,418 +1244,6 @@ namespace maix::video
 _exit:
             video::Frame *frame = new video::Frame(stream_buffer, stream_size, pts, dts, 0, true, false);
             return frame;
-#else
-        uint8_t *stream_buffer = NULL;
-        int stream_size = 0;
-
-        uint64_t pts = 0, dts = 0;
-        uint64_t curr_ms = time::ticks_ms();
-        uint64_t diff_ms = 0;
-        if (!_encode_started) {
-            _encode_started = true;
-            _start_encode_ms = curr_ms;
-        }
-        diff_ms = curr_ms - _start_encode_ms;
-
-        switch (_type) {
-        case VIDEO_H264_CBR:
-        {
-            if (img && img->data() != NULL) {  // encode from image
-                if (img->data_size() > 2560 * 1440 * 3 / 2) {
-                    log::error("image is too large!\r\n");
-                    goto _exit;
-                }
-
-                mmf_venc_cfg_t cfg = {0};
-                if (0 != mmf_venc_get_cfg(MMF_VENC_CHN, &cfg)) {
-                    err::check_raise(err::ERR_RUNTIME, "get venc config failed!\r\n");
-                }
-
-                dts = get_dts(diff_ms);
-                pts = get_pts(diff_ms);
-
-                int img_w = img->width();
-                int img_h = img->height();
-                image::Format img_fmt = img->format();
-                if (img_w != cfg.w
-                    || img->height() != cfg.h
-                    || img->format() != mmf_invert_format_to_maix(cfg.fmt)) {
-                    log::warn("image size or format is incorrect, try to reinit venc!\r\n");
-                    mmf_del_venc_channel(MMF_VENC_CHN);
-                    cfg.w = img_w;
-                    cfg.h = img_h;
-                    cfg.fmt = mmf_invert_format_to_mmf(img_fmt);
-                    if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
-                        err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
-                    }
-                    _width = img_w;
-                    _height = img_h;
-                    _format = img_fmt;
-                }
-
-                if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
-                    log::error("mmf_venc_push failed\n");
-                    goto _exit;
-                }
-
-                mmf_stream_t stream = {0};
-                if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
-                    log::error("mmf_enc_h265_pull failed\n");
-                    mmf_venc_free(MMF_VENC_CHN);
-                    goto _exit;
-                }
-
-                for (int i = 0; i < stream.count; i ++) {
-                    // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
-                    stream_size += stream.data_size[i];
-                }
-
-                if (stream_size != 0) {
-                    stream_buffer = (uint8_t *)malloc(stream_size);
-                    if (!stream_buffer) {
-                        log::error("malloc failed!\r\n");
-                        mmf_venc_free(MMF_VENC_CHN);
-                        goto _exit;
-                    } else {
-                        if (stream.count > 1) {
-                            int copy_length = 0;
-                            for (int i = 0; i < stream.count; i ++) {
-                                memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
-                                copy_length += stream.data_size[i];
-                            }
-                        } else if (stream.count == 1) {
-                            memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
-                        }
-                    }
-                }
-
-                if (mmf_venc_free(MMF_VENC_CHN)) {
-                    printf("mmf_venc_free failed\n");
-                    free(stream_buffer);
-                    stream_buffer = NULL;
-                    goto _exit;
-                }
-            } else { // encode from camera
-                if (!this->_bind_camera) {
-                    goto _exit;
-                }
-
-                int vi_ch = _camera->get_channel();
-                void *data;
-                int data_size, width, height, format;
-                do {
-                    mmf_stream_t stream = {0};
-                    if (mmf_venc_pop(MMF_VENC_CHN, &stream)) {
-                        log::error("mmf_venc_pop failed\n");
-                        mmf_venc_free(MMF_VENC_CHN);
-                        mmf_del_venc_channel(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    for (int i = 0; i < stream.count; i ++) {
-                        stream_size += stream.data_size[i];
-                    }
-
-                    if (stream_size != 0) {
-                        stream_buffer = (uint8_t *)malloc(stream_size);
-                        if (!stream_buffer) {
-                            log::error("malloc failed!\r\n");
-                            mmf_venc_free(MMF_VENC_CHN);
-                            mmf_del_venc_channel(MMF_VENC_CHN);
-                            goto _exit;
-                        } else {
-                            if (stream.count > 1) {
-                                int copy_length = 0;
-                                for (int i = 0; i < stream.count; i ++) {
-                                    memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
-                                    copy_length += stream.data_size[i];
-                                }
-                            } else if (stream.count == 1) {
-                                memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
-                            }
-                        }
-                    }
-
-                    if (mmf_venc_free(MMF_VENC_CHN)) {
-                        printf("mmf_venc_free failed\n");
-                        free(stream_buffer);
-                        stream_buffer = NULL;
-                        mmf_del_venc_channel(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
-                        log::error("read camera image failed!\r\n");
-                        goto _exit;
-                    }
-
-                    dts = get_dts(diff_ms);
-                    pts = get_pts(diff_ms);
-
-                    if (data_size > 2560 * 1440 * 3 / 2) {
-                        log::error("image is too large!\r\n");
-                        goto _exit;
-                    }
-
-                    if (_need_capture) {
-                        if (_capture_image && _capture_image->data()) {
-                            delete _capture_image;
-                            _capture_image = NULL;
-                        }
-
-                        image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
-                        bool need_align = (width % mmf_vi_aligned_width(vi_ch) == 0) ? false : true;   // Width need align only
-                        switch (capture_format) {
-                            case image::Format::FMT_BGR888: // fall through
-                            case image::Format::FMT_RGB888:
-                            {
-                                _capture_image = new image::Image(width, height, capture_format);
-                                uint8_t * image_data = (uint8_t *)_capture_image->data();
-                                if (need_align) {
-                                    for (int h = 0; h < height; h++) {
-                                        memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
-                                    }
-                                } else {
-                                    memcpy(image_data, data, width * height * 3);
-                                }
-                            }
-                                break;
-                            case image::Format::FMT_YVU420SP:
-                            {
-                                _capture_image = new image::Image(width, height, capture_format);
-                                uint8_t * image_data = (uint8_t *)_capture_image->data();
-                                if (need_align) {
-                                    for (int h = 0; h < height * 3 / 2; h ++) {
-                                        memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
-                                    }
-                                } else {
-                                    memcpy(image_data, data, width * height * 3 / 2);
-                                }
-                                break;
-                            }
-                            default:
-                            {
-                                _capture_image = NULL;
-                                break;
-                            }
-                        }
-                    }
-
-                    mmf_venc_cfg_t cfg = {0};
-                    if (0 != mmf_venc_get_cfg(MMF_VENC_CHN, &cfg)) {
-                        err::check_raise(err::ERR_RUNTIME, "get venc config failed!\r\n");
-                    }
-
-                    int img_w = width;
-                    int img_h = height;
-                    int mmf_fmt = format;
-                    if (img_w != cfg.w
-                        || img_h != cfg.h
-                        || mmf_fmt != cfg.fmt) {
-                        log::warn("image size or format is incorrect, try to reinit venc!\r\n");
-                        mmf_del_venc_channel(MMF_VENC_CHN);
-                        cfg.w = img_w;
-                        cfg.h = img_h;
-                        cfg.fmt = mmf_invert_format_to_mmf(mmf_fmt);
-                        if (0 != mmf_add_venc_channel_v2(MMF_VENC_CHN, &cfg)) {
-                            err::check_raise(err::ERR_RUNTIME, "mmf venc init failed!\r\n");
-                        }
-                        _width = img_w;
-                        _height = img_h;
-                        _format = (image::Format)mmf_invert_format_to_maix(mmf_fmt);
-                    }
-
-                    if (mmf_venc_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
-                        log::warn("mmf_venc_push failed\n");
-                        mmf_del_venc_channel(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    mmf_vi_frame_free(vi_ch);
-                } while (stream_size == 0);
-            }
-            break;
-        }
-        case VIDEO_H265_CBR:
-        {
-            if (img && img->data() != NULL) {  // encode from image
-                if (img->data_size() > 2560 * 1440 * 3 / 2) {
-                    log::error("image is too large!\r\n");
-                    goto _exit;
-                }
-
-                dts = get_dts(diff_ms);
-                pts = get_pts(diff_ms);
-
-                if (mmf_enc_h265_push(MMF_VENC_CHN, (uint8_t *)img->data(), img->width(), img->height(), mmf_invert_format_to_mmf(img->format()))) {
-                    log::error("mmf_enc_h265_push failed\n");
-                    goto _exit;
-                }
-
-                mmf_h265_stream_t stream = {0};
-                if (mmf_enc_h265_pop(MMF_VENC_CHN, &stream)) {
-                    log::error("mmf_enc_h265_pull failed\n");
-                    mmf_enc_h265_free(MMF_VENC_CHN);
-                    goto _exit;
-                }
-
-                for (int i = 0; i < stream.count; i ++) {
-                    // printf("[%d] stream.data:%p stream.len:%d\n", i, stream.data[i], stream.data_size[i]);
-                    stream_size += stream.data_size[i];
-                }
-
-                if (stream_size != 0) {
-                    stream_buffer = (uint8_t *)malloc(stream_size);
-                    if (!stream_buffer) {
-                        log::error("malloc failed!\r\n");
-                        mmf_enc_h265_free(MMF_VENC_CHN);
-                        goto _exit;
-                    } else {
-                        if (stream.count > 1) {
-                            int copy_length = 0;
-                            for (int i = 0; i < stream.count; i ++) {
-                                memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
-                                copy_length += stream.data_size[i];
-                            }
-                        } else if (stream.count == 1) {
-                            memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
-                        }
-                    }
-                }
-
-                if (mmf_enc_h265_free(MMF_VENC_CHN)) {
-                    printf("mmf_enc_h265_free failed\n");
-                    free(stream_buffer);
-                    stream_buffer = NULL;
-                    goto _exit;
-                }
-            } else { // encode from camera
-                if (!this->_bind_camera) {
-                    log::warn("You need use bind_camera() function to bind the camera!\r\n");
-                    goto _exit;
-                }
-
-                int vi_ch = _camera->get_channel();
-                void *data;
-                int data_size, width, height, format;
-
-                do {
-                    mmf_h265_stream_t stream = {0};
-                    if (mmf_enc_h265_pop(MMF_VENC_CHN, &stream)) {
-                        log::error("mmf_enc_h265_pop failed\n");
-                        mmf_enc_h265_free(MMF_VENC_CHN);
-                        mmf_enc_h265_deinit(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    for (int i = 0; i < stream.count; i ++) {
-                        stream_size += stream.data_size[i];
-                    }
-
-                    if (stream_size != 0) {
-                        stream_buffer = (uint8_t *)malloc(stream_size);
-                        if (!stream_buffer) {
-                            log::error("malloc failed!\r\n");
-                            mmf_enc_h265_free(MMF_VENC_CHN);
-                            mmf_enc_h265_deinit(MMF_VENC_CHN);
-                            goto _exit;
-                        } else {
-                            if (stream.count > 1) {
-                                int copy_length = 0;
-                                for (int i = 0; i < stream.count; i ++) {
-                                    memcpy(stream_buffer + copy_length, stream.data[i], stream.data_size[i]);
-                                    copy_length += stream.data_size[i];
-                                }
-                            } else if (stream.count == 1) {
-                                memcpy(stream_buffer, stream.data[0], stream.data_size[0]);
-                            }
-                        }
-                    }
-
-                    if (mmf_enc_h265_free(MMF_VENC_CHN)) {
-                        printf("mmf_enc_h265_free failed\n");
-                        free(stream_buffer);
-                        stream_buffer = NULL;
-                        mmf_enc_h265_deinit(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    if (mmf_vi_frame_pop(vi_ch, &data, &data_size, &width, &height, &format)) {
-                        log::error("read camera image failed!\r\n");
-                        goto _exit;
-                    }
-
-                    dts = get_dts(diff_ms);
-                    pts = get_pts(diff_ms);
-
-                    if (data_size > 2560 * 1440 * 3 / 2) {
-                        log::error("image is too large!\r\n");
-                        goto _exit;
-                    }
-
-                    if (_need_capture) {
-                        if (_capture_image && _capture_image->data()) {
-                            delete _capture_image;
-                            _capture_image = NULL;
-                        }
-
-                        image::Format capture_format = (image::Format)mmf_invert_format_to_maix(format);
-                        bool need_align = (width % mmf_vi_aligned_width(vi_ch) == 0) ? false : true;   // Width need align only
-                        switch (capture_format) {
-                            case image::Format::FMT_BGR888: // fall through
-                            case image::Format::FMT_RGB888:
-                            {
-                                _capture_image = new image::Image(width, height, capture_format);
-                                uint8_t * image_data = (uint8_t *)_capture_image->data();
-                                if (need_align) {
-                                    for (int h = 0; h < height; h++) {
-                                        memcpy((uint8_t *)image_data + h * width * 3, (uint8_t *)data + h * width * 3, width * 3);
-                                    }
-                                } else {
-                                    memcpy(image_data, data, width * height * 3);
-                                }
-                            }
-                                break;
-                            case image::Format::FMT_YVU420SP:
-                            {
-                                _capture_image = new image::Image(width, height, capture_format);
-                                uint8_t * image_data = (uint8_t *)_capture_image->data();
-                                if (need_align) {
-                                    for (int h = 0; h < height * 3 / 2; h ++) {
-                                        memcpy((uint8_t *)image_data + h * width, (uint8_t *)data + h * width, width);
-                                    }
-                                } else {
-                                    memcpy(image_data, data, width * height * 3 / 2);
-                                }
-                                break;
-                            }
-                            default:
-                            {
-                                _capture_image = NULL;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (mmf_enc_h265_push(MMF_VENC_CHN, (uint8_t *)data, width, height, format)) {
-                        log::warn("mmf_enc_h265_push failed\n");
-                        mmf_enc_h265_deinit(MMF_VENC_CHN);
-                        goto _exit;
-                    }
-
-                    mmf_vi_frame_free(vi_ch);
-                } while (stream_size == 0);
-            }
-            break;
-        }
-        default:
-            std::string err_str = "Encoder not support type: " + std::to_string(_type);
-            err::check_raise(err::ERR_RUNTIME, err_str);
-        }
-_exit:
-        video::Frame *frame = new video::Frame(stream_buffer, stream_size, pts, dts, 0, true, false);
-        return frame;
-#endif
     }
 
     typedef enum {
