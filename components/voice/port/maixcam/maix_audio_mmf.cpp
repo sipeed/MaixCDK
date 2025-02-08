@@ -230,9 +230,10 @@ namespace maix::audio
         uint32_t pcm_flag = PCM_IN | (!param->block ? PCM_NONBLOCK : 0);
 #ifdef PLATFORM_MAIXCAM
         // Fix segment error when start pcm with channel=2 for the first time.
-        if (channel != 1) {
+        if (channel != 1 || sample_rate != 16000 || tinyalsa_format != PCM_FORMAT_S16_LE) {
             config.channels = 1;
             config.rate = 16000;
+            config.format = PCM_FORMAT_S16_LE;
             param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
             if (param->pcm == NULL) {
                 err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
@@ -245,6 +246,7 @@ namespace maix::audio
             pcm_close(param->pcm);
             config.channels = (uint32_t)channel;
             config.rate = (uint32_t)sample_rate;
+            config.format = tinyalsa_format;
         }
 #endif
         param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
@@ -599,6 +601,32 @@ namespace maix::audio
         param->path = path;
         param->block = block;
         uint32_t pcm_flag = PCM_OUT | (!param->block ? PCM_NONBLOCK : 0);
+
+#ifdef PLATFORM_MAIXCAM
+        // Fix segment error when start pcm with samplerate=44100 for the first time.
+        if (channel != 1 || sample_rate != 16000 || tinyalsa_format != PCM_FORMAT_S16_LE) {
+            config.channels = 1;
+            config.rate = 16000;
+            config.format = PCM_FORMAT_S16_LE;
+            param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
+            if (param->pcm == NULL) {
+                err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
+            } else if (!pcm_is_ready(param->pcm)){
+                pcm_close(param->pcm);
+                err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
+            }
+            pcm_prepare(param->pcm);
+            pcm_start(param->pcm);
+            uint8_t *data = new uint8_t[320];
+            pcm_writei(param->pcm, data, 160);
+            delete[] data;
+            pcm_drain(param->pcm);
+            pcm_close(param->pcm);
+            config.channels = (uint32_t)channel;
+            config.rate = (uint32_t)sample_rate;
+            config.format = tinyalsa_format;
+        }
+#endif
         param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
         if (param->pcm == NULL) {
             err::check_null_raise(param->pcm, "failed to allocate memory for PCM");

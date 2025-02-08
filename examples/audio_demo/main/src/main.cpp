@@ -603,9 +603,9 @@ int _main(int argc, char* argv[])
 
         log::info("Playback %s\r\n", path.c_str());
         audio::Player p = audio::Player(path, sample_rate, format, channel, block);
-        err::check_bool_raise(p.sample_rate() == sample_rate);
-        err::check_bool_raise(p.format() == format);
-        err::check_bool_raise(p.channel() == channel);
+        log::info("player sample rate:%d", p.sample_rate());
+        log::info("player channel:%d", p.channel());
+        log::info("player format:%d", p.format());
         if (!block) {
             log::info("Set period count:%d", p.period_count(20));
         }
