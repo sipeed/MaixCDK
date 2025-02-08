@@ -532,7 +532,7 @@ int _main(int argc, char* argv[])
         err::check_bool_raise(r.format() == format);
         err::check_bool_raise(r.channel() == channel);
 
-        log::info("Record over!\r\n");
+        log::info("Record start\r\n");
         auto bytes_per_frame = r.frame_size();
         while (!app::need_exit()) {
             auto t = time::ticks_ms();

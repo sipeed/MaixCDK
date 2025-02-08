@@ -228,6 +228,25 @@ namespace maix::audio
         param->path = path;
         param->block = block;
         uint32_t pcm_flag = PCM_IN | (!param->block ? PCM_NONBLOCK : 0);
+#ifdef PLATFORM_MAIXCAM
+        // Fix segment error when start pcm with channel=2 for the first time.
+        if (channel != 1) {
+            config.channels = 1;
+            config.rate = 16000;
+            param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
+            if (param->pcm == NULL) {
+                err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
+            } else if (!pcm_is_ready(param->pcm)){
+                pcm_close(param->pcm);
+                err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
+            }
+            pcm_prepare(param->pcm);
+            pcm_start(param->pcm);
+            pcm_close(param->pcm);
+            config.channels = (uint32_t)channel;
+            config.rate = (uint32_t)sample_rate;
+        }
+#endif
         param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
         if (param->pcm == NULL) {
             err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
@@ -235,6 +254,10 @@ namespace maix::audio
             pcm_close(param->pcm);
             err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
         }
+        if (param->block) {
+            pcm_prepare(param->pcm);
+        }
+
         _param = param;
     }
 
