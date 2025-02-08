@@ -156,6 +156,7 @@ namespace maix::protocol
         frame->version = data[i + 8] & FLAG_VERSION_MASK;
         frame->is_resp = data[i + 8] & FLAG_IS_RESP_MASK;
         frame->is_req = !frame->is_resp;
+        frame->is_report = data[i + 8] & FLAG_REPORT_MASK;
         frame->resp_ok = data[i + 8] & FLAG_RESP_OK_MASK;
         frame->cmd = data[i + 9];
         frame->set_body(data + i + 10, data_len - 4);
@@ -181,6 +182,7 @@ namespace maix::protocol
         version = VERSION;
         is_resp = 0;
         is_req = 1;
+        is_report = 0;
         resp_ok = 0;
         cmd = 0;
         body = nullptr;

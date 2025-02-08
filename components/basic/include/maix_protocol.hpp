@@ -113,8 +113,15 @@ namespace maix
 
             /**
              * @brief message is request or not, contrast with is_resp
+             * @maixpy maix.protocol.MSG.is_req
             */
             bool is_req;
+
+            /**
+             * @brief message is request or not, contrast with is_resp
+             * @maixpy maix.protocol.MSG.is_report
+            */
+            bool is_report;
 
             /**
              * Message body, read only, use set_body() to update
