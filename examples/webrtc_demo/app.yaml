@@ -1,0 +1,10 @@
+id: webrtc_demo
+name:
+name[zh]:
+version: 1.0.0
+author: Sipeed Ltd
+desc:
+desc[zh]:
+files:
+  main/src/http_files: http_files
+
