@@ -40,7 +40,7 @@ list(APPEND ADD_REQUIREMENTS openssl json libjuice libsrtp plog usrsctp)
 #### Just for this component, won't affect other 
 #### modules, including component that depend 
 #### on this component
-list(APPEND ADD_DEFINITIONS_PRIVATE -DJUICE_STATIC -DRTC_ENABLE_MEDIA=1 -DRTC_ENABLE_WEBSOCKET=1 -DRTC_EXPORTS -DRTC_SYSTEM_JUICE=0 -DRTC_SYSTEM_SRTP=0 -DUSE_GNUTLS=0 -DUSE_NICE=0 -D_GNU_SOURCE -Ddatachannel_EXPORTS)
+list(APPEND ADD_DEFINITIONS_PRIVATE -DJUICE_STATIC -DRTC_ENABLE_MEDIA=1 -DRTC_ENABLE_WEBSOCKET=1 -DRTC_EXPORTS -DRTC_SYSTEM_JUICE=0 -DRTC_SYSTEM_SRTP=0 -DUSE_GNUTLS=0 -DUSE_NICE=0 -D_GNU_SOURCE -Ddatachannel_EXPORTS -w)
 
 #### Add compile option for this component
 #### Add components that depend on this component
