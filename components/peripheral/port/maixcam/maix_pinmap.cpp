@@ -134,6 +134,28 @@ namespace maix::peripheral::pinmap
         return pins;
     }
 
+    static void _config_eth_pin(bool en) {
+        if (en) {
+            set_pinmux(0x03009070, 0x0000BABE);
+            set_pinmux(0x03009074, 0x0000BABE);
+            set_pinmux(0x03009078, 0x0000BABE);
+            set_pinmux(0x0300907c, 0x0000BABE);
+            time::sleep_us(10);
+            set_pinmux(0x03009800, 0x0000090E);
+            set_pinmux(0x03009808, 0x00000188);
+            set_pinmux(0x03009804, 0x00000000);
+        } else {
+            set_pinmux(0x03009804, 0x00000001); // [0] = 1
+            set_pinmux(0x03009808, 0x00000181); // [4:0] = 0x01
+            set_pinmux(0x03009800, 0x00000905); // 0x905
+            time::sleep_us(10);
+            set_pinmux(0x0300907c, 0x0000A5BE); // [12:8] = 0x5
+            set_pinmux(0x03009078, 0x0000BF00); // [11:0] = 0xF00
+            set_pinmux(0x03009074, 0x00000606); // 0x606
+            set_pinmux(0x03009070, 0x00000606); // 0x606
+        }
+    }
+
     std::vector<std::string> get_pin_functions(const std::string &pin)
     {
         if (pin == "A14")
@@ -602,6 +624,7 @@ namespace maix::peripheral::pinmap
             if (func == "GPIOB26") {
                 set_pinmux(0x03001130, 3);
             } else if (func == "PWM14") {
+                _config_eth_pin(false);
                 set_pinmux(0x03001130, 4);
             } else {
                 return err::ERR_ARGS;
@@ -613,6 +636,7 @@ namespace maix::peripheral::pinmap
             if (func == "GPIOB27") {
                 set_pinmux(0x0300112C, 3);
             } else if (func == "PWM15") {
+                _config_eth_pin(false);
                 set_pinmux(0x0300112C, 4);
             } else {
                 return err::ERR_ARGS;
