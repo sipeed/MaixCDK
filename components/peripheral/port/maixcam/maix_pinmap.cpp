@@ -622,6 +622,7 @@ namespace maix::peripheral::pinmap
         else if (pin == "B26")
         {
             if (func == "GPIOB26") {
+                _config_eth_pin(false);
                 set_pinmux(0x03001130, 3);
             } else if (func == "PWM14") {
                 _config_eth_pin(false);
@@ -634,6 +635,7 @@ namespace maix::peripheral::pinmap
         else if (pin == "B27")
         {
             if (func == "GPIOB27") {
+                _config_eth_pin(false);
                 set_pinmux(0x0300112C, 3);
             } else if (func == "PWM15") {
                 _config_eth_pin(false);
