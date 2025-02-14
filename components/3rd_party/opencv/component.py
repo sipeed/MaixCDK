@@ -4,7 +4,7 @@ def add_file_downloads(confs : dict) -> list:
         @param confs kconfig vars, dict type
         @return list type, items is dict type
     '''
-    if (not confs.get("PLATFORM_MAIXCAM", None)) or confs.get("CONFIG_COMPONENTS_COMPILE_FROM_SOURCE", None) or confs.get("CONFIG_OPENCV_COMPILE_FROM_SOURCE", None):
+    if not (bool(confs.get("PLATFORM_MAIXCAM", None)) or bool(confs.get('PLATFORM_MAIXCAM2', None))) or confs.get("CONFIG_COMPONENTS_COMPILE_FROM_SOURCE", None) or confs.get("CONFIG_OPENCV_COMPILE_FROM_SOURCE", None):
         # version = f"{confs['CONFIG_PYTHON_VERSION_MAJOR']}.{confs['CONFIG_PYTHON_VERSION_MINOR']}.{confs['CONFIG_PYTHON_VERSION_PATCH']}"
         version = "4.9.0"
         url = f"https://github.com/opencv/opencv/archive/{version}.zip"
@@ -32,7 +32,7 @@ def add_file_downloads(confs : dict) -> list:
                 'rename': rename
             }
         ]
-        if confs.get("PLATFORM_MAIXCAM", None):
+        if confs.get("PLATFORM_MAIXCAM", None) or confs.get("PLATFORM_MAIXCAM2", None):
             version = "0.1.2a"
             url = f"https://github.com/opencv/ade/archive/v0.1.2a.zip"
             if version == "0.1.2a":
@@ -91,34 +91,61 @@ def add_file_downloads(confs : dict) -> list:
             raise Exception("No opencv config for this board, please edit to add opencv support for this board")
 
         return files
+    elif confs.get("PLATFORM_MAIXCAM", None):
+        if "musl" not in confs["CONFIG_TOOLCHAIN_PATH"]:
+            return []
+        # version = f"{confs['CONFIG_OMV_VERSION_MAJOR']}.{confs['CONFIG_OMV_VERSION_MINOR']}.{confs['CONFIG_OMV_VERSION_PATCH']}"
+        version = "4.9.0"
+        url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/opencv4_lib_maixcam_musl_4.9.0.tar.xz"
+        if version == "4.9.0":
+            sha256sum = "c4553fe39212b271724d2bb9394e8944678f846f4e58a578da1db3013cbc3dcf"
+        else:
+            raise Exception(f"version {version} not support")
+        sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
+        filename = f"opencv4_lib_maixcam_musl_4.9.0.tar.xz"
+        path = f"opencv/opencv4"
+        check_file = f'opencv4_lib_maixcam_musl_4.9.0'
+        rename = {}
 
-    if "musl" not in confs["CONFIG_TOOLCHAIN_PATH"]:
-        return []
-    # version = f"{confs['CONFIG_OMV_VERSION_MAJOR']}.{confs['CONFIG_OMV_VERSION_MINOR']}.{confs['CONFIG_OMV_VERSION_PATCH']}"
-    version = "4.9.0"
-    url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/opencv4_lib_maixcam_musl_4.9.0.tar.xz"
-    if version == "4.9.0":
-        sha256sum = "c4553fe39212b271724d2bb9394e8944678f846f4e58a578da1db3013cbc3dcf"
-    else:
-        raise Exception(f"version {version} not support")
-    sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
-    filename = f"opencv4_lib_maixcam_musl_4.9.0.tar.xz"
-    path = f"opencv/opencv4"
-    check_file = f'opencv4_lib_maixcam_musl_4.9.0'
-    rename = {}
+        return [
+            {
+                'url': f'{url}',
+                'urls': [],
+                'sites': sites,
+                'sha256sum': sha256sum,
+                'filename': filename,
+                'path': path,
+                'check_files': [
+                    check_file
+                ],
+                'rename': rename
+            }
+        ]
+    elif confs.get("PLATFORM_MAIXCAM2", None):
+        # version = f"{confs['CONFIG_OMV_VERSION_MAJOR']}.{confs['CONFIG_OMV_VERSION_MINOR']}.{confs['CONFIG_OMV_VERSION_PATCH']}"
+        version = "4.9.0"
+        url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/opencv4_lib_maixcam2_glibc_4.9.0.tar.xz"
+        if version == "4.9.0":
+            sha256sum = "42e2827b632cdfcd168e4a3d77414ce57e0d9c3398893ac899635124d1579a53"
+        else:
+            raise Exception(f"version {version} not support")
+        sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
+        filename = f"opencv4_lib_maixcam2_glibc_4.9.0.tar.xz"
+        path = f"opencv/opencv4"
+        check_file = f'opencv4_lib_maixcam2_glibc_4.9.0'
+        rename = {}
 
-    return [
-        {
-            'url': f'{url}',
-            'urls': [],
-            'sites': sites,
-            'sha256sum': sha256sum,
-            'filename': filename,
-            'path': path,
-            'check_files': [
-                check_file
-            ],
-            'rename': rename
-        }
-    ]
-
+        return [
+            {
+                'url': f'{url}',
+                'urls': [],
+                'sites': sites,
+                'sha256sum': sha256sum,
+                'filename': filename,
+                'path': path,
+                'check_files': [
+                    check_file
+                ],
+                'rename': rename
+            }
+        ]

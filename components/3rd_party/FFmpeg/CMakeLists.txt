@@ -1,6 +1,10 @@
 set(ffmpeg_version_str "${CONFIG_FFMPEG_VERSION_MAJOR}.${CONFIG_FFMPEG_VERSION_MINOR}.${CONFIG_FFMPEG_VERSION_PATCH}")
 set(ffmpeg_unzip_path "${DL_EXTRACTED_PATH}/ffmpeg_srcs")
-set(src_path "${ffmpeg_unzip_path}/ffmpeg")
+if(PLATFORM_MAIXCAM2)
+    set(src_path "${ffmpeg_unzip_path}/ffmpeg_ax630c_libs")
+else()
+    set(src_path "${ffmpeg_unzip_path}/ffmpeg")
+endif()
 ############### Add include ###################
 set(ffmpeg_include_dir          "${src_path}/include"
                                 "."
@@ -62,12 +66,13 @@ set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
                             ${src_path}/lib/libavformat.so
                             ${src_path}/lib/libavresample.so
                             ${src_path}/lib/libavutil.so
-                            ${src_path}/lib/libpostproc.so
                             ${src_path}/lib/libswresample.so
                             ${src_path}/lib/libswscale.so
                                 )
 list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
-list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})
+if (PLATFORM_MAIXCAM)
+    list(APPEND ADD_DYNAMIC_LIB ${src_path}/lib/libpostproc.so)
+endif()
 set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
 ###############################################
 

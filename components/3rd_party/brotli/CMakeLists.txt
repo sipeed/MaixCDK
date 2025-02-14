@@ -96,7 +96,7 @@ endif()
 
 if(PLATFORM_M2DOCK)
     set(brotli_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_m2dock.cmake)
-elseif(PLATFORM_MAIXCAM)
+elseif(PLATFORM_MAIXCAM OR PLATFORM_MAIXCAM2)
     set(brotli_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_linux_cross.cmake)
 elseif(PLATFORM_LINUX)
     set(brotli_toolchain_file ${CMAKE_CURRENT_LIST_DIR}/toolchain_linux.cmake)

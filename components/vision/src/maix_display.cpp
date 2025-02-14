@@ -18,6 +18,10 @@
     #include "maix_display_mmf.hpp"
     #include "maix_display_fb.hpp"
 #endif
+#ifdef PLATFORM_MAIXCAM2
+    #include "maix_display_maixcam2.hpp"
+    #include "maix_display_fb.hpp"
+#endif
 
 namespace maix::display
 {

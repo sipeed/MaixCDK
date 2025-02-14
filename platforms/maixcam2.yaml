@@ -10,5 +10,5 @@ toolchain:
     path: toolchains/maixcam2
     bin_path: toolchains/maixcam2/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin
     prefix: aarch64-none-linux-gnu-
-    c_flags: ''
-    cxx_flags: ''
+    c_flags: '-ldl'
+    cxx_flags: '-ldl'
