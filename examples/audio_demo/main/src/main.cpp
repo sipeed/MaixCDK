@@ -527,6 +527,7 @@ int _main(int argc, char* argv[])
 
         log::info("Ready to record %ld ms, and save to %s\r\n", record_ms, path.c_str());
         audio::Recorder r = audio::Recorder(path, sample_rate, format, channel, block);
+        r.period_size(1920);
         r.reset();
         err::check_bool_raise(r.sample_rate() == sample_rate);
         err::check_bool_raise(r.format() == format);

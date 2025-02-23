@@ -210,6 +210,8 @@ namespace maix::audio
             }
         }
 
+        system("arecord -r 16000 -f S16_LE -c 1 -s 1024 /dev/null");
+
         auto tinyalsa_format = to_tinyalsa_format(format);
         audio_param_t *param = new audio_param_t();
         err::check_null_raise(param, "malloc failed");
@@ -258,6 +260,33 @@ namespace maix::audio
         }
         if (param->block) {
             pcm_prepare(param->pcm);
+        }
+
+        {
+            int retry_count = 5;
+            while (retry_count && !app::need_exit()) {
+                pcm_start(param->pcm);
+                if (!block) {
+                    time::sleep_ms(100);
+                }
+                auto read_frame_count = 128;
+                auto buffer = (uint8_t *)malloc(pcm_frames_to_bytes(param->pcm, read_frame_count));
+                auto len = 0;
+                if (buffer) {
+                    unsigned int avail;
+                    struct timespec tstamp;
+                    err::check_bool_raise(!pcm_get_htimestamp(param->pcm, &avail, &tstamp), "Get htimestamp failed");
+                    len = pcm_readi(param->pcm, buffer, read_frame_count);
+                    free(buffer);
+                }
+                pcm_drain(param->pcm);
+                pcm_stop(param->pcm);
+                pcm_prepare(param->pcm);
+                retry_count --;
+                if (len > 0) {
+                    break;
+                }
+            }
         }
 
         _param = param;
@@ -395,7 +424,11 @@ namespace maix::audio
             memcpy(&new_config, config, sizeof(new_config));
             new_config.period_size = period_size;
             new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
+            auto res = pcm_set_config(pcm, &new_config);
+            if (res) {
+                log::error("pcm set period size config failed, res = %d: %s", res, pcm_get_error(pcm));
+                err::check_bool_raise(!res, "Set audio config failed");
+            }
         }
 
         const struct pcm_config *curr_config = pcm_get_config(pcm);
@@ -412,7 +445,11 @@ namespace maix::audio
             memcpy(&new_config, config, sizeof(new_config));
             new_config.period_count = period_count;
             new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
+            auto res = pcm_set_config(pcm, &new_config);
+            if (res) {
+                log::error("pcm set period count config failed, res = %d: %s", res, pcm_get_error(pcm));
+                err::check_bool_raise(!res, "Set audio config failed");
+            }
         }
 
         const struct pcm_config *curr_config = pcm_get_config(pcm);
