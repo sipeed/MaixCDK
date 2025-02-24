@@ -272,4 +272,6 @@ namespace maix::peripheral::uart
         bool        _read_thread_exit;
     };
 
+    err::Err register_comm_callback(uart::UART *obj, std::function<void(uart::UART*)> callback);
+
 }; // namespace maix.peripheral.uart

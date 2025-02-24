@@ -32,72 +32,22 @@ using namespace maix::peripheral;
 #include <climits>
 #include "maix_fs.hpp"
 
-namespace maix::comm::listener_priv
-{
-
-    class CommFileHandle
-    {
-    public:
-        CommFileHandle() = delete;
-        CommFileHandle(CommFileHandle &) = delete;
-        ~CommFileHandle() = delete;
-        CommFileHandle operator=(const CommFileHandle &) = delete;
-
-        static std::string get_process_name();
-        static std::pair<std::string, std::string> _get_file_path();
-        static int write_comm_info(const std::string &info);
-        static std::string read_comm_info();
-        static bool rm_comm_info();
-        static std::string read_symlink(const std::string &&path);
-        static std::string read_symlink_recursive(const std::string &path, std::unordered_set<std::string> &visited);
-    };
-
-    class CommListener
-    {
-    public:
-        CommListener(const CommListener &) = delete;
-        CommListener &operator=(const CommListener &) = delete;
-
-        static CommListener &get_instance();
-        static void rm_instance();
-        void start_listen();
-        bool stop();
-
-    private:
-        CommListener();
-        ~CommListener();
-
-        void run() noexcept;
-        static void clear_instance() noexcept;
-        void loop() noexcept;
-
-        bool check_device_occupy(const uint64_t interval_ms = 0) noexcept;
-        // bool check_device_occupy_reset_timer()
-        // {
-        //     _last_check_time = time::ticks_ms();
-        // }
-
-        bool keep_join();
-
-    private:
-        static std::atomic<bool> initialized;
-        static CommListener *instance;
-
-        int value{0};
-        maix::comm::CommProtocol *protocol{nullptr};
-        std::string device{""};
-
-        std::thread *th{nullptr};
-        bool _need_exit{false};
-        uint64_t _last_check_time;
-    };
-
-}
-
 namespace maix::comm
 {
-    static std::fstream testfile_s;
-    static std::thread *_stop_th = nullptr;
+    static CommProtocol *_comm_protocol = nullptr;
+    static std::thread *_comm_th = nullptr;
+    static volatile bool _comm_loop_need_exit = false;
+    static volatile bool _comm_loop_exit = true;
+
+    static void _cancel_comm_uart(uart::UART *obj)
+    {
+        if(_comm_protocol && obj)
+        {
+            rm_default_comm_listener();
+            maix::log::info("[Maix Comm Protocol] UART %s ready to init", obj->get_port().c_str());
+        }
+    }
+
     CommBase *CommProtocol::_get_comm_obj(const std::string &method, err::Err &error)
     {
         error = err::Err::ERR_NONE;
@@ -113,9 +63,22 @@ namespace maix::comm
                 log::error("No uart port found");
                 return nullptr;
             }
-            maix::log::debug("Comm uart: %s", ports[ports.size() - 1].c_str());
-            listener_priv::CommFileHandle::write_comm_info(ports[ports.size() - 1]);
-            return new uart::UART(ports[ports.size() - 1], 115200);
+            uart::UART *obj = new uart::UART(ports[ports.size() - 1], 115200);
+            if (!obj)
+            {
+                log::error("[Maix Comm Protocol] No Memory");
+                return nullptr;
+            }
+            // register uart
+            err::Err e = uart::register_comm_callback(obj, _cancel_comm_uart);
+            if (e != err::Err::ERR_NONE)
+            {
+                log::error("[Maix Comm Protocol] Register uart comm obj failed: %s", err::to_str(e).c_str());
+                delete obj;
+                return nullptr;
+            }
+            log::info("[Maix Comm Protocol] listening on uart port: %s", ports[ports.size() - 1].c_str());
+            return obj;
         }
         else if (method == "none")
         {
@@ -124,8 +87,6 @@ namespace maix::comm
         error = err::Err::ERR_ARGS;
         log::error("not support comm method: %s\n", method.c_str());
         return nullptr;
-        /* i2c device: /dev/i2c-x
-            listener_priv::CommFileHandle::write_comm_info("/dev/i2c-x"); */
     }
 
     CommProtocol::CommProtocol(int buff_size, uint32_t header, bool method_none_raise)
@@ -670,380 +631,72 @@ namespace maix::comm
         return err::ERR_NONE;
     }
 
+    void _comm_loop()
+    {
+        int timeout = 50; // 50 ms for fast exit at program start if user want comm to exit. after 3s, timeout will be 500ms to reduce cpu usage.
+        uint64_t _t0 = time::ticks_ms();
+        bool flag = false;
+        while (!maix::app::need_exit() && !_comm_loop_need_exit)
+        {
+            try
+            {
+                if(!flag && (time::ticks_ms() - _t0) > 3000)
+                {
+                    flag = true;
+                    timeout = 500;
+                }
+                auto msg = _comm_protocol->get_msg(timeout);
+                if (!msg)
+                    continue;
+                if (msg->is_resp || msg->has_been_replied)
+                {
+                    delete msg;
+                    continue;
+                }
+                _comm_protocol->resp_err(msg->cmd, err::Err::ERR_ARGS, "Unsupport CMD");
+                delete msg;
+            }
+            catch (const std::exception &e)
+            {
+                maix::log::debug("[Default CommListener] %s", e.what());
+                break;
+            }
+        }
+        maix::log::info("[Maix Comm Protocol] exit success");
+        _comm_loop_exit = true;
+    }
+
     void add_default_comm_listener()
     {
-        comm::listener_priv::CommListener &listener = comm::listener_priv::CommListener::get_instance();
-        listener.start_listen();
+        if(!_comm_protocol)
+        {
+            _comm_protocol = new maix::comm::CommProtocol();
+            _comm_loop_exit = false;
+            _comm_loop_need_exit = false;
+            _comm_th = new std::thread([]()
+            {
+                _comm_loop();
+            });
+        }
     }
 
     bool rm_default_comm_listener()
     {
-        comm::listener_priv::CommListener::rm_instance();
+        if(_comm_protocol)
+        {
+            log::info("[Maix Comm Protocol] exit...");
+            _comm_loop_need_exit = true;
+            while(!_comm_loop_exit)
+            {
+                time::sleep_ms(10);
+            }
+            _comm_th->join();
+            delete _comm_th;
+            _comm_th = nullptr;
+            delete _comm_protocol;
+            _comm_protocol = nullptr;
+        }
         return true;
     }
 } // namespace maix::comm
 
-namespace maix::comm::listener_priv
-{
-    static const char *COMM_LISTENER_CACHE_PATH = "/tmp/maixapp-cache/";
-
-    std::string CommFileHandle::get_process_name()
-    {
-        char buffer[1024];
-        ::memset(buffer, 0x00, sizeof(buffer));
-        ssize_t len = ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-        if (len == -1)
-            return {};
-        buffer[len] = '\0';
-        return {::basename(buffer)};
-    }
-
-    std::pair<std::string, std::string> CommFileHandle::_get_file_path()
-    {
-        std::string path(COMM_LISTENER_CACHE_PATH);
-        if (!maix::fs::exists(path))
-        {
-            // maix::log::info("%s not exists, creating...", path.c_str());
-            maix::fs::mkdir(path);
-        }
-        pid_t pid = ::getpid();
-        std::string filepath(path + get_process_name() + '-' + std::to_string(pid));
-
-        return std::make_pair(path, filepath);
-    }
-
-    int CommFileHandle::write_comm_info(const std::string &info)
-    {
-        std::string path, filepath;
-        std::tie(path, filepath) = _get_file_path();
-
-        std::fstream file(filepath, std::ios::out);
-        if (!file.is_open())
-        {
-            maix::log::error("open file %s failed!", filepath.c_str());
-            return -1;
-        }
-        file << info << std::endl;
-        file.close();
-        return 0;
-    }
-
-    std::string CommFileHandle::read_comm_info()
-    {
-        std::string path, filepath;
-        std::tie(path, filepath) = _get_file_path();
-
-        if (!maix::fs::exists(filepath))
-        {
-            maix::log::error("Comm config file %s does not exit!", filepath.c_str());
-            return {};
-        }
-
-        std::fstream file(filepath, std::ios::in);
-        if (!file.is_open())
-        {
-            maix::log::error("open file %s failed!", filepath.c_str());
-            return {};
-        }
-
-        std::string info;
-        std::getline(file, info);
-        return info;
-    }
-
-    bool CommFileHandle::rm_comm_info()
-    {
-        std::string path, filepath;
-        std::tie(path, filepath) = _get_file_path();
-
-        if (!maix::fs::exists(filepath))
-            return true;
-        return (0 == std::remove(filepath.c_str()));
-    }
-
-    std::string CommFileHandle::read_symlink_recursive(const std::string &path, std::unordered_set<std::string> &visited)
-    {
-        if (visited.find(path) != visited.end())
-        {
-            maix::log::error("Detected loop in symbolic links");
-            return {};
-        }
-        visited.insert(path);
-
-        char buffer[1024];
-        std::fill_n(buffer, sizeof(buffer), 0x00);
-        ssize_t len = ::readlink(path.c_str(), buffer, sizeof(buffer) - 1);
-        if (len == -1)
-        {
-            maix::log::error("readlink failed!!!");
-            return {};
-        }
-        buffer[len] = '\0';
-        std::string target(buffer);
-
-        char resolved_path[PATH_MAX];
-        if (::realpath(target.c_str(), resolved_path) == nullptr)
-        {
-            maix::log::error("realpath failed!!!");
-            return {};
-        }
-
-        std::string resolved_target(resolved_path);
-        if (fs::islink(std::string(resolved_target)))
-        {
-            return read_symlink_recursive(resolved_target, visited);
-        }
-        // maix::log::info("read_symlink_recursive target: %s", resolved_target.c_str());
-        return resolved_target;
-    }
-
-    std::string CommFileHandle::read_symlink(const std::string &&path)
-    {
-        std::unordered_set<std::string> visited;
-        return read_symlink_recursive(path, visited);
-    }
-
-    static uint32_t list_open_files(const char *target, uint32_t str_len)
-    {
-        char path[256];
-        DIR *dir;
-        struct dirent *entry;
-        uint32_t cnt = 0;
-
-        pid_t pid = ::getpid();
-
-        ::snprintf(path, sizeof(path), "/proc/%d/fd", pid);
-
-        if ((dir = ::opendir(path)) == nullptr)
-        {
-            maix::log::error("[%s] opendir failed!", __PRETTY_FUNCTION__);
-            return cnt;
-        }
-
-        while ((entry = ::readdir(dir)) != nullptr)
-        {
-            if (entry->d_type != DT_LNK)
-                continue;
-
-            size_t path_len = ::strlen(path);
-            size_t name_len = ::strlen(entry->d_name);
-            size_t buf_len = path_len + 1 + name_len + 1;
-
-            char *buf = new char[buf_len];
-            if (buf == nullptr)
-            {
-                maix::log::error("[%s] malloc failed!", __PRETTY_FUNCTION__);
-                ::closedir(dir);
-                return cnt;
-            }
-
-            ::snprintf(buf, buf_len, "%s/%s", path, entry->d_name);
-
-            char link[256];
-            ssize_t len = ::readlink(buf, link, sizeof(link) - 1);
-            if (len == str_len && std::equal(link, link + len, target))
-                ++cnt;
-
-            delete[] buf;
-        }
-
-        ::closedir(dir);
-        return cnt;
-    }
-
-    static uint32_t get_open_file_number(const std::string &filename)
-    {
-        // uint32_t cnt = list_open_files(filename.c_str(), filename.size());
-        // maix::log::info("===========================%s cnt: %u", filename.c_str(), cnt);
-        // return cnt;
-        return list_open_files(filename.c_str(), filename.size());
-    }
-
-    static std::string analyze_device(const std::string &&device)
-    {
-        if (!maix::fs::exists(device))
-        {
-            maix::log::error("Device/File %s does not exists!", device.c_str());
-            return {};
-        }
-        if (!fs::islink(std::move(device)))
-        {
-            // maix::log::info("%s no a symlink", device.c_str());
-            return device;
-        }
-        return CommFileHandle::read_symlink(std::move(device));
-    }
-
-    std::atomic<bool> CommListener::initialized{false};
-    CommListener *CommListener::instance = nullptr;
-
-    CommListener::CommListener()
-    {
-        try
-        {
-            this->protocol = new maix::comm::CommProtocol();
-            if(!this->protocol->valid())
-            {
-                delete this->protocol;
-                this->protocol = nullptr;
-            }
-        }
-        catch (const std::exception &e)
-        {
-            this->protocol = nullptr;
-        }
-        if(this->protocol)
-        {
-            this->device = analyze_device(CommFileHandle::read_comm_info());
-            log::debug("[Default CommListener] Start listening on port %s", this->device.c_str());
-        }
-    }
-
-    CommListener::~CommListener()
-    {
-        // maix::log::info("CommListener destroyed");
-        // this->stop();
-        if (this->protocol)
-        {
-            delete this->protocol;
-        }
-        maix::log::debug("[Default CommListener] Stop listening on port %s", this->device.c_str());
-        this->device.clear();
-    }
-
-    CommListener &CommListener::get_instance()
-    {
-        static std::mutex init_mutex;
-
-        if (!initialized.load(std::memory_order_relaxed))
-        {
-            std::lock_guard<std::mutex> lock(init_mutex);
-            if (!instance)
-            {
-                instance = new CommListener();
-            }
-            initialized.store(true, std::memory_order_relaxed);
-        }
-        return *instance;
-    }
-
-    bool CommListener::keep_join()
-    {
-        if (this->th == nullptr)
-            return true;
-
-        this->th->join();
-        delete this->th;
-        this->th = nullptr;
-
-        return true;
-    }
-
-    bool CommListener::stop()
-    {
-        this->_need_exit = true;
-        return keep_join();
-    }
-
-    void CommListener::rm_instance()
-    {
-        static std::mutex init_mutex;
-        std::lock_guard<std::mutex> lock(init_mutex);
-
-        if (initialized.load(std::memory_order_relaxed))
-        {
-            if (instance)
-            {
-                instance->stop();
-                delete instance;
-                instance = nullptr;
-                CommFileHandle::rm_comm_info();
-            }
-            initialized.store(false, std::memory_order_relaxed);
-        }
-    }
-
-    void CommListener::start_listen()
-    {
-        if (this->th != nullptr)
-        {
-            maix::log::warn("Default CommListener thread already running!!! IGNORE.");
-            return;
-        }
-        if (this->protocol && this->protocol->valid())
-        {
-            this->th = new std::thread([this]()
-                                       { this->run(); });
-        }
-    }
-
-    void CommListener::run() noexcept
-    {
-        static std::atomic<bool> running_flag{false};
-        if (true == running_flag.load(std::memory_order_relaxed))
-        {
-            maix::log::error("Default CommListener::run() already running!!!");
-            return;
-        }
-        running_flag.store(true, std::memory_order_relaxed);
-        this->loop();
-        running_flag.store(false, std::memory_order_relaxed);
-    }
-
-    bool CommListener::check_device_occupy(const uint64_t interval_ms) noexcept
-    {
-        if (interval_ms == 0 || time::ticks_ms() - _last_check_time > interval_ms)
-        {
-            _last_check_time = time::ticks_ms();
-            if (!this->device.empty() && get_open_file_number(this->device) > 1)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void CommListener::loop() noexcept
-    {
-        int interval = 0;
-        uint64_t start_ticks = time::ticks_s();
-        int sleep_time = 10;
-        bool flag = false;
-        while (!maix::app::need_exit() && !this->_need_exit)
-        {
-            if(!flag)
-            {
-                if(time::ticks_s() - start_ticks > 2)
-                {// check faster when program startup, then only check in 3s interval
-                    interval = 3000;
-                    sleep_time = 100;
-                    flag = true;
-                }
-            }
-            if (check_device_occupy(interval))
-            {
-                maix::log::info("[Default CommListener] Release device %s for program use",
-                                this->device.c_str(), this->device.c_str());
-                if (_stop_th)
-                {
-                    delete _stop_th;
-                }
-                _stop_th = new std::thread([]()
-                                           { rm_default_comm_listener(); });
-                break;
-            }
-            auto msg = this->protocol->get_msg(0);
-            if (!msg)
-                continue;
-            if (msg->is_resp || msg->has_been_replied)
-            {
-                delete msg;
-                continue;
-            }
-            this->protocol->resp_err(msg->cmd, err::Err::ERR_ARGS, "Unsupport CMD");
-            delete msg;
-            time::sleep_ms(sleep_time); // default listenner don't need fast react, to release CPU usage, so sleep here.
-        }
-        maix::log::info("[Default CommListener] exit success");
-    }
-}

@@ -23,6 +23,8 @@
 
 namespace maix::peripheral::uart
 {
+	static UART* _comm_uart = nullptr;
+	static std::function<void(uart::UART*)> _comm_callback = nullptr;
 	static int _get_baudrate(int baud)
 	{
 		switch (baud)
@@ -301,6 +303,15 @@ namespace maix::peripheral::uart
 			log::error("uart port is not set\r\n");
 			return err::ERR_ARGS;
 		}
+
+		// release comm protocol uart if exits
+		if(_comm_uart && fs::realpath(_comm_uart->get_port()) == fs::realpath(_uart_port))
+		{
+			_comm_callback(_comm_uart);
+			_comm_uart = nullptr;
+		}
+
+		// initialize uart
 		_fd = _uart_init(_uart_port.c_str(), _baudrate, _databits, _parity, _stopbits, _flow_ctrl);
 		if (_fd < 0)
 		{
@@ -687,5 +698,14 @@ namespace maix::peripheral::uart
 		}
 		delete devs;
 		return ports;
+	}
+
+	err::Err register_comm_callback(uart::UART *obj, std::function<void(uart::UART*)> callback)
+	{
+		_comm_uart = obj;
+		_comm_callback = callback;
+		asm volatile ("" : : "g" (_comm_uart));
+		asm volatile ("" : : "g" (_comm_callback));
+		return err::Err::ERR_NONE;
 	}
 }; // namespace maix::peripheral::uart

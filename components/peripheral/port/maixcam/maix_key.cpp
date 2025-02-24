@@ -337,7 +337,7 @@ namespace maix::peripheral::key
             // log::warn("Failed to get key devices, use default device: %s.", KEY_DEVICE0);
             _device_list.push_back(KEY_DEVICE0);
         } else {
-            log::info("Get key devices success.");
+            log::debug("Get key devices success.");
         }
 
         if (std::find(_device_list.begin(), _device_list.end(), KEY_DEVICE1) != _device_list.end() &&
