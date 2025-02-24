@@ -27,7 +27,7 @@ def add_file_downloads(confs : dict) -> list:
             'filename': f"ax630c-third-party_2.0.0.tar.gz",
             'path': f"ax620e_bsp_sdk_srcs/ax620e_bsp_sdk",
             'check_files': [
-                'ax620e_bsp_sdk_srcs/ax620e_bsp_sdk/third-party'
+                'third-party'
             ],
             'rename': {}
         }

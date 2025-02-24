@@ -210,7 +210,7 @@ namespace maix::audio
             }
         }
 
-        system("arecord -r 16000 -f S16_LE -c 1 -s 1024 /dev/null");
+        system("arecord -q -r 16000 -f S16_LE -c 1 -s 1024 /dev/null");
 
         auto tinyalsa_format = to_tinyalsa_format(format);
         audio_param_t *param = new audio_param_t();
