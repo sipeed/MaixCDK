@@ -90,7 +90,8 @@ int _main(int argc, char **argv)
     touchscreen::TouchScreen touchscreen = touchscreen::TouchScreen();
     err::check_bool_raise(touchscreen.is_opened(), "touchscreen open failed");
 
-    std::unique_ptr<camera::Camera> cam = std::make_unique<camera::Camera>(32, 24);
+    constexpr int X_SCALE = 2;
+    std::unique_ptr<camera::Camera> cam = std::make_unique<camera::Camera>(32*X_SCALE, 24*X_SCALE);
 
     maix::lvgl_init(other_disp, &touchscreen);
 
@@ -133,14 +134,17 @@ int _main(int argc, char **argv)
                     println("cam reset!");
                     cam.reset(nullptr);
                     time::sleep(1);
-                    cam.reset(new camera::Camera(g_camera_img_info.w, g_camera_img_info.h));
+                    cam.reset(new camera::Camera(g_camera_img_info.w*X_SCALE, g_camera_img_info.h*X_SCALE));
                     time::sleep(1);
                     cam_need_reset = false;
                     continue;
                 }
 
                 // println("read a cam img");
-                std::unique_ptr<Image> cam_img = std::unique_ptr<Image>(cam->read());
+                std::unique_ptr<Image> cam_img_tmp = std::unique_ptr<Image>(cam->read());
+                const auto cam_img_w = (g_camera_img_info.w) < 32 ? 32 : g_camera_img_info.w;
+                const auto cam_img_h = (g_camera_img_info.h) < 24 ? 24 : g_camera_img_info.h;
+                auto cam_img = std::unique_ptr<Image>(cam_img_tmp->resize(cam_img_w, cam_img_h));
 
                 std::unique_ptr<Image> crop_img;
                 if (g_camera_img_info.w != -1 || g_camera_img_info.h != -1) {
