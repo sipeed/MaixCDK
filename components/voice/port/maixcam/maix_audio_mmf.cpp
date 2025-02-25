@@ -423,6 +423,7 @@ namespace maix::audio
             struct pcm_config new_config;
             memcpy(&new_config, config, sizeof(new_config));
             new_config.period_size = period_size;
+            new_config.start_threshold = new_config.period_size;
             new_config.stop_threshold = new_config.period_size * new_config.period_count;
             auto res = pcm_set_config(pcm, &new_config);
             if (res) {
@@ -825,6 +826,7 @@ namespace maix::audio
             struct pcm_config new_config;
             memcpy(&new_config, config, sizeof(new_config));
             new_config.period_size = period_size;
+            new_config.start_threshold = new_config.period_size;
             new_config.stop_threshold = new_config.period_size * new_config.period_count;
             err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
         }
