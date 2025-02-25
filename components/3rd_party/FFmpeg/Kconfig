@@ -13,6 +13,6 @@ menu "ffmpeg component configuration"
             default 4
         config FFMPEG_COMPILED_VERSION
             int "FFMPEG compiled version"
-            default 1
+            default 2
     endmenu
 endmenu
