@@ -63,10 +63,20 @@ namespace maix::comm
                 log::error("No uart port found");
                 return nullptr;
             }
-            uart::UART *obj = new uart::UART(ports[ports.size() - 1], 115200);
+            uart::UART *obj = nullptr;
+            try
+            {
+                obj = new uart::UART(ports[ports.size() - 1], 115200);
+                if (!obj)
+                {
+                    log::error("[Maix Comm Protocol] No Memory");
+                }
+            }catch(...)
+            {
+                log::error("[Maix Comm Protocol] Create uart obj failed");
+            }
             if (!obj)
             {
-                log::error("[Maix Comm Protocol] No Memory");
                 return nullptr;
             }
             // register uart
