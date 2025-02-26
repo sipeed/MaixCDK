@@ -191,7 +191,7 @@ def rebuild(build_path, configs, toolchain_info, verbose):
 
     save_pkgs_info(configs["SDK_PATH"], files_info)
     for name, files in files_info.items():
-        if len(files) > 0:
+        if files is not None and len(files) > 0:
             print(f"\n-- Download files for component {name}")
             try:
                 download_extract_files(files)
