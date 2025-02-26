@@ -26,7 +26,7 @@ def execute_component_py_func(py_path : str, func : str, *args, **kwargs):
     with open(py_path, "r", encoding="utf-8") as f:
         exec(f.read(), g)
         if func not in g:
-            return False, None
+            return False, []
     return True, g[func](*args, **kwargs)
 
 def parse_kconfigs(config_path, toolchain_config_path):
@@ -150,7 +150,7 @@ def save_pkgs_info(sdk_path, files_info):
     info_path = os.path.join(sdk_path, "dl", "pkgs_info.json")
     count = 0
     for name, files in files_info.items():
-        if len(files) > 0:
+        if files is not None and len(files) > 0:
             count += len(files)
             for i, item in enumerate(files):
                 item["pkg_path"] = os.path.join(sdk_path, "dl", "pkgs", item["path"], item["filename"])
