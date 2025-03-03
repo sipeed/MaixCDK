@@ -33,7 +33,7 @@ append_srcs_dir(ADD_SRCS "${bsp_sample_path}/common")     # append source file i
 ###############################################
 
 ############ Add dynamic libs ##################
-list(APPEND ADD_DYNAMIC_LIB "${bsp_glibc_path}/lib/libax_skel.so"
+set(libax_dynamic_lib_file "${bsp_glibc_path}/lib/libax_skel.so"
 "${bsp_glibc_path}/lib/libax_skel.so"
 "${bsp_glibc_path}/lib/libax_avs.so"
 "${bsp_glibc_path}/lib/libax_utility.so"
@@ -93,9 +93,11 @@ list(APPEND ADD_DYNAMIC_LIB "${bsp_glibc_path}/lib/libax_skel.so"
 # "${srcs_path}/third-party/faac/lib/arm64/glibc/libfaac.so.0"
 "${srcs_path}/third-party/fdk-aac/lib/arm64/glibc/libfdk-aac.so.2"
 "${srcs_path}/third-party/opus/lib/arm64/glibc/libopus.so.0"
-"${bsp_app_path}/component/resource/lib/arm64/glibc/appweb/libmpr.so"
+"${bsp_app_path}/component/resource/lib/arm64/glibc/appweb/libmpr.so")
 
-)
+set_property(SOURCE ${libax_dynamic_lib_file} PROPERTY GENERATED 1)
+list(APPEND ADD_DYNAMIC_LIB ${libax_dynamic_lib_file})
+# list(APPEND ADD_DIST_LIB_IGNORE ${libax_dynamic_lib_file})
 
 ###############################################
 
@@ -113,7 +115,7 @@ list(APPEND ADD_DYNAMIC_LIB "${bsp_glibc_path}/lib/libax_skel.so"
 
 ############ Add static libs ##################
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
-set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-rpath,${srcs_path}/third-party/faac/lib/arm/glibc/libfaac.so.0" PARENT_SCOPE)
+# set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-rpath,${srcs_path}/third-party/faac/lib/arm/glibc/libfaac.so.0" PARENT_SCOPE)
 ###############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib

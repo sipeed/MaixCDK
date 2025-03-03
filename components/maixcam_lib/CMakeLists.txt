@@ -2,38 +2,47 @@
 list(APPEND ADD_REQUIREMENTS basic ini)
 list(APPEND ADD_INCLUDE "include")
 
-# sophgo-middleware
-set(middleware_src_path "${CMAKE_CURRENT_SOURCE_DIR}/../3rd_party/sophgo-middleware/sophgo-middleware")
+if(PLATFORM_MAIXCAM)
+    message(STATUS "PLATFORM_MAIXCAM")
+    # sophgo-middleware
+    set(middleware_src_path "${CMAKE_CURRENT_SOURCE_DIR}/../3rd_party/sophgo-middleware/sophgo-middleware")
 
-if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
-    set(source_dir "maixcdk_maixcam_lib")
-    append_srcs_dir(ADD_SRCS "${source_dir}")
-    # nn
-    list(APPEND ADD_INCLUDE "../nn/include")
-    list(APPEND ADD_INCLUDE "../vision/include")
-    append_srcs_dir(ADD_SRCS "${source_dir}/nn")
-    list(APPEND ADD_REQUIREMENTS cvi_tpu)
+    if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
+        set(source_dir "maixcdk_maixcam_lib")
+        append_srcs_dir(ADD_SRCS "${source_dir}")
+        # nn
+        list(APPEND ADD_INCLUDE "../nn/include")
+        list(APPEND ADD_INCLUDE "../vision/include")
+        append_srcs_dir(ADD_SRCS "${source_dir}/nn")
+        list(APPEND ADD_REQUIREMENTS cvi_tpu)
 
-    # media_server
-    append_srcs_dir(ADD_SRCS "${source_dir}/media_server")
-    list(APPEND ADD_REQUIREMENTS media_server)
+        # media_server
+        append_srcs_dir(ADD_SRCS "${source_dir}/media_server")
+        list(APPEND ADD_REQUIREMENTS media_server)
 
-    # middleware
-    list(APPEND ADD_SRCS        "${source_dir}/middleware/sophgo_middleware.cpp")
-    set_property(SOURCE ${middleware_src_dir} PROPERTY GENERATED 1)
+        # middleware
+        list(APPEND ADD_SRCS        "${source_dir}/middleware/sophgo_middleware.cpp")
+        set_property(SOURCE ${middleware_src_dir} PROPERTY GENERATED 1)
 
-    list(APPEND ADD_REQUIREMENTS sophgo-middleware)
-    list(APPEND ADD_DEFINITIONS_PRIVATE -Wl,--exclude-libs,ALL)
+        list(APPEND ADD_REQUIREMENTS sophgo-middleware)
+        list(APPEND ADD_DEFINITIONS_PRIVATE -Wl,--exclude-libs,ALL)
 
+        register_component(DYNAMIC)
+    else()
+        list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam_lib.so")
+        list(APPEND ADD_DIST_LIB_IGNORE "lib/libmaixcam_lib.so")
+        list(APPEND ADD_REQUIREMENTS sophgo-middleware)
+
+        register_component()
+    endif()
+elseif(PLATFORM_MAIXCAM2)
+    # ax630c
+    list(APPEND ADD_REQUIREMENTS ax620e_bsp_sdk)
+
+    set(source_dir "maixcdk_maixcam2_lib")
+    list(APPEND ADD_SRCS        "${source_dir}/ax_vi.cpp")
     register_component(DYNAMIC)
-else()
-    list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam_lib.so")
-    list(APPEND ADD_DIST_LIB_IGNORE "lib/libmaixcam_lib.so")
-    list(APPEND ADD_REQUIREMENTS sophgo-middleware)
-
-    register_component()
 endif()
-
 
 # Config enable component2 or not in Kconfig
 ################# Add include #################

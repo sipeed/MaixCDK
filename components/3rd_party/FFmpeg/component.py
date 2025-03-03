@@ -36,6 +36,7 @@ def add_file_downloads(confs : dict) -> list:
             }
         ]
     elif confs.get('PLATFORM_MAIXCAM2', None):
+        version = "4.4.4.1"
         url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/ffmpeg_ax630c_libs_n{version}.tar.xz"
         if version == "4.4.4.1":
             sha256sum = "3fcc394fad917127dd9503396dd84ce29fe47f33e76ebfd86dce6a73031e3a4b."
