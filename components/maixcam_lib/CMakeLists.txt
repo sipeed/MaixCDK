@@ -37,11 +37,18 @@ if(PLATFORM_MAIXCAM)
     endif()
 elseif(PLATFORM_MAIXCAM2)
     # ax630c
-    list(APPEND ADD_REQUIREMENTS ax620e_bsp_sdk)
+    list(APPEND ADD_REQUIREMENTS ax620e_msp)
 
-    set(source_dir "maixcdk_maixcam2_lib")
-    list(APPEND ADD_SRCS        "${source_dir}/ax_vi.cpp")
-    register_component(DYNAMIC)
+    set(source_dir "maixcdk_maixcam_lib/maixcam2")
+
+    if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
+        append_srcs_dir(ADD_SRCS "${source_dir}")
+        register_component(DYNAMIC)
+    else()
+        list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam2_lib.so")
+        list(APPEND ADD_DIST_LIB_IGNORE "lib/libmaixcam2_lib.so")
+        register_component()
+    endif()
 endif()
 
 # Config enable component2 or not in Kconfig
