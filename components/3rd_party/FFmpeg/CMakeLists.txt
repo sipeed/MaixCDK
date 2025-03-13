@@ -74,17 +74,17 @@ if (PLATFORM_MAIXCAM)
     list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
     set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
 elseif(PLATFORM_MAIXCAM2)
-    set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
+    set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so.58
                                 ${src_path}/lib/libavdevice.so.58
-                                ${src_path}/lib/libavfilter.so
-                                ${src_path}/lib/libavformat.so
+                                ${src_path}/lib/libavfilter.so.7
+                                ${src_path}/lib/libavformat.so.58
                                 ${src_path}/lib/libavresample.so.4
-                                ${src_path}/lib/libavutil.so
-                                ${src_path}/lib/libswresample.so
-                                ${src_path}/lib/libswscale.so)
+                                ${src_path}/lib/libavutil.so.56
+                                ${src_path}/lib/libswresample.so.3
+                                ${src_path}/lib/libswscale.so.5)
     list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
     set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
-    # list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})
+    list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})
 else()
     set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
                                 ${src_path}/lib/libavdevice.so
