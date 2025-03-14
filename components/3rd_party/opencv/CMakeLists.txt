@@ -1,7 +1,15 @@
 
 # change version you should search all this document and change all version related string
-set(version_str "4.9.0")
-set(so_suffix_number "409")
+if (PLATFORM_MAIXCAM)
+    set(version_str "4.9.0")
+    set(so_suffix_number "409")
+elseif(PLATFORM_MAIXCAM2)
+    set(version_str "4.6.0")
+    set(so_suffix_number "406")
+else()
+    set(version_str "4.9.0")
+    set(so_suffix_number "409")
+endif()
 
 # skip compile for local compile
 if((NOT CONFIG_OPENCV_COMPILE_FROM_SOURCE) AND PLATFORM_LINUX AND NOT CONFIG_COMPONENTS_COMPILE_FROM_SOURCE)
@@ -36,10 +44,10 @@ if((PLATFORM_MAIXCAM OR PLATFORM_MAIXCAM2) AND NOT CONFIG_OPENCV_COMPILE_FROM_SO
             if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/opencv4_lib_maixcam")
                 set(opencv_lib_dir "${CMAKE_CURRENT_LIST_DIR}/opencv4_lib_maixcam")
             elseif(CONFIG_TOOLCHAIN_PATH MATCHES "musl")
-                set(opencv_lib_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv4_lib_maixcam_musl_4.9.0")
+                set(opencv_lib_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv4_lib_maixcam_musl_${version_str}")
             endif()
         elseif(PLATFORM_MAIXCAM2)
-            set(opencv_lib_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv4_lib_maixcam2_glibc_4.9.0")
+            set(opencv_lib_dir "${DL_EXTRACTED_PATH}/opencv/opencv4/opencv4_lib_maixcam2_glibc_${version_str}")
         endif()
         if(opencv_lib_dir)
             list(APPEND ADD_INCLUDE "${opencv_lib_dir}/include/opencv4")

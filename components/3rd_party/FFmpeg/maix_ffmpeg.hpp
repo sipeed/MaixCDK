@@ -292,7 +292,7 @@ public:
                 goto _free_format_context;
             }
 
-            AVCodec *audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+            AVCodec *audio_codec = (AVCodec *)avcodec_find_encoder(AV_CODEC_ID_AAC);
             if (!audio_codec) {
 				printf("Can't find audio encoder\r\n");
                 goto _free_format_context;
