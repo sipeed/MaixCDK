@@ -9,7 +9,7 @@ def add_file_downloads(confs : dict) -> list:
         if bool(confs.get("PLATFORM_MAIXCAM", None)):
             return "4.9.0"
         elif bool(confs.get('PLATFORM_MAIXCAM2', None)):
-            return "4.6.0"
+            return "4.11.0"
         else:
             return "4.9.0"
 
@@ -21,6 +21,8 @@ def add_file_downloads(confs : dict) -> list:
             sha256sum = "158db5813a891c7eda8644259fc1dbd76b21bd1ffb9854a8b4b8115a4ceec359"
         elif version == "4.9.0":
             sha256sum = "9b5b64d50bf4a3ddeab430a9b13c5f9e023c9e67639ab50a74d0c298b5a61b74"
+        elif version == "4.11.0":
+            sha256sum = "11dbd2c8d248fa97ac7d20f33c4bab8559ef32835d1c9274009150bb2cf5218a"
         else:
             raise Exception(f"version {version} not support")
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
@@ -139,6 +141,8 @@ def add_file_downloads(confs : dict) -> list:
             sha256sum = "7225b441995273ed9d965596c4a955f363ff5196483303da532d4e82a4e74bad"
         elif version == "4.9.0":
             sha256sum = "42e2827b632cdfcd168e4a3d77414ce57e0d9c3398893ac899635124d1579a53"
+        elif version == "4.11.0":
+            sha256sum = "4aefecf397adf2efda8fcdca1ddf4c4b2b9a7af2fb478c6a6d251966161ab72c"
         else:
             raise Exception(f"version {version} not support")
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
