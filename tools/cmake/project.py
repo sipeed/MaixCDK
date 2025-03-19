@@ -348,16 +348,11 @@ def main(sdk_path, project_path):
         info = check_toolchain_main(platform, os.path.join(sdk_path, "platforms"), os.path.join(build_path, "config", "toolchain_config.cmake"), configs["TOOLCHAIN_ID"])
         configs["TOOLCHAIN_ID"] = info.get("id", "")
         save_configs(build_path, configs)
-        if "c_flags" in info:
-            configs["CMAKE_C_FLAGS"] = info["c_flags"]
-        if "cxx_flags" in info:
-            configs["CMAKE_CXX_FLAGS"] = info["cxx_flags"]
-        if "ld_flags" in info:
-            configs["CMAKE_EXE_LINKER_FLAGS"] = info["ld_flags"]
-        if "c_link_flags" in info:
-            configs["CMAKE_C_LINK_FLAGS"] = info["c_link_flags"]
-        if "cxx_link_flags" in info:
-            configs["CMAKE_CXX_LINK_FLAGS"] = info["cxx_link_flags"]
+        configs["CMAKE_C_FLAGS"] = info.get("c_flags", "")
+        configs["CMAKE_CXX_FLAGS"] = info.get("cxx_flags", "")
+        configs["CMAKE_EXE_LINKER_FLAGS"] = info.get("ld_flags", "")
+        configs["CMAKE_C_LINK_FLAGS"] = info.get("c_link_flags", "")
+        configs["CMAKE_CXX_LINK_FLAGS"] = info.get("cxx_link_flags", "")
         if "cpp_flags" in info or "cpp_link_flags" in info:
             raise Exception("Please use cxx_flags or cxx_link_flags instead of cpp_flags or cpp_link_flags in platform yaml file")
 

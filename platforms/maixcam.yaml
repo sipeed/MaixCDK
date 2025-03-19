@@ -5,7 +5,7 @@ toolchain:
     url: https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/03/07/16/host-tools.tar.gz
     urls:
     sites:
-    - https://github.com/sophgo/cvi_mmf_sdk
+      - https://github.com/sophgo/cvi_mmf_sdk
     sha256sum: ff9a58e8e192b20ea42e1d729c42d2219523209706cb3f0cf134582f6c70f805
     filename: host-tools.tar.gz
     path: toolchains/maixcam

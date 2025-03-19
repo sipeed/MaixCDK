@@ -1,14 +1,19 @@
 toolchain:
-  - name: ARM toolchain
-    id: gcc-arm-9.10
+  - name: Cross compile AArch64 Linux GNU toolchain
+    id: cross-gcc-9.2
+    cross: true
+    host-os: linux
+    host-arch: x86_64
     default: true
     url:  https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
     urls:
     sites:
+    - https://developer.arm.com/downloads/-/gnu-a
     sha256sum: 8dfe681531f0bd04fb9c53cf3c0a3368c616aa85d48938eebe2b516376e06a66
     filename: gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
     path: toolchains/maixcam2
     bin_path: toolchains/maixcam2/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin
     prefix: aarch64-none-linux-gnu-
-    c_flags: '-ldl'
-    cxx_flags: '-ldl'
+    c_flags: ""
+    cxx_flags: ""
+
