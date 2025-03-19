@@ -28,9 +28,12 @@ extern "C" {
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include "ax_middleware.hpp"
 
 namespace maix::video
 {
+    using namespace maix::middleware;
+
 #if CONFIG_BUILD_WITH_MAIXPY
     maix::image::Image *Video::NoneImage = new maix::image::Image();
     maix::image::Image *Encoder::NoneImage = new maix::image::Image();
@@ -56,7 +59,7 @@ namespace maix::video
         if (!strcmp(suffix, ".h264")) {
             video_type = video::VIDEO_H264;
         } else if (!strcmp(suffix, ".h265")) {
-            video_type = video::VIDEO_H264;
+            video_type = video::VIDEO_H265;
         } else if (!strcmp(suffix, ".mp4")) {
             switch (type) {
             case video::VIDEO_H264:         // fall through
@@ -157,6 +160,9 @@ namespace maix::video
         int audio_channels;
         int audio_bitrate;
         enum AVSampleFormat audio_format;
+
+        unique_ptr<maixcam2::SYS> sys;
+        unique_ptr<maixcam2::VENC> venc;
     } encoder_param_t;
 
     Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
@@ -180,29 +186,14 @@ namespace maix::video
         err::check_bool_raise(format == image::Format::FMT_YVU420SP, "Encoder only support FMT_YVU420SP format!");
         video::VideoType video_type = _get_video_type(path.c_str(), type);
 
-        if (_path.size() == 0) {
-            switch (_type) {
-            case VIDEO_H264:
-            {
+        _param = (encoder_param_t *)malloc(sizeof(encoder_param_t));
+        encoder_param_t *param = (encoder_param_t *)_param;
+        err::check_null_raise(_param, "malloc failed!");
+        memset(_param, 0, sizeof(encoder_param_t));
 
-                break;
-            }
-            case VIDEO_H265:
-            {
-
-                break;
-            }
-            default:
-                std::string err_str = "Encoder not support type: " + std::to_string(_type);
-                err::check_raise(err::ERR_RUNTIME, err_str);
-            }
-        } else {
+        if (_path.size() != 0) {
             // ffmpeg init
             av_log_set_callback(custom_log_callback);
-            _param = (encoder_param_t *)malloc(sizeof(encoder_param_t));
-            err::check_null_raise(_param, "malloc failed!");
-            memset(_param, 0, sizeof(encoder_param_t));
-
             AVFormatContext *outputFormatContext = NULL;
             if (0 != avformat_alloc_output_context2(&outputFormatContext, NULL, NULL, _path.c_str())) {
                 log::error("Count not open file: %s", _path.c_str());
@@ -212,7 +203,6 @@ namespace maix::video
             /* video init */
             AVStream *outputStream = avformat_new_stream(outputFormatContext, NULL);
             err::check_null_raise(outputStream, "create new stream failed");
-
             outputStream->codecpar->codec_type = AVMEDIA_TYPE_VIDEO;
             outputStream->codecpar->codec_id = _video_type_to_ffmpeg(video_type);
             outputStream->codecpar->width = _width;
@@ -220,7 +210,6 @@ namespace maix::video
             outputStream->codecpar->format = _image_format_to_ffmpeg(_format);
             outputStream->time_base = (AVRational){1, _framerate};
             outputStream->codecpar->bit_rate = _bitrate;
-
             if (!(outputFormatContext->oformat->flags & AVFMT_NOFILE)) {
                 if (avio_open(&outputFormatContext->pb, _path.c_str(), AVIO_FLAG_WRITE) < 0) {
                     log::error("Count not open file: %s", _path.c_str());
@@ -231,135 +220,169 @@ namespace maix::video
             AVPacket *pPacket = av_packet_alloc();
             err::check_null_raise(pPacket, "malloc failed!");
 
-            // venc init
-
-            /* audio init */
-            AVStream *audio_stream = NULL;
-            AVCodecContext *audio_codec_ctx = NULL;
-            AVCodec *audio_codec = NULL;
-            AVFrame *audio_frame = NULL;
-            SwrContext *swr_ctx = NULL;
-            AVPacket *audio_packet = NULL;
-
-            audio_packet = av_packet_alloc();
-            err::check_null_raise(audio_packet, "av_packet_alloc");
-            audio_packet->data = NULL;
-            audio_packet->size = 0;
-
-            int sample_rate = 48000;
-            int channels = 1;
-            int bitrate = 128000;
-            enum AVSampleFormat format = AV_SAMPLE_FMT_S16;
-            err::check_null_raise(audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
-            err::check_null_raise(audio_stream = avformat_new_stream(outputFormatContext, NULL), "Could not allocate stream");
-            err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
-            audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
-            audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
-            audio_codec_ctx->sample_rate = sample_rate;
-            audio_codec_ctx->channels = channels;
-            audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
-            audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
-            audio_codec_ctx->time_base = (AVRational){1, sample_rate};
-            audio_codec_ctx->bit_rate = bitrate;
-            audio_stream->time_base = audio_codec_ctx->time_base;
-            err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
-            err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
-
-            swr_ctx = swr_alloc();
-            av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
-            av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
-            av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
-            av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
-            av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
-            av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
-            swr_init(swr_ctx);
-
-            int frame_size = audio_codec_ctx->frame_size;
-            audio_frame = av_frame_alloc();
-            audio_frame->nb_samples = frame_size;
-            audio_frame->channel_layout = audio_codec_ctx->channel_layout;
-            audio_frame->format = AV_SAMPLE_FMT_FLTP;
-            audio_frame->sample_rate = audio_codec_ctx->sample_rate;
-            av_frame_get_buffer(audio_frame, 0);
+            // /* audio init */
+            // AVStream *audio_stream = NULL;
+            // AVCodecContext *audio_codec_ctx = NULL;
+            // AVCodec *audio_codec = NULL;
+            // AVFrame *audio_frame = NULL;
+            // SwrContext *swr_ctx = NULL;
+            // AVPacket *audio_packet = NULL;
+            //
+            // audio_packet = av_packet_alloc();
+            // err::check_null_raise(audio_packet, "av_packet_alloc");
+            // audio_packet->data = NULL;
+            // audio_packet->size = 0;
+            //
+            // int sample_rate = 48000;
+            // int channels = 1;
+            // int bitrate = 128000;
+            // enum AVSampleFormat format = AV_SAMPLE_FMT_S16;
+            // err::check_null_raise(audio_codec = (AVCodec *)avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
+            // err::check_null_raise(audio_stream = avformat_new_stream(outputFormatContext, NULL), "Could not allocate stream");
+            // err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
+            // audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
+            // audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
+            // audio_codec_ctx->sample_rate = sample_rate;
+            // audio_codec_ctx->channels = channels;
+            // audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+            // audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
+            // audio_codec_ctx->time_base = (AVRational){1, sample_rate};
+            // audio_codec_ctx->bit_rate = bitrate;
+            // audio_stream->time_base = audio_codec_ctx->time_base;
+            // err::check_bool_raise(avcodec_parameters_from_context(audio_stream->codecpar, audio_codec_ctx) >= 0, "avcodec_parameters_to_context");
+            // err::check_bool_raise(avcodec_open2(audio_codec_ctx, audio_codec, NULL) >= 0, "audio_codec open failed");
+            //
+            // swr_ctx = swr_alloc();
+            // av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
+            // av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+            // av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
+            // av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
+            // av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
+            // av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+            // swr_init(swr_ctx);
+            //
+            // int frame_size = audio_codec_ctx->frame_size;
+            // audio_frame = av_frame_alloc();
+            // audio_frame->nb_samples = frame_size;
+            // audio_frame->channel_layout = audio_codec_ctx->channel_layout;
+            // audio_frame->format = AV_SAMPLE_FMT_FLTP;
+            // audio_frame->sample_rate = audio_codec_ctx->sample_rate;
+            // av_frame_get_buffer(audio_frame, 0);
 
             err::check_bool_raise(avformat_write_header(outputFormatContext, NULL) >= 0, "avformat_write_header failed!");
 
-            /* param init */
-            encoder_param_t *param = (encoder_param_t *)_param;
             param->outputFormatContext = outputFormatContext;
             param->outputStream = outputStream;
-
-            // video init
             param->pPacket = pPacket;
-            param->video_type = video_type;
-            param->find_sps_pps = false;
-            param->frame_index = 0;
-            param->last_encode_ms = time::ticks_ms();
-            param->video_packet_list = new std::list<AVPacket *>;
-            switch (video_type) {
-                case VIDEO_H264:
-                    param->copy_sps_pps_per_iframe = true;
-                    break;
-                case VIDEO_H264_MP4:
-                    param->copy_sps_pps_per_iframe = false;
-                    break;
-                case VIDEO_H264_FLV:
-                    param->copy_sps_pps_per_iframe = false;
-                break;
-                case VIDEO_H265:
-                    param->copy_sps_pps_per_iframe = true;
-                    break;
-                case VIDEO_H265_MP4:
-                    param->copy_sps_pps_per_iframe = false;
-                    break;
-                default:
-                    err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
-            }
 
-            // audio init
-            param->audio_stream = audio_stream;
-            param->audio_codec_ctx = audio_codec_ctx;
-            param->audio_codec = audio_codec;
-            param->audio_frame = audio_frame;
-            param->swr_ctx = swr_ctx;
-            param->audio_packet = audio_packet;
-            param->audio_last_pts = 0;
-            param->pcm_list = new std::list<Bytes *>;
-            param->audio_sample_rate = 48000;
-            param->audio_channels = 1;
-            param->audio_bitrate = 128000;
-            param->audio_format = AV_SAMPLE_FMT_S16;
+            // param->audio_stream = audio_stream;
+            // param->audio_codec_ctx = audio_codec_ctx;
+            // param->audio_codec = audio_codec;
+            // param->audio_frame = audio_frame;
+            // param->swr_ctx = swr_ctx;
+            // param->audio_packet = audio_packet;
         }
+
+        param->video_type = video_type;
+        param->find_sps_pps = false;
+        param->frame_index = 0;
+        param->last_encode_ms = time::ticks_ms();
+        param->video_packet_list = new std::list<AVPacket *>;
+        switch (video_type) {
+            case VIDEO_H264:
+                param->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H264_MP4:
+                param->copy_sps_pps_per_iframe = false;
+                break;
+            case VIDEO_H264_FLV:
+                param->copy_sps_pps_per_iframe = false;
+            break;
+            case VIDEO_H265:
+                param->copy_sps_pps_per_iframe = true;
+                break;
+            case VIDEO_H265_MP4:
+                param->copy_sps_pps_per_iframe = false;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
+        }
+
+        ax_venc_param_t cfg = {0};
+        switch (video_type) {
+            case VIDEO_H264:
+            case VIDEO_H264_MP4:
+            case VIDEO_H264_FLV:
+                cfg.w = width;
+                cfg.h = height;
+                cfg.fmt = maixcam2::get_ax_fmt_from_maix(format);
+                cfg.type = AX_VENC_TYPE_H264;
+                cfg.h264.bitrate = bitrate / 1000;
+                cfg.h264.input_fps = framerate;
+                cfg.h264.output_fps = framerate;
+                cfg.h264.gop = gop;
+                cfg.h264.intra_qp_delta = -2;
+                cfg.h264.de_breath_qp_delta = -2;
+                cfg.h264.min_qp = 10;
+                cfg.h264.max_qp = 51;
+                cfg.h264.min_iqp = 10;
+                cfg.h264.max_iqp = 51;
+                cfg.h264.min_iprop = 10;
+                cfg.h264.max_iprop = 40;
+                cfg.h264.first_frame_start_qp = -1;
+                break;
+            case VIDEO_H265:
+            case VIDEO_H265_MP4:
+                cfg.w = width;
+                cfg.h = height;
+                cfg.fmt = maixcam2::get_ax_fmt_from_maix(format);
+                cfg.type = AX_VENC_TYPE_H265;
+                cfg.h265.bitrate = bitrate / 1000;
+                cfg.h265.input_fps = framerate;
+                cfg.h265.output_fps = framerate;
+                cfg.h265.gop = gop;
+                cfg.h265.intra_qp_delta = -2;
+                cfg.h264.de_breath_qp_delta = -2;
+                cfg.h265.min_qp = 10;
+                cfg.h265.max_qp = 51;
+                cfg.h265.min_iqp = 10;
+                cfg.h265.max_iqp = 51;
+                cfg.h265.min_iprop = 30;
+                cfg.h265.max_iprop = 40;
+                cfg.h265.first_frame_start_qp = -1;
+                cfg.h265.qp_delta_rgn = 10;
+                cfg.h265.qp_map_type = AX_VENC_QPMAP_QP_DISABLE;
+                cfg.h265.qp_map_blk_type = AX_VENC_QPMAP_BLOCK_DISABLE;
+                cfg.h265.qp_map_block_unit = AX_VENC_QPMAP_BLOCK_UNIT_64x64;
+                cfg.h265.ctb_rc_mode = AX_VENC_RC_CTBRC_DISABLE;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "unsupport stream type!");
+        }
+        param->sys = make_unique<maixcam2::SYS>(false);
+        param->venc = make_unique<maixcam2::VENC>(&cfg);
+
+        // audio init
+        param->audio_last_pts = 0;
+        param->pcm_list = new std::list<Bytes *>;
+        param->audio_sample_rate = 48000;
+        param->audio_channels = 1;
+        param->audio_bitrate = 128000;
+        param->audio_format = AV_SAMPLE_FMT_S16;
     }
 
     Encoder::~Encoder() {
+        encoder_param_t *param = (encoder_param_t *)_param;
+        param->venc = nullptr;      // release venc
+        param->sys = nullptr;
         if (_path.size() == 0) {
-            switch (_type) {
-            case VIDEO_H264:
-            {
-
-                break;
-            }
-            case VIDEO_H265:
-            {
-
-                break;
-            }
-            default:
-                std::string err_str = "Encoder not support type: " + std::to_string(_type);
-                err::check_raise(err::ERR_RUNTIME, err_str);
-            }
-
             if (_capture_image && _capture_image->data()) {
                 delete _capture_image;
                 _capture_image = nullptr;
             }
         } else {
-            encoder_param_t *param = (encoder_param_t *)_param;
             if (param) {
-
                 av_write_trailer(param->outputFormatContext);
-
                 for (auto it = param->pcm_list->begin(); it != param->pcm_list->end(); ++it) {
                     Bytes *pcm = *it;
                     delete pcm;
@@ -404,8 +427,100 @@ namespace maix::video
     }
 
     video::Frame *Encoder::encode(image::Image *img, Bytes *pcm) {
+        auto err = err::ERR_NONE;
+        auto param = (encoder_param_t *)_param;
+        auto need_save = false;
+        auto curr_ms = time::ticks_ms();
+        video::Frame *frame = nullptr;
 
-        return nullptr;
+        // Check if need save frame to file
+        if (_path.size() == 0) {
+            need_save = false;
+        } else {
+            need_save = true;
+        }
+
+        // Pop last frame
+        auto pop_frame = param->venc->pop(30);
+        if (pop_frame) {
+            AX_VENC_STREAM_T stream;
+            if (err::ERR_NONE != pop_frame->get_venc_stream(&stream)) {
+                log::error("get venc stream failed!");
+                delete pop_frame;
+                return nullptr;
+            }
+
+            // for (size_t i = 0; i < stream.stPack.u32NaluNum; i ++) {
+            //     log::info("[%d] type:%d oft:%d size:%d", i, stream.stPack.stNaluInfo[i].unNaluType, stream.stPack.stNaluInfo[i].u32NaluOffset, stream.stPack.stNaluInfo[i].u32NaluLength);
+            // }
+
+            if (need_save) {
+                bool is_first_frame = false;
+                if (!param->find_sps_pps && stream.stPack.u32NaluNum > 1) {
+                    is_first_frame = true;
+                    param->find_sps_pps = true;
+                    param->video_frame_last_ms = curr_ms;
+                }
+
+                if (param->find_sps_pps) {
+                    auto frame_buffer = (uint8_t *)av_malloc(pop_frame->len);
+                    if (!frame_buffer) {
+                        log::error("av malock failed!");
+                        delete pop_frame;
+                        return nullptr;
+                    }
+
+                    memcpy(frame_buffer, (uint8_t *)pop_frame->data, pop_frame->len);
+
+                    if (is_first_frame) {
+                        param->pPacket->stream_index = param->outputStream->index;
+                        param->pPacket->duration = -1;
+                        param->pPacket->pts = 0;
+                        param->pPacket->dts = 0;
+                        param->pPacket->data = frame_buffer;
+                        param->pPacket->size = pop_frame->len;
+                    } else {
+                        std::vector<int> timebase = {param->outputStream->time_base.num, param->outputStream->time_base.den};
+                        AVPacket *new_packet = av_packet_alloc();
+                        err::check_null_raise(new_packet, "malloc failed!");
+                        new_packet->stream_index = param->outputStream->index;
+                        new_packet->duration = -1;
+                        new_packet->pts = ms_to_pts(timebase, curr_ms - param->video_frame_last_ms);
+                        new_packet->dts = new_packet->pts;
+                        new_packet->data = frame_buffer;
+                        new_packet->size = pop_frame->len;
+
+                        param->pPacket->duration = new_packet->pts - param->pPacket->pts;
+                        auto last_frame_buffer = param->pPacket->data;
+
+                        log::info("[VIDEO] pts:%d duration:%d(%d ms) time:%.2f", param->pPacket->pts, param->pPacket->duration, curr_ms - param->video_frame_last_ms, timebase_to_ms(timebase, param->pPacket->pts) / 1000);
+                        if (av_interleaved_write_frame(param->outputFormatContext, param->pPacket) < 0) {
+                            log::error("av_interleaved_write_frame failed!");
+                            delete pop_frame;
+                            return nullptr;
+                        }
+                        if (last_frame_buffer) {
+                            av_free(last_frame_buffer);
+                        }
+                        av_packet_unref(param->pPacket);
+                        av_packet_free(&param->pPacket);
+                        param->pPacket = new_packet;
+                    }
+                }
+            }
+
+            frame = new video::Frame((uint8_t *)pop_frame->data, pop_frame->len, 0, 0, 0, true, true);
+            delete pop_frame;
+        }
+
+        auto new_frame = maixcam2::Frame(-1, img->width(), img->height(), img->data(), img->data_size(), AX_FORMAT_YUV420_SEMIPLANAR_VU);
+        err = param->venc->push(&new_frame, 1000);
+        if (err != err::ERR_NONE) {
+            log::error("encode failed! err:%d", err);
+            return nullptr;
+        }
+
+        return frame;
     }
 
     typedef enum {
@@ -422,7 +537,7 @@ namespace maix::video
         // video
         bool find_video;
         AVPacket *pPacket;
-        AVBSFContext * bsfc;
+        // AVBSFContext * bsfc;
         AVCodecContext *codec_ctx;
         int video_stream_index;
         video_format_e video_format;
@@ -537,25 +652,6 @@ namespace maix::video
         return ret;
     }
 
-    static AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
-                                            AVDictionary *codec_opts)
-    {
-        unsigned int i;
-        AVDictionary **opts;
-
-        if (!s->nb_streams)
-            return NULL;
-        opts = (AVDictionary **)av_mallocz_array(s->nb_streams, sizeof(*opts));
-        if (!opts) {
-            av_log(NULL, AV_LOG_ERROR,
-                "Could not alloc memory for stream options.\n");
-            return NULL;
-        }
-        for (i = 0; i < s->nb_streams; i++)
-            opts[i] = filter_codec_opts(codec_opts, s->streams[i]->codecpar->codec_id,
-                                        s, s->streams[i], NULL);
-        return opts;
-    }
     static audio::Format _audio_format_from_alsa(enum AVSampleFormat format) {
         switch (format) {
             case AV_SAMPLE_FMT_NONE: return audio::FMT_NONE;

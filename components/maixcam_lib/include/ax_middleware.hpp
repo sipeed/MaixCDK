@@ -10,6 +10,7 @@
 #include <linux/i2c.h>
 #include <sys/ioctl.h>
 #include "maix_basic.hpp"
+#include "maix_image.hpp"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +20,7 @@ extern "C" {
 #include "ax_global_type.h"
 #include "ax_isp_api.h"
 #include "ax_buffer_tool.h"
+#include "ax_vin_error_code.h"
 #include "common_sys.h"
 #include "common_venc.h"
 #include "common_vin.h"
@@ -37,8 +39,69 @@ typedef struct {
     COMMON_SYS_ARGS_T tPrivArgs;
 } ax_sys_param_t;
 
+typedef enum {
+    AX_VENC_TYPE_JPG = 0,
+    AX_VENC_TYPE_H264,
+    AX_VENC_TYPE_H265,
+    AX_VENC_TYPE_MJPG,
+} ax_venc_type_e;
+
+typedef struct {
+    bool en;
+    ax_venc_type_e type;
+    int w;
+    int h;
+    AX_IMG_FORMAT_E fmt;
+    union {
+        struct {
+            int first_frame_start_qp;
+            int stat_time;
+            int bitrate;
+            int qp_min;
+            int qp_max;
+        } mjpg;
+        struct {
+            int first_frame_start_qp;
+            int gop;
+            int input_fps;
+            int output_fps;
+            int bitrate;
+            int min_qp;
+            int max_qp;
+            int min_iqp;
+            int max_iqp;
+            int intra_qp_delta;
+            int de_breath_qp_delta;
+            int min_iprop;
+            int max_iprop;
+        } h264;
+        struct {
+            int first_frame_start_qp;
+            int gop;
+            int input_fps;
+            int output_fps;
+            int bitrate;
+            int min_qp;
+            int max_qp;
+            int min_iqp;
+            int max_iqp;
+            int intra_qp_delta;
+            int de_breath_qp_delta;
+            int min_iprop;
+            int max_iprop;
+            int qp_delta_rgn;
+            AX_VENC_QPMAP_QP_TYPE_E qp_map_type;
+            AX_VENC_QPMAP_BLOCK_TYPE_E qp_map_blk_type;
+            AX_VENC_QPMAP_BLOCK_UNIT_E qp_map_block_unit;
+            AX_VENC_RC_CTBRC_MODE_E ctb_rc_mode;
+        } h265;
+    };
+} ax_venc_param_t;
+
 typedef struct {
     AX_CAMERA_T cams[MAX_CAMERAS];
+    ax_venc_param_t venc[AX_MAX_VENC_CHN_NUM];
+    int venc_init_count;
     COMMON_SYS_ARGS_T tCommonArgs;
     COMMON_SYS_ARGS_T tPrivArgs;
     ax_sys_param_t *sys_param;
@@ -83,6 +146,50 @@ namespace maix::middleware::maixcam2 {
     ax_global_param_t *get_ax_global_param();
     void ax_global_param_lock();
     void ax_global_param_unlock();
+
+
+    inline image::Format get_maix_fmt_from_ax(AX_IMG_FORMAT_E format) {
+        switch (format) {
+            case AX_FORMAT_YUV400:
+                return image::FMT_GRAYSCALE;
+            case AX_FORMAT_RGB888:
+                return image::FMT_BGR888;   // actualy is rgb888
+            case AX_FORMAT_BGR888:
+                return image::FMT_RGB888;   // actualy is bgr888
+            case AX_FORMAT_ARGB8888:
+                return image::FMT_BGRA8888;     // actualy is rgba8888
+            case AX_FORMAT_ABGR8888:
+                return image::FMT_RGBA8888;     // actualy is bgra8888
+            case AX_FORMAT_YUV420_SEMIPLANAR:
+                return image::FMT_YUV420SP;
+            case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+                return image::FMT_YVU420SP;
+            default:
+                return image::FMT_INVALID;
+        }
+    }
+
+    inline AX_IMG_FORMAT_E get_ax_fmt_from_maix(image::Format format) {
+        switch (format)
+        {
+        case image::FMT_GRAYSCALE:
+            return AX_FORMAT_YUV400;
+        case image::FMT_RGB888:
+            return AX_FORMAT_BGR888;       // actualy is rgb888
+        case image::FMT_BGR888:
+            return AX_FORMAT_RGB888;       // actualy is bgr888
+        case image::FMT_RGBA8888:
+            return AX_FORMAT_ABGR8888;     // actualy is rgba8888
+        case image::FMT_BGRA8888:
+            return AX_FORMAT_ARGB8888;      // actualy is bgra8888
+        case image::FMT_YUV420SP:
+            return AX_FORMAT_YUV420_SEMIPLANAR;
+        case image::FMT_YVU420SP:
+            return AX_FORMAT_YUV420_SEMIPLANAR_VU;
+        default:
+            return AX_FORMAT_INVALID;
+        }
+    }
 
     typedef enum {
         SAMPLE_VIN_NONE  = -1,
@@ -708,6 +815,8 @@ namespace maix::middleware::maixcam2 {
     typedef enum {
         FRAME_FROM_IVPS_CHN = 0,
         FRAME_FROM_SYS_MEM_ALLOC,
+        FRAME_FROM_VENC_GET_STREAM,
+        FRAME_FROM_GET_BLOCK,
     } frame_from_e;
 
     class Frame {
@@ -720,7 +829,13 @@ namespace maix::middleware::maixcam2 {
         void *frame;
         void *__param;
         Frame(IVPS_GRP IvpsGrp, IVPS_CHN IvpsChn, AX_VIDEO_FRAME_T *ptFrame, frame_from_e from = FRAME_FROM_IVPS_CHN, AX_IMG_FORMAT_E invert_fmt = AX_FORMAT_INVALID);
+        Frame(int venc_ch, AX_VENC_STREAM_T *frame, frame_from_e from = FRAME_FROM_VENC_GET_STREAM);
+        Frame(int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
+        Frame(int pool_id, int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         ~Frame();
+        frame_from_e from();
+        err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
+        err::Err get_venc_stream(AX_VENC_STREAM_T * stream);
     };
 
     class VI {
@@ -748,6 +863,18 @@ namespace maix::middleware::maixcam2 {
         int set_and_get_exp_mode(int value);        // input -1: get only
     private:
         // void *_param = nullptr;
+    };
+
+    class VENC {
+    public:
+        VENC(ax_venc_param_t *cfg);
+        ~VENC();
+        err::Err push(maixcam2::Frame *frame, int32_t timeout_ms);
+        maixcam2::Frame * pop(int32_t timeout_ms);
+        err::Err get_config(ax_venc_param_t *cfg);
+    private:
+        int _ch;
+        int _fd;
     };
 };
 

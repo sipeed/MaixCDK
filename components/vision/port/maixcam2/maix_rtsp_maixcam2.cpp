@@ -15,9 +15,11 @@
 #include "maix_rtsp_server.hpp"
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include "ax_middleware.hpp"
 
 namespace maix::rtsp
 {
+    using namespace maix::middleware::maixcam2;
     Region::Region(int x, int y, int width, int height, image::Format format, camera::Camera *camera)
     {
         if (format != image::Format::FMT_BGRA8888) {
@@ -105,6 +107,7 @@ namespace maix::rtsp
         int encoder_bitrate;
         int fps;
         int audio_bitrate;
+        unique_ptr<VENC> venc;
     } rtsp_param_t;
 
     Rtsp::Rtsp(std::string ip, int port, int fps, rtsp::RtspStreamType stream_type, int bitrate) {
@@ -141,6 +144,49 @@ namespace maix::rtsp
         param->encoder_bitrate = bitrate;
         param->fps = fps;
         param->audio_bitrate = 128000;
+
+        ax_venc_param_t cfg = {0};
+
+        switch (stream_type) {
+            case RTSP_STREAM_H264:
+                cfg.w = 2560;
+                cfg.h = 1440;
+                cfg.fmt = AX_FORMAT_YUV420_SEMIPLANAR_VU;
+                cfg.type = AX_VENC_TYPE_H264;
+                cfg.h264.bitrate = bitrate;
+                cfg.h264.input_fps = fps;
+                cfg.h264.output_fps = fps;
+                cfg.h264.gop = 120;
+                cfg.h264.intra_qp_delta = -2;
+                cfg.h264.min_qp = 10;
+                cfg.h264.max_qp = 51;
+                cfg.h264.min_iqp = 10;
+                cfg.h264.max_iqp = 51;
+                cfg.h264.min_iprop = 10;
+                cfg.h264.max_iprop = 40;
+                break;
+            case RTSP_STREAM_H265:
+                cfg.w = 2560;
+                cfg.h = 1440;
+                cfg.fmt = AX_FORMAT_YUV420_SEMIPLANAR_VU;
+                cfg.type = AX_VENC_TYPE_H265;
+                cfg.h265.bitrate = bitrate;
+                cfg.h265.input_fps = fps;
+                cfg.h265.output_fps = fps;
+                cfg.h265.gop = 120;
+                cfg.h265.intra_qp_delta = -2;
+                cfg.h265.min_qp = 10;
+                cfg.h265.max_qp = 51;
+                cfg.h265.min_iqp = 10;
+                cfg.h265.max_iqp = 51;
+                cfg.h265.min_iprop = 30;
+                cfg.h265.max_iprop = 40;
+                break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "unsupport stream type!");
+        }
+
+        param->venc = make_unique<VENC>(&cfg);
     }
 
     Rtsp::~Rtsp() {

@@ -84,5 +84,14 @@ namespace maix::util
      * @maixpy maix.util.register_atexit
     */
     void register_atexit();
+
+    /**
+     * @brief Enter any key to next step
+     * @maixcdk maix.util.wait_any_key
+    */
+    inline void wait_any_key() {
+        log::info(" Press any key to continue...");
+        getchar();
+    }
 }
 

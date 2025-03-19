@@ -39,6 +39,7 @@ elseif(PLATFORM_MAIXCAM2)
     # ax630c
     list(APPEND ADD_REQUIREMENTS ax620e_msp)
 
+    list(APPEND ADD_INCLUDE "../vision/include")
     set(source_dir "maixcdk_maixcam_lib/maixcam2")
 
     if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)

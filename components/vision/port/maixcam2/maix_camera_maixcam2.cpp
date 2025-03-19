@@ -61,49 +61,6 @@ namespace maix::camera
         }
     }
 
-    image::Format __get_maix_fmt_from_ax(AX_IMG_FORMAT_E format) {
-        switch (format) {
-            case AX_FORMAT_YUV400:
-                return image::FMT_GRAYSCALE;
-            case AX_FORMAT_RGB888:
-                return image::FMT_BGR888;   // actualy is rgb888
-            case AX_FORMAT_BGR888:
-                return image::FMT_RGB888;   // actualy is bgr888
-            case AX_FORMAT_ARGB8888:
-                return image::FMT_BGRA8888;     // actualy is rgba8888
-            case AX_FORMAT_ABGR8888:
-                return image::FMT_RGBA8888;     // actualy is bgra8888
-            case AX_FORMAT_YUV420_SEMIPLANAR:
-                return image::FMT_YUV420SP;
-            case AX_FORMAT_YUV420_SEMIPLANAR_VU:
-                return image::FMT_YVU420SP;
-            default:
-                return image::FMT_INVALID;
-        }
-    }
-
-    AX_IMG_FORMAT_E __get_ax_fmt_from_maix(image::Format format) {
-        switch (format)
-        {
-        case image::FMT_GRAYSCALE:
-            return AX_FORMAT_YUV400;
-        case image::FMT_RGB888:
-            return AX_FORMAT_BGR888;       // actualy is rgb888
-        case image::FMT_BGR888:
-            return AX_FORMAT_RGB888;       // actualy is bgr888
-        case image::FMT_RGBA8888:
-            return AX_FORMAT_ABGR8888;     // actualy is rgba8888
-        case image::FMT_BGRA8888:
-            return AX_FORMAT_ARGB8888;      // actualy is bgra8888
-        case image::FMT_YUV420SP:
-            return AX_FORMAT_YUV420_SEMIPLANAR;
-        case image::FMT_YVU420SP:
-            return AX_FORMAT_YUV420_SEMIPLANAR_VU;
-        default:
-            return AX_FORMAT_INVALID;
-        }
-    }
-
     bool Camera::_check_format(image::Format format) {
         if (format == image::FMT_RGB888 || format == image::FMT_BGR888
         || format == image::FMT_RGBA8888 || format == image::FMT_BGRA8888
@@ -478,7 +435,7 @@ namespace maix::camera
 
         int fit = 2;
         auto flip_mirror = __get_cam_flip_mirror();
-        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_16(height_tmp), __get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, flip_mirror[1], flip_mirror[0], fit);
+        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_16(height_tmp), get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, flip_mirror[1], flip_mirror[0], fit);
         if (err != err::ERR_NONE) {
             delete ax_vi;
             delete ax_sys;
@@ -547,13 +504,13 @@ namespace maix::camera
             err::check_null_raise(img, "camera read failed");
             return img;
         } else {
+            if (block) block_ms = -1;
             auto frame = vi->pop(priv->chn.id, block_ms);
             if (frame == nullptr) {
-                log::error("read camera failed");
                 err::check_raise(err::ERR_BUFF_EMPTY, "read camera failed");
             }
 
-            auto img = new image::Image(frame->w, frame->h, __get_maix_fmt_from_ax(frame->fmt));
+            auto img = new image::Image(frame->w, frame->h, get_maix_fmt_from_ax(frame->fmt));
             auto data = (uint8_t *)img->data();
             memcpy(data, (uint8_t *)frame->data, frame->len);
 
@@ -635,7 +592,7 @@ namespace maix::camera
 
         ret = vi->del_channel(priv->chn.id);
         err::check_raise(ret, "del channel failed");
-        ret = vi->add_channel(priv->chn.id, width, height, __get_ax_fmt_from_maix(priv->chn.fmt), priv->chn.fps,
+        ret = vi->add_channel(priv->chn.id, width, height, get_ax_fmt_from_maix(priv->chn.fmt), priv->chn.fps,
                             priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
         err::check_raise(ret, "del channel failed");
         return ret;
@@ -647,7 +604,7 @@ namespace maix::camera
         auto vi = priv->ax_vi;
         ret = vi->del_channel(priv->chn.id);
         err::check_raise(ret, "del channel failed");
-        ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, __get_ax_fmt_from_maix(priv->chn.fmt),
+        ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
                             fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
         err::check_raise(ret, "del channel failed");
         return err::ERR_NONE;
@@ -689,7 +646,7 @@ namespace maix::camera
                 priv->chn.mirror = value;
                 ret = vi->del_channel(priv->chn.id);
                 err::check_raise(ret, "del channel failed");
-                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, __get_ax_fmt_from_maix(priv->chn.fmt),
+                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
                                     priv->chn.fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
                 err::check_raise(ret, "add channel failed");
             }
@@ -712,7 +669,7 @@ namespace maix::camera
                 priv->chn.vflip = value;
                 ret = vi->del_channel(priv->chn.id);
                 err::check_raise(ret, "del channel failed");
-                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, __get_ax_fmt_from_maix(priv->chn.fmt),
+                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
                                     priv->chn.fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
                 err::check_raise(ret, "add channel failed");
             }
