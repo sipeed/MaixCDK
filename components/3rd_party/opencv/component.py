@@ -72,7 +72,7 @@ def add_file_downloads(confs : dict) -> list:
                     'extract': False
                 })
         elif confs.get("PLATFORM_LINUX", None):
-            files.append(
+            files.extend([
                 {
                     'url': f'https://github.com/opencv/ade/archive/v0.1.2b.zip',
                     'urls': [],
@@ -98,6 +98,7 @@ def add_file_downloads(confs : dict) -> list:
                     'rename': {},
                     'extract': False
                 }
+            ]
             )
         else:
             raise Exception("No opencv config for this board, please edit to add opencv support for this board")

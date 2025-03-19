@@ -69,6 +69,7 @@ def get_components_files(components, valid_components, kconfigs):
         py_path = os.path.join(components[name], "component.py")
         if not os.path.exists(py_path):
             continue
+        print(f"-- get files for component {name} (component.py)")
         found, files[name] = execute_component_py_func(py_path, "add_file_downloads", kconfigs)
         if not found:
             files[name] = []
