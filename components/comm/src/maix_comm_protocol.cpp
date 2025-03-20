@@ -683,10 +683,17 @@ namespace maix::comm
             _comm_protocol = new maix::comm::CommProtocol();
             _comm_loop_exit = false;
             _comm_loop_need_exit = false;
-            _comm_th = new std::thread([]()
+            if(_comm_protocol->valid())
             {
-                _comm_loop();
-            });
+                _comm_th = new std::thread([]()
+                {
+                    _comm_loop();
+                });
+            }
+            else
+            {
+                _comm_loop_exit = true;
+            }
         }
     }
 
@@ -700,9 +707,12 @@ namespace maix::comm
             {
                 time::sleep_ms(10);
             }
-            _comm_th->join();
-            delete _comm_th;
-            _comm_th = nullptr;
+            if(_comm_th)
+            {
+                _comm_th->join();
+                delete _comm_th;
+                _comm_th = nullptr;
+            }
             delete _comm_protocol;
             _comm_protocol = nullptr;
         }
