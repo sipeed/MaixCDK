@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 #include "ax_venc_api.h"
+#include "ax_vdec_api.h"
 #include "ax_ivps_api.h"
 #include "ax_isp_api.h"
 #include "ax_global_type.h"
@@ -33,120 +34,281 @@ extern "C" {
 
 using namespace maix;
 
-typedef struct {
-    int init_count;
-    COMMON_SYS_ARGS_T tCommonArgs;
-    COMMON_SYS_ARGS_T tPrivArgs;
-} ax_sys_param_t;
-
-typedef enum {
-    AX_VENC_TYPE_JPG = 0,
-    AX_VENC_TYPE_H264,
-    AX_VENC_TYPE_H265,
-    AX_VENC_TYPE_MJPG,
-} ax_venc_type_e;
-
-typedef struct {
-    bool en;
-    ax_venc_type_e type;
-    int w;
-    int h;
-    AX_IMG_FORMAT_E fmt;
-    union {
-        struct {
-            int first_frame_start_qp;
-            int stat_time;
-            int bitrate;
-            int qp_min;
-            int qp_max;
-        } mjpg;
-        struct {
-            int first_frame_start_qp;
-            int gop;
-            int input_fps;
-            int output_fps;
-            int bitrate;
-            int min_qp;
-            int max_qp;
-            int min_iqp;
-            int max_iqp;
-            int intra_qp_delta;
-            int de_breath_qp_delta;
-            int min_iprop;
-            int max_iprop;
-        } h264;
-        struct {
-            int first_frame_start_qp;
-            int gop;
-            int input_fps;
-            int output_fps;
-            int bitrate;
-            int min_qp;
-            int max_qp;
-            int min_iqp;
-            int max_iqp;
-            int intra_qp_delta;
-            int de_breath_qp_delta;
-            int min_iprop;
-            int max_iprop;
-            int qp_delta_rgn;
-            AX_VENC_QPMAP_QP_TYPE_E qp_map_type;
-            AX_VENC_QPMAP_BLOCK_TYPE_E qp_map_blk_type;
-            AX_VENC_QPMAP_BLOCK_UNIT_E qp_map_block_unit;
-            AX_VENC_RC_CTBRC_MODE_E ctb_rc_mode;
-        } h265;
-    };
-} ax_venc_param_t;
-
-typedef struct {
-    AX_CAMERA_T cams[MAX_CAMERAS];
-    ax_venc_param_t venc[AX_MAX_VENC_CHN_NUM];
-    int venc_init_count;
-    COMMON_SYS_ARGS_T tCommonArgs;
-    COMMON_SYS_ARGS_T tPrivArgs;
-    ax_sys_param_t *sys_param;
-    void *vi_param;
-    void *vo_param;
-} ax_global_param_t;
-
-static void __ax_signal_handler(int signal)
-{
-    (void)signal;
-    log::info("signal %d received, exit now", signal);
-    app::set_exit_flag(1);
-    log::info("wait 1000ms..");
-    time::sleep_ms(1000);
-    util::do_exit_function();
-    ::exit(signal);
-}
-
-static __attribute__((constructor)) void __register_handler(void)
-{
-    int signal_arr[] = {
-        SIGINT,
-        SIGILL,
-        SIGABRT,
-        SIGFPE,
-        SIGSEGV,
-        SIGTERM,
-        SIGHUP,
-        SIGTRAP,
-        SIGPIPE,
-        SIGKILL,
-        SIGALRM,
-        SIGBUS,
-    };
-
-    for (size_t i = 0; i < sizeof(signal_arr) / sizeof(signal_arr[0]); i++) {
-        signal(signal_arr[i], __ax_signal_handler);
-    }
-}
-
 namespace maix::middleware::maixcam2 {
-    ax_global_param_t *get_ax_global_param();
-    void ax_global_param_lock();
-    void ax_global_param_unlock();
+    class SYS;
+    class VENC;
+    typedef enum {
+        AX_VENC_TYPE_JPG = 0,
+        AX_VENC_TYPE_H264,
+        AX_VENC_TYPE_H265,
+        AX_VENC_TYPE_MJPG,
+    } ax_venc_type_e;
 
+    typedef enum {
+        AX_VDEC_TYPE_JPG = 0,
+        AX_VDEC_TYPE_H264,
+        AX_VDEC_TYPE_H265,
+        AX_VDEC_TYPE_MJPG,
+    } ax_vdec_type_e;
+
+    typedef struct {
+        bool en;
+        ax_venc_type_e type;
+        int w;
+        int h;
+        AX_IMG_FORMAT_E fmt;
+        union {
+            struct {
+                int input_fps;
+                int output_fps;
+            } jpg;
+
+            struct {
+                int first_frame_start_qp;
+                int stat_time;
+                int bitrate;
+                int qp_min;
+                int qp_max;
+            } mjpg;
+            struct {
+                int first_frame_start_qp;
+                int gop;
+                int input_fps;
+                int output_fps;
+                int bitrate;
+                int min_qp;
+                int max_qp;
+                int min_iqp;
+                int max_iqp;
+                int intra_qp_delta;
+                int de_breath_qp_delta;
+                int min_iprop;
+                int max_iprop;
+            } h264;
+            struct {
+                int first_frame_start_qp;
+                int gop;
+                int input_fps;
+                int output_fps;
+                int bitrate;
+                int min_qp;
+                int max_qp;
+                int min_iqp;
+                int max_iqp;
+                int intra_qp_delta;
+                int de_breath_qp_delta;
+                int min_iprop;
+                int max_iprop;
+                int qp_delta_rgn;
+                AX_VENC_QPMAP_QP_TYPE_E qp_map_type;
+                AX_VENC_QPMAP_BLOCK_TYPE_E qp_map_blk_type;
+                AX_VENC_QPMAP_BLOCK_UNIT_E qp_map_block_unit;
+                AX_VENC_RC_CTBRC_MODE_E ctb_rc_mode;
+            } h265;
+        };
+    } ax_venc_param_t;
+
+    typedef struct {
+        bool en;
+        ax_vdec_type_e type;
+        int w;
+        int h;
+        AX_IMG_FORMAT_E fmt;
+    } ax_vdec_param_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        COMMON_SYS_ARGS_T tCommonArgs;
+        COMMON_SYS_ARGS_T tPrivArgs;
+    } ax_sys_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        AX_ENGINE_NPU_MODE_T mode;
+    } ax_engine_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        int pool_id;
+        ax_vdec_param_t vdec[AX_VDEC_MAX_GRP_NUM];
+    } ax_vdec_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        ax_venc_param_t venc[AX_MAX_VENC_CHN_NUM];
+    } ax_venc_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        SYS *sys;
+        VENC *venc;
+    } ax_jpg_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        AX_CAMERA_T cams[MAX_CAMERAS];
+        int init_count2;
+        AX_S32 nGrpId;
+        AX_S32 nChnNum;
+        AX_S32 nGroupInputWidth;
+        AX_S32 nGroupInputHeight;
+        AX_IMG_FORMAT_E nGroupInputFormat;
+        AX_IVPS_GRP_ATTR_T stGrpAttr;
+        AX_IVPS_ROTATION_E eRotAngle;
+        AX_IVPS_PIPELINE_ATTR_T stPipelineAttr;
+        COMMON_SYS_ARGS_T tCommonArgs;
+        COMMON_SYS_ARGS_T tPrivArgs;
+        AX_U32 VinId;
+        AX_U32 IvpsId;
+        struct {
+            int w;
+            int h;
+            AX_IMG_FORMAT_E fmt;
+            int fps;
+            int depth;
+            AX_BOOL mirror;
+            AX_BOOL flip;
+            int fit;    // fit = 0, width to new width, height to new height, may be stretch
+                        // fit = 1, keep aspect ratio, fill blank area with black color
+                        // fit = 2, keep aspect ratio, crop image to fit new size
+        } chn_out[AX_VIN_CHN_ID_MAX];
+    } ax_vi_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+    } ax_vo_mod_t;
+
+    typedef enum {
+        AX_MOD_SYS,
+        AX_MOD_ENGINE,
+        AX_MOD_VI,
+        AX_MOD_VO,
+        AX_MOD_VENC,
+        AX_MOD_VDEC,
+        AX_MOD_JPG,
+    } ax_mod_e;
+
+    class AxModuleParam {
+    public:
+        static AxModuleParam& getInstance() {
+            static AxModuleParam instance; // **C++11 线程安全**
+            return instance;
+        }
+
+        void lock(ax_mod_e mod) {
+            switch (mod) {
+            case AX_MOD_SYS:
+                pthread_mutex_lock(&__sys_mod.lock);
+            break;
+            case AX_MOD_ENGINE:
+                pthread_mutex_lock(&__engine_mod.lock);
+            break;
+            case AX_MOD_VI:
+                pthread_mutex_lock(&__vi_mod.lock);
+            break;
+            case AX_MOD_VO:
+                pthread_mutex_lock(&__vo_mod.lock);
+            break;
+            case AX_MOD_VENC:
+                pthread_mutex_lock(&__venc_mod.lock);
+            break;
+            case AX_MOD_VDEC:
+                pthread_mutex_lock(&__vdec_mod.lock);
+            break;
+            case AX_MOD_JPG:
+                pthread_mutex_lock(&__jpg_mod.lock);
+            break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "unknown ax module");
+            break;
+            }
+        }
+
+        void *get_param(ax_mod_e mod) {
+            switch (mod) {
+            case AX_MOD_SYS:
+                return &__sys_mod;
+            break;
+            case AX_MOD_ENGINE:
+                return &__engine_mod;
+            break;
+            case AX_MOD_VI:
+                return &__vi_mod;
+            break;
+            case AX_MOD_VO:
+                return &__vo_mod;
+            break;
+            case AX_MOD_VENC:
+                return &__venc_mod;
+            break;
+            case AX_MOD_VDEC:
+                return &__vdec_mod;
+            break;
+            case AX_MOD_JPG:
+                return &__jpg_mod;
+            break;
+            default:
+                return nullptr;
+            }
+        }
+
+        void unlock(ax_mod_e mod) {
+            switch (mod) {
+            case AX_MOD_SYS:
+                pthread_mutex_unlock(&__sys_mod.lock);
+            break;
+            case AX_MOD_ENGINE:
+                pthread_mutex_unlock(&__engine_mod.lock);
+            break;
+            case AX_MOD_VI:
+                pthread_mutex_unlock(&__vi_mod.lock);
+            break;
+            case AX_MOD_VO:
+                pthread_mutex_unlock(&__vo_mod.lock);
+            break;
+            case AX_MOD_VENC:
+                pthread_mutex_unlock(&__venc_mod.lock);
+            break;
+            case AX_MOD_VDEC:
+                pthread_mutex_unlock(&__vdec_mod.lock);
+            break;
+            case AX_MOD_JPG:
+                pthread_mutex_unlock(&__jpg_mod.lock);
+            break;
+            default:
+                err::check_raise(err::ERR_RUNTIME, "unknown ax module");
+            break;
+            }
+        }
+    private:
+        ax_sys_mod_t __sys_mod;
+        ax_engine_mod_t __engine_mod;
+        ax_vi_mod_t __vi_mod;
+        ax_vo_mod_t __vo_mod;
+        ax_venc_mod_t __venc_mod;
+        ax_vdec_mod_t __vdec_mod;
+        ax_jpg_mod_t __jpg_mod;
+
+        AxModuleParam() {
+            __sys_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __engine_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __vi_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __vo_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __venc_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __vdec_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __jpg_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+        }
+        ~AxModuleParam() = default;
+        AxModuleParam(const AxModuleParam &) = delete;
+        AxModuleParam& operator=(const AxModuleParam &) = delete;
+    };
 
     inline image::Format get_maix_fmt_from_ax(AX_IMG_FORMAT_E format) {
         switch (format) {
@@ -214,12 +376,6 @@ namespace maix::middleware::maixcam2 {
         AX_IVPS_ROTATION_E eRotAngle;
         AX_U32 statDeltaPtsFrmNum;
     } SAMPLE_VIN_PARAM_T;
-
-    // typedef struct {
-    //     AX_BOOL bEnable;
-    //     AX_RTSP_HANDLE pRtspHandle;
-    // } SAMPLE_RTSP_PARAM_T;
-
 
     /* comm pool */
     static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleDummySdr[] = {
@@ -480,9 +636,10 @@ namespace maix::middleware::maixcam2 {
     static AX_U32 __sample_case_config(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs,
                                        COMMON_SYS_ARGS_T *pPrivArgs)
     {
-        ax_global_param_lock();
-        auto g_param = get_ax_global_param();
-        AX_CAMERA_T         *pCamList = &g_param->cams[0];
+        auto &mod_param = AxModuleParam::getInstance();
+        mod_param.lock(AX_MOD_VI);
+        auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
+        AX_CAMERA_T         *pCamList = &vi_param->cams[0];
         SAMPLE_SNS_TYPE_E   eSnsType = OMNIVISION_OS04A10;
 
         // printf("eSysCase %d, eSysMode %d, eLoadRawNode %d, eHdrMode %d, bAiispEnable %d\r\n", pVinParam->eSysCase,
@@ -534,7 +691,7 @@ namespace maix::middleware::maixcam2 {
             __sample_case_single_dummy(pCamList, eSnsType, pVinParam, pCommonArgs);
             break;
         }
-        ax_global_param_unlock();
+        mod_param.unlock(AX_MOD_VI);
         return 0;
     }
 
@@ -548,121 +705,6 @@ namespace maix::middleware::maixcam2 {
             return SAMPLE_VIN_NONE;
         }
     }
-
-    // static bool __check_board_config_path()
-    // {
-    //     if (fs::exists("/boot/board")) {
-    //         return true;
-    //     }
-    //     return false;
-    // }
-
-    // static int _get_mclk_id(void) {
-    //     int mclk_id = 0;        // default mclk id
-
-    //     if (__check_board_config_path()) {
-    //         std::string mclk_id_str;
-    //         auto device_configs = sys::device_configs();
-    //         auto it = device_configs.find("cam_mclk");
-    //         if (it != device_configs.end()) {
-    //             mclk_id_str = it->second;
-    //         }
-    //         if (!mclk_id_str.empty()) {
-    //             mclk_id = atoi(mclk_id_str.c_str());
-    //         } else {
-    //             std::string board_id = sys::device_id();
-    //             if (board_id == "maixcam2") {
-    //                 mclk_id = 0;
-    //             } else {
-    //                 mclk_id = 1;
-    //             }
-    //         }
-    //     }
-
-    //     return mclk_id;
-    // }
-
-    // static std::vector<int> __get_lane_id_from_board_file() {
-    //     std::vector<int> lane_id = {2, 5, 0, 1, 3, 4};  // clk0, clk1, data0, data1, data2, data3
-
-    //     if (__check_board_config_path()) {
-    //         auto device_configs = sys::device_configs();
-    //         auto it = device_configs.find("lane_id");
-    //         if (it != device_configs.end()) {
-    //             auto lane_id_str = it->second;
-    //             std::string item;
-    //             std::stringstream ss(lane_id_str);
-    //             while (std::getline(ss, item, ',')) {
-    //                 lane_id.push_back(std::stoi(item));
-    //             }
-    //         }
-    //     }
-
-    //     return lane_id;
-    // }
-
-    // static std::vector<int> _get_pn_swap_from_board_file() {
-    //     std::vector<int> pn_swap;
-
-    //     if (__check_board_config_path()) {
-    //         auto device_configs = sys::device_configs();
-    //         auto it = device_configs.find("pn_swap");
-    //         if (it != device_configs.end()) {
-    //             auto pn_swap_str = it->second;
-    //             std::string item;
-    //             std::stringstream ss(pn_swap_str);
-    //             while (std::getline(ss, item, ',')) {
-    //                 pn_swap.push_back(std::stoi(item));
-    //             }
-    //         }
-    //     }
-
-    //     return pn_swap;
-    // }
-
-    // static AX_S32 __hw_reset(unsigned int gpio_num, unsigned int gpio_out_val)
-    // {
-    //     FILE *fp = AX_NULL;
-    //     char file_name[50];
-    //     char buf[10];
-
-    //     sprintf(file_name, "/sys/class/gpio/gpio%d", gpio_num);
-    //     if (0 != access(file_name, F_OK)) {
-    //         sprintf(file_name, "/sys/class/gpio/export");
-    //         fp = fopen(file_name, "w");
-    //         if (fp == AX_NULL) {
-    //             log::error("Cannot open %s.\n", file_name);
-    //             return -1;
-    //         }
-    //         fprintf(fp, "%d", gpio_num);
-    //         fclose(fp);
-
-    //         sprintf(file_name, "/sys/class/gpio/gpio%d/direction", gpio_num);
-    //         fp = fopen(file_name, "w");
-    //         if (fp == AX_NULL) {
-    //             log::error("Cannot open %s.\n", file_name);
-    //             return -1;
-    //         }
-    //         fprintf(fp, "out");
-    //         fclose(fp);
-    //     }
-
-    //     sprintf(file_name, "/sys/class/gpio/gpio%d/value", gpio_num);
-    //     fp = fopen(file_name, "w");
-    //     if (fp == AX_NULL) {
-    //         log::error("Cannot open %s.\n", file_name);
-    //         return -1;
-    //     }
-    //     if (gpio_out_val) {
-    //         strcpy(buf, "1");
-    //     } else {
-    //         strcpy(buf, "0");
-    //     }
-    //     fprintf(fp, "%s", buf);
-    //     fclose(fp);
-
-    //     return 0;
-    // }
 
     static std::vector<int> __scan_i2c_addr(int id)
     {
@@ -738,22 +780,18 @@ namespace maix::middleware::maixcam2 {
     class SYS {
     public:
         SYS(bool raw = false) {
-            COMMON_SYS_ARGS_T tCommonArgs = {0};
-            COMMON_SYS_ARGS_T tPrivArgs = {0};
-            ax_sys_param_t *p_sys_param = nullptr;
-
-            ax_global_param_lock();
-            auto g_param = get_ax_global_param();
-            if (g_param->sys_param == nullptr) {    // first init
-                ax_global_param_unlock();
-
-                auto get_sensor_res = __get_sensor_name();
-                if (!get_sensor_res.first) {
-                    err::check_raise(err::ERR_RUNTIME, "get sensor name failed");
-                }
-                auto sensor_name = get_sensor_res.second;
+            ax_sys_mod_t *sys_param = nullptr;
+            auto &mod_param = AxModuleParam::getInstance();
+            mod_param.lock(AX_MOD_SYS);
+            sys_param = (ax_sys_mod_t *)mod_param.get_param(AX_MOD_SYS);
+            err::check_null_raise(sys_param, "Get ax sys parameter failed!");
+            if (sys_param->init_count > 0) {
+                sys_param->init_count ++;
+            } else {
+                COMMON_SYS_ARGS_T tCommonArgs = {0};
+                COMMON_SYS_ARGS_T tPrivArgs = {0};
                 SAMPLE_VIN_PARAM_T tVinParam = {
-                    .eSysCase = __get_vi_case_from_sensor_name((char *)sensor_name.c_str()),
+                    .eSysCase = SAMPLE_VIN_SINGLE_SC450AI,
                     .eSysMode = COMMON_VIN_SENSOR,
                     .eHdrMode = AX_SNS_LINEAR_MODE,
                     .eLoadRawNode = raw ? LOAD_RAW_IFE : LOAD_RAW_NONE,
@@ -761,54 +799,42 @@ namespace maix::middleware::maixcam2 {
                     .statDeltaPtsFrmNum = 0,
                 };
 
-                p_sys_param = (ax_sys_param_t *)::malloc(sizeof(ax_sys_param_t));
-                if (p_sys_param == nullptr) {
-                    ax_global_param_unlock();
-                    err::check_raise(err::ERR_RUNTIME, "malloc failed");
+                auto get_sensor_res = __get_sensor_name();
+                if (!get_sensor_res.first) {
+                    err::check_raise(err::ERR_RUNTIME, "get sensor name failed");
                 }
-                memset(p_sys_param, 0, sizeof(ax_sys_param_t));
+                tVinParam.eSysCase = __get_vi_case_from_sensor_name((char *)get_sensor_res.second.c_str());
 
                 __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
-
-                ::memcpy(&p_sys_param->tCommonArgs, &tCommonArgs, sizeof(COMMON_SYS_ARGS_T));
-                ::memcpy(&p_sys_param->tPrivArgs, &tPrivArgs, sizeof(COMMON_SYS_ARGS_T));
-                AX_S32 axRet = COMMON_SYS_Init(&p_sys_param->tCommonArgs);
+                ::memcpy(&sys_param->tCommonArgs, &tCommonArgs, sizeof(COMMON_SYS_ARGS_T));
+                ::memcpy(&sys_param->tPrivArgs, &tPrivArgs, sizeof(COMMON_SYS_ARGS_T));
+                AX_S32 axRet = COMMON_SYS_Init(&sys_param->tCommonArgs);
                 if (axRet) {
-                    ax_global_param_unlock();
+                    mod_param.unlock(AX_MOD_SYS);
                     COMM_ISP_PRT("COMMON_SYS_Init fail, ret:0x%x", axRet);
                     err::check_raise(err::ERR_RUNTIME, "COMMON_SYS_Init failed");
                 }
-                p_sys_param->init_count = 1;
-
-                ax_global_param_lock();
-                g_param->sys_param = p_sys_param;
-                ax_global_param_unlock();
-            } else {
-                p_sys_param = (ax_sys_param_t *)g_param->sys_param;
-                p_sys_param->init_count ++;
-                ax_global_param_unlock();
+                sys_param->init_count = 1;
             }
+            mod_param.unlock(AX_MOD_SYS);
 
-            log::info("sys init success, count:%d", p_sys_param->init_count);
+            log::info("sys init success, count:%d", sys_param->init_count);
         }
         ~SYS() {
-            ax_global_param_lock();
-            auto g_param = get_ax_global_param();
-            auto p_sys_param = (ax_sys_param_t *)g_param->sys_param;
-            if (p_sys_param->init_count > 1) {
-                p_sys_param->init_count --;
-                log::info("sys deinit success, count:%d", p_sys_param->init_count);
+            ax_sys_mod_t *sys_param = nullptr;
+            auto &mod_param = AxModuleParam::getInstance();
+            mod_param.lock(AX_MOD_SYS);
+            sys_param = (ax_sys_mod_t *)mod_param.get_param(AX_MOD_SYS);
+            err::check_null_raise(sys_param, "Get ax sys parameter failed!");
+            if (sys_param->init_count > 1) {
+                sys_param->init_count --;
+                log::info("sys deinit success, count:%d", sys_param->init_count);
             } else {
-                p_sys_param->init_count = 0;
+                sys_param->init_count = 0;
                 COMMON_SYS_DeInit();
-
-                log::info("sys deinit success, count:%d", p_sys_param->init_count);
-                ::free(p_sys_param);
-                g_param->sys_param = nullptr;
                 printf("maix multi-media driver released.\r\n");
             }
-            ax_global_param_unlock();
-
+            mod_param.unlock(AX_MOD_SYS);
         }
     };
 
@@ -817,6 +843,7 @@ namespace maix::middleware::maixcam2 {
         FRAME_FROM_SYS_MEM_ALLOC,
         FRAME_FROM_VENC_GET_STREAM,
         FRAME_FROM_GET_BLOCK,
+        FRAME_FROM_MALLOC,
     } frame_from_e;
 
     class Frame {
@@ -832,10 +859,17 @@ namespace maix::middleware::maixcam2 {
         Frame(int venc_ch, AX_VENC_STREAM_T *frame, frame_from_e from = FRAME_FROM_VENC_GET_STREAM);
         Frame(int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         Frame(int pool_id, int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
+        Frame(void *data, int data_size);
         ~Frame();
         frame_from_e from();
         err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
         err::Err get_venc_stream(AX_VENC_STREAM_T * stream);
+    };
+
+    class ENGINE {
+    public:
+        ENGINE(AX_ENGINE_NPU_MODE_T mode);
+        ~ENGINE();
     };
 
     class VI {
@@ -874,7 +908,22 @@ namespace maix::middleware::maixcam2 {
         err::Err get_config(ax_venc_param_t *cfg);
     private:
         int _ch;
-        int _fd;
+    };
+
+    err::Err ax_jpg_enc_init(void);
+    err::Err ax_jpg_enc_deinit(void);
+    maixcam2::Frame *ax_jpg_enc_once(maixcam2::Frame *frame, int quality);
+
+    class VDEC {
+    public:
+        VDEC(ax_vdec_param_t *cfg);
+        ~VDEC();
+        err::Err push(maixcam2::Frame *frame, int32_t timeout_ms);
+        maixcam2::Frame * pop(int32_t timeout_ms);
+        err::Err get_config(ax_vdec_param_t *cfg);
+    private:
+        int _ch;
+        void *param;
     };
 };
 

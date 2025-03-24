@@ -410,11 +410,12 @@ namespace maix::camera
         SYS *ax_sys = new SYS(priv->raw);
         err::check_null_raise(ax_sys, "ax sys malloc error");
 
-        ax_global_param_lock();
-        auto g_param = get_ax_global_param();
-        auto ax_cam = g_param->cams[0];
+        auto &mod_param = AxModuleParam::getInstance();
+        mod_param.lock(AX_MOD_VI);
+        auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
+        auto ax_cam = vi_param->cams[0];
         auto p_ax_cam = &ax_cam;
-        ax_global_param_unlock();
+        mod_param.unlock(AX_MOD_VI);
         priv->i2c_addr = p_ax_cam->nI2cAddr;
 
         // init vi
@@ -742,10 +743,11 @@ namespace maix::camera
     }
 
     err::Err Camera::set_windowing(std::vector<int> roi) {
-        ax_global_param_lock();
-        auto g_param = get_ax_global_param();
-        auto ax_cam = g_param->cams[0];
-        ax_global_param_unlock();
+        auto &mod_param = AxModuleParam::getInstance();
+        mod_param.lock(AX_MOD_VI);
+        auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
+        auto ax_cam = vi_param->cams[0];
+        mod_param.unlock(AX_MOD_VI);
 
         err::Err ret = err::ERR_NONE;
         auto *priv = (camera_priv_t *)_param;
@@ -796,10 +798,11 @@ namespace maix::camera
     }
 
     std::vector<int> Camera::get_sensor_size() {
-        ax_global_param_lock();
-        auto g_param = get_ax_global_param();
-        auto ax_cam = g_param->cams[0];
-        ax_global_param_unlock();
+        auto &mod_param = AxModuleParam::getInstance();
+        mod_param.lock(AX_MOD_VI);
+        auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
+        auto ax_cam = vi_param->cams[0];
+        mod_param.unlock(AX_MOD_VI);
 
         int max_width = ax_cam.tSnsAttr.nWidth;
         int max_height = ax_cam.tSnsAttr.nHeight;

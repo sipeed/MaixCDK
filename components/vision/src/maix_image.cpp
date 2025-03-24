@@ -15,6 +15,9 @@
 #include <array>
 #ifdef PLATFORM_MAIXCAM
 #include "sophgo_middleware.hpp"
+#elif defined(PLATFORM_MAIXCAM2)
+#include "ax_middleware.hpp"
+using namespace maix::middleware;
 #endif
 
 namespace maix::image
@@ -1000,6 +1003,52 @@ namespace maix::image
             quality = 51;
         }
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
+
+#if defined(PLATFORM_MAIXCAM2)
+        image::Image *p_img = nullptr;
+        image::Image *img = nullptr;
+        maixcam2::Frame *src_frame = nullptr, *out_frame = nullptr;
+        bool src_alloc = false;
+        if (_format != Format::FMT_YVU420SP || _format != Format::FMT_YUV420SP)
+        {
+            p_img = to_format(image::FMT_YVU420SP);
+            src_alloc = true;
+        }
+        else
+        {
+            p_img = this;
+        }
+
+        if (maixcam2::ax_jpg_enc_init() != err::ERR_NONE) {
+            goto __EXIT;
+        }
+
+        src_frame = new maixcam2::Frame(p_img->width(), p_img->height(), p_img->data(), p_img->data_size(), maixcam2::get_ax_fmt_from_maix(p_img->format()));
+        if (!src_frame) {
+            goto __EXIT;
+        }
+
+        out_frame = maixcam2::ax_jpg_enc_once(src_frame, quality);
+        if (!out_frame) {
+            goto __EXIT;
+        }
+        img = new image::Image(p_img->width(), p_img->height(), image::Format::FMT_JPEG, (uint8_t *)out_frame->data, out_frame->len, true);
+
+        __EXIT:
+        if (out_frame) {
+            delete out_frame;
+        }
+
+        if (src_frame) {
+            delete src_frame;
+        }
+
+        if (src_alloc)
+        {
+            delete p_img;
+        }
+        return img;
+#else
         switch (_format)
         {
         case image::FMT_YVU420SP:
@@ -1080,7 +1129,7 @@ namespace maix::image
             break;
         }
         }
-
+#endif // #if defined(PLATFORM_MAIXCAM2)
         return nullptr;
     }
 

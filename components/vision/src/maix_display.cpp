@@ -48,6 +48,9 @@ namespace maix::display
 #ifdef PLATFORM_MAIXCAM
             _impl = new DisplayCviMmf(device, width, height, format);
 #endif
+#ifdef PLATFORM_MAIXCAM2
+            _impl = new DisplayAx(device, width, height, format);
+#endif
         }
 
         if (open) {
@@ -82,6 +85,12 @@ namespace maix::display
             this->close();
             delete (DisplayCviMmf *)_impl;
         }
+#endif
+#ifdef PLATFORM_MAIXCAM2
+        if (_device != "")
+            delete (FB_Display *)_impl;
+        else
+            delete (DisplayAx *)_impl;
 #endif
     }
 
@@ -191,7 +200,7 @@ namespace maix::display
             }
         }
 
-#ifdef PLATFORM_MAIXCAM
+#if defined(PLATFORM_MAIXCAM) || defined(PLATFORM_MAIXCAM2)
         maix::image::Format show_img_format = img.format();
         if (show_img_format != maix::image::Format::FMT_RGB888
         && show_img_format != maix::image::Format::FMT_YVU420SP

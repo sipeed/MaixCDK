@@ -308,7 +308,7 @@ namespace maix::video
                 err::check_raise(err::ERR_RUNTIME, "Unsupported video type!");
         }
 
-        ax_venc_param_t cfg = {0};
+        maixcam2::ax_venc_param_t cfg = {0};
         switch (video_type) {
             case VIDEO_H264:
             case VIDEO_H264_MP4:
@@ -316,7 +316,7 @@ namespace maix::video
                 cfg.w = width;
                 cfg.h = height;
                 cfg.fmt = maixcam2::get_ax_fmt_from_maix(format);
-                cfg.type = AX_VENC_TYPE_H264;
+                cfg.type = maixcam2::AX_VENC_TYPE_H264;
                 cfg.h264.bitrate = bitrate / 1000;
                 cfg.h264.input_fps = framerate;
                 cfg.h264.output_fps = framerate;
@@ -336,7 +336,7 @@ namespace maix::video
                 cfg.w = width;
                 cfg.h = height;
                 cfg.fmt = maixcam2::get_ax_fmt_from_maix(format);
-                cfg.type = AX_VENC_TYPE_H265;
+                cfg.type = maixcam2::AX_VENC_TYPE_H265;
                 cfg.h265.bitrate = bitrate / 1000;
                 cfg.h265.input_fps = framerate;
                 cfg.h265.output_fps = framerate;
