@@ -409,6 +409,11 @@ namespace maix::camera
         // init sys
         SYS *ax_sys = new SYS(priv->raw);
         err::check_null_raise(ax_sys, "ax sys malloc error");
+        err = ax_sys->init();
+        if (err::ERR_NONE != err) {
+            log::info("Init ax sys failed");
+            return err;
+        }
 
         auto &mod_param = AxModuleParam::getInstance();
         mod_param.lock(AX_MOD_VI);

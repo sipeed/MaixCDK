@@ -8,6 +8,10 @@
 #include "maix_camera.hpp"
 #include "list"
 using namespace maix;
+#if defined(PLATFORM_MAIXCAM2)
+#include "ax_middleware.hpp"
+using namespace maix::middleware;
+#endif
 
 extern "C" {
 #include <libavformat/avformat.h>
@@ -94,7 +98,7 @@ static int h264_to_mp4(int argc, char *argv[]) {
     int channels = 1;
     int bitrate = 128000;
     {
-        err::check_null_raise(audio_codec = avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
+        err::check_null_raise(audio_codec = (AVCodec *)avcodec_find_encoder(AV_CODEC_ID_AAC), "Could not find aac encoder");
         err::check_null_raise(audio_stream = avformat_new_stream(output_format_ctx, NULL), "Could not allocate stream");
         err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
         audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
@@ -403,6 +407,7 @@ static void helper(void)
     "0 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode without bind\r\n"
     "1 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode with bind\r\n"
     "2 <path> <delay_s> <width> <height> <fps>: time-lapse record\r\n"
+    "5 <input_path> <width> <height> <format> <quality>: encode image to jpeg\r\n"
     "note:\r\n"
     "format=%d, NV21\r\n"
     "type=%d, VIDEO_H264; type=%d, VIDEO_H265"
@@ -620,6 +625,36 @@ int _main(int argc, char* argv[])
             log::info("loop use %lld ms", time::ticks_ms() - start_time, time::ticks_ms());
             start_time = time::ticks_ms();
         }
+        break;
+    }
+    case 5:
+    {
+        std::string path = "/root/input.jpg";
+        int width = 640;
+        int height = 480;
+        image::Format format = image::Format::FMT_YVU420SP;
+        int quality = 90;
+        if (argc > 2) path = argv[2];
+        if (argc > 3) width = atoi(argv[3]);
+        if (argc > 4) height = atoi(argv[4]);
+        if (argc > 5) format = (image::Format)atoi(argv[5]);
+        if (argc > 6) quality = (video::VideoType)atoi(argv[6]);
+        log::info("path:%s width:%d height:%d output format:%d quality:%d\r\n",
+            path.c_str(), width, height, format, quality);
+
+        // auto cam = camera::Camera(width, height, format);
+        auto src_img = image::load(path.c_str(), format);
+        auto src_img_resize = src_img->resize(width, height);
+        auto t = time::ticks_ms();
+        auto jpg_img = src_img_resize->to_jpeg(quality);
+        log::info("jpg img use %lld ms", time::ticks_ms() - t);
+        log::info("jpg img data:%p size:%d", jpg_img->data(), jpg_img->data_size());
+        auto output_path = "/root/output.jpg";
+        log::info("jpg save to %s", output_path);
+        jpg_img->save(output_path);
+        delete jpg_img;
+        delete src_img_resize;
+        delete src_img;
         break;
     }
     default:

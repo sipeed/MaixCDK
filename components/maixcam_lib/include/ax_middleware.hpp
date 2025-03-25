@@ -778,13 +778,25 @@ namespace maix::middleware::maixcam2 {
     }
 
     class SYS {
+        bool __is_inited;
+        bool __raw;
     public:
         SYS(bool raw = false) {
+            __raw = raw;
+            __is_inited = false;
+        }
+        ~SYS() {
+            if (__is_inited) {
+                deinit();
+            }
+        }
+
+        err::Err init() {
+            if (__is_inited) return err::ERR_NONE;
             ax_sys_mod_t *sys_param = nullptr;
             auto &mod_param = AxModuleParam::getInstance();
             mod_param.lock(AX_MOD_SYS);
             sys_param = (ax_sys_mod_t *)mod_param.get_param(AX_MOD_SYS);
-            err::check_null_raise(sys_param, "Get ax sys parameter failed!");
             if (sys_param->init_count > 0) {
                 sys_param->init_count ++;
             } else {
@@ -794,14 +806,15 @@ namespace maix::middleware::maixcam2 {
                     .eSysCase = SAMPLE_VIN_SINGLE_SC450AI,
                     .eSysMode = COMMON_VIN_SENSOR,
                     .eHdrMode = AX_SNS_LINEAR_MODE,
-                    .eLoadRawNode = raw ? LOAD_RAW_IFE : LOAD_RAW_NONE,
+                    .eLoadRawNode = __raw ? LOAD_RAW_IFE : LOAD_RAW_NONE,
                     .bAiispEnable = AX_FALSE,
                     .statDeltaPtsFrmNum = 0,
                 };
 
                 auto get_sensor_res = __get_sensor_name();
                 if (!get_sensor_res.first) {
-                    err::check_raise(err::ERR_RUNTIME, "get sensor name failed");
+                    log::error("get sensor name failed");
+                    return err::ERR_RUNTIME;
                 }
                 tVinParam.eSysCase = __get_vi_case_from_sensor_name((char *)get_sensor_res.second.c_str());
 
@@ -812,15 +825,19 @@ namespace maix::middleware::maixcam2 {
                 if (axRet) {
                     mod_param.unlock(AX_MOD_SYS);
                     COMM_ISP_PRT("COMMON_SYS_Init fail, ret:0x%x", axRet);
-                    err::check_raise(err::ERR_RUNTIME, "COMMON_SYS_Init failed");
+                    return err::ERR_RUNTIME;
                 }
                 sys_param->init_count = 1;
             }
             mod_param.unlock(AX_MOD_SYS);
 
             log::info("sys init success, count:%d", sys_param->init_count);
+            __is_inited = true;
+            return err::ERR_NONE;
         }
-        ~SYS() {
+
+        void deinit() {
+            if (!__is_inited) return;
             ax_sys_mod_t *sys_param = nullptr;
             auto &mod_param = AxModuleParam::getInstance();
             mod_param.lock(AX_MOD_SYS);
@@ -835,6 +852,7 @@ namespace maix::middleware::maixcam2 {
                 printf("maix multi-media driver released.\r\n");
             }
             mod_param.unlock(AX_MOD_SYS);
+            __is_inited = false;
         }
     };
 
@@ -867,9 +885,13 @@ namespace maix::middleware::maixcam2 {
     };
 
     class ENGINE {
+        bool __is_inited;
+        AX_ENGINE_NPU_MODE_T __mode;
     public:
         ENGINE(AX_ENGINE_NPU_MODE_T mode);
         ~ENGINE();
+        err::Err init();
+        void deinit();
     };
 
     class VI {
