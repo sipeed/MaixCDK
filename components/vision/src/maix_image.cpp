@@ -531,150 +531,7 @@ namespace maix::image
         // special for convert to jpeg and png
         if (format == image::FMT_JPEG) // compress
         {
-            switch (_format)
-            {
-#ifdef PLATFORM_MAIXCAM
-            case image::FMT_GRAYSCALE:
-            {
-                image::Image *img = nullptr;
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_GRAYSCALE), 95))
-                {
-                    uint8_t *data;
-                    int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
-                    {
-                        if (buff)
-                        {
-                            if (buff_size < (size_t)data_size)
-                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
-                            memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
-                        }
-                        else
-                            img = new image::Image(_width, _height, format, data, data_size, true);
-                        mmf_enc_jpg_free(0);
-                    }
-                }
-                if (!img)
-                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
-                return img;
-                break;
-            }
-            case image::FMT_YVU420SP:
-            {
-                image::Image *img = nullptr;
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), 95))
-                {
-                    uint8_t *data;
-                    int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
-                    {
-                        if (buff)
-                        {
-                            if (buff_size < (size_t)data_size)
-                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
-                            memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
-                        }
-                        else
-                            img = new image::Image(_width, _height, format, data, data_size, true);
-                        mmf_enc_jpg_free(0);
-                    }
-                }
-                if (!img)
-                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
-                return img;
-                break;
-            }
-#endif
-            default:
-            {
-#ifdef PLATFORM_MAIXCAM
-                image::Image *p_img = nullptr;
-                image::Image *img = nullptr;
-                bool src_alloc = false;
-                if (_format != Format::FMT_RGB888)
-                {
-                    p_img = to_format(image::FMT_RGB888);
-                    src_alloc = true;
-                }
-                else
-                {
-                    p_img = this;
-                }
-
-                if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), 80))
-                {
-                    uint8_t *data;
-                    int data_size;
-                    if (!mmf_enc_jpg_pop(0, &data, &data_size))
-                    {
-                        if (buff)
-                        {
-                            if (buff_size < (size_t)data_size)
-                            {
-                                if (src_alloc)
-                                    delete p_img;
-                                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
-                            }
-                            memcpy(buff, data, data_size);
-                            img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
-                        }
-                        else
-                            img = new image::Image(_width, _height, format, data, data_size, true);
-                        mmf_enc_jpg_free(0);
-                    }
-                }
-
-                if (src_alloc)
-                    delete p_img;
-                if (!img)
-                    throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
-                return img;
-#else
-                // soft convert, slower
-                image::Image *p_img = nullptr;
-                cv::Mat *p_src = &src;
-                bool src_alloc = false;
-                if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
-                {
-                    p_img = to_format(image::FMT_BGR888);
-                    p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGR888]), p_img->_data);
-                    src_alloc = true;
-                }
-                cv::InputArray input(*p_src);
-                std::vector<uchar> jpeg_buff;
-                std::vector<int> params;
-                params.push_back(cv::IMWRITE_JPEG_QUALITY);
-                params.push_back(95);
-                cv::imencode(".jpg", input, jpeg_buff, params);
-                image::Image *img;
-                if (buff)
-                {
-                    if (buff_size < jpeg_buff.size())
-                    {
-                        if (src_alloc)
-                        {
-                            delete p_img;
-                            delete p_src;
-                        }
-                        throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
-                    }
-                    memcpy(buff, jpeg_buff.data(), jpeg_buff.size());
-                    img = new image::Image(src.cols, src.rows, format, (uint8_t *)buff, jpeg_buff.size(), false);
-                }
-                else
-                    img = new image::Image(src.cols, src.rows, format, (uint8_t *)jpeg_buff.data(), jpeg_buff.size(), true);
-                if (src_alloc)
-                {
-                    delete p_img;
-                    delete p_src;
-                }
-                return img;
-#endif
-                break;
-            }
-            }
+            return this->to_jpeg(80);
         }
         else if (format == image::FMT_PNG)
         {
@@ -998,25 +855,61 @@ namespace maix::image
     image::Image *Image::to_jpeg(int quality)
     {
         image::Format format = image::Format::FMT_JPEG;
+
+        cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
+#if defined(PLATFORM_MAIXCAM)
         if (quality <= 50)
         {
             quality = 51;
         }
-        cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
+        image::Image *p_img = nullptr;
+        image::Image *img = nullptr;
+        bool src_alloc = false;
+        if (_format == image::FMT_RGB888 || _format == image::FMT_GRAYSCALE || _format == image::FMT_YVU420SP) {
+            p_img = this;
+        } else {
+            p_img = to_format(image::FMT_RGB888);
+            src_alloc = true;
+        }
 
-#if defined(PLATFORM_MAIXCAM2)
+        if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(p_img->format()), 80))
+        {
+            uint8_t *data;
+            int data_size;
+            if (!mmf_enc_jpg_pop(0, &data, &data_size))
+            {
+                if (buff)
+                {
+                    if (buff_size < (size_t)data_size)
+                    {
+                        if (src_alloc)
+                            delete p_img;
+                        throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
+                    }
+                    memcpy(buff, data, data_size);
+                    img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
+                }
+                else
+                    img = new image::Image(_width, _height, format, data, data_size, true);
+                mmf_enc_jpg_free(0);
+            }
+        }
+
+        if (src_alloc)
+            delete p_img;
+        if (!img)
+            throw err::Exception(err::ERR_RUNTIME, "convert format failed, see log");
+        return img;
+#elif defined(PLATFORM_MAIXCAM2)
         image::Image *p_img = nullptr;
         image::Image *img = nullptr;
         maixcam2::Frame *src_frame = nullptr, *out_frame = nullptr;
         bool src_alloc = false;
-        if (_format != Format::FMT_YVU420SP || _format != Format::FMT_YUV420SP)
-        {
+        if (_format == Format::FMT_YVU420SP || _format == Format::FMT_YUV420SP) {
+            p_img = this;
+        } else {
             p_img = to_format(image::FMT_YVU420SP);
             src_alloc = true;
-        }
-        else
-        {
-            p_img = this;
         }
 
         if (maixcam2::ax_jpg_enc_init() != err::ERR_NONE) {
@@ -1032,9 +925,9 @@ namespace maix::image
         if (!out_frame) {
             goto __EXIT;
         }
-        img = new image::Image(p_img->width(), p_img->height(), image::Format::FMT_JPEG, (uint8_t *)out_frame->data, out_frame->len, true);
+        img = new image::Image(p_img->width(), p_img->height(), format, (uint8_t *)out_frame->data, out_frame->len, true);
 
-        __EXIT:
+__EXIT:
         if (out_frame) {
             delete out_frame;
         }
@@ -1049,87 +942,46 @@ namespace maix::image
         }
         return img;
 #else
-        switch (_format)
+        // soft convert, slower
+        image::Image *p_img = nullptr;
+        cv::Mat *p_src = &src;
+        bool src_alloc = false;
+        if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
         {
-        case image::FMT_YVU420SP:
-        {
-#ifdef PLATFORM_MAIXCAM
-            image::Image *img = nullptr;
-            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)_data, _width, _height, mmf_invert_format_to_mmf(image::FMT_YVU420SP), quality))
-            {
-                uint8_t *data;
-                int data_size;
-                if (!mmf_enc_jpg_pop(0, &data, &data_size))
-                {
-                    img = new image::Image(_width, _height, format, data, data_size, true);
-                    mmf_enc_jpg_free(0);
-                }
-            }
-            return img;
-#endif
-            break;
+            p_img = to_format(image::FMT_BGR888);
+            p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGR888]), p_img->_data);
+            src_alloc = true;
         }
-        default:
+        cv::InputArray input(*p_src);
+        std::vector<uchar> jpeg_buff;
+        std::vector<int> params;
+        params.push_back(cv::IMWRITE_JPEG_QUALITY);
+        params.push_back(95);
+        cv::imencode(".jpg", input, jpeg_buff, params);
+        image::Image *img;
+        if (buff)
         {
-#ifdef PLATFORM_MAIXCAM
-            image::Image *p_img = nullptr;
-            image::Image *img = nullptr;
-            bool src_alloc = false;
-            if (_format != Format::FMT_RGB888)
+            if (buff_size < jpeg_buff.size())
             {
-                p_img = to_format(image::FMT_RGB888);
-                src_alloc = true;
-            }
-            else
-            {
-                p_img = this;
-            }
-
-            if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(image::FMT_RGB888), quality))
-            {
-                uint8_t *data;
-                int data_size;
-                if (!mmf_enc_jpg_pop(0, &data, &data_size))
+                if (src_alloc)
                 {
-                    img = new image::Image(_width, _height, format, data, data_size, true);
-                    mmf_enc_jpg_free(0);
+                    delete p_img;
+                    delete p_src;
                 }
+                throw err::Exception(err::ERR_ARGS, "convert format failed, buffer size not enough");
             }
-
-            if (src_alloc)
-            {
-                delete p_img;
-            }
-            return img;
-#else
-            image::Image *p_img = nullptr;
-            cv::Mat *p_src = &src;
-            bool src_alloc = false;
-            if (_format != Format::FMT_BGR888 && _format != Format::FMT_BGRA8888)
-            {
-                p_img = to_format(image::FMT_BGR888);
-                p_src = new cv::Mat(p_img->_height, p_img->_width, CV_8UC((int)image::fmt_size[image::FMT_BGR888]), p_img->_data);
-                src_alloc = true;
-            }
-            cv::InputArray input(*p_src);
-            std::vector<uchar> jpeg_buff;
-            std::vector<int> params;
-            params.push_back(cv::IMWRITE_JPEG_QUALITY);
-            params.push_back(95);
-            cv::imencode(".jpg", input, jpeg_buff, params);
-            image::Image *img;
+            memcpy(buff, jpeg_buff.data(), jpeg_buff.size());
+            img = new image::Image(src.cols, src.rows, format, (uint8_t *)buff, jpeg_buff.size(), false);
+        }
+        else
             img = new image::Image(src.cols, src.rows, format, (uint8_t *)jpeg_buff.data(), jpeg_buff.size(), true);
-            if (src_alloc)
-            {
-                delete p_img;
-                delete p_src;
-            }
-            return img;
+        if (src_alloc)
+        {
+            delete p_img;
+            delete p_src;
+        }
+        return img;
 #endif
-            break;
-        }
-        }
-#endif // #if defined(PLATFORM_MAIXCAM2)
         return nullptr;
     }
 
