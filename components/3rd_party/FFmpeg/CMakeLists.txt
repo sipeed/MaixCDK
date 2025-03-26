@@ -1,7 +1,7 @@
 set(ffmpeg_version_str "${CONFIG_FFMPEG_VERSION_MAJOR}.${CONFIG_FFMPEG_VERSION_MINOR}.${CONFIG_FFMPEG_VERSION_PATCH}")
 set(ffmpeg_unzip_path "${DL_EXTRACTED_PATH}/ffmpeg_srcs")
 if(PLATFORM_MAIXCAM2)
-    set(src_path "${ffmpeg_unzip_path}/ffmpeg_ax630c_libs")
+    set(src_path "${ffmpeg_unzip_path}/ffmpeg_maixcam2_libs")
 else()
     set(src_path "${ffmpeg_unzip_path}/ffmpeg")
 endif()
