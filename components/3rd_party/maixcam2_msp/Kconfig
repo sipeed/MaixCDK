@@ -1,0 +1,73 @@
+# AX620e MSP Options, only for maixcam2 platform
+if PLATFORM = "maixcam2"
+menu "AX620E MSP Options"
+
+config AX620E_MSP_ENABLE_NPU_LIB
+    bool "Enable NPU library"
+    default n
+    help
+      Enable NPU library
+
+config AX620E_MSP_ENABLE_VO_LIB
+    bool "Enable vo library"
+    default n
+    help
+      Enable vo library
+
+config AX620E_MSP_ENABLE_SENSOR_LIB
+    bool "Enable maixcam2 official sensor library"
+    default n
+    help
+      Enable sensor library
+
+config AX620E_MSP_ENABLE_EXTRA_SENSOR_LIB
+    bool "Enable extra sensor library, maybe no ISP ajustment"
+    default n
+    help
+      Enable extra sensor library
+
+config AX620E_MSP_ENABLE_AUDIO_LIB
+    bool "Enable audio library"
+    default n
+    help
+      Enable audio library
+
+config AX620E_MSP_ENABLE_IVES_LIB
+    bool "Enable IVES(Intelligent Video Extension System) library"
+    default n
+    help
+      Enable IVES(Intelligent Video Extension System) library
+
+config AX620E_MSP_ENABLE_SKEL_LIB
+    bool "Enable SKEL(Skeleton Artificial Intelligent Algorithm) library"
+    default n
+    help
+      Enable SKEL(Skeleton Artificial Intelligent Algorithm) library
+
+config AX620E_MSP_ENABLE_OPAL_LIB
+    bool "Enable OPAL(Operator Abstract Layer) library"
+    default n
+    help
+      Enable OPAL(Operator Abstract Layer) library
+
+config AX620E_MSP_ENABLE_EFUSE_LIB
+    bool "Enable efuse library"
+    default n
+    help
+      Enable efuse library
+
+config AX620E_MSP_ENABLE_GZIP_LIB
+    bool "Enable hardware acceleration API for gzip"
+    default n
+    help
+      Enable hardware acceleration API for gzip
+
+config AX620E_MSP_ENABLE_EXTRA_LIB
+    bool "Enable extra libraries"
+    default n
+    help
+      Enable extra libraries
+
+
+endmenu
+endif

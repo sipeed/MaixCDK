@@ -172,7 +172,7 @@ namespace maix::nn
             err::Err e = _model->extra_info_labels(labels);
             if(e == err::Err::ERR_NONE)
             {
-                log::print("\tlabels num: %ld\n", labels.size());
+                log::info("labels num: %ld", labels.size());
             }
             else
             {

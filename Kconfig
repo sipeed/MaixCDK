@@ -1,5 +1,5 @@
 
-mainmenu "MaixCDK configuration, platform: ${PLATFORM}"
+mainmenu "MaixCDK configuration, platform: ${PLATFORM} ${PLATFORM_MAIXCAM2}"
 
 menu "SDK Components Configuration"
 	osource "${SDK_PATH}/components/*/Kconfig"
@@ -38,3 +38,10 @@ config COMPONENTS_COMPILE_FROM_SOURCE
 	default n
 	help
 	  All components compile from source instead of using prebuilt libraries or local libraries.
+
+config PLATFORM
+	string
+	option env="PLATFORM"
+	help
+	  Platform name, see platform dir in MaixCDK.
+

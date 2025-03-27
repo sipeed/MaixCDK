@@ -9,20 +9,16 @@ if(PLATFORM_MAIXCAM)
 
     if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
         set(source_dir "maixcdk_maixcam_lib")
-        append_srcs_dir(ADD_SRCS "${source_dir}")
         # nn
         list(APPEND ADD_INCLUDE "../nn/include")
         list(APPEND ADD_INCLUDE "../vision/include")
-        append_srcs_dir(ADD_SRCS "${source_dir}/nn")
+        append_srcs_dir(ADD_SRCS "${source_dir}/maixcam")
+        append_srcs_dir(ADD_SRCS "${source_dir}/common")
         list(APPEND ADD_REQUIREMENTS cvi_tpu)
 
         # media_server
         append_srcs_dir(ADD_SRCS "${source_dir}/media_server")
         list(APPEND ADD_REQUIREMENTS media_server)
-
-        # middleware
-        list(APPEND ADD_SRCS        "${source_dir}/middleware/sophgo_middleware.cpp")
-        set_property(SOURCE ${middleware_src_dir} PROPERTY GENERATED 1)
 
         list(APPEND ADD_REQUIREMENTS sophgo-middleware)
         list(APPEND ADD_DEFINITIONS_PRIVATE -Wl,--exclude-libs,ALL)
@@ -39,10 +35,12 @@ elseif(PLATFORM_MAIXCAM2)
     list(APPEND ADD_REQUIREMENTS maixcam2_msp)
 
     list(APPEND ADD_INCLUDE "../vision/include")
-    set(source_dir "maixcdk_maixcam_lib/maixcam2")
+    list(APPEND ADD_INCLUDE "../nn/include")
+    set(source_dir "maixcdk_maixcam_lib")
+    append_srcs_dir(ADD_SRCS "${source_dir}/maixcam2")
+    append_srcs_dir(ADD_SRCS "${source_dir}/common")
 
     if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
-        append_srcs_dir(ADD_SRCS "${source_dir}")
         register_component(DYNAMIC)
     else()
         list(APPEND ADD_DYNAMIC_LIB "lib/libmaixcam2_lib.so")

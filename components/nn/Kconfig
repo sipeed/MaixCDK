@@ -1,0 +1,9 @@
+
+menu "nn component configuration"
+config NN_ENABLE
+    bool "Enable nn component"
+    default y
+    select AX620E_MSP_ENABLE_NPU_LIB if PLATFORM = "maixcam2"
+    help
+      To use this component, you must enable it here.
+endmenu
