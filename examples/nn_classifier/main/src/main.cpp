@@ -39,7 +39,7 @@ int _main(int argc, char* argv[])
         std::vector<std::pair<int, float>> * result = classifier.classify(*img);
         for(int i = 0; i < 5; ++i)
         {
-            log::info("top %d: %5.2f%% %s, ", i + 1, result->at(i).second * 100, classifier.labels[result->at(i).first].c_str());
+            log::info("top %d: %5.2f%% %s, idx: %d", i + 1, result->at(i).second * 100, classifier.labels[result->at(i).first].c_str(), result->at(i).first);
         }
         delete result;
         delete img;

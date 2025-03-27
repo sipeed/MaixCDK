@@ -410,6 +410,20 @@ namespace maix::fs
         return std::ftell((FILE *)_fp);
     }
 
+    int File::size()
+    {
+        // get file size use std::fseek and std::ftell
+        if (_fp == nullptr)
+        {
+            return -err::ERR_NOT_READY;
+        }
+        int pos = std::ftell((FILE *)_fp);
+        std::fseek((FILE *)_fp, 0, SEEK_END);
+        int size = std::ftell((FILE *)_fp);
+        std::fseek((FILE *)_fp, pos, SEEK_SET);
+        return size;
+    }
+
     err::Err File::flush()
     {
         // flush file use std::fflush

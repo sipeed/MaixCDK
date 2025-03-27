@@ -1,9 +1,10 @@
+#include "global_config.h"
 #include "maix_nn.hpp"
 #include "maix_image.hpp"
 
 namespace maix::nn
 {
-    err::Err maixcam_load_cvimodel(const std::string &model_path, MUD *mud_obj);
+    err::Err mud_load_raw_model(const std::string &model_path, MUD *mud_obj);
     int maix_nn_self_learn_classifier_learn(std::vector<float *> &features, std::vector<float *> &features_samples, int feature_num);
 
     class NN_MaixCam : public NNBase

@@ -293,6 +293,14 @@ namespace maix::fs
         int tell();
 
         /**
+         * Get file size
+         * @attention will change file seek position temporarily when get file size.
+         * @return file size if success, -err::Err code if failed
+         * @maixpy maix.fs.File.size
+        */
+        int size();
+
+        /**
          * Flush file
          * @return err::ERR_NONE(err.Err.ERR_NONE in MaixPy) if success, other error code if failed
          * @maixpy maix.fs.File.flush

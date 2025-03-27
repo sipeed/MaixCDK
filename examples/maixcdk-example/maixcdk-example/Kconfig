@@ -1,7 +1,8 @@
-config PYTHON_PKG_EXAMPLE
-    bool "python pkg example"
+config PYTHON_PKG_EXAMPLE_CONFIG1
+    bool "config from component maixcdk-example, a MaixCDK component installed by pip"
     default n
     help
-      python pkg example
+      component installed by pip as a python package from pypi.org,
+      installed by pip install maixcdk-xxxx, more info read documentation.
 
 

@@ -1,4 +1,5 @@
 # SUNXI_MPP version major minor patch
+if PLATFORM = "m2dock"
 menu "SUNXI_MPP version"
 config SUNXI_MPP_VERSION_MAJOR
     int "SUNXI_MPP package major version"
@@ -18,3 +19,4 @@ config SUNXI_MPP_VERSION_PATCH
     help
       SUNXI_MPP package patch version
 endmenu
+endif

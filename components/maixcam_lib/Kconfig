@@ -1,3 +1,4 @@
+menu "runtime lib options"
 config MAIXCAM_LIB_COMPILE_FROM_SOURCE
 	bool "compile maixcam_lib from souce code"
 	default n
@@ -11,3 +12,4 @@ config MAIXCAM_LIB_ENC
   help
     enc maixcam lib, for internal debug usage
 endif
+endmenu

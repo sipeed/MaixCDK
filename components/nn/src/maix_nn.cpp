@@ -11,7 +11,7 @@
 #include "inifile.h"
 #include "maix_nn_self_learn_classifier.hpp"
 
-#if PLATFORM_MAIXCAM
+#if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
     #include "maix_nn_maixcam.hpp"
     #include "speech/dr_wav.h"
 #endif
@@ -145,15 +145,13 @@ namespace maix::nn
             log::error("model path %s not exists\n", model_path.c_str());
             return err::ERR_ARGS;
         }
-#if PLATFORM_MAIXCAM
-        // if model_path end with .cvimodel, load cvi model
-        if(model_path.find(".cvimodel") != std::string::npos)
-        {
-            return maixcam_load_cvimodel(model_path, this);
-        }
-#endif
+
         if(model_path.find(".mud") == std::string::npos)
         {
+            if(mud_load_raw_model(model_path, this) == err::ERR_NONE)
+            {
+                return err::ERR_NONE;
+            }
             log::error("model path %s not end with .mud\n", model_path.c_str());
             return err::ERR_ARGS;
         }
@@ -198,7 +196,7 @@ namespace maix::nn
     NN::NN(const std::string &model_path, bool dual_buff)
     {
         _impl = nullptr;
-#if PLATFORM_MAIXCAM
+#if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
         _impl = new NN_MaixCam(dual_buff);
 #endif
         if(!_impl)
@@ -311,7 +309,7 @@ namespace maix::nn
 
     int SelfLearnClassifier::learn()
     {
-        #if PLATFORM_MAIXCAM
+        #if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
             return maix_nn_self_learn_classifier_learn(_features, _features_sample, _feature_num);
         #else
             throw err::Exception(err::ERR_NOT_IMPL);

@@ -32,68 +32,113 @@ append_srcs_dir(ADD_SRCS "${msp_common_path}")     # append source file in src d
 ###############################################
 
 ############ Add dynamic libs ##################
-set(libax_dynamic_lib_file "${msp_glibc_path}/lib/libax_skel.so"
-"${msp_glibc_path}/lib/libax_skel.so"
-"${msp_glibc_path}/lib/libax_avs.so"
-"${msp_glibc_path}/lib/libax_utility.so"
-"${msp_glibc_path}/lib/libax_af.so"
-"${msp_glibc_path}/lib/libax_venc.so"
-# "${msp_glibc_path}/lib/libax_faac.so"
-"${msp_glibc_path}/lib/libax_proton.so"
-"${msp_glibc_path}/lib/libsns_sc500ai.so"
-"${msp_glibc_path}/lib/libax_nt_stream.so"
-"${msp_glibc_path}/lib/libax_audio_3a.so"
-"${msp_glibc_path}/lib/libax_interpreter.so"
-"${msp_glibc_path}/lib/libsns_sc231ai.so"
-"${msp_glibc_path}/lib/libax_ivps.so"
-"${msp_glibc_path}/lib/libax_ives.so"
-# "${msp_glibc_path}/lib/libax_audio.so"
-"${msp_glibc_path}/lib/libax_ae.so"
-"${msp_glibc_path}/lib/libax_skel_tiny.so"
-"${msp_glibc_path}/lib/libsns_imx664.so"
-"${msp_glibc_path}/lib/libax_efuse.so"
-"${msp_glibc_path}/lib/libax_vo.so"
-"${msp_glibc_path}/lib/libsns_sc430ai.so"
-"${msp_glibc_path}/lib/libsns_s5kjn1sq03.so"
-# "${msp_glibc_path}/lib/libax_fdk.so"
-"${msp_glibc_path}/lib/libsns_sc450ai.so"
-"${msp_glibc_path}/lib/libax_sys.so"
-"${msp_glibc_path}/lib/libax_vdec.so"
-"${msp_glibc_path}/lib/libax_awb.so"
-"${msp_glibc_path}/lib/libax_mipi.so"
-"${msp_glibc_path}/lib/liblens_t5719.so"
-"${msp_glibc_path}/lib/libsns_imx678.so"
-"${msp_glibc_path}/lib/libax_ive.so"
-"${msp_glibc_path}/lib/libax_engine.so"
-"${msp_glibc_path}/lib/libsns_os04d10.so"
-"${msp_glibc_path}/lib/libsns_mis2032.so"
-"${msp_glibc_path}/lib/libax_nt_ctrl.so"
-"${msp_glibc_path}/lib/libsns_os08c10.so"
-"${msp_glibc_path}/lib/libax_avscali.so"
-# "${msp_glibc_path}/lib/libax_opus.so"
-"${msp_glibc_path}/lib/libsns_sc200ai.so"
-"${msp_glibc_path}/lib/libsns_dummy.so"
-"${msp_glibc_path}/lib/libsns_os04a10.so"
-"${msp_glibc_path}/lib/libsns_sc530ai.so"
-"${msp_glibc_path}/lib/libax_engine_tiny.so"
-"${msp_glibc_path}/lib/libsns_gc4653.so"
-"${msp_glibc_path}/lib/libax_gzipd.so"
-"${msp_glibc_path}/lib/libax_thermal.so"
-"${msp_glibc_path}/lib/libsns_sc4210.so"
-"${msp_glibc_path}/lib/libsns_gc4663.so"
-"${msp_glibc_path}/lib/libsns_sc830ai.so"
-"${msp_glibc_path}/lib/libsns_c4395.so"
-"${msp_glibc_path}/lib/libax_cipher.so"
-# "${msp_glibc_path}/lib/libax_opal.so"
-"${msp_glibc_path}/lib/libsns_sc850sl.so"
-"${msp_glibc_path}/lib/libax_syslog.so"
-"${msp_glibc_path}/lib/libsns_dummy_bittrue.so"
-"${msp_glibc_path}/lib/liblens_dciris.so"
-# "${srcs_path}/third-party/faac/lib/arm64/glibc/libfaac.so.0"
-# "${srcs_path}/third-party/fdk-aac/lib/arm64/glibc/libfdk-aac.so.2"
-# "${srcs_path}/third-party/opus/lib/arm64/glibc/libopus.so.0"
-# "${msp_app_path}/component/resource/lib/arm64/glibc/appweb/libmpr.so"
-)
+set(libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_sys.so"
+    )
+
+if(CONFIG_AX620E_MSP_ENABLE_SENSOR_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_af.so"
+                                        "${msp_glibc_path}/lib/libax_venc.so"
+                                        "${msp_glibc_path}/lib/libax_vdec.so"
+                                        "${msp_glibc_path}/lib/libax_proton.so"
+                                        "${msp_glibc_path}/lib/libax_mipi.so"
+                                        "${msp_glibc_path}/lib/libax_ae.so"
+                                        "${msp_glibc_path}/lib/libax_awb.so"
+                                        "${msp_glibc_path}/lib/libax_ive.so"
+                                        "${msp_glibc_path}/lib/libax_ivps.so"
+                                        "${msp_glibc_path}/lib/libax_nt_stream.so"
+                                        "${msp_glibc_path}/lib/libax_nt_ctrl.so"
+                                        # sofficial supported sensors
+                                        "${msp_glibc_path}/lib/libsns_sc850sl.so"
+                                        "${msp_glibc_path}/lib/libsns_os04a10.so"
+                                        "${msp_glibc_path}/lib/libsns_gc4653.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_EXTRA_SENSOR_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libsns_sc500ai.so"
+                                        "${msp_glibc_path}/lib/libsns_sc231ai.so"
+                                        "${msp_glibc_path}/lib/libsns_imx664.so"
+                                        "${msp_glibc_path}/lib/libsns_sc430ai.so"
+                                        "${msp_glibc_path}/lib/libsns_s5kjn1sq03.so"
+                                        "${msp_glibc_path}/lib/libsns_sc450ai.so"
+                                        "${msp_glibc_path}/lib/libsns_imx678.so"
+                                        "${msp_glibc_path}/lib/libsns_os04d10.so"
+                                        "${msp_glibc_path}/lib/libsns_mis2032.so"
+                                        "${msp_glibc_path}/lib/libsns_os08c10.so"
+                                        "${msp_glibc_path}/lib/libsns_sc200ai.so"
+                                        "${msp_glibc_path}/lib/libsns_sc530ai.so"
+                                        "${msp_glibc_path}/lib/libsns_sc4210.so"
+                                        "${msp_glibc_path}/lib/libsns_gc4663.so"
+                                        "${msp_glibc_path}/lib/libsns_sc830ai.so"
+                                        "${msp_glibc_path}/lib/libsns_c4395.so"
+                                        "${msp_glibc_path}/lib/libsns_dummy.so"
+                                        "${msp_glibc_path}/lib/libsns_dummy_bittrue.so"
+                                        "${msp_glibc_path}/lib/liblens_t5719.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_NPU_LIB)
+    list(APPEND libax_dynamic_lib_file "${msp_glibc_path}/lib/libax_engine.so"
+                                    #  "${msp_glibc_path}/lib/libax_engine_tiny.so"
+                                       "${msp_glibc_path}/lib/libax_interpreter.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_AUDIO_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_audio_3a.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_IVES_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_ives.so" # Intelligent Video Extension System
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_SKEL_LIB) # SKELeton Artificial Intelligent Algorithm
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_skel.so"
+                                      # "${msp_glibc_path}/lib/libax_skel_tiny.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_OPAL_LIB) # OPerator Abstract Layer(IPC application high level API)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_opal.so")
+endif()
+
+
+if(CONFIG_AX620E_MSP_ENABLE_EFUSE_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_efuse.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_VO_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_vo.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_GZIP_LIB)   # hardware acceleration API for gzip
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_gzipd.so"
+    )
+endif()
+
+if(CONFIG_AX620E_MSP_ENABLE_EXTRA_LIB)
+    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_utility.so"
+                                        "${msp_glibc_path}/lib/libax_avs.so"
+                                        "${msp_glibc_path}/lib/libax_avscali.so"
+                                        "${msp_glibc_path}/lib/libax_thermal.so"
+                                        "${msp_glibc_path}/lib/libax_cipher.so"
+                                        "${msp_glibc_path}/lib/libax_syslog.so"
+                                        "${msp_glibc_path}/lib/liblens_dciris.so"
+                                        # "${msp_glibc_path}/lib/libax_audio.so"
+                                        # "${msp_glibc_path}/lib/libax_fdk.so"
+                                        # "${msp_glibc_path}/lib/libax_opus.so"
+                                        # "${msp_glibc_path}/lib/libax_faac.so"
+                                        # "${srcs_path}/third-party/faac/lib/arm64/glibc/libfaac.so.0"
+                                        # "${srcs_path}/third-party/fdk-aac/lib/arm64/glibc/libfdk-aac.so.2"
+                                        # "${srcs_path}/third-party/opus/lib/arm64/glibc/libopus.so.0"
+                                        # "${msp_app_path}/component/resource/lib/arm64/glibc/appweb/libmpr.so"
+    )
+endif()
+
 
 set_property(SOURCE ${libax_dynamic_lib_file} PROPERTY GENERATED 1)
 list(APPEND ADD_DYNAMIC_LIB ${libax_dynamic_lib_file})
