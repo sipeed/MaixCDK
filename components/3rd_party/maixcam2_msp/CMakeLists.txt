@@ -1,4 +1,4 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/ax620e_msp_srcs/ax620e_msp")
+set(srcs_path "${DL_EXTRACTED_PATH}/maixcam2_msp_srcs/maixcam2_msp")
 ################# Add include #################
 set(msp_glibc_path "${srcs_path}/out/arm64_glibc")
 set(msp_common_path "${srcs_path}/sample/common")

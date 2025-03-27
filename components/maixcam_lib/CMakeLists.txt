@@ -32,8 +32,7 @@ if(PLATFORM_MAIXCAM)
         register_component()
     endif()
 elseif(PLATFORM_MAIXCAM2)
-    # ax630c
-    list(APPEND ADD_REQUIREMENTS ax620e_msp)
+    list(APPEND ADD_REQUIREMENTS maixcam2_msp)
 
     list(APPEND ADD_INCLUDE "../vision/include")
     list(APPEND ADD_INCLUDE "../nn/include")
