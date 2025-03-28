@@ -204,6 +204,7 @@ namespace maix::display
         maix::image::Format show_img_format = img.format();
         if (show_img_format != maix::image::Format::FMT_RGB888
         && show_img_format != maix::image::Format::FMT_YVU420SP
+        && show_img_format != maix::image::Format::FMT_YUV420SP
         && show_img_format != maix::image::Format::FMT_BGRA8888
         && show_img_format != maix::image::Format::FMT_GRAYSCALE) {
             image::Image *show_img = img.to_format(maix::image::Format::FMT_RGB888);

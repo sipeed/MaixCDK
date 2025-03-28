@@ -114,6 +114,9 @@ namespace maix::middleware::maixcam2 {
         int w;
         int h;
         AX_IMG_FORMAT_E fmt;
+        int blk_cnt;
+        int blk_size;
+        AX_POOL pool_id;
     } ax_vdec_param_t;
 
     typedef struct {
@@ -132,7 +135,6 @@ namespace maix::middleware::maixcam2 {
     typedef struct {
         pthread_mutex_t lock;
         int init_count;
-        int pool_id;
         ax_vdec_param_t vdec[AX_VDEC_MAX_GRP_NUM];
     } ax_vdec_mod_t;
 
@@ -862,11 +864,14 @@ namespace maix::middleware::maixcam2 {
         FRAME_FROM_VENC_GET_STREAM,
         FRAME_FROM_GET_BLOCK,
         FRAME_FROM_MALLOC,
+        FRAME_FROM_VDEC_GET_STREAM,
+        FRAME_FROM_AX_MALLOC,
     } frame_from_e;
 
     class Frame {
     public:
         void *data;
+        uint64_t phy_addr;
         int len;
         int w;
         int h;
@@ -875,13 +880,15 @@ namespace maix::middleware::maixcam2 {
         void *__param;
         Frame(IVPS_GRP IvpsGrp, IVPS_CHN IvpsChn, AX_VIDEO_FRAME_T *ptFrame, frame_from_e from = FRAME_FROM_IVPS_CHN, AX_IMG_FORMAT_E invert_fmt = AX_FORMAT_INVALID);
         Frame(int venc_ch, AX_VENC_STREAM_T *frame, frame_from_e from = FRAME_FROM_VENC_GET_STREAM);
+        Frame(int vdec_ch, AX_VIDEO_FRAME_INFO_T *frame, frame_from_e from = FRAME_FROM_VDEC_GET_STREAM);
         Frame(int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         Frame(int pool_id, int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
-        Frame(void *data, int data_size);
+        Frame(void *data, int data_size, frame_from_e from = FRAME_FROM_MALLOC);
         ~Frame();
         frame_from_e from();
         err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
         err::Err get_venc_stream(AX_VENC_STREAM_T * stream);
+        err::Err get_video_frame_info(AX_VIDEO_FRAME_INFO_T * stream);
     };
 
     class ENGINE {

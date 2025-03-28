@@ -8,9 +8,11 @@
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavcodec/bsf.h>
 #include <libavutil/imgutils.h>
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
+#include <libavutil/mem.h>
 #include <libswresample/swresample.h>
 }
 
@@ -243,8 +245,8 @@ namespace maix::video
             // audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
             // audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
             // audio_codec_ctx->sample_rate = sample_rate;
-            // audio_codec_ctx->channels = channels;
-            // audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+            // audio_codec_ctx->ch_layout.nb_channels = channels;
+            // audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->ch_layout.nb_channels);
             // audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;  // AAC编码需要浮点格式
             // audio_codec_ctx->time_base = (AVRational){1, sample_rate};
             // audio_codec_ctx->bit_rate = bitrate;
@@ -360,6 +362,7 @@ namespace maix::video
                 err::check_raise(err::ERR_RUNTIME, "unsupport stream type!");
         }
         param->sys = make_unique<maixcam2::SYS>(false);
+        param->sys->init();
         param->venc = make_unique<maixcam2::VENC>(&cfg);
 
         // audio init
@@ -537,13 +540,16 @@ namespace maix::video
         // video
         bool find_video;
         AVPacket *pPacket;
-        // AVBSFContext * bsfc;
+        AVBSFContext * bsfc;
         AVCodecContext *codec_ctx;
         int video_stream_index;
         video_format_e video_format;
         int vdec_ch;
+        AX_PAYLOAD_TYPE_E vdec_type;
         std::list<video::Context *> *ctx_list;
         uint64_t next_pts;
+        maixcam2::SYS *sys;
+        maixcam2::VDEC *vdec;
 
         // audio
         bool find_audio;
@@ -560,28 +566,28 @@ namespace maix::video
         SwrContext *swr_ctx = NULL;
     } decoder_param_t;
 
-    // static video_format_e _get_video_format(const char *filename, PAYLOAD_TYPE_E type) {
-    //     video_format_e format = VIDEO_FORMAT_NONE;
-    //     const char *suffix = strrchr(filename, '.');
-    //     err::check_null_raise((void *)suffix, "Try a file format with a suffix, e.g. video.h264/video.mp4/video.flv");
+    static video_format_e _get_video_format(const char *filename, AX_PAYLOAD_TYPE_E type) {
+        video_format_e format = VIDEO_FORMAT_NONE;
+        const char *suffix = strrchr(filename, '.');
+        err::check_null_raise((void *)suffix, "Try a file format with a suffix, e.g. video.h264/video.mp4/video.flv");
 
-    //     if (!strcmp(suffix, ".h264")) {
-    //         format = VIDEO_FORMAT_H264;
-    //     } else if (!strcmp(suffix, ".mp4")) {
-    //         // if (type == PT_H264) {
-    //         //     format = VIDEO_FORMAT_H264_MP4;
-    //         // }
-    //     } else if (!strcmp(suffix, ".flv")) {
-    //         // if (type == PT_H264) {
-    //         //     format = VIDEO_FORMAT_H264_FLV;
-    //         // }
-    //     } else {
-    //         err::check_raise(err::ERR_RUNTIME, "Currently only support avc/avc-mp4/avc-flv format!");
-    //     }
+        if (!strcmp(suffix, ".h264")) {
+            format = VIDEO_FORMAT_H264;
+        } else if (!strcmp(suffix, ".mp4")) {
+            if (type == PT_H264) {
+                format = VIDEO_FORMAT_H264_MP4;
+            }
+        } else if (!strcmp(suffix, ".flv")) {
+            if (type == PT_H264) {
+                format = VIDEO_FORMAT_H264_FLV;
+            }
+        } else {
+            err::check_raise(err::ERR_RUNTIME, "Currently only support avc/avc-mp4/avc-flv format!");
+        }
 
-    //     err::check_bool_raise(format != VIDEO_FORMAT_NONE, "Not found a valid video format!");
-    //     return format;
-    // }
+        err::check_bool_raise(format != VIDEO_FORMAT_NONE, "Not found a valid video format!");
+        return format;
+    }
 
 
     static int check_stream_specifier(AVFormatContext *s, AVStream *st, const char *spec)
@@ -652,6 +658,27 @@ namespace maix::video
         return ret;
     }
 
+
+    static AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
+                                            AVDictionary *codec_opts)
+    {
+        unsigned int i;
+        AVDictionary **opts;
+
+        if (!s->nb_streams)
+            return NULL;
+        opts = (AVDictionary **)av_malloc_array(s->nb_streams, sizeof(*opts));
+        if (!opts) {
+            av_log(NULL, AV_LOG_ERROR,
+                "Could not alloc memory for stream options.\n");
+            return NULL;
+        }
+        for (i = 0; i < s->nb_streams; i++)
+            opts[i] = filter_codec_opts(codec_opts, s->streams[i]->codecpar->codec_id,
+                                        s, s->streams[i], NULL);
+        return opts;
+    }
+
     static audio::Format _audio_format_from_alsa(enum AVSampleFormat format) {
         switch (format) {
             case AV_SAMPLE_FMT_NONE: return audio::FMT_NONE;
@@ -666,21 +693,187 @@ namespace maix::video
         return audio::FMT_NONE;
     }
 
-    static enum AVSampleFormat _audio_format_to_alsa(audio::Format format) {
-        switch (format) {
-            case audio::FMT_NONE: return AV_SAMPLE_FMT_NONE;
-            case audio::FMT_S8: return AV_SAMPLE_FMT_U8;
-            case audio::FMT_S16_LE: return AV_SAMPLE_FMT_S16;
-            case audio::FMT_S32_LE: return AV_SAMPLE_FMT_S32;
-            default: {
-                err::check_raise(err::ERR_NOT_IMPL);
-            }
-        }
-        return AV_SAMPLE_FMT_NONE;
-    }
+    // static enum AVSampleFormat _audio_format_to_alsa(audio::Format format) {
+    //     switch (format) {
+    //         case audio::FMT_NONE: return AV_SAMPLE_FMT_NONE;
+    //         case audio::FMT_S8: return AV_SAMPLE_FMT_U8;
+    //         case audio::FMT_S16_LE: return AV_SAMPLE_FMT_S16;
+    //         case audio::FMT_S32_LE: return AV_SAMPLE_FMT_S32;
+    //         default: {
+    //             err::check_raise(err::ERR_NOT_IMPL);
+    //         }
+    //     }
+    //     return AV_SAMPLE_FMT_NONE;
+    // }
 
     Decoder::Decoder(std::string path, image::Format format) {
+        av_log_set_callback(custom_log_callback);
+        err::check_bool_raise(format == image::Format::FMT_YVU420SP || format == image::Format::FMT_GRAYSCALE, "Decoder only support FMT_GRAYSCALE or FMT_YVU420SP format!");
+        _path = path;
+        _format_out = format;
+        _param = (decoder_param_t *)malloc(sizeof(decoder_param_t));
+        memset(_param, 0, sizeof(decoder_param_t));
 
+        AX_PAYLOAD_TYPE_E vdec_type = PT_H264;
+        video_format_e video_format = VIDEO_FORMAT_H264;
+        err::check_null_raise(_param, "malloc failed!");
+        AVCodec *codec = NULL;
+        AVFormatContext *pFormatContext = avformat_alloc_context();
+        err::check_null_raise(pFormatContext, "malloc failed!");
+        err::check_bool_raise(!avformat_open_input(&pFormatContext, _path.c_str(), NULL, NULL), "Could not open file");
+        pFormatContext->max_analyze_duration = 5000;    // reduce analyze time
+
+        // Find stream infomation
+        AVDictionary *codec_opts = NULL;
+        AVDictionary **opts = setup_find_stream_info_opts(pFormatContext, codec_opts);
+        int orig_nb_streams = pFormatContext->nb_streams;
+        err::check_bool_raise(!avformat_find_stream_info(pFormatContext, opts), "Could not find stream information");
+        if (orig_nb_streams) {
+            for (int i = 0; i < orig_nb_streams; i++) {
+                if (opts[i]) {
+                    av_dict_free(&opts[i]);
+                }
+            }
+            av_freep(&opts);
+        }
+        _bitrate = pFormatContext->bit_rate;
+
+        AVPacket *pPacket = av_packet_alloc();
+        err::check_null_raise(pPacket, "malloc failed!");
+
+        /* video process */
+        // Find video stream
+        maixcam2::VDEC *vdec = nullptr;
+        maixcam2::SYS *sys = nullptr;
+        AVCodecContext *video_codec_ctx = NULL;
+        AVCodecParameters *video_codec_params = NULL;
+        AVBSFContext * bsfc = NULL;
+        int video_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, (const AVCodec **)&codec, 0);
+        _has_video = video_stream_index < 0 ? false : true;
+        if (_has_video) {
+            // Find the number of b frame
+            video_codec_ctx = avcodec_alloc_context3(codec);
+            err::check_null_raise(video_codec_ctx, "Could not allocate a decoding context");
+            avcodec_parameters_to_context(video_codec_ctx, pFormatContext->streams[video_stream_index]->codecpar);
+
+            // Check encode type
+            video_codec_params = pFormatContext->streams[video_stream_index]->codecpar;
+            err::check_bool_raise(video_codec_params->codec_id == AV_CODEC_ID_H264, "Only support h264 encode video format!");
+            vdec_type = PT_H264;
+            video_format = _get_video_format(_path.c_str(), vdec_type);
+
+
+            // Get video width/height
+            _width = video_codec_params->width;
+            _height = video_codec_params->height;
+            _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.num);
+            _timebase.push_back(pFormatContext->streams[video_stream_index]->time_base.den);
+            AVStream *video_stream = pFormatContext->streams[video_stream_index];
+            AVRational frame_rate = av_guess_frame_rate(pFormatContext, video_stream, NULL);
+            _fps = av_q2d(frame_rate);
+            if (_width % 16 != 0) {
+                log::error("Width need align to 16, current width: %d", _width);
+                avformat_close_input(&pFormatContext);
+                free(_param);
+                err::check_raise(err::ERR_RUNTIME, "Width need align to 16");
+            }
+
+            sys = new maixcam2::SYS(false);
+            err::check_null_raise(sys, "create sys failed");
+            err::check_raise(sys->init(), "sys init failed");
+
+            maixcam2::ax_vdec_param_t cfg = {0};
+            cfg.w = _width;
+            cfg.h = _height;
+            cfg.type = maixcam2::AX_VDEC_TYPE_H264;
+            vdec = new maixcam2::VDEC(&cfg);
+            err::check_null_raise(vdec, "vdec init failed");
+
+            switch (video_format) {
+                case VIDEO_FORMAT_H264:
+                    bsfc = NULL;
+                    break;
+                case VIDEO_FORMAT_H264_FLV: {
+                    const AVBitStreamFilter * filter = av_bsf_get_by_name("h264_mp4toannexb");
+                    err::check_bool_raise(!av_bsf_alloc(filter, &bsfc), "av_bsf_alloc failed");
+                    avcodec_parameters_copy(bsfc->par_in, pFormatContext->streams[video_stream_index]->codecpar);
+                    av_bsf_init(bsfc);
+                    break;
+                }
+                case VIDEO_FORMAT_H264_MP4: {
+                    const AVBitStreamFilter * filter = av_bsf_get_by_name("h264_mp4toannexb");
+                    err::check_bool_raise(!av_bsf_alloc(filter, &bsfc), "av_bsf_alloc failed");
+                    avcodec_parameters_copy(bsfc->par_in, pFormatContext->streams[video_stream_index]->codecpar);
+                    av_bsf_init(bsfc);
+                    break;
+                }
+                default: {
+                    err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                    break;
+                }
+            }
+        }
+
+        /* audio process */
+        AVCodec *audio_codec = NULL;
+        AVCodecContext *audio_codec_ctx = NULL;
+        AVFrame *audio_frame = NULL;
+        SwrContext *swr_ctx = NULL;
+        int resample_channels = 2;
+        int resample_sample_rate = 48000;
+        enum AVSampleFormat resample_format = AV_SAMPLE_FMT_S16;
+        int audio_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_AUDIO, -1, -1, (const AVCodec **)&codec, 0);
+        _has_audio = audio_stream_index < 0 ? false : true;
+        if (_has_audio) {
+            AVCodecParameters *audio_codecpar = pFormatContext->streams[audio_stream_index]->codecpar;
+            err::check_null_raise(audio_codecpar, "Could not find audio codec parameters");
+            err::check_null_raise(audio_codec = (AVCodec *)avcodec_find_decoder(audio_codecpar->codec_id), "Could not find audio codec");
+            err::check_null_raise(audio_codec_ctx = avcodec_alloc_context3(audio_codec), "Could not allocate audio codec context");
+            err::check_bool_raise(avcodec_parameters_to_context(audio_codec_ctx, audio_codecpar) >= 0, "Could not copy audio codec parameters to decoder context");
+            err::check_bool_raise(avcodec_open2(audio_codec_ctx, codec, NULL) >= 0, "Could not open audio codec");
+            err::check_null_raise(audio_frame = av_frame_alloc(), "Could not allocate audio frame");
+            err::check_null_raise(swr_ctx = swr_alloc(), "Could not allocate resampler context");
+            av_opt_set_chlayout(swr_ctx, "in_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
+            av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", audio_codec_ctx->sample_fmt, 0);
+            resample_channels = audio_codec_ctx->ch_layout.nb_channels;
+            av_opt_set_chlayout(swr_ctx, "out_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_int(swr_ctx, "out_sample_rate", resample_sample_rate, 0);
+            av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", resample_format, 0);
+            swr_init(swr_ctx);
+        }
+
+        /* init param */
+        // video
+        decoder_param_t *param = (decoder_param_t *)_param;
+        param->pFormatContext = pFormatContext;
+        param->pPacket = pPacket;
+        param->bsfc = bsfc;
+        param->codec_ctx = video_codec_ctx;
+        param->video_stream_index = video_stream_index;
+        param->video_format = video_format;
+        param->sys = sys;
+        param->vdec = vdec;
+        param->vdec_type = vdec_type;
+        param->ctx_list = new std::list<video::Context *>();
+        param->next_pts = 0;
+
+        // audio
+        if (_has_audio) {
+            _audio_channels = resample_channels;
+            _audio_format = _audio_format_from_alsa(resample_format);
+            _audio_sample_rate = resample_sample_rate;
+            param->audio_stream_index = audio_stream_index;
+            param->sample_rate = audio_codec_ctx->sample_rate;
+            param->channels = audio_codec_ctx->ch_layout.nb_channels;
+            param->resample_channels = resample_channels;
+            param->resample_sample_rate = resample_sample_rate;
+            param->resample_sample_format = resample_format;
+            param->sample_fmt = audio_codec_ctx->sample_fmt;
+            param->audio_codec_ctx = audio_codec_ctx;
+            param->audio_frame = audio_frame;
+            param->swr_ctx = swr_ctx;
+        }
     }
 
     static int _release_video_ctx_list(std::list<video::Context *> *list)
@@ -698,7 +891,42 @@ namespace maix::video
     }
 
     Decoder::~Decoder() {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        if (param) {
+            // release video resource
+            err::check_bool_raise(!_release_video_ctx_list(param->ctx_list), "release ctx list failed!");
+            delete param->ctx_list;
+            param->ctx_list = NULL;
 
+            if (param->vdec) {
+                delete param->vdec;
+            }
+
+            if (param->sys) {
+                delete param->sys;
+            }
+            av_packet_free(&param->pPacket);
+            avcodec_free_context(&param->codec_ctx);
+            avformat_close_input(&param->pFormatContext);
+
+            if (param->bsfc) {
+                av_bsf_free(&param->bsfc);
+            }
+
+            // release audio resource
+            if (param->swr_ctx) {
+                swr_free(&param->swr_ctx);
+            }
+            if (param->audio_frame) {
+                av_frame_free(&param->audio_frame);
+            }
+            if (param->audio_codec_ctx) {
+                avcodec_free_context(&param->audio_codec_ctx);
+            }
+
+            free(_param);
+            _param = NULL;
+        }
     }
 
 
@@ -760,23 +988,571 @@ namespace maix::video
     }
 
     video::Context *Decoder::decode_video(bool block) {
-        return nullptr;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+        image::Image *img = NULL;
+        video::Context *context = NULL;
+        uint64_t last_pts = 0;
+        uint64_t curr_pts = param->next_pts;
+_retry:
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            if (pPacket->stream_index == video_stream_index) {
+                last_pts = _last_pts;
+                _last_pts = pPacket->pts;
+
+                int64_t packet_duration = pPacket->duration;
+                switch (param->video_format) {
+                    case VIDEO_FORMAT_H264:
+                        break;
+                    case VIDEO_FORMAT_H264_FLV:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    case VIDEO_FORMAT_H264_MP4:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    default:
+                        err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                        break;
+                }
+
+                // log::info("packet data:%p data size:%ld", pPacket->data, pPacket->size);
+
+                find_frame_iterator_t frame_iterator;
+                err::check_bool_raise(!_create_find_frame_iterator(&frame_iterator, pPacket), "create find frame iterator failed");
+                uint8_t nal_type = 0, *frame = NULL;
+                size_t frame_size = 0;
+                uint8_t *sps = NULL, *pps = NULL, *i_or_pb = NULL;
+                size_t sps_size = 0, pps_size = 0, i_or_pb_size = 0;
+                while (0 == _find_frame_iterator(&frame_iterator, &nal_type, &frame, &frame_size)) {
+                    switch (nal_type) {
+                        case 1:
+                            // log::info("NAL Unit Type: %u (P/B-Frame) frame:%p size:%ld", nal_type, frame, frame_size);
+                            i_or_pb = frame;
+                            i_or_pb_size = frame_size;
+                            break;
+                        case 5:
+                            // log::info("NAL Unit Type: %u (I-Frame) frame:%p size:%ld", nal_type, frame, frame_size);
+                            i_or_pb = frame;
+                            i_or_pb_size = frame_size;
+                            break;
+                        case 7:
+                            // log::info("NAL Unit Type: %u (SPS) frame:%p size:%ld", nal_type, frame, frame_size);
+                            sps = frame;
+                            sps_size = frame_size;
+                            break;
+                        case 8:
+                            // log::info("NAL Unit Type: %u (PPS) frame:%p size:%ld", nal_type, frame, frame_size);
+                            pps = frame;
+                            pps_size = frame_size;
+                            break;
+                        default:
+                            // log::info("NAL Unit Type: %u (Other) frame:%p size:%ld", nal_type, frame, frame_size);
+                            break;
+                    }
+
+                    // for (int i = 0; i < frame_size; i ++) {
+                    //     if (i > 64) {
+                    //         break;
+                    //     }
+
+                    //     printf("%#x ", frame[i]);
+                    //     if (i % 16 == 15) {
+                    //         printf("\n");
+                    //     }
+                    // }
+                    // printf("\n");
+                }
+
+                if (i_or_pb_size > 0) {
+                    uint8_t *decode_data = NULL;
+                    size_t decode_data_size = 0;
+                    decode_data_size = sps_size + pps_size + i_or_pb_size;
+                    decode_data = (uint8_t *)malloc(decode_data_size);
+                    err::check_null_raise(decode_data, "malloc failed");
+                    if (sps_size) {
+                        memcpy(decode_data, sps, sps_size);
+                    }
+                    if (pps_size) {
+                        memcpy(decode_data + sps_size, pps, pps_size);
+                    }
+                    memcpy(decode_data + sps_size + pps_size, i_or_pb, i_or_pb_size);
+
+                    // log::info("process sps_size:%d pps_size:%d i_or_pb_size:%d decode_data_size:%d", sps_size, pps_size, i_or_pb_size, decode_data_size);
+                    // for (int i = 0; i < decode_data_size; i ++) {
+                    //     printf("%#x ", decode_data[i]);
+                    //     if (i % 16 == 15) {
+                    //         printf("\n");
+                    //     }
+                    // }
+                    // printf("\n");
+                    auto *src_frame = new maixcam2::Frame(decode_data, decode_data_size, maixcam2::FRAME_FROM_AX_MALLOC);
+                    maixcam2::Frame *out_frame = nullptr;
+                    video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                    if (block) {
+                        if (err::ERR_NONE != param->vdec->push(src_frame, 1000)) {
+                            log::error("vdec push failed!");
+                            goto __vdec_exit;
+                        }
+                        out_frame = param->vdec->pop(1000);
+                        if (!out_frame) {
+                            log::error("vdec pop failed!");
+                            goto __vdec_exit;
+                        }
+                        img = new image::Image(out_frame->w, out_frame->h, maixcam2::get_maix_fmt_from_ax(out_frame->fmt), (uint8_t *)out_frame->data, out_frame->len, true);
+                        media_type = MEDIA_TYPE_VIDEO;
+                    } else {
+                        out_frame = param->vdec->pop(1000);
+                        if (out_frame) {
+                            img = new image::Image(out_frame->w, out_frame->h, maixcam2::get_maix_fmt_from_ax(out_frame->fmt), (uint8_t *)out_frame->data, out_frame->len, true);
+                        }
+
+                        if (err::ERR_NONE != param->vdec->push(src_frame, 1000)) {
+                            log::error("vdec push failed!");
+                            goto __vdec_exit;
+                        }
+                        media_type = MEDIA_TYPE_VIDEO;
+                    }
+__vdec_exit:
+                    if (out_frame) {
+                        delete out_frame;
+                    }
+                    if (src_frame) {
+                        delete src_frame;
+                    }
+                    std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                                (int)pFormatContext->streams[video_stream_index]->time_base.den};
+                    context = new video::Context(media_type, timebase);
+                    context->set_image(img, packet_duration, _last_pts, last_pts);
+                    av_packet_unref(pPacket);
+
+                    free(decode_data);
+                    break;
+                }
+            }
+            av_packet_unref(pPacket);
+        }
+
+        if (param->video_format != VIDEO_FORMAT_H264) {
+            if (context && context->media_type() == video::MEDIA_TYPE_VIDEO) {
+                video::Context *ctx = context;
+                std::list<video::Context *> *ctx_list = param->ctx_list;
+                video::Context *play_ctx = NULL;
+                if (curr_pts == ctx->pts()) {
+                    play_ctx = ctx;
+                } else {
+                    ctx_list->push_back(ctx);
+                    std::list<video::Context *>::iterator iter;
+                    for(iter=ctx_list->begin();iter!=ctx_list->end();iter++) {
+                        video::Context *ctx = *iter;
+                        if (curr_pts == ctx->pts()) {
+                            play_ctx = ctx;
+                            iter = ctx_list->erase(iter);
+                            break;
+                        }
+                    }
+                }
+                context = play_ctx;
+                if (context == NULL) {
+                    goto _retry;
+                }
+            }
+        }
+
+        if (context) {
+            param->next_pts += context->duration();
+        }
+        return context;
     }
 
     video::Context *Decoder::decode_audio() {
-        return nullptr;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        int audio_stream_index = param->audio_stream_index;
+        AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
+        AVFrame *audio_frame = param->audio_frame;
+        int resample_channels = param->resample_channels;
+        int resample_sample_rate = param->resample_sample_rate;
+        enum AVSampleFormat resample_format = param->resample_sample_format;
+        SwrContext *swr_ctx = param->swr_ctx;
+        video::Context *context = NULL;
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            if (pPacket->stream_index == audio_stream_index) {
+                if (avcodec_send_packet(audio_codec_ctx, pPacket) >= 0) {
+                    while (avcodec_receive_frame(audio_codec_ctx, audio_frame) >= 0) {
+                        uint8_t *output;
+                        int out_samples = av_rescale_rnd(
+                            swr_get_delay(swr_ctx, audio_codec_ctx->sample_rate) + audio_frame->nb_samples,
+                            audio_codec_ctx->sample_rate,
+                            audio_codec_ctx->sample_rate,
+                            AV_ROUND_UP
+                        );
+
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+
+                        int converted_samples = swr_convert(
+                            swr_ctx,
+                            &output, out_samples,
+                            (const uint8_t **)audio_frame->data, audio_frame->nb_samples
+                        );
+
+                        video::MediaType media_type = MEDIA_TYPE_AUDIO;
+                        if (converted_samples > 0) {
+                            media_type = MEDIA_TYPE_AUDIO;
+                        } else {
+                            media_type = MEDIA_TYPE_UNKNOWN;
+                        }
+
+                        std::vector<int> timebase = {1, resample_sample_rate};
+                        context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+                        Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+                        context->set_pcm(&data);
+
+                        av_freep(&output);
+                    }
+                }
+                break;
+            }
+            av_packet_unref(pPacket);
+        }
+
+        return context;
     }
 
     video::Context *Decoder::decode(bool block) {
-        return nullptr;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+        int audio_stream_index = param->audio_stream_index;
+        AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
+        AVFrame *audio_frame = param->audio_frame;
+        int resample_channels = param->resample_channels;
+        int resample_sample_rate = param->resample_sample_rate;
+        enum AVSampleFormat resample_format = param->resample_sample_format;
+        SwrContext *swr_ctx = param->swr_ctx;
+        image::Image *img = NULL;
+        video::Context *context = NULL;
+        uint64_t last_pts = 0;
+        bool is_video = false;
+        bool is_audio = false;
+
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            // log::info("[READ] audio/video:%d pts:%d pts_ms:%.2f ms",
+            // pPacket->stream_index, pPacket->pts, pPacket->pts / ((float)pFormatContext->streams[pPacket->stream_index]->time_base.den/pFormatContext->streams[pPacket->stream_index]->time_base.num));
+            if (pPacket->stream_index == video_stream_index) {
+                last_pts = _last_pts;
+                _last_pts = pPacket->pts;
+                is_video = true;
+
+                int64_t packet_duration = pPacket->duration;
+                switch (param->video_format) {
+                    case VIDEO_FORMAT_H264:
+                        break;
+                    case VIDEO_FORMAT_H264_FLV:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    case VIDEO_FORMAT_H264_MP4:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    default:
+                        err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                        break;
+                }
+
+                auto *src_frame = new maixcam2::Frame((uint8_t *)pPacket->data, pPacket->size, maixcam2::FRAME_FROM_AX_MALLOC);
+                maixcam2::Frame *out_frame = nullptr;
+                video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                if (block) {
+                    if (err::ERR_NONE != param->vdec->push(src_frame, 1000)) {
+                        log::error("vdec push failed!");
+                        goto __vdec_exit;
+                    }
+                    out_frame = param->vdec->pop(1000);
+                    if (!out_frame) {
+                        log::error("vdec pop failed!");
+                        goto __vdec_exit;
+                    }
+                    img = new image::Image(out_frame->w, out_frame->h, maixcam2::get_maix_fmt_from_ax(out_frame->fmt), (uint8_t *)out_frame->data, out_frame->len, true);
+                    media_type = MEDIA_TYPE_VIDEO;
+                } else {
+                    out_frame = param->vdec->pop(1000);
+                    if (out_frame) {
+                        img = new image::Image(out_frame->w, out_frame->h, maixcam2::get_maix_fmt_from_ax(out_frame->fmt), (uint8_t *)out_frame->data, out_frame->len, true);
+                    }
+
+                    if (err::ERR_NONE != param->vdec->push(src_frame, 1000)) {
+                        log::error("vdec push failed!");
+                        goto __vdec_exit;
+                    }
+                    media_type = MEDIA_TYPE_VIDEO;
+                }
+__vdec_exit:
+                if (out_frame) {
+                    delete out_frame;
+                }
+                if (src_frame) {
+                    delete src_frame;
+                }
+
+                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                            (int)pFormatContext->streams[video_stream_index]->time_base.den};
+                context = new video::Context(media_type, timebase);
+                context->set_image(img, packet_duration, _last_pts, last_pts);
+                av_packet_unref(pPacket);
+                break;
+            } else if (pPacket->stream_index == audio_stream_index) {
+                is_audio = true;
+                if (avcodec_send_packet(audio_codec_ctx, pPacket) >= 0) {
+                    while (avcodec_receive_frame(audio_codec_ctx, audio_frame) >= 0) {
+                        uint8_t *output;
+                        int out_samples = av_rescale_rnd(
+                            swr_get_delay(swr_ctx, audio_codec_ctx->sample_rate) + audio_frame->nb_samples,
+                            audio_codec_ctx->sample_rate,
+                            audio_codec_ctx->sample_rate,
+                            AV_ROUND_UP
+                        );
+
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+
+                        int converted_samples = swr_convert(
+                            swr_ctx,
+                            &output, out_samples,
+                            (const uint8_t **)audio_frame->data, audio_frame->nb_samples
+                        );
+
+                        video::MediaType media_type = MEDIA_TYPE_AUDIO;
+                        if (converted_samples > 0) {
+                            // Process the converted PCM data in `output` (e.g., write to file or buffer)
+                            // fwrite(output, 1, converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16), stdout);
+
+                            media_type = MEDIA_TYPE_AUDIO;
+                        } else {
+                            media_type = MEDIA_TYPE_UNKNOWN;
+                        }
+
+                        std::vector<int> timebase = {(int)pFormatContext->streams[audio_stream_index]->time_base.num,
+                                                    (int)pFormatContext->streams[audio_stream_index]->time_base.den};
+                        // context = new video::Context(MEDIA_TYPE_UNKNOWN, timebase);
+                        context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+                        Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+                        context->set_pcm(&data, pPacket->duration, pPacket->pts);
+                        // log::info("data:%p size:%d sample_rate:%d channel:%d timebase:%d/%d, duration:%d pts:%d", output,
+                        //         converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
+                        //         audio_codec_ctx->sample_rate, audio_codec_ctx->ch_layout.nb_channels,
+                        //         timebase[0], timebase[1], pPacket->duration, audio_frame->pts);
+
+                        av_freep(&output);
+                    }
+                }
+                break;
+            }
+            av_packet_unref(pPacket);
+        }
+
+        if (is_video) {
+            if (context) {
+                param->next_pts += context->duration();
+            }
+            return context;
+        } else if (is_audio) {
+            return context;
+        } else {
+            return NULL;
+        }
     }
 
     video::Context *Decoder::unpack() {
-        return nullptr;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVPacket *pPacket = param->pPacket;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+        int audio_stream_index = param->audio_stream_index;
+        AVCodecContext *audio_codec_ctx = param->audio_codec_ctx;
+        AVFrame *audio_frame = param->audio_frame;
+        int resample_channels = param->resample_channels;
+        int resample_sample_rate = param->resample_sample_rate;
+        enum AVSampleFormat resample_format = param->resample_sample_format;
+        SwrContext *swr_ctx = param->swr_ctx;
+        video::Context *context = NULL;
+        uint64_t last_pts = 0;
+        bool is_video = false;
+        bool is_audio = false;
+
+        while (av_read_frame(pFormatContext, pPacket) >= 0) {
+            if (pPacket->stream_index == video_stream_index) {
+                last_pts = _last_pts;
+                _last_pts = pPacket->pts;
+                is_video = true;
+
+                int64_t packet_duration = pPacket->duration;
+                switch (param->video_format) {
+                    case VIDEO_FORMAT_H264:
+                        break;
+                    case VIDEO_FORMAT_H264_FLV:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    case VIDEO_FORMAT_H264_MP4:
+                        err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                        break;
+                    default:
+                        err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                        break;
+                }
+
+                video::MediaType media_type = MEDIA_TYPE_VIDEO;
+                std::vector<int> timebase = {(int)pFormatContext->streams[video_stream_index]->time_base.num,
+                                            (int)pFormatContext->streams[video_stream_index]->time_base.den};
+                context = new video::Context(media_type, timebase);
+                context->set_raw_data(pPacket->data, pPacket->size, packet_duration, pPacket->pts, last_pts, true);
+                av_packet_unref(pPacket);
+                break;
+            } else if (pPacket->stream_index == audio_stream_index) {
+                is_audio = true;
+                if (avcodec_send_packet(audio_codec_ctx, pPacket) >= 0) {
+                    while (avcodec_receive_frame(audio_codec_ctx, audio_frame) >= 0) {
+                        uint8_t *output;
+                        int out_samples = av_rescale_rnd(
+                            swr_get_delay(swr_ctx, audio_codec_ctx->sample_rate) + audio_frame->nb_samples,
+                            audio_codec_ctx->sample_rate,
+                            audio_codec_ctx->sample_rate,
+                            AV_ROUND_UP
+                        );
+
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+
+                        int converted_samples = swr_convert(
+                            swr_ctx,
+                            &output, out_samples,
+                            (const uint8_t **)audio_frame->data, audio_frame->nb_samples
+                        );
+
+                        video::MediaType media_type = MEDIA_TYPE_AUDIO;
+                        if (converted_samples > 0) {
+                            // Process the converted PCM data in `output` (e.g., write to file or buffer)
+                            // fwrite(output, 1, converted_samples * codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16), stdout);
+
+                            media_type = MEDIA_TYPE_AUDIO;
+                        } else {
+                            media_type = MEDIA_TYPE_UNKNOWN;
+                        }
+
+                        std::vector<int> timebase = {(int)pFormatContext->streams[audio_stream_index]->time_base.num,
+                                                    (int)pFormatContext->streams[audio_stream_index]->time_base.den};
+                        // context = new video::Context(MEDIA_TYPE_UNKNOWN, timebase);
+                        context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+                        Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+                        context->set_pcm(&data, pPacket->duration, pPacket->pts);
+                        // log::info("data:%p size:%d sample_rate:%d channel:%d timebase:%d/%d, duration:%d pts:%d", output,
+                        //         converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
+                        //         audio_codec_ctx->sample_rate, audio_codec_ctx->ch_layout.nb_channels,
+                        //         timebase[0], timebase[1], pPacket->duration, audio_frame->pts);
+
+                        av_freep(&output);
+                    }
+                }
+                break;
+            }
+            av_packet_unref(pPacket);
+        }
+
+        if (is_video) {
+            if (context) {
+                param->next_pts += context->duration();
+            }
+            return context;
+        } else if (is_audio) {
+            return context;
+        } else {
+            return NULL;
+        }
     }
 
     double Decoder::seek(double time) {
-        return 0;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        AVFormatContext *pFormatContext = param->pFormatContext;
+        video_format_e video_format = param->video_format;
+        AVPacket *pPacket = param->pPacket;
+        AVBSFContext * bsfc = param->bsfc;
+        int video_stream_index = param->video_stream_index;
+
+        if (time >= 0) {
+            int64_t seek_target = av_rescale_q(time * AV_TIME_BASE, AV_TIME_BASE_Q, pFormatContext->streams[video_stream_index]->time_base);
+            if (video_format != VIDEO_FORMAT_H264_FLV && video_format != VIDEO_FORMAT_H264_MP4) {
+                return 0;
+            }
+            int ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+
+            bool found_i_sps_frame = false;
+            while (av_read_frame(pFormatContext, pPacket) >= 0) {
+                if (pPacket->stream_index == video_stream_index) {
+                    switch (param->video_format) {
+                        case VIDEO_FORMAT_H264:
+                            break;
+                        case VIDEO_FORMAT_H264_FLV:
+                            err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            break;
+                        case VIDEO_FORMAT_H264_MP4:
+                            err::check_bool_raise(!av_bsf_send_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            err::check_bool_raise(!av_bsf_receive_packet(bsfc, pPacket), "av_bsf_send_packet failed");
+                            break;
+                        default:
+                            err::check_raise(err::ERR_RUNTIME, "Unknown video format");
+                            break;
+                    }
+
+                    find_frame_iterator_t frame_iterator;
+                    err::check_bool_raise(!_create_find_frame_iterator(&frame_iterator, pPacket), "create find frame iterator failed");
+                    uint8_t nal_type = 0, *frame = NULL;
+                    size_t frame_size = 0;
+                    while (0 == _find_frame_iterator(&frame_iterator, &nal_type, &frame, &frame_size)) {
+                        if (nal_type == 5 || nal_type == 7) { // 1:P/B  5:I  7:SPS 8:PPS
+                            found_i_sps_frame = true;
+                        }
+                    }
+                    param->next_pts = pPacket->pts;
+                    av_packet_unref(pPacket);
+                    if (found_i_sps_frame) {
+                        break;
+                    }
+                }
+                av_packet_unref(pPacket);
+            }
+
+            if (!found_i_sps_frame) {
+                return -1;
+            }
+            seek_target = param->next_pts;
+
+            ret = av_seek_frame(pFormatContext, video_stream_index, seek_target, AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                avformat_close_input(&param->pFormatContext);
+                log::error("av_seek_frame failed, ret:%d", ret);
+                return 0;
+            }
+
+            err::check_bool_raise(!_release_video_ctx_list(param->ctx_list), "release ctx list failed!");
+        } else {
+            time = param->next_pts * av_q2d(pFormatContext->streams[video_stream_index]->time_base);
+        }
+        return time;
     }
 
     double Decoder::duration() {
@@ -865,34 +1641,34 @@ namespace maix::video
         return err;
     }
 
-    static video::VideoType get_video_type(std::string &path, bool encode)
-    {
-        video::VideoType video_type;
-        std::string ext;
-        size_t pos = path.rfind('.');
-        if (pos != std::string::npos) {
-            ext = path.substr(pos);
-        }
+    // static video::VideoType get_video_type(std::string &path, bool encode)
+    // {
+    //     video::VideoType video_type;
+    //     std::string ext;
+    //     size_t pos = path.rfind('.');
+    //     if (pos != std::string::npos) {
+    //         ext = path.substr(pos);
+    //     }
 
-        if (ext.find(".h265") != std::string::npos) {
-            if (encode) {
-                video_type = VIDEO_ENC_H265_CBR;
-            } else {
-                video_type = VIDEO_DEC_H265_CBR;
-            }
-        } else if (ext.find(".mp4") != std::string::npos) {
-            if (encode) {
-                video_type = VIDEO_ENC_MP4_CBR;
-            } else {
-                video_type = VIDEO_DEC_MP4_CBR;
-            }
-        } else {
-            log::error("Video not support %s!\r\n", ext.c_str());
-            video_type = VIDEO_NONE;
-        }
+    //     if (ext.find(".h265") != std::string::npos) {
+    //         if (encode) {
+    //             video_type = VIDEO_ENC_H265_CBR;
+    //         } else {
+    //             video_type = VIDEO_DEC_H265_CBR;
+    //         }
+    //     } else if (ext.find(".mp4") != std::string::npos) {
+    //         if (encode) {
+    //             video_type = VIDEO_ENC_MP4_CBR;
+    //         } else {
+    //             video_type = VIDEO_DEC_MP4_CBR;
+    //         }
+    //     } else {
+    //         log::error("Video not support %s!\r\n", ext.c_str());
+    //         video_type = VIDEO_NONE;
+    //     }
 
-        return video_type;
-    }
+    //     return video_type;
+    // }
 
     video::Packet *Video::encode(image::Image *img) {
         return nullptr;
@@ -1024,104 +1800,100 @@ namespace maix::video
     }
 
 
-    static void nv21_fill_rect(uint8_t *yuv, int width, int height, int x1, int y1, int rect_w, int rect_h, uint8_t y_value, uint8_t u_value, uint8_t v_value)
-    {
-        for (int h = y1; h < y1 + rect_h; h++) {
-            for (int w = x1; w < x1 + rect_w; w++) {
-                int index = h * width + w;
-                yuv[index] = y_value;
-            }
-        }
+    // static void nv21_fill_rect(uint8_t *yuv, int width, int height, int x1, int y1, int rect_w, int rect_h, uint8_t y_value, uint8_t u_value, uint8_t v_value)
+    // {
+    //     for (int h = y1; h < y1 + rect_h; h++) {
+    //         for (int w = x1; w < x1 + rect_w; w++) {
+    //             int index = h * width + w;
+    //             yuv[index] = y_value;
+    //         }
+    //     }
 
-        for (int h = y1; h < y1 + rect_h; h+=2) {
-            for (int w = x1; w < x1 + rect_w; w+=2) {
-                int uv_index = width * height + (h / 2) * width + w;
-                yuv[uv_index] = v_value;
-                yuv[uv_index + 1] = u_value;
-            }
-        }
-    }
+    //     for (int h = y1; h < y1 + rect_h; h+=2) {
+    //         for (int w = x1; w < x1 + rect_w; w+=2) {
+    //             int uv_index = width * height + (h / 2) * width + w;
+    //             yuv[uv_index] = v_value;
+    //             yuv[uv_index + 1] = u_value;
+    //         }
+    //     }
+    // }
 
-    static void nv21_draw_rectangle(uint8_t *yuv, int width, int height, int x, int y, int rect_width, int rect_height, uint8_t y_value, uint8_t u_value, uint8_t v_value, int thickness) {
+    // static void nv21_draw_rectangle(uint8_t *yuv, int width, int height, int x, int y, int rect_width, int rect_height, uint8_t y_value, uint8_t u_value, uint8_t v_value, int thickness) {
 
-        int tmp_x = 0, tmp_y = 0, tmp_rect_width = 0, tmp_rect_height = 0;
-        x = (x % 2 == 0) ? x : x - 1;
-        x = x < 0 ? 0 : x;
-        x = x >= width ? width - 2 : x;
-        y = (y % 2 == 0) ? y : y - 1;
-        y = y < 0 ? 0 : y;
-        y = y >= height ? height - 2 : y;
-        rect_width = (rect_width % 2 == 0) ? rect_width : rect_width - 1;
-        rect_width = (rect_width + x) < width ? rect_width : width - x;
-        rect_width = rect_width < 0 ? 0 : rect_width;
-        rect_height = (rect_height % 2 == 0) ? rect_height : rect_height - 1;
-        rect_height = (rect_height + y) < height ? rect_height : height - y;
-        rect_height = rect_height < 0 ? 0 : rect_height;
+    //     int tmp_x = 0, tmp_y = 0, tmp_rect_width = 0, tmp_rect_height = 0;
+    //     x = (x % 2 == 0) ? x : x - 1;
+    //     x = x < 0 ? 0 : x;
+    //     x = x >= width ? width - 2 : x;
+    //     y = (y % 2 == 0) ? y : y - 1;
+    //     y = y < 0 ? 0 : y;
+    //     y = y >= height ? height - 2 : y;
+    //     rect_width = (rect_width % 2 == 0) ? rect_width : rect_width - 1;
+    //     rect_width = (rect_width + x) < width ? rect_width : width - x;
+    //     rect_width = rect_width < 0 ? 0 : rect_width;
+    //     rect_height = (rect_height % 2 == 0) ? rect_height : rect_height - 1;
+    //     rect_height = (rect_height + y) < height ? rect_height : height - y;
+    //     rect_height = rect_height < 0 ? 0 : rect_height;
 
-        if (thickness < 0) {
-            tmp_x = x;
-            tmp_y = y;
-            tmp_rect_width = rect_width;
-            tmp_rect_height = rect_height;
-            nv21_fill_rect(yuv, width, height, x, y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
-        } else {
-            thickness = (thickness % 2 == 0) ? thickness : thickness + 1;
-            thickness = thickness < 0 ? 0 : thickness;
+    //     if (thickness < 0) {
+    //         tmp_x = x;
+    //         tmp_y = y;
+    //         tmp_rect_width = rect_width;
+    //         tmp_rect_height = rect_height;
+    //         nv21_fill_rect(yuv, width, height, x, y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
+    //     } else {
+    //         thickness = (thickness % 2 == 0) ? thickness : thickness + 1;
+    //         thickness = thickness < 0 ? 0 : thickness;
 
-            tmp_x = x;
-            tmp_y = y;
-            tmp_rect_width = rect_width;
-            tmp_rect_height = thickness;
-            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
+    //         tmp_x = x;
+    //         tmp_y = y;
+    //         tmp_rect_width = rect_width;
+    //         tmp_rect_height = thickness;
+    //         nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// upper
 
-            tmp_x = x;
-            tmp_y = (y + rect_height - thickness) >= 0 ? (y + rect_height - thickness) : 0;
-            tmp_rect_width = rect_width;
-            tmp_rect_height = thickness;
-            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// lower
+    //         tmp_x = x;
+    //         tmp_y = (y + rect_height - thickness) >= 0 ? (y + rect_height - thickness) : 0;
+    //         tmp_rect_width = rect_width;
+    //         tmp_rect_height = thickness;
+    //         nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// lower
 
-            tmp_x = x;
-            tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
-            tmp_rect_width = thickness;
-            tmp_rect_height = rect_height - thickness * 2;
-            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// left
+    //         tmp_x = x;
+    //         tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
+    //         tmp_rect_width = thickness;
+    //         tmp_rect_height = rect_height - thickness * 2;
+    //         nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// left
 
 
-            tmp_x = (x + rect_width - thickness) < width ? (x + rect_width - thickness) : width - thickness;
-            tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
-            tmp_rect_width = thickness;
-            tmp_rect_height = rect_height - thickness * 2;
-            nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// right
-        }
-    }
+    //         tmp_x = (x + rect_width - thickness) < width ? (x + rect_width - thickness) : width - thickness;
+    //         tmp_y = (y + thickness) < height ? (y + thickness) : height - thickness;
+    //         tmp_rect_width = thickness;
+    //         tmp_rect_height = rect_height - thickness * 2;
+    //         nv21_fill_rect(yuv, width, height, tmp_x, tmp_y, tmp_rect_width, tmp_rect_height, y_value, u_value, v_value);		// right
+    //     }
+    // }
 
-    static void _draw_rect_on_nv21(uint8_t *yuv, int width, int height, video_recoder_param_t *param)
-    {
-        for (size_t i = 0; i < param->rect.size(); i++) {
-            if (!param->rect[i].show) {
-                continue;
-            }
+    // static void _draw_rect_on_nv21(uint8_t *yuv, int width, int height, video_recoder_param_t *param)
+    // {
+    //     for (size_t i = 0; i < param->rect.size(); i++) {
+    //         if (!param->rect[i].show) {
+    //             continue;
+    //         }
 
-            int x = param->rect[i].x;
-            int y = param->rect[i].y;
-            int w = param->rect[i].w;
-            int h = param->rect[i].h;
-            int thickness = param->rect[i].thickness;
+    //         int x = param->rect[i].x;
+    //         int y = param->rect[i].y;
+    //         int w = param->rect[i].w;
+    //         int h = param->rect[i].h;
+    //         int thickness = param->rect[i].thickness;
 
-            int r = param->rect[i].color.r;
-            int g = param->rect[i].color.g;
-            int b = param->rect[i].color.b;
-            int y_value = (int)(0.299 * r + 0.587 * g + 0.114 * b);
-            int u_value = (int)(-0.14713 * r - 0.28886 * g + 0.436 * b) + 128;
-            int v_value = (int)(0.615 * r - 0.51499 * g - 0.10001 * b) + 128;
-            nv21_draw_rectangle(yuv, width, height, x, y, w, h, y_value, u_value, v_value, thickness);
-        }
-    }
+    //         int r = param->rect[i].color.r;
+    //         int g = param->rect[i].color.g;
+    //         int b = param->rect[i].color.b;
+    //         int y_value = (int)(0.299 * r + 0.587 * g + 0.114 * b);
+    //         int u_value = (int)(-0.14713 * r - 0.28886 * g + 0.436 * b) + 128;
+    //         int v_value = (int)(0.615 * r - 0.51499 * g - 0.10001 * b) + 128;
+    //         nv21_draw_rectangle(yuv, width, height, x, y, w, h, y_value, u_value, v_value, thickness);
+    //     }
+    // }
 
-    static void *record_thread_handle(void *par)
-    {
-        return NULL;
-    }
 
     err::Err VideoRecorder::open()
     {
