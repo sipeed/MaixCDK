@@ -350,11 +350,13 @@ namespace maix::image
         /**
          * Convert image to jpeg
          * @param quality the quality of jpg, default is 95. For MaixCAM supported range is (50, 100], if <= 50 will be fixed to 51.
+         * @param buff user's buffer, if buff is nullptr, will malloc memory for new image data, else will use buff directly
+         * @param buff_size the size of buff, if buff is nullptr, buff_size is ignored.
          * @return new image object. Need be delete by caller in C++.
          * @throw err.Exception, if two images' format not support, **or already the format**, will raise exception
          * @maixpy maix.image.Image.to_jpeg
         */
-        image::Image *to_jpeg(int quality = 95);
+        image::Image *to_jpeg(int quality = 95, void *buff = nullptr, size_t buff_size = 0);
 
         //************************** draw **************************//
 

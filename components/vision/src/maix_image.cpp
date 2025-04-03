@@ -531,7 +531,7 @@ namespace maix::image
         // special for convert to jpeg and png
         if (format == image::FMT_JPEG) // compress
         {
-            return this->to_jpeg(80);
+            return this->to_jpeg(80, buff, buff_size);
         }
         else if (format == image::FMT_PNG)
         {
@@ -852,7 +852,7 @@ namespace maix::image
         return to_format(format, nullptr, 0);
     }
 
-    image::Image *Image::to_jpeg(int quality)
+    image::Image *Image::to_jpeg(int quality, void *buff, size_t buff_size)
     {
         image::Format format = image::Format::FMT_JPEG;
 
@@ -878,7 +878,12 @@ namespace maix::image
             int data_size;
             if (!mmf_enc_jpg_pop(0, &data, &data_size))
             {
-                img = new image::Image(_width, _height, format, data, data_size, true);
+                if (buff && buff_size >= data_size) {
+                    memcpy(buff, data, data_size);
+                    img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
+                } else {
+                    img = new image::Image(_width, _height, format, data, data_size, true);
+                }
                 mmf_enc_jpg_free(0);
             }
         }
@@ -913,8 +918,13 @@ namespace maix::image
         if (!out_frame) {
             goto __EXIT;
         }
-        img = new image::Image(p_img->width(), p_img->height(), format, (uint8_t *)out_frame->data, out_frame->len, true);
 
+        if (buff && buff_size >= out_frame->len) {
+            memcpy(buff, (uint8_t *)out_frame->data, out_frame->len);
+            img = new image::Image(p_img->width(), p_img->height(), format, (uint8_t *)buff, out_frame->len, false);
+        } else {
+            img = new image::Image(p_img->width(), p_img->height(), format, (uint8_t *)out_frame->data, out_frame->len, true);
+        }
 __EXIT:
         if (out_frame) {
             delete out_frame;
