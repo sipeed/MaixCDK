@@ -3,7 +3,7 @@ list(APPEND ADD_INCLUDE "include")
 append_srcs_dir(ADD_SRCS "src")
 list(APPEND ADD_REQUIREMENTS basic)
 
-if(PLATFORM_MAIXCAM OR PLATFORM_LINUX)
+if(PLATFORM_MAIXCAM OR PLATFORM_LINUX OR PLATFORM_MAIXCAM2)
     list(APPEND ADD_INCLUDE "port/linux")
     append_srcs_dir(ADD_SRCS "port/linux")
 else()

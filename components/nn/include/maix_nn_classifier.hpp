@@ -173,10 +173,10 @@ namespace maix::nn
                 return err::ERR_ARGS;
             }
             _inputs = _model->inputs_info();
-            if(inputs[0].shape[3] <= 4) // nhwc
-                _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
+            if(_inputs[0].shape[3] <= 4) // nhwc
+                _input_size = image::Size(_inputs[0].shape[2], _inputs[0].shape[1]);
             else
-                _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
+                _input_size = image::Size(_inputs[0].shape[3], _inputs[0].shape[2]);
             return err::ERR_NONE;
         }
 

@@ -79,7 +79,7 @@ if(compile_from_src)
     if(NOT ADD_INCLUDE) # compile from source code
         execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine OUTPUT_VARIABLE arch)
         string(REGEX REPLACE "([^-]+)-.*" "\\1" arch "${arch}")
-        if(PLATFORM_MAIXCAM)
+        if(PLATFORM_MAIXCAM OR PLATFORM_MAIXCAM2)
             string(LENGTH "${CONFIG_TOOLCHAIN_PREFIX}" toolchain_prefix_len)
             math(EXPR toolchain_prefix_len "${toolchain_prefix_len} - 1")
             string(SUBSTRING "${CONFIG_TOOLCHAIN_PREFIX}" 0 ${toolchain_prefix_len} host_prefix)

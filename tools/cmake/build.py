@@ -185,6 +185,7 @@ def rebuild(build_path, configs, toolchain_info, verbose):
                 "sha256sum": toolchain_info['sha256sum'],
                 "filename": toolchain_info['filename'],
                 "path": toolchain_info['path'],
+                "check_files": toolchain_info.get("check_files", [])
             }
         ]
         download_extract_files(dl_info)

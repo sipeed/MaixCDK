@@ -1,19 +1,39 @@
 toolchain:
   - name: Cross compile AArch64 Linux GNU toolchain
-    id: cross-gcc-9.2
+    id: cross-gcc-11.3
+    default: true
     cross: true
     host-os: linux
     host-arch: x86_64
-    default: true
-    url:  https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+    url: https://developer.arm.com/-/media/Files/downloads/gnu/11.3.rel1/binrel/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
     urls:
     sites:
-    - https://developer.arm.com/downloads/-/gnu-a
-    sha256sum: 8dfe681531f0bd04fb9c53cf3c0a3368c616aa85d48938eebe2b516376e06a66
-    filename: gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+      - https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+    sha256sum: 50cdef6c5baddaa00f60502cc8b59cc11065306ae575ad2f51e412a9b2a90364
+    filename: arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu.tar.xz
     path: toolchains/maixcam2
-    bin_path: toolchains/maixcam2/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin
+    check_files:
+      - arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc
+    bin_path: toolchains/maixcam2/arm-gnu-toolchain-11.3.rel1-x86_64-aarch64-none-linux-gnu/bin
     prefix: aarch64-none-linux-gnu-
     c_flags: ""
     cxx_flags: ""
 
+  - name: Cross compile AArch64 Linux GNU toolchain
+    id: cross-gcc-9.2
+    cross: true
+    host-os: linux
+    host-arch: x86_64
+    url:  https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+    urls:
+    sites:
+      - https://developer.arm.com/downloads/-/gnu-a
+    sha256sum: 8dfe681531f0bd04fb9c53cf3c0a3368c616aa85d48938eebe2b516376e06a66
+    filename: gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu.tar.xz
+    path: toolchains/maixcam2
+    check_files:
+      - gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc
+    bin_path: toolchains/maixcam2/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin
+    prefix: aarch64-none-linux-gnu-
+    c_flags: ""
+    cxx_flags: ""
