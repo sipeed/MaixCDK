@@ -203,7 +203,10 @@ namespace maix::nn
                 return err::ERR_ARGS;
             }
             std::vector<nn::LayerInfo> inputs = _model->inputs_info();
-            _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
+            if(inputs[0].shape[3] <= 4) // nhwc
+                _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
+            else
+                _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
             log::print("\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
             return err::ERR_NONE;
         }

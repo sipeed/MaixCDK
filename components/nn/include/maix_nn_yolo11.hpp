@@ -12,6 +12,7 @@
 #include "maix_nn_F.hpp"
 #include "maix_nn_object.hpp"
 #include <math.h>
+#include <omp.h>
 
 namespace maix::nn
 {
@@ -34,6 +35,30 @@ namespace maix::nn
         int anchor_x;
         int anchor_y;
         float stride;
+    };
+
+    class _OutIdxes
+    {
+    public:
+        // mode 1
+        int det0;     // 1x144x80x80
+        int det1;     // 1x144x40x40
+        int det2;     // 1x144x20x20
+
+        // mode 2
+        int dfl;      // 1x1x4x8400
+        int sigmoid;  // 1x80x8400
+
+        // optional node
+        // seg mask        1x32x160x160
+        // seg mask weight 1x32x8400
+        int seg_mask;
+        int seg_mask_weight;
+
+        // obb  1x1x8400
+        int obb_angle;
+        // pose 1x51x8400
+        int pose;
     };
 
     /**
@@ -215,7 +240,7 @@ namespace maix::nn
                 }
                 else if (_extra_info["type"] != "detector")
                 {
-                    log::error("type [%s] not support, suport detector and pose", _extra_info["type"].c_str());
+                    log::error("type [%s] not support, suport [detector, pose, seg, obb]", _extra_info["type"].c_str());
                     return err::ERR_ARGS;
                 }
             }
@@ -224,8 +249,167 @@ namespace maix::nn
                 _type = YOLO11_Type::DETECT;
             }
             std::vector<nn::LayerInfo> inputs = _model->inputs_info();
-            _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
+            if(inputs[0].shape[3] <= 4) // nhwc
+                _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
+            else
+                _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
             log::print("\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
+
+            // output info
+            _out_chw = true;
+            int _anchor_num = 0;
+            for(size_t i=0; i < _stride.size(); ++i)
+            {
+                _anchor_num += _input_size.width()/_stride[i] * _input_size.height() / _stride[i];
+            }
+            std::vector<nn::LayerInfo> outputs = _model->outputs_info();
+            auto print_outputs = [outputs](){
+                log::info("Outputs:");
+                for(auto item : outputs)
+                {
+                    log::print("       %s\n", item.to_str().c_str());
+                }
+            };
+            // mode 1
+            if((outputs.size() == 5 && _type == YOLO11_Type::SEG) ||
+            (outputs.size() == 4 && (_type == YOLO11_Type::OBB || _type == YOLO11_Type::POSE)) ||
+            (outputs.size() == 3 && _type == YOLO11_Type::DETECT))
+            {
+                _out_node_mode = 1;
+                int ch_num = labels.size() + _reg_max * 4;
+                for(size_t i = 0; i < outputs.size(); ++i)
+                {
+                    nn::LayerInfo &item = outputs[i];
+                    if(item.shape.size() == 4)
+                    {
+                        if(item.shape[3] == ch_num && item.shape[1] == _input_size.height() / _stride[0]
+                            && item.shape[2] == _input_size.width() / _stride[0]) // hwc
+                        {
+                            _out_chw = false;
+                            _out_idxes.det0 = i;
+                            break;
+                        }
+                    }
+                }
+                for(size_t i = 0; i < outputs.size(); ++i)
+                {
+                    nn::LayerInfo &item = outputs[i];
+                    if(item.shape.size() == 4)
+                    {
+                        if(_type == YOLO11_Type::SEG &&
+                            ((item.shape[1] == 32 && // 1 32 160 160
+                                item.shape[2] == _input_size.height() / 4 &&
+                                item.shape[3] == _input_size.width() / 4) || // 1 160 160 32
+                            (item.shape[3] == 32 &&
+                                item.shape[1] == _input_size.height() / 4 &&
+                                item.shape[2] == _input_size.width() / 4)
+                            ))
+                        {
+                            _out_idxes.seg_mask = i;
+                        }
+                        else if(item.shape[_out_chw ? 2 : 1] == _input_size.height() / _stride[0])
+                        {
+                            _out_idxes.det0 = i;
+                        }
+                        else if(item.shape[_out_chw ? 2 : 1] == _input_size.height() / _stride[1])
+                        {
+                            _out_idxes.det1 = i;
+                        }
+                        else if(item.shape[_out_chw ? 2 : 1] == _input_size.height() / _stride[2])
+                        {
+                            _out_idxes.det2 = i;
+                        }
+                        else
+                        {
+                            log::error("output node shape error, please check %d, chw: %d,  %d", 1, _out_chw, item.shape[_out_chw ? 2 : 1]);
+                            print_outputs();
+                            return err::ERR_ARGS;
+                        }
+                    }
+                    else if(item.shape.size() == 3)
+                    {
+                        if (_type == YOLO11_Type::SEG)
+                            _out_idxes.seg_mask_weight = i;
+                        else if (_type == YOLO11_Type::OBB)
+                        {
+                            if(item.name.find("Sigmoid") == std::string::npos)
+                                _obb_need_sigmoid = true;
+                            else
+                                _obb_need_sigmoid = false;
+                            _out_idxes.obb_angle = i;
+                        }
+                        else if (_type == YOLO11_Type::POSE)
+                            _out_idxes.pose = i;
+                        else
+                        {
+                            log::error("output node shape error, please check %d", 2);
+                            print_outputs();
+                            return err::ERR_ARGS;
+                        }
+                    }
+                    else
+                    {
+                        log::error("output node shape error, please check %d", 3);
+                        print_outputs();
+                        return err::ERR_ARGS;
+                    }
+                }
+            }
+            else // mode 2
+            {
+                _out_node_mode = 2;
+                for(int i = 0; i < (int)outputs.size(); ++i)
+                {
+                    nn::LayerInfo &item = outputs[i];
+                    if(item.shape.size() == 4)
+                    {
+                        if(item.shape[3] == 4 && item.shape[2] == _anchor_num && item.shape[1] == 1) // hwc
+                        {
+                            _out_chw = false;
+                            _out_idxes.dfl = i;
+                            break;
+                        }
+
+                    }
+                }
+                for(int i = 0; i < (int)outputs.size(); ++i)
+                {
+                    nn::LayerInfo &item = outputs[i];
+                    if(i == _out_idxes.dfl)
+                        continue;
+                    if(item.shape.size() == 4)
+                    {
+                        _out_idxes.seg_mask = i;
+                        continue;
+                    }
+                    if(_type == YOLO11_Type::DETECT && item.shape[_out_chw ? 1 : 2] == (int)labels.size() && item.shape[_out_chw ? 2 : 1] == _anchor_num)
+                    {
+                        _out_idxes.sigmoid = i;
+                    }
+                    else if(_type == YOLO11_Type::SEG && item.shape[_out_chw ? 1 : 2] == 32)
+                    {
+                        _out_idxes.seg_mask_weight = i;
+                    }
+                    else if(_type == YOLO11_Type::OBB)
+                    {
+                        if(item.name.find("Sigmoid") == std::string::npos)
+                            _obb_need_sigmoid = true;
+                        else
+                            _obb_need_sigmoid = false;
+                        _out_idxes.obb_angle = i;
+                    }
+                    else if(_type == YOLO11_Type::POSE && (item.shape[_out_chw ? 1 : 2] % 3 == 0)&& item.shape[_out_chw ? 2 : 1] == _anchor_num)
+                    {
+                        _out_idxes.pose = i;
+                    }
+                    else
+                    {
+                        log::error("output node shape error, please check %d", 4);
+                        print_outputs();
+                        return err::ERR_ARGS;
+                    }
+                }
+            }
             return err::ERR_NONE;
         }
 
@@ -244,6 +428,7 @@ namespace maix::nn
          */
         nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5, int sort = 0)
         {
+            #define SHOW_DETECT_TIME 1
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
             this->_keypoint_th = keypoint_th;
@@ -252,12 +437,22 @@ namespace maix::nn
                 throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
             }
             tensor::Tensors *outputs;
+#if SHOW_DETECT_TIME
+            uint64_t start = time::ticks_ms();
+#endif
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false);
+#if SHOW_DETECT_TIME
+            log::info("forward time: %ld", time::ticks_ms() - start);
+            start = time::ticks_ms();
+#endif
             if (!outputs) // not ready, return empty result.
             {
                 return new nn::Objects();
             }
             nn::Objects *res = _post_process(outputs, img.width(), img.height(), fit, sort);
+#if SHOW_DETECT_TIME
+            log::info("postprocess time: %ld", time::ticks_ms() - start);
+#endif
             delete outputs;
             if(!res)
             {
@@ -447,6 +642,13 @@ namespace maix::nn
         float _keypoint_th = 0.5;
         YOLO11_Type _type;
         bool _dual_buff;
+        _OutIdxes _out_idxes;
+        int _out_node_mode;
+        bool _out_chw;
+        int  _reg_max = 16;
+        std::vector<float> _stride = {8, 16, 32};
+        int _anchor_num;
+        bool _obb_need_sigmoid;
 
     private:
         err::Err _load_labels_from_file(std::vector<std::string> &labels, const std::string &label_path)
@@ -513,113 +715,255 @@ namespace maix::nn
 
         bool _decode_objs(nn::Objects &objs, tensor::Tensors *outputs, float conf_thresh, int w, int h, tensor::Tensor **kp_out, tensor::Tensor **mask_out)
         {
-            float stride[3] = {8, 16, 32};
-            tensor::Tensor *score_out = NULL; // shape 1, 80, 8400, 1
-            tensor::Tensor *box_out = NULL;   // shape 1,  1,    4, 8400
-            for (auto i : *outputs)
+            if(_type == YOLO11_Type::SEG)
             {
-                if (i.second->shape()[2] == 4 && !box_out)
+                *mask_out = &(*outputs)[_out_idxes.seg_mask];
+                *kp_out = &(*outputs)[_out_idxes.seg_mask_weight];
+            }
+            else if (_type == YOLO11_Type::OBB)
+            {
+                *kp_out = &(*outputs)[_out_idxes.obb_angle];
+            }
+            else if (_type == YOLO11_Type::POSE)
+            {
+                *kp_out = &(*outputs)[_out_idxes.pose];
+            }
+            int idx_start[3] = {
+                0,
+                (int)(h / _stride[0] * w / _stride[0]),
+                (int)(h / _stride[0] * w / _stride[0] + h / _stride[1] * w / _stride[1])};
+            // detect
+            if(_out_node_mode == 1)
+            {
+                tensor::Tensor *dets[3] = {&(*outputs)[_out_idxes.det0], &(*outputs)[_out_idxes.det1], &(*outputs)[_out_idxes.det2]};
+                if (_type == YOLO11_Type::OBB)
                 {
-                    box_out = i.second;
-                }
-                else if (strstr(i.first.c_str(), "Sigmoid") != NULL && !score_out)
-                {
-                    score_out = i.second;
-                    if((size_t)score_out->shape()[1] != labels.size())
+                    if(_out_chw)
                     {
-                        log::error("MUD labels(%d) must equal model's(%d)", score_out->shape()[1], labels.size());
-                        return false;
+                        throw err::Exception(err::ERR_NOT_IMPL, "not support output chw layout");
                     }
-                }
-                else if (strstr(i.first.c_str(), "output1") != NULL)
-                {
-                    *mask_out = i.second;
+                    else
+                    {
+                        int class_num = (int)labels.size();
+                        int prob_offset = _reg_max * 4;
+                        int batch_data_size = prob_offset + class_num;
+                        float *angle_ptr = (float *)(*kp_out)->data();
+                        for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
+                        {
+                            int nh = dets[i]->shape()[1];
+                            int nw = dets[i]->shape()[2];
+                            int anchor_num = nh * nw;
+                            float *feature = (float*)dets[i]->data();
+                            for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
+                            {
+                                int ax = anchor_idx % nw;
+                                int ay = anchor_idx / nw;
+                                int offset = idx_start[i] + anchor_idx;
+                                float *p = feature + batch_data_size * anchor_idx;
+                                int class_id = _argmax(p + prob_offset, class_num, 1);
+                                float score = _sigmoid(p[prob_offset + class_id]);
+                                if (score <= conf_thresh)
+                                {
+                                    continue;
+                                }
+                                float dis[4];
+                                for(int k = 0; k < 4; ++k)
+                                {
+                                    // std::vector<float> softmax_res(_reg_max, 0.f);
+                                    float softmax_res[_reg_max];
+                                    dis[k] = _softmax(p + k * _reg_max, softmax_res, _reg_max);
+                                }
+                                float lt_x = dis[0];
+                                float lt_y = dis[1];
+                                float rb_x = dis[2];
+                                float rb_y = dis[3];
+                                float angle = ((_obb_need_sigmoid ? _sigmoid(angle_ptr[offset]) : angle_ptr[offset]) - 0.25);
+                                float angle_rad = angle * M_PI;
+                                float cos_angle = cosf(angle_rad);
+                                float sin_angle = sinf(angle_rad);
+                                float xf = (rb_x - lt_x) / 2.0;
+                                float yf = (rb_y - lt_y) / 2.0;
+                                float bbox_w = (lt_x + rb_x) * _stride[i];
+                                float bbox_h = (lt_y + rb_y) * _stride[i];
+                                float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5) * _stride[i] - bbox_w * 0.5;
+                                float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5) * _stride[i] - bbox_h * 0.5;
+                                _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, _stride[i]);
+                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score, {}, angle);
+                                obj.temp = (void *)kp_info;
+                            }
+                        }
+                    }
                 }
                 else
                 {
-                    *kp_out = i.second;
-                }
-            }
-            if (!score_out || !box_out)
-            {
-                throw err::Exception(err::ERR_ARGS, "model output not valid");
-            }
-            int total_box_num = box_out->shape()[3];
-            // int class_num = this->labels.size();
-            int class_num = score_out->shape()[1];
-            float *scores_ptr = (float *)score_out->data();
-            float *dets_ptr = (float *)box_out->data();
-            int idx_start[3] = {
-                0,
-                (int)(h / stride[0] * w / stride[0]),
-                (int)(h / stride[0] * w / stride[0] + h / stride[1] * w / stride[1])};
-            if (_type == YOLO11_Type::OBB)
-            {
-                float *angle_ptr = (float *)(*kp_out)->data();
-                for (int i = 0; i < 3; i++)
-                {
-                    int nh = h / stride[i];
-                    int nw = w / stride[i];
-                    for (int ay = 0; ay < nh; ++ay)
+                    if(_out_chw)
                     {
-                        for (int ax = 0; ax < nw; ++ax)
+                        throw err::Exception(err::ERR_NOT_IMPL, "not support output chw layout");
+                    }
+                    else
+                    {
+                        int class_num = (int)labels.size();
+                        int prob_offset = _reg_max * 4;
+                        int batch_data_size = prob_offset + class_num;
+                        for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
                         {
-                            int offset = idx_start[i] + ay * nw + ax;
-                            int class_id = _argmax(scores_ptr + offset, class_num, total_box_num);
-                            // int max_idx = _argmax2(scores_ptr + offset, class_num * total_box_num - offset, total_box_num);
-                            // int class_id = (offset + max_idx) / total_box_num;
-                            float obj_score = scores_ptr[offset + class_id * total_box_num];
-                            if (obj_score <= conf_thresh)
+                            int nh = dets[i]->shape()[1];
+                            int nw = dets[i]->shape()[2];
+                            int anchor_num = nh * nw;
+                            float *feature = (float*)dets[i]->data();
+                            for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
                             {
-                                continue;
+                                int ax = anchor_idx % nw;
+                                int ay = anchor_idx / nw;
+                                float *p = feature + batch_data_size * anchor_idx;
+                                int class_id = _argmax(p + prob_offset, class_num, 1);
+                                float score = _sigmoid(p[prob_offset + class_id]);
+                                if (score <= conf_thresh)
+                                {
+                                    continue;
+                                }
+                                float dis[4];
+                                for(int k = 0; k < 4; ++k)
+                                {
+                                    // std::vector<float> softmax_res(_reg_max, 0.f);
+                                    float softmax_res[_reg_max];
+                                    dis[k] = _softmax(p + k * _reg_max, softmax_res, _reg_max);
+                                }
+                                float bbox_x = (ax + 0.5 - dis[0]) * _stride[i];
+                                float bbox_y = (ay + 0.5 - dis[1]) * _stride[i];
+                                float bbox_w = (ax + 0.5 + dis[2]) * _stride[i] - bbox_x;
+                                float bbox_h = (ay + 0.5 + dis[3]) * _stride[i] - bbox_y;
+                                _KpInfoYolo11 *kp_info = new _KpInfoYolo11(idx_start[i] + anchor_idx, ax, ay, _stride[i]);
+                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score);
+                                obj.temp = (void *)kp_info;
                             }
-                            float angle = (angle_ptr[offset] - 0.25);
-                            float angle_rad = angle * M_PI;
-                            float cos_angle = cosf(angle_rad);
-                            float sin_angle = sinf(angle_rad);
-                            float lt_x = dets_ptr[offset];
-                            float lt_y = dets_ptr[offset + total_box_num];
-                            float rb_x = dets_ptr[offset + total_box_num * 2];
-                            float rb_y = dets_ptr[offset + total_box_num * 3];
-                            float xf = (rb_x - lt_x) / 2.0;
-                            float yf = (rb_y - lt_y) / 2.0;
-                            float bbox_w = (lt_x + rb_x) * stride[i];
-                            float bbox_h = (lt_y + rb_y) * stride[i];
-                            float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5) * stride[i] - bbox_w * 0.5;
-                            float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5) * stride[i] - bbox_h * 0.5;
-                            _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
-                            Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score, {}, angle);
-                            obj.temp = (void *)kp_info;
                         }
                     }
                 }
             }
-            else
+            else // mode 2
             {
-                for (int i = 0; i < 3; i++)
+                tensor::Tensor *score_out = NULL; // shape 1, 80, 8400       hwc: 1, 8400, 80
+                tensor::Tensor *box_out = NULL;   // shape 1,  1,    4, 8400 hwc: 1,    1, 8400, 4
+                score_out = &(*outputs)[_out_idxes.sigmoid];
+                box_out = &(*outputs)[_out_idxes.dfl];
+                int class_num = (int)labels.size();
+                float *scores_ptr = (float *)score_out->data();
+                float *dets_ptr = (float *)box_out->data();
+                if (_type == YOLO11_Type::OBB)
                 {
-                    int nh = h / stride[i];
-                    int nw = w / stride[i];
-                    for (int ay = 0; ay < nh; ++ay)
+                    if(!_out_chw)
                     {
-                        for (int ax = 0; ax < nw; ++ax)
+                        throw err::Exception(err::ERR_NOT_IMPL, "not support output hwc layout");
+                    }
+                    float *angle_ptr = (float *)(*kp_out)->data();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        int nh = h / _stride[i];
+                        int nw = w / _stride[i];
+                        for (int ay = 0; ay < nh; ++ay)
                         {
-                            int offset = idx_start[i] + ay * nw + ax;
-                            int class_id = _argmax(scores_ptr + offset, class_num, total_box_num);
-                            // int max_idx = _argmax2(scores_ptr + offset, class_num * total_box_num - offset, total_box_num);
-                            // int class_id = (offset + max_idx) / total_box_num;
-                            float obj_score = scores_ptr[offset + class_id * total_box_num];
-                            if (obj_score <= conf_thresh)
+                            for (int ax = 0; ax < nw; ++ax)
                             {
-                                continue;
+                                int offset = idx_start[i] + ay * nw + ax;
+                                int class_id = _argmax(scores_ptr + offset, class_num, _anchor_num);
+                                // int max_idx = _argmax2(scores_ptr + offset, class_num * _anchor_num - offset, _anchor_num);
+                                // int class_id = (offset + max_idx) / _anchor_num;
+                                float obj_score = scores_ptr[offset + class_id * _anchor_num];
+                                if (obj_score <= conf_thresh)
+                                {
+                                    continue;
+                                }
+                                float angle = ((_obb_need_sigmoid ? _sigmoid(angle_ptr[offset]) : angle_ptr[offset]) - 0.25);
+                                float angle_rad = angle * M_PI;
+                                float cos_angle = cosf(angle_rad);
+                                float sin_angle = sinf(angle_rad);
+                                float lt_x = dets_ptr[offset];
+                                float lt_y = dets_ptr[offset + _anchor_num];
+                                float rb_x = dets_ptr[offset + _anchor_num * 2];
+                                float rb_y = dets_ptr[offset + _anchor_num * 3];
+                                float xf = (rb_x - lt_x) / 2.0;
+                                float yf = (rb_y - lt_y) / 2.0;
+                                float bbox_w = (lt_x + rb_x) * _stride[i];
+                                float bbox_h = (lt_y + rb_y) * _stride[i];
+                                float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5) * _stride[i] - bbox_w * 0.5;
+                                float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5) * _stride[i] - bbox_h * 0.5;
+                                _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, _stride[i]);
+                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score, {}, angle);
+                                obj.temp = (void *)kp_info;
                             }
-                            float bbox_x = (ax + 0.5 - dets_ptr[offset]) * stride[i];
-                            float bbox_y = (ay + 0.5 - dets_ptr[offset + total_box_num]) * stride[i];
-                            float bbox_w = (ax + 0.5 + dets_ptr[offset + total_box_num * 2]) * stride[i] - bbox_x;
-                            float bbox_h = (ay + 0.5 + dets_ptr[offset + total_box_num * 3]) * stride[i] - bbox_y;
-                            _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, stride[i]);
-                            Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
-                            obj.temp = (void *)kp_info;
+                        }
+                    }
+                }
+                else
+                {
+                    if(_out_chw)
+                    {
+                        for (int i = 0; i < 3; i++)
+                        {
+                            int nh = h / _stride[i];
+                            int nw = w / _stride[i];
+                            for (int ay = 0; ay < nh; ++ay)
+                            {
+                                for (int ax = 0; ax < nw; ++ax)
+                                {
+                                    int offset = idx_start[i] + ay * nw + ax;
+                                    int class_id = _argmax(scores_ptr + offset, class_num, _anchor_num);
+                                    // int max_idx = _argmax2(scores_ptr + offset, class_num * _anchor_num - offset, _anchor_num);
+                                    // int class_id = (offset + max_idx) / _anchor_num;
+                                    float obj_score = scores_ptr[offset + class_id * _anchor_num];
+                                    if (obj_score <= conf_thresh)
+                                    {
+                                        continue;
+                                    }
+                                    float bbox_x = (ax + 0.5 - dets_ptr[offset]) * _stride[i];
+                                    float bbox_y = (ay + 0.5 - dets_ptr[offset + _anchor_num]) * _stride[i];
+                                    float bbox_w = (ax + 0.5 + dets_ptr[offset + _anchor_num * 2]) * _stride[i] - bbox_x;
+                                    float bbox_h = (ay + 0.5 + dets_ptr[offset + _anchor_num * 3]) * _stride[i] - bbox_y;
+                                    _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, _stride[i]);
+                                    Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, obj_score);
+                                    obj.temp = (void *)kp_info;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        typedef struct
+                        {
+                            float bbox_x;
+                            float bbox_y;
+                            float bbox_w;
+                            float bbox_h;
+                            int class_id;
+                            float score;
+                        } valid_item_t;
+                        for (int i = 0; i < 3; i++)
+                        {
+                            int nh = h / _stride[i];
+                            int nw = w / _stride[i];
+                            for (int ay = 0; ay < nh; ++ay)
+                            {
+                                for (int ax = 0; ax < nw; ++ax)
+                                {
+                                    valid_item_t item;
+                                    int offset = idx_start[i] + ay * nw + ax;
+                                    float *p = scores_ptr + offset * class_num;
+                                    item.class_id = _argmax(p, class_num, 1);
+                                    item.score = p[item.class_id];
+                                    if (item.score <= conf_thresh)
+                                    {
+                                        continue;
+                                    }
+                                    item.bbox_x = (ax + 0.5 - dets_ptr[offset * 4]) * _stride[i];
+                                    item.bbox_y = (ay + 0.5 - dets_ptr[offset * 4 + 1]) * _stride[i];
+                                    item.bbox_w = (ax + 0.5 + dets_ptr[offset * 4 + 2]) * _stride[i] - item.bbox_x;
+                                    item.bbox_h = (ay + 0.5 + dets_ptr[offset * 4 + 3]) * _stride[i] - item.bbox_y;
+                                    _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, _stride[i]);
+                                    Object &obj = objs.add(item.bbox_x, item.bbox_y, item.bbox_w, item.bbox_h, item.class_id, item.score);
+                                    obj.temp = (void *)kp_info;
+                                }
+                            }
                         }
                     }
                 }
@@ -695,82 +1039,193 @@ namespace maix::nn
         void _decode_keypoints(nn::Objects &objs, tensor::Tensor *kp_out)
         {
             float *data = (float *)kp_out->data();
-            int keypoint_num = kp_out->shape()[1] / 3; // 1, 51, 8400, 1
-            int total_box_num = kp_out->shape()[2];    // 1, 51, 8400, 1
-            for (size_t i = 0; i < objs.size(); ++i)
+            if(_out_chw)
             {
-                nn::Object &o = objs.at(i);
-                _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
-                float *p = data + kp_info->idx;
-                for (int k = 0; k < keypoint_num; ++k)
+                int keypoint_num = kp_out->shape()[1] / 3; // 1, 51, 8400
+                for (size_t i = 0; i < objs.size(); ++i)
                 {
-                    float score = _sigmoid(p[(k * 3 + 2) * total_box_num]);
-                    int x = -1;
-                    int y = -1;
-                    if (score > _keypoint_th)
+                    nn::Object &o = objs.at(i);
+                    _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
+                    float *p = data + kp_info->idx;
+                    for (int k = 0; k < keypoint_num; ++k)
                     {
-                        x = (p[(k * 3) * total_box_num] * 2.0 + kp_info->anchor_x) * kp_info->stride;
-                        y = (p[(k * 3 + 1) * total_box_num] * 2.0 + kp_info->anchor_y) * kp_info->stride;
+                        float score = _sigmoid(p[(k * 3 + 2) * _anchor_num]);
+                        int x = -1;
+                        int y = -1;
+                        if (score > _keypoint_th)
+                        {
+                            x = (p[(k * 3) * _anchor_num] * 2.0 + kp_info->anchor_x) * kp_info->stride;
+                            y = (p[(k * 3 + 1) * _anchor_num] * 2.0 + kp_info->anchor_y) * kp_info->stride;
+                        }
+                        o.points.push_back(x);
+                        o.points.push_back(y);
                     }
-                    o.points.push_back(x);
-                    o.points.push_back(y);
+                    delete (_KpInfoYolo11 *)o.temp;
+                    o.temp = NULL;
                 }
-                delete (_KpInfoYolo11 *)o.temp;
-                o.temp = NULL;
+            }
+            else
+            {
+                int keypoint_num = kp_out->shape()[2] / 3; // 1, 8400, 51
+                log::info("%d", keypoint_num);
+                for (size_t i = 0; i < objs.size(); ++i)
+                {
+                    nn::Object &o = objs.at(i);
+                    _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
+                    float *p = data + kp_info->idx * kp_out->shape()[2];
+                    for (int k = 0; k < keypoint_num; ++k)
+                    {
+                        float score = _sigmoid(p[k * 3 + 2]);
+                        int x = -1;
+                        int y = -1;
+                        if (score > _keypoint_th)
+                        {
+                            x = (p[k * 3] * 2.0 + kp_info->anchor_x) * kp_info->stride;
+                            y = (p[k * 3 + 1] * 2.0 + kp_info->anchor_y) * kp_info->stride;
+                        }
+                        o.points.push_back(x);
+                        o.points.push_back(y);
+                    }
+                    delete (_KpInfoYolo11 *)o.temp;
+                    o.temp = NULL;
+                }
             }
         }
 
         void _decode_seg_points(nn::Objects &objs, tensor::Tensor *kp_out, tensor::Tensor *mask_out)
         {
             float *data = (float *)kp_out->data();
-            float *mask_data = (float *)mask_out->data(); // 1, 32, 160, 160
-            int mask_h = mask_out->shape()[2];
-            int mask_w = mask_out->shape()[3];
-            int mask_squre = mask_h * mask_w;
-            int mask_num = kp_out->shape()[1];      // 1, 32, 8400, 1
-            int total_box_num = kp_out->shape()[2]; // 1, 32, 8400, 1
-            float mask_weights[mask_num];
-            for (size_t i = 0; i < objs.size(); ++i)
+            float *mask_data = (float *)mask_out->data();
+            if(_out_chw)
             {
-                nn::Object &o = objs.at(i);
-                int mask_x = o.x * mask_w / _input_size.width();
-                int mask_y = o.y * mask_h / _input_size.height();
-                int mask_x2 = (o.x + o.w) * mask_w / _input_size.width();
-                int mask_y2 = (o.y + o.h) * mask_h / _input_size.height();
-                _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
-                float *p = data + kp_info->idx;
-                for (int k = 0; k < mask_num; ++k)
+                int mask_h = mask_out->shape()[2];  // 1, 32, 160, 160
+                int mask_w = mask_out->shape()[3];
+                int mask_squre = mask_h * mask_w;
+                int mask_num = kp_out->shape()[1];  // 1, 32, 8400
+                float mask_weights[mask_num];
+                for (size_t i = 0; i < objs.size(); ++i)
                 {
-                    mask_weights[k] = p[k * total_box_num];
-                }
-                o.seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
-                uint8_t *p_img_data = (uint8_t *)o.seg_mask->data();
-                for (int j = mask_y; j < mask_y2; ++j)
-                {
-                    for (int k = mask_x; k < mask_x2; ++k)
+                    nn::Object &o = objs.at(i);
+                    int mask_x = o.x * mask_w / _input_size.width();
+                    int mask_y = o.y * mask_h / _input_size.height();
+                    int mask_x2 = (o.x + o.w) * mask_w / _input_size.width();
+                    int mask_y2 = (o.y + o.h) * mask_h / _input_size.height();
+                    _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
+                    float *p = data + kp_info->idx;
+                    for (int k = 0; k < mask_num; ++k)
                     {
-                        mask_data[j * mask_w + k] *= mask_weights[0];
+                        mask_weights[k] = p[k * _anchor_num];
                     }
-                }
-                for (int n = 1; n < mask_num; ++n)
-                {
+                    o.seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
+                    uint8_t *p_img_data = (uint8_t *)o.seg_mask->data();
                     for (int j = mask_y; j < mask_y2; ++j)
                     {
                         for (int k = mask_x; k < mask_x2; ++k)
                         {
-                            mask_data[j * mask_w + k] += mask_weights[n] * mask_data[n * mask_squre + j * mask_w + k];
+                            mask_data[j * mask_w + k] *= mask_weights[0];
                         }
                     }
-                }
-                for (int j = mask_y; j < mask_y2; ++j)
-                {
-                    for (int k = mask_x; k < mask_x2; ++k)
+                    for (int n = 1; n < mask_num; ++n)
                     {
-                        *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                mask_data[j * mask_w + k] += mask_weights[n] * mask_data[n * mask_squre + j * mask_w + k];
+                            }
+                        }
                     }
+                    for (int j = mask_y; j < mask_y2; ++j)
+                    {
+                        for (int k = mask_x; k < mask_x2; ++k)
+                        {
+                            *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
+                        }
+                    }
+                    delete (_KpInfoYolo11 *)o.temp;
+                    o.temp = NULL;
                 }
-                delete (_KpInfoYolo11 *)o.temp;
-                o.temp = NULL;
+            }
+            else
+            {
+                bool mask_chw = false;
+                int mask_h = _input_size.height() / 4;
+                int mask_w = _input_size.width() / 4;
+                int mask_num = 32;
+                int mask_squre = mask_h * mask_w;
+                // 1, 32, 160, 160 or 1 160 160 32
+                if(mask_out->shape()[1] == mask_num && mask_out->shape()[2] == mask_h && mask_out->shape()[3] == mask_w)
+                {
+                    mask_chw = true;
+                }
+                for (size_t i = 0; i < objs.size(); ++i)
+                {
+                    nn::Object &o = objs.at(i);
+                    int mask_x = o.x * mask_w / _input_size.width();
+                    int mask_y = o.y * mask_h / _input_size.height();
+                    int mask_x2 = (o.x + o.w) * mask_w / _input_size.width();
+                    int mask_y2 = (o.y + o.h) * mask_h / _input_size.height();
+                    _KpInfoYolo11 *kp_info = (_KpInfoYolo11 *)o.temp;
+                    float *mask_weights = data + kp_info->idx * mask_num; //1 8400 32
+                    o.seg_mask = new image::Image(mask_x2 - mask_x, mask_y2 - mask_y, image::Format::FMT_GRAYSCALE);
+                    uint8_t *p_img_data = (uint8_t *)o.seg_mask->data();
+                    if(mask_chw) // 1 32 160 160
+                    {
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                mask_data[j * mask_w + k] *= mask_weights[0];
+                            }
+                        }
+                        for (int n = 1; n < mask_num; ++n)
+                        {
+                            for (int j = mask_y; j < mask_y2; ++j)
+                            {
+                                for (int k = mask_x; k < mask_x2; ++k)
+                                {
+                                    mask_data[j * mask_w + k] += mask_weights[n] * mask_data[n * mask_squre + j * mask_w + k];
+                                }
+                            }
+                        }
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                *p_img_data++ = (uint8_t)(_sigmoid(mask_data[j * mask_w + k]) * 255);
+                            }
+                        }
+                    }
+                    else // 1 160 160 32
+                    {
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                mask_data[(j * mask_w + k) * mask_num] *= mask_weights[0];
+                            }
+                        }
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                for (int n = 1; n < mask_num; ++n)
+                                {
+                                    mask_data[(j * mask_w + k) * mask_num] += mask_weights[n] * mask_data[(j * mask_w + k) * mask_num + n];
+                                }
+                            }
+                        }
+                        for (int j = mask_y; j < mask_y2; ++j)
+                        {
+                            for (int k = mask_x; k < mask_x2; ++k)
+                            {
+                                *p_img_data++ = (uint8_t)(_sigmoid(mask_data[(j * mask_w + k) * mask_num]) * 255);
+                            }
+                        }
+                    }
+                    delete (_KpInfoYolo11 *)o.temp;
+                    o.temp = NULL;
+                }
             }
         }
 
@@ -988,6 +1443,23 @@ namespace maix::nn
             std::vector<std::string> tokens;
             split0(tokens, s, delimiter);
             return tokens;
+        }
+        static float _softmax(const float* src, float* dst, int length)
+        {
+            const float alpha = *std::max_element(src, src + length);
+            float denominator = 0;
+            float dis_sum = 0;
+            for (int i = 0; i < length; ++i)
+            {
+                dst[i] = exp(src[i] - alpha);
+                denominator += dst[i];
+            }
+            for (int i = 0; i < length; ++i)
+            {
+                dst[i] /= denominator;
+                dis_sum += i * dst[i];
+            }
+            return dis_sum;
         }
     };
 

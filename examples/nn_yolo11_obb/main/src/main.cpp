@@ -15,7 +15,7 @@ int _main(int argc, char *argv[])
     maix::image::Format img_fmt = maix::image::FMT_RGB888;
     std::vector<float> mean = {};
     std::vector<float> scale = {};
-    char tmp_chars[64] = {0};
+    char tmp_chars[128] = {0};
 
     std::string help = "Usage: " + std::string(argv[0]) + " mud_model_path <image_path>";
 
@@ -84,11 +84,11 @@ int _main(int argc, char *argv[])
         }
         for (auto &r : *result)
         {
-
             log::info("result: %s", r->to_str().c_str());
-            img->draw_rect(r->x, r->y, r->w, r->h, maix::image::Color::from_rgb(255, 0, 0));
-            snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f", detector.labels[r->class_id].c_str(), r->score);
-            img->draw_string(r->x, r->y, detector.labels[r->class_id], maix::image::Color::from_rgb(255, 0, 0));
+            auto points = r->get_obb_points();
+            snprintf(tmp_chars, sizeof(tmp_chars), "%s: %.2f, %.1f", detector.labels[r->class_id].c_str(), r->score, r->angle * 180.0);
+            img->draw_string(points[0], points[1] - 4, tmp_chars, maix::image::Color::from_rgb(255, 0, 0));
+            detector.draw_pose(*img, points, detector.input_width() > 480 ? 3 : 1, image::COLOR_RED, std::vector<image::Color>(), false, true);
         }
         img->save("result.jpg");
         delete result;

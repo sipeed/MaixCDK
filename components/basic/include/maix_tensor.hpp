@@ -519,6 +519,7 @@ namespace maix
                     tensors[key] = tensor;
                     _auto_delete[key] = auto_delete;
                 }
+                _keys.push_back(key);
             }
 
             /**
@@ -527,6 +528,22 @@ namespace maix
             */
             void rm_tensor(const std::string &key)
             {
+                size_t i = 0;
+                for(; i < _keys.size(); ++i)
+                {
+                    auto &_key = _keys[i];
+                    if(_key == key)
+                    {
+                        break;
+                    }
+                }
+                if(i == _keys.size())
+                {
+                    log::warn("rm_tensor: key %s not in tensor", key.c_str());
+                    return;
+                }
+                _keys.erase(_keys.begin() + i);
+
                 if(_auto_delete[key])
                 {
                     delete tensors[key];
@@ -540,11 +557,11 @@ namespace maix
             */
             void clear()
             {
-                auto _keys = keys();
                 for(const auto &k : _keys)
                 {
                     rm_tensor(k);
                 }
+                _keys.clear();
             }
 
             /**
@@ -595,6 +612,25 @@ namespace maix
             }
 
             /**
+             * Operator []
+             * @maixcdk maix.tensor.Tensors.operator[]
+            */
+            tensor::Tensor &operator[](int idx)
+            {
+                int i = 0;
+                for(auto &key : _keys)
+                {
+                    if(i == idx)
+                    {
+                        return *tensors[key];
+                    }
+                    ++i;
+                }
+                log::error("%s: %d", "get tensor idx error", idx);
+                throw err::Exception(err::ERR_ARGS, "Tensors get tensor idx error");
+            }
+
+            /**
              * Size
              * @maixpy maix.tensor.Tensors.__len__
              * @maixcdk maix.tensor.Tensors.size
@@ -610,12 +646,7 @@ namespace maix
             */
             std::vector<std::string> keys()
             {
-                std::vector<std::string> names;
-                for(auto &item : tensors)
-                {
-                    names.push_back(item.first);
-                }
-                return names;
+                return _keys;
             }
 
         public:
@@ -626,6 +657,7 @@ namespace maix
             std::map<std::string, tensor::Tensor*> tensors;
         private:
             std::map<std::string, bool> _auto_delete;
+            std::vector<std::string> _keys;
         };
 
 

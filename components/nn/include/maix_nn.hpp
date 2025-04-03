@@ -375,7 +375,8 @@ namespace maix::nn
          * @param copy_result If set true, will copy result to a new variable; else will use a internal memory, you can only use it until to the next forward.
          *                    Default true to avoid problems, you can set it to false manually to make speed faster.
          * @param dual_buff_wait bool type, only for dual_buff mode, if true, will inference this image and wait for result, default false.
-         * @param chw chw channel format, forward model with hwc format image input if set to false, default true(chw).
+         * @param chw !!depracated!! This arg will be ignored!!! Please set extra.input_layout in mud file instead.
+         *            chw channel format, forward model with hwc format image input if set to false, default true(chw).
          * @return output tensor. In C++, you should manually delete tensors in return value and return value.
          *         If dual_buff mode, it can be NULL(None in MaixPy) means not ready.
          * @throw If error occurs, like arg error or alloc memory failed, will raise err.Exception.
