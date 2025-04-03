@@ -6,6 +6,7 @@ if(PLATFORM_MAIXCAM)
     message(STATUS "PLATFORM_MAIXCAM")
     # sophgo-middleware
     set(middleware_src_path "${CMAKE_CURRENT_SOURCE_DIR}/../3rd_party/sophgo-middleware/sophgo-middleware")
+    list(APPEND ADD_INCLUDE "include/maixcam")
 
     if(CONFIG_MAIXCAM_LIB_COMPILE_FROM_SOURCE)
         set(source_dir "maixcdk_maixcam_lib")
@@ -33,6 +34,7 @@ if(PLATFORM_MAIXCAM)
     endif()
 elseif(PLATFORM_MAIXCAM2)
     list(APPEND ADD_REQUIREMENTS maixcam2_msp)
+    list(APPEND ADD_INCLUDE "include/maixcam2")
 
     list(APPEND ADD_INCLUDE "../vision/include")
     list(APPEND ADD_INCLUDE "../nn/include")
