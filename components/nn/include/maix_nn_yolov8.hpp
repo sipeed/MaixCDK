@@ -36,7 +36,7 @@ namespace maix::nn
         YOLOv8(const string &model = "", bool dual_buff = true)
         : YOLO11(model, dual_buff)
         {
-            type_str = "yolov8"
+            type_str = "yolov8";
         }
 
         /**
