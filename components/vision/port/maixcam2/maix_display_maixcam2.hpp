@@ -20,8 +20,10 @@
 #include <linux/fb.h>
 #include <sys/mman.h>
 #include "maix_fs.hpp"
+#include "ax_middleware.hpp"
 
 using namespace maix::peripheral;
+using namespace maix::middleware;
 
 namespace maix::display
 {
@@ -30,11 +32,11 @@ namespace maix::display
         LT9611,
         UNKNOWN,
     };
-    inline static PanelType __g_panel_type = PanelType::UNKNOWN;
+    // inline static PanelType __g_panel_type = PanelType::UNKNOWN;
 
     __attribute__((unused)) static int _get_vo_max_size(int *width, int *height, int rotate)
     {
-        int w = 0, h = 0;
+        int w = 1920, h = 1080;
 
         if (rotate) {
             *width = h;
@@ -47,42 +49,44 @@ namespace maix::display
     }
 
 
-    static void _get_disp_configs(bool &flip, bool &mirror, float &max_backlight) {
-        std::string flip_str;
-        bool flip_is_found = false;
+    // static void _get_disp_configs(bool &flip, bool &mirror, float &max_backlight) {
+    //     std::string flip_str;
+    //     bool flip_is_found = false;
 
-        auto device_configs = sys::device_configs();
-        auto it = device_configs.find("disp_flip");
-        if (it != device_configs.end()) {
-            flip_str = it->second;
-            flip_is_found = true;
-        }
-        auto it2 = device_configs.find("disp_mirror");
-        if (it2 != device_configs.end()) {
-            if (it2->second.size() > 0)
-                mirror = atoi(it2->second.c_str());
-        }
-        auto it3 = device_configs.find("disp_max_backlight");
-        if (it3 != device_configs.end()) {
-            if (it3->second.size() > 0)
-                max_backlight = atof(it3->second.c_str());
-        }
+    //     auto device_configs = sys::device_configs();
+    //     auto it = device_configs.find("disp_flip");
+    //     if (it != device_configs.end()) {
+    //         flip_str = it->second;
+    //         flip_is_found = true;
+    //     }
+    //     auto it2 = device_configs.find("disp_mirror");
+    //     if (it2 != device_configs.end()) {
+    //         if (it2->second.size() > 0)
+    //             mirror = atoi(it2->second.c_str());
+    //     }
+    //     auto it3 = device_configs.find("disp_max_backlight");
+    //     if (it3 != device_configs.end()) {
+    //         if (it3->second.size() > 0)
+    //             max_backlight = atof(it3->second.c_str());
+    //     }
 
-        if (flip_is_found && flip_str.size() > 0) {
-            flip = atoi(flip_str.c_str());
-        } else {
-            std::string board_id = sys::device_id();
-            if (board_id == "maixcam_pro") {
-                flip = true;
-            }
-        }
+    //     if (flip_is_found && flip_str.size() > 0) {
+    //         flip = atoi(flip_str.c_str());
+    //     } else {
+    //         std::string board_id = sys::device_id();
+    //         if (board_id == "maixcam_pro") {
+    //             flip = true;
+    //         }
+    //     }
 
-        // log::info("disp config flip: %d, mirror: %d, max_backlight: %.1f", flip, mirror, max_backlight);
-    }
+    //     // log::info("disp config flip: %d, mirror: %d, max_backlight: %.1f", flip, mirror, max_backlight);
+    // }
 
 
     class DisplayAx final : public DisplayBase
     {
+        maixcam2::SYS *__sys;
+        maixcam2::VO *__vo;
     public:
         DisplayAx(const string &device, int width, int height, image::Format format)
         {
@@ -101,8 +105,6 @@ namespace maix::display
                                 || _format == image::FMT_YVU420SP
                                 || _format == image::FMT_BGRA8888, "Format not support");
 
-            int pwm_id = 10;
-            _bl_pwm = new pwm::PWM(pwm_id, 100000, 20);
         }
 
         DisplayAx(int layer, int width, int height, image::Format format)
@@ -121,9 +123,6 @@ namespace maix::display
             this->_layer = layer;       // layer 0 means vedio layer
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
-
-            int pwm_id = 10;
-            _bl_pwm = new pwm::PWM(pwm_id, 100000, 20);
         }
 
         ~DisplayAx()
@@ -205,18 +204,20 @@ namespace maix::display
         err::Err show(image::Image &img, image::Fit fit)
         {
             err::check_bool_raise((img.width() % 2 == 0 && img.height() % 2 == 0), "Image width and height must be a multiple of 2.");
-            int format = img.format();
+            // int format = img.format();
 
             return err::ERR_NONE;
         }
 
         void set_backlight(float value)
         {
-            _bl_pwm->duty(value * _max_backlight / 100.0);
-            _bl_pwm->disable();
-            if(value == 0)
-                return;
-            _bl_pwm->enable();
+            if (_bl_pwm) {
+                _bl_pwm->duty(value * _max_backlight / 100.0);
+                _bl_pwm->disable();
+                if(value == 0)
+                    return;
+                _bl_pwm->enable();
+            }
         }
 
         float get_backlight()

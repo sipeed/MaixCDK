@@ -22,6 +22,7 @@ extern "C" {
 #include "ax_isp_api.h"
 #include "ax_buffer_tool.h"
 #include "ax_vin_error_code.h"
+#include "ax_vo_api.h"
 #include "common_sys.h"
 #include "common_venc.h"
 #include "common_vin.h"
@@ -926,6 +927,23 @@ namespace maix::middleware::maixcam2 {
         int set_and_get_exp_mode(int value);        // input -1: get only
     private:
         // void *_param = nullptr;
+    };
+
+    class VO {
+        int __layer;
+        int __ch;
+        bool __is_inited;
+    public:
+        VO();
+        ~VO();
+        err::Err init();
+        void deinit();
+        err::Err add_channel(int layer, int ch, int width, int height, AX_IMG_FORMAT_E format, int fit);
+        err::Err del_channel(int layer, int ch);
+        err::Err del_channel_all();
+        err::Err push(int layer, int ch, maixcam2::Frame *frame);
+        int set_and_get_mirror(int ch, int value);
+        int set_and_get_flip(int ch, int value);
     };
 
     class VENC {

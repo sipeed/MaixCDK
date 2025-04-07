@@ -10,7 +10,7 @@ config AX620E_MSP_ENABLE_NPU_LIB
 
 config AX620E_MSP_ENABLE_VO_LIB
     bool "Enable vo library"
-    default n
+    default y
     help
       Enable vo library
 

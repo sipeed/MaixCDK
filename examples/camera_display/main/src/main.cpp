@@ -20,7 +20,49 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp);
 
 static bool camera2_enable = false;
 static bool disp2_enable = false;
+static bool save_image_flag = false;
 fp5510::FP5510 *g_fp5510e = nullptr;
+
+static void __save_img(image::Image *img1, image::Image *img2 = nullptr) {
+    std::string suffix = ".rgb";
+    if (save_image_flag) {
+        save_image_flag = false;
+
+        if (img1) {
+            if (img1->format() == image::Format::FMT_RGB888) {
+                suffix = ".rgb";
+            } else if (img1->format() == image::Format::FMT_YVU420SP){
+                suffix = ".yuv";
+            } else {
+                suffix = ".undefined";
+            }
+
+            auto path = "frame1" + suffix;
+            auto f = fopen(path.c_str(), "wb");
+            fwrite(img1->data(), img1->data_size(), 1, f);
+            fclose(f);
+
+            log::info("save image to %s", path.c_str());
+        }
+
+        if (img2) {
+            if (img2->format() == image::Format::FMT_RGB888) {
+                suffix = ".rgb";
+            } else if (img2->format() == image::Format::FMT_YVU420SP){
+                suffix = ".yuv";
+            } else {
+                suffix = ".undefined";
+            }
+
+            auto path = "frame2" + suffix;
+            auto f = fopen(path.c_str(), "wb");
+            fwrite(img2->data(), img2->data_size(), 1, f);
+            fclose(f);
+
+            log::info("save image to %s", path.c_str());
+        }
+    }
+}
 
 int _main(int argc, char* argv[])
 {
@@ -84,12 +126,18 @@ int _main(int argc, char* argv[])
                 img->draw_image(0, 0, *resize_img2);
                 delete resize_img2;
             }
+
+            // save image from disp1 and disp2
+            __save_img(img, img2);
             delete img2;
         } else {
             if (cam2) {
                 delete cam2;
                 cam2 = NULL;
             }
+
+            // save image from disp1 only
+            __save_img(img, nullptr);
         }
 
         if (img->format() == image::Format::FMT_RGB888) {
@@ -172,6 +220,7 @@ static int cmd_init(void)
             "18 <addr> <data>: set reg\r\n"
             "19 <addr>: get reg\r\n"
             "20 <pos>: set fp5510e pos\r\n"
+            "21 : save camera img to file\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -381,6 +430,12 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
                 g_fp5510e->set_pos(value);
                 log::info(" set fp5510 pos:%d", g_fp5510e->get_pos());
             }
+            break;
+        }
+        case 21:
+        {
+            log::info("ready to save image..");
+            save_image_flag = true;
             break;
         }
         default:printf("Find not cmd!\r\n"); break;

@@ -878,7 +878,7 @@ namespace maix::image
             int data_size;
             if (!mmf_enc_jpg_pop(0, &data, &data_size))
             {
-                if (buff && buff_size >= data_size) {
+                if (buff && (int)buff_size >= data_size) {
                     memcpy(buff, data, data_size);
                     img = new image::Image(_width, _height, format, (uint8_t *)buff, data_size, false);
                 } else {
