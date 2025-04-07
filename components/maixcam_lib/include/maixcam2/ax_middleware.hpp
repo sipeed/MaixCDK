@@ -38,6 +38,8 @@ using namespace maix;
 namespace maix::middleware::maixcam2 {
     class SYS;
     class VENC;
+    class ENGINE;
+
     typedef enum {
         AX_VENC_TYPE_JPG = 0,
         AX_VENC_TYPE_H264,
@@ -169,6 +171,7 @@ namespace maix::middleware::maixcam2 {
         COMMON_SYS_ARGS_T tPrivArgs;
         AX_U32 VinId;
         AX_U32 IvpsId;
+        ENGINE *engine;
         struct {
             int w;
             int h;
@@ -820,6 +823,10 @@ namespace maix::middleware::maixcam2 {
                     return err::ERR_RUNTIME;
                 }
                 tVinParam.eSysCase = __get_vi_case_from_sensor_name((char *)get_sensor_res.second.c_str());
+
+                // check if enable ai-isp
+                AX_BOOL ai_isp_on = app::get_sys_config_kv("npu", "ai_isp", "1") == "1" ? AX_TRUE : AX_FALSE;
+                tVinParam.bAiispEnable = ai_isp_on;
 
                 __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
                 ::memcpy(&sys_param->tCommonArgs, &tCommonArgs, sizeof(COMMON_SYS_ARGS_T));
