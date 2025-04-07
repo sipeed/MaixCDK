@@ -164,7 +164,7 @@ namespace maix::video
         enum AVSampleFormat audio_format;
 
         unique_ptr<maixcam2::SYS> sys;
-        unique_ptr<maixcam2::VENC> venc;
+        maixcam2::VENC *venc;
     } encoder_param_t;
 
     Encoder::Encoder(std::string path, int width, int height, image::Format format, VideoType type, int framerate, int gop, int bitrate, int time_base, bool capture, bool block) {
@@ -363,7 +363,7 @@ namespace maix::video
         }
         param->sys = make_unique<maixcam2::SYS>(false);
         param->sys->init();
-        param->venc = make_unique<maixcam2::VENC>(&cfg);
+        param->venc = new maixcam2::VENC(&cfg);
 
         // audio init
         param->audio_last_pts = 0;
@@ -376,7 +376,10 @@ namespace maix::video
 
     Encoder::~Encoder() {
         encoder_param_t *param = (encoder_param_t *)_param;
-        param->venc = nullptr;      // release venc
+        if (param->venc) {
+            delete param->venc;
+            param->venc = nullptr;      // release venc
+        }
         param->sys = nullptr;
         if (_path.size() == 0) {
             if (_capture_image && _capture_image->data()) {
@@ -524,6 +527,11 @@ namespace maix::video
         }
 
         return frame;
+    }
+
+    void *Encoder::get_driver() {
+        encoder_param_t *param = (encoder_param_t *)_param;
+        return param->venc;
     }
 
     typedef enum {
@@ -748,7 +756,11 @@ namespace maix::video
         AVCodecContext *video_codec_ctx = NULL;
         AVCodecParameters *video_codec_params = NULL;
         AVBSFContext * bsfc = NULL;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
         int video_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, (const AVCodec **)&codec, 0);
+#else
+        int video_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_VIDEO, -1, -1, (AVCodec **)&codec, 0);
+#endif
         _has_video = video_stream_index < 0 ? false : true;
         if (_has_video) {
             // Find the number of b frame
@@ -822,7 +834,11 @@ namespace maix::video
         int resample_channels = 2;
         int resample_sample_rate = 48000;
         enum AVSampleFormat resample_format = AV_SAMPLE_FMT_S16;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
         int audio_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_AUDIO, -1, -1, (const AVCodec **)&codec, 0);
+#else
+        int audio_stream_index = av_find_best_stream(pFormatContext, AVMEDIA_TYPE_AUDIO, -1, -1, (AVCodec **)&codec, 0);
+#endif
         _has_audio = audio_stream_index < 0 ? false : true;
         if (_has_audio) {
             AVCodecParameters *audio_codecpar = pFormatContext->streams[audio_stream_index]->codecpar;
@@ -833,11 +849,17 @@ namespace maix::video
             err::check_bool_raise(avcodec_open2(audio_codec_ctx, codec, NULL) >= 0, "Could not open audio codec");
             err::check_null_raise(audio_frame = av_frame_alloc(), "Could not allocate audio frame");
             err::check_null_raise(swr_ctx = swr_alloc(), "Could not allocate resampler context");
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
             av_opt_set_chlayout(swr_ctx, "in_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_chlayout(swr_ctx, "out_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            resample_channels = audio_codec_ctx->ch_layout.nb_channels;
+#else
+            av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
+            av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+            resample_channels = audio_codec_ctx->channels;
+#endif
             av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
             av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", audio_codec_ctx->sample_fmt, 0);
-            resample_channels = audio_codec_ctx->ch_layout.nb_channels;
-            av_opt_set_chlayout(swr_ctx, "out_channel_layout", &audio_codec_ctx->ch_layout, 0);
             av_opt_set_int(swr_ctx, "out_sample_rate", resample_sample_rate, 0);
             av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", resample_format, 0);
             swr_init(swr_ctx);
@@ -865,7 +887,11 @@ namespace maix::video
             _audio_sample_rate = resample_sample_rate;
             param->audio_stream_index = audio_stream_index;
             param->sample_rate = audio_codec_ctx->sample_rate;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
             param->channels = audio_codec_ctx->ch_layout.nb_channels;
+#else
+            param->channels = audio_codec_ctx->channels;
+#endif
             param->resample_channels = resample_channels;
             param->resample_sample_rate = resample_sample_rate;
             param->resample_sample_format = resample_format;
@@ -1192,9 +1218,11 @@ __vdec_exit:
                             audio_codec_ctx->sample_rate,
                             AV_ROUND_UP
                         );
-
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
-
+#else
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+#endif
                         int converted_samples = swr_convert(
                             swr_ctx,
                             &output, out_samples,
@@ -1210,7 +1238,11 @@ __vdec_exit:
 
                         std::vector<int> timebase = {1, resample_sample_rate};
                         context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#else
+Bytes data(output, converted_samples * audio_codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#endif
                         context->set_pcm(&data);
 
                         av_freep(&output);
@@ -1320,9 +1352,11 @@ __vdec_exit:
                             audio_codec_ctx->sample_rate,
                             AV_ROUND_UP
                         );
-
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
-
+#else
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+#endif
                         int converted_samples = swr_convert(
                             swr_ctx,
                             &output, out_samples,
@@ -1343,7 +1377,11 @@ __vdec_exit:
                                                     (int)pFormatContext->streams[audio_stream_index]->time_base.den};
                         // context = new video::Context(MEDIA_TYPE_UNKNOWN, timebase);
                         context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#else
+                        Bytes data(output, converted_samples * audio_codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#endif
                         context->set_pcm(&data, pPacket->duration, pPacket->pts);
                         // log::info("data:%p size:%d sample_rate:%d channel:%d timebase:%d/%d, duration:%d pts:%d", output,
                         //         converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
@@ -1429,9 +1467,11 @@ __vdec_exit:
                             audio_codec_ctx->sample_rate,
                             AV_ROUND_UP
                         );
-
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         av_samples_alloc(&output, NULL, audio_codec_ctx->ch_layout.nb_channels, out_samples, AV_SAMPLE_FMT_S16, 0);
-
+#else
+                        av_samples_alloc(&output, NULL, audio_codec_ctx->channels, out_samples, AV_SAMPLE_FMT_S16, 0);
+#endif
                         int converted_samples = swr_convert(
                             swr_ctx,
                             &output, out_samples,
@@ -1452,7 +1492,11 @@ __vdec_exit:
                                                     (int)pFormatContext->streams[audio_stream_index]->time_base.den};
                         // context = new video::Context(MEDIA_TYPE_UNKNOWN, timebase);
                         context = new video::Context(media_type, timebase, resample_sample_rate, _audio_format_from_alsa(resample_format), resample_channels);
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
                         Bytes data(output, converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#else
+                        Bytes data(output, converted_samples * audio_codec_ctx->channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16));
+#endif
                         context->set_pcm(&data, pPacket->duration, pPacket->pts);
                         // log::info("data:%p size:%d sample_rate:%d channel:%d timebase:%d/%d, duration:%d pts:%d", output,
                         //         converted_samples * audio_codec_ctx->ch_layout.nb_channels * av_get_bytes_per_sample(AV_SAMPLE_FMT_S16),
@@ -1565,6 +1609,12 @@ __vdec_exit:
         int64_t duration = pFormatContext->duration;
         double duration_in_seconds = (double)duration / AV_TIME_BASE;
         return duration_in_seconds;
+    }
+
+    void *Decoder::get_driver()
+    {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        return param->vdec;
     }
 
     Video::Video(std::string path, int width, int height, image::Format format, int time_base, int framerate, bool capture, bool open)

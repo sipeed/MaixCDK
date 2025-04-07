@@ -48,9 +48,11 @@ int _main(int argc, char* argv[])
     rtsp::Region *region3 = rtsp.add_region(400, 200, 200, 100);
 
     image::Image *rgn_img = region3->get_canvas();
-    rgn_img->draw_rect(0, 0, rgn_img->width(), rgn_img->height(), image::COLOR_BLUE, 5);
-    rgn_img->draw_string(0, 0, "hello");
-    region3->update_canvas();
+    if (rgn_img) {
+        rgn_img->draw_rect(0, 0, rgn_img->width(), rgn_img->height(), image::COLOR_BLUE, 5);
+        rgn_img->draw_string(0, 0, "hello");
+        region3->update_canvas();
+    }
 
     log::info("url:%s", rtsp.get_url().c_str());
     std::vector<std::string> url = rtsp.get_urls();
@@ -75,9 +77,11 @@ int _main(int argc, char* argv[])
             cnt = 0;
         }
         rgn_img = region->get_canvas();
-        rgn_img->draw_rect(0, 0, rgn_img->width(), rgn_img->height(), color, -1);
-        region->update_canvas();
-        delete rgn_img;
+        if (rgn_img) {
+            rgn_img->draw_rect(0, 0, rgn_img->width(), rgn_img->height(), color, -1);
+            region->update_canvas();
+            delete rgn_img;
+        }
 
         maix::image::Image *img = nullptr;
         try {

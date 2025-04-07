@@ -1629,5 +1629,9 @@ _error:
 
         return out;
     }
+
+    void *Camera::get_driver() {
+        return nullptr;
+    }
 }
 

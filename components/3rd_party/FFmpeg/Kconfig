@@ -4,15 +4,19 @@ menu "ffmpeg component configuration"
     menu "FFMPEG version"
         config FFMPEG_VERSION_MAJOR
             int "FFMPEG version major"
-            default 4
+            default 4 if PLATFORM = "maixcam"
+            default 6 if PLATFORM = "maixcam2"
         config FFMPEG_VERSION_MINOR
             int "FFMPEG version minor"
-            default 4
+            default 4 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
         config FFMPEG_VERSION_PATCH
             int "FFMPEG version patch"
-            default 4
+            default 4 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
         config FFMPEG_COMPILED_VERSION
             int "FFMPEG compiled version"
-            default 2
+            default 2 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
     endmenu
 endmenu

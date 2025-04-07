@@ -1422,5 +1422,9 @@ namespace maix::camera
         (void)bit_width;
         return -1;
     }
+
+    void *Camera::get_driver() {
+        return nullptr;
+    }
 }
 

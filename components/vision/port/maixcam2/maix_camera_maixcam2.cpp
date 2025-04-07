@@ -841,5 +841,12 @@ namespace maix::camera
 
         return out;
     }
+
+    void *Camera::get_driver()
+    {
+        auto *priv = (camera_priv_t *)_param;
+        auto ax_vi = priv->ax_vi;
+        return ax_vi;
+    }
 }
 

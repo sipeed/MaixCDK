@@ -800,6 +800,12 @@ namespace maix::video
         {
             return time_ms * 1000 / _time_base;
         }
+
+        /**
+         * Get driver of encoder
+         * @return encoder driver
+        */
+        void *get_driver();
     private:
         std::string _path;
         int _width;
@@ -975,6 +981,12 @@ namespace maix::video
         bool has_video() {
             return _has_video;
         }
+
+        /**
+         * Get driver of decoder
+         * @return decoder driver
+        */
+       void *get_driver();
     private:
         std::string _path;
         int _width;

@@ -380,6 +380,12 @@ namespace maix::camera
          * @return sensor size
         */
         std::vector<int> get_sensor_size();
+
+        /**
+         * Get get the driver of camera
+         * @return camera driver
+        */
+        void *get_driver();
     private:
         std::string _device;
         int _ch;

@@ -118,8 +118,13 @@ public:
             audio_codec_ctx->codec_id = AV_CODEC_ID_AAC;
             audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
             audio_codec_ctx->sample_rate = sample_rate;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
+            audio_codec_ctx->ch_layout.nb_channels = channels;
+            av_channel_layout_default(&audio_codec_ctx->ch_layout, channels);
+#else
             audio_codec_ctx->channels = channels;
             audio_codec_ctx->channel_layout = av_get_default_channel_layout(audio_codec_ctx->channels);
+#endif
             audio_codec_ctx->sample_fmt = AV_SAMPLE_FMT_FLTP;
             audio_codec_ctx->time_base = (AVRational){1, sample_rate};
             audio_codec_ctx->bit_rate = bitrate;
@@ -140,9 +145,13 @@ public:
 				log::info("Can't alloc swr context");
                 goto _free_audio_codec_ctx;
             }
-
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
+            av_opt_set_chlayout(swr_ctx, "in_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_chlayout(swr_ctx, "out_channel_layout", &audio_codec_ctx->ch_layout, 0);
+#else
             av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
             av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
+#endif
             av_opt_set_int(swr_ctx, "in_sample_rate", audio_codec_ctx->sample_rate, 0);
             av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
             av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
@@ -157,7 +166,11 @@ public:
                 goto _free_swr_ctx;
             }
             audio_frame->nb_samples = audio_codec_ctx->frame_size;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
+            audio_frame->ch_layout = audio_codec_ctx->ch_layout;
+#else
             audio_frame->channel_layout = audio_codec_ctx->channel_layout;
+#endif
             audio_frame->format = AV_SAMPLE_FMT_FLTP;
             audio_frame->sample_rate = audio_codec_ctx->sample_rate;
             av_frame_get_buffer(audio_frame, 0);
@@ -518,7 +531,11 @@ _free_format_context:
         if (!_open)
             return 0;
         ffmpeg_param_t *ffmpeg = (ffmpeg_param_t *)&_ffmpeg;
+#if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
+        return ffmpeg->audio_frame->sample_rate * ffmpeg->audio_frame->ch_layout.nb_channels * av_get_bytes_per_sample(ffmpeg->audio_format);
+#else
         return ffmpeg->audio_frame->sample_rate * ffmpeg->audio_frame->channels * av_get_bytes_per_sample(ffmpeg->audio_format);
+#endif
     }
 
     std::vector<int> get_video_timebase() {
@@ -682,8 +699,8 @@ namespace maix::rtmp {
 	static void _push_camera_thread(void *priv)
 	{
 		PrivateParam *param = (PrivateParam *)priv;
-		camera::Camera *camera = *param->camera;
-		audio::Recorder *audio_recorder = *param->recorder;
+		// camera::Camera *camera = *param->camera;
+		// audio::Recorder *audio_recorder = *param->recorder;
 
 		param->status = PrivateParam::RTMP_IDLE;
 	}

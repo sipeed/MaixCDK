@@ -36,10 +36,9 @@ def add_file_downloads(confs : dict) -> list:
             }
         ]
     elif confs.get('PLATFORM_MAIXCAM2', None):
-        version = "6.1.1.1"
         url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/ffmpeg_maixcam2_libs_n{version}.tar.xz"
         if version == "4.4.4.1":
-            sha256sum = "3fcc394fad917127dd9503396dd84ce29fe47f33e76ebfd86dce6a73031e3a4b"
+            sha256sum = "ab74cf4fe0a8b7a3462862decd65e39f668ff4ab0d1a78297d78efe96a729368"
         elif version == "6.1.1.1":
             sha256sum = "a768eef0ab5841d63cb99dc4ee66b0b252b56ecce0bb8d344eb68bb8d6e49735"
         else:
@@ -47,9 +46,9 @@ def add_file_downloads(confs : dict) -> list:
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
         filename = f"ffmpeg_maixcam2_libs_n{version}.tar.xz"
         path = f"ffmpeg_srcs"
-        check_file = 'ffmpeg_maixcam2_libs'
+        check_file = 'ffmpeg_maixcam2_libs_n{version}'
         rename = {
-            f'ffmpeg_maixcam2_libs_n{version}': 'ffmpeg_maixcam2_libs'
+            f'ffmpeg_maixcam2_libs_n{version}': f'ffmpeg_maixcam2_libs_n{version}'
         }
 
         return [

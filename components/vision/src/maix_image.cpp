@@ -919,7 +919,7 @@ namespace maix::image
             goto __EXIT;
         }
 
-        if (buff && buff_size >= out_frame->len) {
+        if (buff && (int)buff_size >= out_frame->len) {
             memcpy(buff, (uint8_t *)out_frame->data, out_frame->len);
             img = new image::Image(p_img->width(), p_img->height(), format, (uint8_t *)buff, out_frame->len, false);
         } else {

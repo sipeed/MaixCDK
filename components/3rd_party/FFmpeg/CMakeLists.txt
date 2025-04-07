@@ -1,7 +1,7 @@
-set(ffmpeg_version_str "${CONFIG_FFMPEG_VERSION_MAJOR}.${CONFIG_FFMPEG_VERSION_MINOR}.${CONFIG_FFMPEG_VERSION_PATCH}")
+set(ffmpeg_version_str "${CONFIG_FFMPEG_VERSION_MAJOR}.${CONFIG_FFMPEG_VERSION_MINOR}.${CONFIG_FFMPEG_VERSION_PATCH}.${CONFIG_FFMPEG_COMPILED_VERSION}")
 set(ffmpeg_unzip_path "${DL_EXTRACTED_PATH}/ffmpeg_srcs")
 if(PLATFORM_MAIXCAM2)
-    set(src_path "${ffmpeg_unzip_path}/ffmpeg_maixcam2_libs")
+    set(src_path "${ffmpeg_unzip_path}/ffmpeg_maixcam2_libs_n${ffmpeg_version_str}")
 else()
     set(src_path "${ffmpeg_unzip_path}/ffmpeg")
 endif()
@@ -72,16 +72,20 @@ if (PLATFORM_MAIXCAM)
                                 ${src_path}/lib/libswscale.so
                                     )
     list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
+    list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})
     set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
 elseif(PLATFORM_MAIXCAM2)
     set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
                                 ${src_path}/lib/libavdevice.so
                                 ${src_path}/lib/libavfilter.so
                                 ${src_path}/lib/libavformat.so
-                                # ${src_path}/lib/libavresample.so.4
                                 ${src_path}/lib/libavutil.so
                                 ${src_path}/lib/libswresample.so
                                 ${src_path}/lib/libswscale.so)
+
+    if (${ffmpeg_version_str} STREQUAL "4.4.4.1")
+        list(APPEND ffmpeg_dynamic_lib_file ${src_path}/lib/libavresample.so.4)
+    endif()
     list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
     set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
     list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})

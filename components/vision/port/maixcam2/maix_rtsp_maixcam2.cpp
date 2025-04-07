@@ -43,9 +43,6 @@ namespace maix::rtsp
     }
 
     image::Image *Region::get_canvas() {
-        void *data;
-
-
 
         return nullptr;
     }
@@ -107,7 +104,6 @@ namespace maix::rtsp
         int encoder_bitrate;
         int fps;
         int audio_bitrate;
-        unique_ptr<VENC> venc;
     } rtsp_param_t;
 
     Rtsp::Rtsp(std::string ip, int port, int fps, rtsp::RtspStreamType stream_type, int bitrate) {
@@ -144,49 +140,6 @@ namespace maix::rtsp
         param->encoder_bitrate = bitrate;
         param->fps = fps;
         param->audio_bitrate = 128000;
-
-        ax_venc_param_t cfg = {0};
-
-        switch (stream_type) {
-            case RTSP_STREAM_H264:
-                cfg.w = 2560;
-                cfg.h = 1440;
-                cfg.fmt = AX_FORMAT_YUV420_SEMIPLANAR_VU;
-                cfg.type = AX_VENC_TYPE_H264;
-                cfg.h264.bitrate = bitrate;
-                cfg.h264.input_fps = fps;
-                cfg.h264.output_fps = fps;
-                cfg.h264.gop = 120;
-                cfg.h264.intra_qp_delta = -2;
-                cfg.h264.min_qp = 10;
-                cfg.h264.max_qp = 51;
-                cfg.h264.min_iqp = 10;
-                cfg.h264.max_iqp = 51;
-                cfg.h264.min_iprop = 10;
-                cfg.h264.max_iprop = 40;
-                break;
-            case RTSP_STREAM_H265:
-                cfg.w = 2560;
-                cfg.h = 1440;
-                cfg.fmt = AX_FORMAT_YUV420_SEMIPLANAR_VU;
-                cfg.type = AX_VENC_TYPE_H265;
-                cfg.h265.bitrate = bitrate;
-                cfg.h265.input_fps = fps;
-                cfg.h265.output_fps = fps;
-                cfg.h265.gop = 120;
-                cfg.h265.intra_qp_delta = -2;
-                cfg.h265.min_qp = 10;
-                cfg.h265.max_qp = 51;
-                cfg.h265.min_iqp = 10;
-                cfg.h265.max_iqp = 51;
-                cfg.h265.min_iprop = 30;
-                cfg.h265.max_iprop = 40;
-                break;
-            default:
-                err::check_raise(err::ERR_RUNTIME, "unsupport stream type!");
-        }
-
-        param->venc = make_unique<VENC>(&cfg);
     }
 
     Rtsp::~Rtsp() {
@@ -258,7 +211,6 @@ namespace maix::rtsp
         rtsp_param_t *param = (rtsp_param_t *)args;
         MaixRtspServer *rtsp_server = param->rtsp_server;
         int vi_ch = param->camera->get_channel();
-        int enc_ch = 1;
         size_t video_pts = 0, audio_pts = 0;
         uint64_t last_ms = time::ticks_ms();
         bool found_first_pps_sps = false;
@@ -269,15 +221,116 @@ namespace maix::rtsp
             bool is_i_or_b;
         } temp_param_t;
 
+        auto *vi = (VI *)param->camera->get_driver();
+        auto *venc = (VENC *)param->encoder->get_driver();
         while (param->status == RTSP_RUNNING && !app::need_exit()) {
-            void *frame = NULL;
             bool found_camera_frame = false;
             bool found_venc_stream = false;
             bool found_audio_data = false;
+            AX_VENC_STREAM_T venc_stream = {0};
 
-            // if (found_audio_data) {
-            //     delete pcm;
-            // }
+            while (((time::ticks_ms() - last_ms) * 1000) < ((uint64_t)(1000000 / param->fps) - 1000)) {
+                time::sleep_ms(1);
+            }
+
+            // log::info(" loop use %lld ms", time::ticks_ms() - last_ms);
+            last_ms = time::ticks_ms();
+
+            Bytes *pcm = nullptr;
+            if (param->bind_audio_recorder) {
+                int frame_size_per_second = param->ffmpeg_packer->get_audio_frame_size_per_second();
+                uint64_t loop_ms = time::ticks_ms() - last_read_pcm_ms;
+                last_read_pcm_ms = time::ticks_ms();
+                int read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+
+                auto remain_frame_count = param->audio_recorder->get_remaining_frames();
+                auto bytes_per_frame = param->audio_recorder->frame_size();
+                auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+                read_pcm_size = (read_pcm_size + 1023) & ~1023;
+                if (read_pcm_size > remain_frame_bytes) {
+                    read_pcm_size = remain_frame_bytes;
+                }
+                pcm = param->audio_recorder->record_bytes(read_pcm_size);
+            }
+
+            if (pcm) {
+                found_audio_data = true;
+            }
+
+            auto camera_frame = vi->pop(vi_ch);
+            if (camera_frame) {
+                found_camera_frame = true;
+            }
+
+            Frame *venc_frame = venc->pop(100);
+            if (venc_frame) {
+                found_venc_stream = true;
+                venc_frame->get_venc_stream(&venc_stream);
+                // log::info("get venc data:%p size:%d", venc_stream.stPack.pu8Addr, venc_stream.stPack.u32Len);
+            } else {
+                log::error("get venc data timeout");
+            }
+
+            if (rtsp_server->get_clients() > 0) {
+                if (found_venc_stream) {
+                    if (!found_first_pps_sps) {
+                        if (venc_stream.stPack.u32NaluNum > 1) {
+                            found_first_pps_sps = true;
+                            video_pts = 0;
+                        }
+                    }
+
+                    if (found_first_pps_sps) {
+                        int venc_output_data_size = venc_stream.stPack.u32Len;
+                        uint8_t *venc_output_data = nullptr;
+                        venc_output_data = (uint8_t *)malloc(venc_output_data_size);
+                        if (venc_output_data) {
+                            memcpy(venc_output_data, venc_stream.stPack.pu8Addr, venc_output_data_size);
+                            auto _callback = [](void *data, size_t data_size, size_t pts, void *args) {
+                                temp_param_t *param = (temp_param_t *)args;
+                                param->rtsp_server->video_frame_push((uint8_t *)data, data_size, pts, param->is_i_or_b);
+                            };
+
+                            temp_param_t temp_param;
+                            temp_param.rtsp_server = rtsp_server;
+                            temp_param.is_i_or_b = venc_stream.stPack.u32NaluNum > 1 ? true : false;
+
+                            video_pts = get_video_timestamp();
+                            param->ffmpeg_packer->push2(venc_output_data, venc_output_data_size, video_pts, false, _callback, &temp_param);
+                            free(venc_output_data);
+                        }
+                    }
+                }
+
+                if (found_audio_data) {
+                    if (pcm && pcm->data_len > 0) {
+                        auto _callback = [](void *data, size_t data_size, size_t pts, void *args) {
+                            temp_param_t *param = (temp_param_t *)args;
+                            param->rtsp_server->audio_frame_push((uint8_t *)data, data_size, pts);
+                        };
+                        temp_param_t temp_param;
+                        temp_param.rtsp_server = rtsp_server;
+
+                        audio_pts = get_audio_timestamp();
+                        param->ffmpeg_packer->push2(pcm->data, pcm->data_len, audio_pts, true, _callback, &temp_param);
+                    }
+                }
+            } else {
+                found_first_pps_sps = false;
+            }
+
+            if (found_venc_stream) {
+                delete venc_frame;
+            }
+
+            if (found_camera_frame) {
+                venc->push(camera_frame, 1000);
+                delete camera_frame;
+            }
+
+            if (found_audio_data) {
+                delete pcm;
+            }
         }
 
         param->status = RTSP_IDLE;
