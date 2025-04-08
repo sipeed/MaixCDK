@@ -36,13 +36,7 @@ endif()
 
 
 ###### Add required/dependent components ######
-if(PLATFORM_LINUX)
-    list(APPEND ADD_REQUIREMENTS nn)
-elseif(PLATFORM_MAIXCAM)
-    list(APPEND ADD_REQUIREMENTS nn)
-elseif(PLATFORM_MAIXCAM2)
-    list(APPEND ADD_REQUIREMENTS nn)
-endif()
+list(APPEND ADD_REQUIREMENTS nn)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
@@ -63,8 +57,8 @@ endif()
 ###############################################
 
 #### Add compile option for this component ####
-#### Just for this component, won't affect other 
-#### modules, including component that depend 
+#### Just for this component, won't affect other
+#### modules, including component that depend
 #### on this component
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 

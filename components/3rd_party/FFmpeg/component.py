@@ -42,7 +42,7 @@ def add_file_downloads(confs : dict) -> list:
         elif version == "6.1.1.1":
             sha256sum = "a768eef0ab5841d63cb99dc4ee66b0b252b56ecce0bb8d344eb68bb8d6e49735"
         else:
-            raise Exception(f"version {version} not support")
+            raise Exception(f"version {version} not support, please add support in component.py of FFmpeg")
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
         filename = f"ffmpeg_maixcam2_libs_n{version}.tar.xz"
         path = f"ffmpeg_srcs"

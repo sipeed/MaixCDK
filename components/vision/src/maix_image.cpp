@@ -386,6 +386,11 @@ namespace maix::image
             if (!_actual_data)
                 throw err::Exception(err::ERR_NO_MEM, "malloc image data failed");
             _data = (void *)(((uint64_t)_actual_data + 0x1000) & ~0xFFF);
+#if PLATFORM_MAIXCAM
+            // memset(_data, 0, _data_size);
+#else
+            memset(_data, 0, _data_size);
+#endif
             // log::debug("malloc image data\n");
             _is_malloc = true;
         }

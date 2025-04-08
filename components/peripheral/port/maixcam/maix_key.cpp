@@ -47,7 +47,13 @@ namespace maix::peripheral::key
     {
         if(_default_key)
             return;
-        _default_key = new Key(on_key, true, KEY_DEVICE0);
+        try
+        {
+            _default_key = new Key(on_key, true, KEY_DEVICE0);
+        } catch (const std::exception& e) {
+            log::warn("Initialize Key failed, no key driver, %s", e.what());
+            return;
+        }
         _key_defult_listener = true;
     }
 
@@ -353,7 +359,7 @@ namespace maix::peripheral::key
             err::Err e = this->open();
             if (e != err::ERR_NONE)
             {
-                throw err::Exception(err::ERR_NOT_FOUND, std::string("Key device") + this->_device + " not found");
+                throw err::Exception(err::ERR_NOT_FOUND, std::string("Key device ") + this->_device + " not found");
             }
         }
     }
