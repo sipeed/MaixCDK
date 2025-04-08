@@ -530,8 +530,9 @@ namespace maix::middleware::maixcam2 {
 #ifdef __cplusplus
     extern "C" {
 #endif
-    static AX_SENSOR_REGISTER_FUNC_T *COMMON_ISP_GetSnsObj_Static(SAMPLE_SNS_TYPE_E eSnsType)
+    static AX_SENSOR_REGISTER_FUNC_T *COMMON_ISP_GetSnsObj_User(SAMPLE_SNS_TYPE_E eSnsType)
     {
+#if MAIXCAM_LOAD_SENSOR_LIBRARY_WITHOUT_DLOPEN
         AX_SENSOR_REGISTER_FUNC_T *ptSnsHdl = NULL;
         switch (eSnsType) {
 #if CONFIG_AX620E_MSP_ENABLE_SENSOR_LIB
@@ -550,6 +551,9 @@ namespace maix::middleware::maixcam2 {
         }
 
         return ptSnsHdl;
+#else
+        return COMMON_ISP_GetSnsObj(eSnsType);
+#endif
     }
 #ifdef __cplusplus
 };
@@ -577,7 +581,7 @@ namespace maix::middleware::maixcam2 {
             pCam->tSnsClkAttr.nSnsClkIdx = 0;
             pCam->tDevBindPipe.nNum =  1;
             pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-            pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
+            pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_User(eSnsType);
             pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
             pCam->eLoadRawNode = eLoadRawNode;
             __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
@@ -610,7 +614,7 @@ namespace maix::middleware::maixcam2 {
         pCam->tSnsClkAttr.nSnsClkIdx = 0;
         pCam->tDevBindPipe.nNum =  1;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_User(eSnsType);
         pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
         __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
         __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
@@ -645,7 +649,7 @@ namespace maix::middleware::maixcam2 {
         pCam->tDevBindPipe.nNum =  1;
         pCam->eLoadRawNode = eLoadRawNode;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_User(eSnsType);
         pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
         pCam->eInputMode = AX_INPUT_MODE_MIPI;
         __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);

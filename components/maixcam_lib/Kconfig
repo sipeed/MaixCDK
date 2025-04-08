@@ -1,15 +1,24 @@
 menu "runtime lib options"
 config MAIXCAM_LIB_COMPILE_FROM_SOURCE
 	bool "compile maixcam_lib from souce code"
-	default n
+	default y
 	help
 	  push source code in src dir and select this option will compile maixcam_lib from source instead of use libs
 
 if MAIXCAM_LIB_COMPILE_FROM_SOURCE
 config MAIXCAM_LIB_ENC
   bool "enc maixcam_lib"
-  default y
+  default n
   help
     enc maixcam lib, for internal debug usage
+endif
+
+if PLATFORM = "maixcam2"
+config MAIXCAM_LOAD_SENSOR_LIBRARY_WITHOUT_DLOPEN
+  bool "load libsns_xxx.so without dlopen"
+  default n
+  select AX620E_MSP_ENABLE_EXTRA_SENSOR_LIB
+  help
+    Don't call dlopen function to load libsns_xxx.so
 endif
 endmenu
