@@ -47,15 +47,17 @@ if(CONFIG_AX620E_MSP_ENABLE_SENSOR_LIB)
                                         "${msp_glibc_path}/lib/libax_ivps.so"
                                         "${msp_glibc_path}/lib/libax_nt_stream.so"
                                         "${msp_glibc_path}/lib/libax_nt_ctrl.so"
-                                        # sofficial supported sensors
-                                        "${msp_glibc_path}/lib/libsns_sc450ai.so"
-                                        "${msp_glibc_path}/lib/libsns_os04a10.so"
-                                        "${msp_glibc_path}/lib/libsns_gc4653.so"
     )
 endif()
 
 if(CONFIG_AX620E_MSP_ENABLE_EXTRA_SENSOR_LIB)
-    list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libsns_sc500ai.so"
+    list(APPEND libax_dynamic_lib_file  # maixcam2 official supported sensors
+                                        # use dl_open, so we can not add these libs when compile.
+                                        "${msp_glibc_path}/lib/libsns_sc450ai.so"
+                                        "${msp_glibc_path}/lib/libsns_os04a10.so"
+                                        "${msp_glibc_path}/lib/libsns_gc4653.so"
+                                        # others
+                                        "${msp_glibc_path}/lib/libsns_sc500ai.so"
                                         "${msp_glibc_path}/lib/libsns_sc231ai.so"
                                         "${msp_glibc_path}/lib/libsns_imx664.so"
                                         "${msp_glibc_path}/lib/libsns_sc430ai.so"
