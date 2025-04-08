@@ -527,6 +527,33 @@ namespace maix::middleware::maixcam2 {
         }
     }
 
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    static AX_SENSOR_REGISTER_FUNC_T *COMMON_ISP_GetSnsObj_Static(SAMPLE_SNS_TYPE_E eSnsType)
+    {
+        AX_SENSOR_REGISTER_FUNC_T *ptSnsHdl = NULL;
+        switch (eSnsType) {
+#if CONFIG_AX620E_MSP_ENABLE_SENSOR_LIB
+        case OMNIVISION_OS04A10:
+        extern AX_SENSOR_REGISTER_FUNC_T gSnsos04a10Obj;
+            ptSnsHdl = &gSnsos04a10Obj;
+            break;
+        case SMARTSENS_SC450AI:
+        extern AX_SENSOR_REGISTER_FUNC_T gSnssc450aiObj;
+            ptSnsHdl = &gSnssc450aiObj;
+            break;
+#endif
+        default:
+            err::check_raise(err::ERR_NOT_IMPL, "No supported sensor library found");
+            break;
+        }
+
+        return ptSnsHdl;
+    }
+#ifdef __cplusplus
+};
+#endif
     static AX_U32 __sample_case_single_dummy(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
             SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
     {
@@ -550,7 +577,7 @@ namespace maix::middleware::maixcam2 {
             pCam->tSnsClkAttr.nSnsClkIdx = 0;
             pCam->tDevBindPipe.nNum =  1;
             pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-            pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj(eSnsType);
+            pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
             pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
             pCam->eLoadRawNode = eLoadRawNode;
             __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
@@ -583,7 +610,7 @@ namespace maix::middleware::maixcam2 {
         pCam->tSnsClkAttr.nSnsClkIdx = 0;
         pCam->tDevBindPipe.nNum =  1;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj(eSnsType);
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
         pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
         __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
         __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
@@ -618,7 +645,7 @@ namespace maix::middleware::maixcam2 {
         pCam->tDevBindPipe.nNum =  1;
         pCam->eLoadRawNode = eLoadRawNode;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
-        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj(eSnsType);
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj_Static(eSnsType);
         pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
         pCam->eInputMode = AX_INPUT_MODE_MIPI;
         __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);

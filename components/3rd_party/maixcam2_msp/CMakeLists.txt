@@ -48,7 +48,7 @@ if(CONFIG_AX620E_MSP_ENABLE_SENSOR_LIB)
                                         "${msp_glibc_path}/lib/libax_nt_stream.so"
                                         "${msp_glibc_path}/lib/libax_nt_ctrl.so"
                                         # sofficial supported sensors
-                                        "${msp_glibc_path}/lib/libsns_sc850sl.so"
+                                        "${msp_glibc_path}/lib/libsns_sc450ai.so"
                                         "${msp_glibc_path}/lib/libsns_os04a10.so"
                                         "${msp_glibc_path}/lib/libsns_gc4653.so"
     )
@@ -60,7 +60,7 @@ if(CONFIG_AX620E_MSP_ENABLE_EXTRA_SENSOR_LIB)
                                         "${msp_glibc_path}/lib/libsns_imx664.so"
                                         "${msp_glibc_path}/lib/libsns_sc430ai.so"
                                         "${msp_glibc_path}/lib/libsns_s5kjn1sq03.so"
-                                        "${msp_glibc_path}/lib/libsns_sc450ai.so"
+                                        "${msp_glibc_path}/lib/libsns_sc850sl.so"
                                         "${msp_glibc_path}/lib/libsns_imx678.so"
                                         "${msp_glibc_path}/lib/libsns_os04d10.so"
                                         "${msp_glibc_path}/lib/libsns_mis2032.so"
