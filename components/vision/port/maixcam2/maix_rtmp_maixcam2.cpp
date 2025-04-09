@@ -480,7 +480,8 @@ _free_format_context:
                         if (pcm) {
                             if (pcm->data_len == buffer_size) {
                                 const uint8_t *in[] = {pcm->data};
-                                uint8_t *out[] = {audio_frame->data[0]};
+                                uint8_t *out[AV_NUM_DATA_POINTERS] = {0};
+                                memcpy(out, audio_frame->data, AV_NUM_DATA_POINTERS);
                                 swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
                                 audio_frame->pts = next_pts;
                                 if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {

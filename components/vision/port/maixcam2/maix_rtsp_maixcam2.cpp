@@ -268,7 +268,9 @@ namespace maix::rtsp
                 venc_frame->get_venc_stream(&venc_stream);
                 // log::info("get venc data:%p size:%d", venc_stream.stPack.pu8Addr, venc_stream.stPack.u32Len);
             } else {
-                log::error("get venc data timeout");
+                if (found_first_pps_sps) {
+                    log::error("get venc data timeout");
+                }
             }
 
             if (rtsp_server->get_clients() > 0) {

@@ -132,7 +132,7 @@ class FFmpegPacker {
     enum AVCodecID _video_codec_id;
     int _video_width;
     int _video_height;
-    enum AVPixelFormat _vidoe_pixel_format;
+    enum AVPixelFormat _video_pixel_format;
     uint32_t _video_bitrate;
     AVRational _video_timebase;
     uint8_t *_video_sps_pps = nullptr;
@@ -183,7 +183,7 @@ public:
             _video_timebase = (AVRational){1, data};
             return 0;
         } else if (cmd == "video_pixel_format") {
-            _vidoe_pixel_format = (AVPixelFormat)data;
+            _video_pixel_format = (AVPixelFormat)data;
             return 0;
         } else if (cmd == "has_audio") {
             _has_audio = data ? true : false;
@@ -263,7 +263,7 @@ public:
             video_stream->codecpar->codec_id = _video_codec_id;
             video_stream->codecpar->width = _video_width;
             video_stream->codecpar->height = _video_height;
-            video_stream->codecpar->format = _vidoe_pixel_format;
+            video_stream->codecpar->format = _video_pixel_format;
             video_stream->codecpar->bit_rate = _video_bitrate;
             video_stream->codecpar->codec_tag = 0;
             video_stream->codecpar->extradata = _video_sps_pps;
@@ -307,7 +307,6 @@ public:
             audio_codec_ctx->codec_type = AVMEDIA_TYPE_AUDIO;
             audio_codec_ctx->sample_rate = sample_rate;
 #if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
-            audio_codec_ctx->ch_layout.nb_channels = channels;
             av_channel_layout_default(&audio_codec_ctx->ch_layout, channels);
 #else
             audio_codec_ctx->channels = channels;
@@ -336,8 +335,8 @@ public:
             }
 
 #if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
-            av_opt_set_chlayout(swr_ctx, "in_channel_layout", &audio_codec_ctx->ch_layout, 0);
-            av_opt_set_chlayout(swr_ctx, "out_channel_layout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_chlayout(swr_ctx, "in_chlayout", &audio_codec_ctx->ch_layout, 0);
+            av_opt_set_chlayout(swr_ctx, "out_chlayout", &audio_codec_ctx->ch_layout, 0);
 #else
             av_opt_set_int(swr_ctx, "in_channel_layout", audio_codec_ctx->channel_layout, 0);
             av_opt_set_int(swr_ctx, "out_channel_layout", audio_codec_ctx->channel_layout, 0);
@@ -346,7 +345,10 @@ public:
             av_opt_set_int(swr_ctx, "out_sample_rate", audio_codec_ctx->sample_rate, 0);
             av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", format, 0);
             av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
-            swr_init(swr_ctx);
+            if (swr_init(swr_ctx) != 0) {
+				printf("Can't init swr context\r\n");
+                goto _free_audio_codec_ctx;
+            }
 
             AVFrame *audio_frame = av_frame_alloc();
             if (!audio_frame) {
@@ -355,10 +357,9 @@ public:
                 swr_ctx = NULL;
                 goto _free_swr_ctx;
             }
-            memset(audio_frame, 0, sizeof(AVFrame));
             audio_frame->nb_samples = audio_codec_ctx->frame_size;
 #if CONFIG_FFMPEG_VERSION_MAJOR == 6 && CONFIG_FFMPEG_VERSION_MINOR == 1 && CONFIG_FFMPEG_VERSION_PATCH == 1
-            audio_frame->ch_layout = audio_codec_ctx->ch_layout;
+            av_channel_layout_copy(&audio_frame->ch_layout, &audio_codec_ctx->ch_layout);
 #else
             audio_frame->channel_layout = audio_codec_ctx->channel_layout;
 #endif
@@ -499,7 +500,8 @@ _free_format_context:
                 AVPacket *audio_packet = pkt;
 
                 const uint8_t *in[] = {frame};
-                uint8_t *out[] = {audio_frame->data[0]};
+                uint8_t *out[AV_NUM_DATA_POINTERS] = {0};
+                memcpy(out, audio_frame->data, AV_NUM_DATA_POINTERS);
                 swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
                 if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
                     printf("Error send audio_frame to encoder.\n");
@@ -634,7 +636,8 @@ _free_format_context:
                         if (pcm) {
                             if (pcm->data_len == buffer_size) {
                                 const uint8_t *in[] = {pcm->data};
-                                uint8_t *out[] = {audio_frame->data[0]};
+                                uint8_t *out[AV_NUM_DATA_POINTERS] = {0};
+                                memcpy(out, audio_frame->data, AV_NUM_DATA_POINTERS);
                                 swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
                                 audio_frame->pts = next_pts;
                                 if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
@@ -794,7 +797,8 @@ _free_format_context:
                         if (pcm) {
                             if (pcm->data_len == buffer_size) {
                                 const uint8_t *in[] = {pcm->data};
-                                uint8_t *out[] = {audio_frame->data[0]};
+                                uint8_t *out[AV_NUM_DATA_POINTERS] = {0};
+                                memcpy(out, audio_frame->data, AV_NUM_DATA_POINTERS);
                                 swr_convert(swr_ctx, out, audio_codec_ctx->frame_size, in, audio_codec_ctx->frame_size);
                                 audio_frame->pts = next_pts;
                                 if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {

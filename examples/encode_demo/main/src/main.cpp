@@ -206,7 +206,8 @@ static int h264_to_mp4(int argc, char *argv[]) {
                             // save to mp4
                             // log::info("pcm data:%p size:%d list_size:%d", pcm->data, pcm->data_len, pcm_list->size());
                             const uint8_t *in[] = {pcm->data};
-                            uint8_t *out[] = {audio_frame->data[0]};
+                            uint8_t *out[AV_NUM_DATA_POINTERS] = {0};
+                            memcpy(out, audio_frame->data, AV_NUM_DATA_POINTERS);
                             swr_convert(swr_ctx, out, frame_size, in, frame_size);
                             audio_frame->pts = last_pts;
                             if (avcodec_send_frame(audio_codec_ctx, audio_frame) < 0) {
