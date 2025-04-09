@@ -1,14 +1,14 @@
 menu "runtime lib options"
 config MAIXCAM_LIB_COMPILE_FROM_SOURCE
 	bool "compile maixcam_lib from souce code"
-	default y
+	default n
 	help
 	  push source code in src dir and select this option will compile maixcam_lib from source instead of use libs
 
 if MAIXCAM_LIB_COMPILE_FROM_SOURCE
 config MAIXCAM_LIB_ENC
   bool "enc maixcam_lib"
-  default n
+  default y
   help
     enc maixcam lib, for internal debug usage
 endif
