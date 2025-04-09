@@ -1,3 +1,4 @@
 maixcdk_maixcam_lib/
-!lib/libmaixcam_lib.so
+!lib_maixcam/libmaixcam_lib.so
+!lib_maixcam2/libmaixcam_lib.so
 

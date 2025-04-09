@@ -26,6 +26,10 @@ def get_code_def(code):
     start_idx = 0
     while code[start_idx] in [" ", "\t", "\n"]:
         start_idx += 1
+    if code[start_idx:].startswith("//"): # only API comment mode
+        start_idx += 2
+    while code[start_idx] in [" ", "\t"]:
+        start_idx += 1
     code = code[start_idx:]
     def_type = None
     definition = None

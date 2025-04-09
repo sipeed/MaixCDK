@@ -428,7 +428,7 @@ namespace maix::nn
          */
         nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5, int sort = 0)
         {
-            #define SHOW_DETECT_TIME 1
+#define SHOW_DETECT_TIME 0
             this->_conf_th = conf_th;
             this->_iou_th = iou_th;
             this->_keypoint_th = keypoint_th;

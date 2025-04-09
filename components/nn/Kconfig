@@ -1,7 +1,7 @@
 
 menu "nn component configuration"
 config NN_ENABLE
-    bool "Enable nn component"
+    bool # not visable in menuconfig, just for dependency use.
     default y
     select AX620E_MSP_ENABLE_NPU_LIB if PLATFORM = "maixcam2"
     help

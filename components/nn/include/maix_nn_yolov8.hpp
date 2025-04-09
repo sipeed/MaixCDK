@@ -45,10 +45,7 @@ namespace maix::nn
          * @return err::Err
          * @maixpy maix.nn.YOLOv8.load
          */
-        err::Err load(const string &model)
-        {
-            return YOLO11::load(model);
-        }
+        // err::Err load(const string &model);
 
         /**
          * Detect objects from image
@@ -63,50 +60,35 @@ namespace maix::nn
          *         If model is yolov8-pose, object's points have value, and if points' value < 0 means that point is invalid(conf < keypoint_th).
          * @maixpy maix.nn.YOLOv8.detect
          */
-        nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5, int sort = 0)
-        {
-            return YOLO11::detect(img, conf_th, iou_th, fit, keypoint_th, sort);
-        }
+        // nn::Objects *detect(image::Image &img, float conf_th = 0.5, float iou_th = 0.45, maix::image::Fit fit = maix::image::FIT_CONTAIN, float keypoint_th = 0.5, int sort = 0);
 
         /**
          * Get model input size
          * @return model input size
          * @maixpy maix.nn.YOLOv8.input_size
          */
-        image::Size input_size()
-        {
-            return YOLO11::input_size();
-        }
+        // image::Size input_size();
 
         /**
          * Get model input width
          * @return model input size of width
          * @maixpy maix.nn.YOLOv8.input_width
          */
-        int input_width()
-        {
-            return YOLO11::input_width();
-        }
+        // int input_width();
 
         /**
          * Get model input height
          * @return model input size of height
          * @maixpy maix.nn.YOLOv8.input_height
          */
-        int input_height()
-        {
-            return YOLO11::input_height();
-        }
+        // int input_height();
 
         /**
          * Get input image format
          * @return input image format, image::Format type.
          * @maixpy maix.nn.YOLOv8.input_format
          */
-        image::Format input_format()
-        {
-            return YOLO11::input_format();
-        }
+        // image::Format input_format();
 
         /**
          * Draw pose keypoints on image
@@ -119,10 +101,7 @@ namespace maix::nn
          * @param close connect all points to close a polygon, default false.
          * @maixpy maix.nn.YOLOv8.draw_pose
          */
-        void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, const std::vector<image::Color> &colors = std::vector<image::Color>(), bool body = true, bool close = false)
-        {
-            YOLO11::draw_pose(img, points, radius, color, colors, body,close);
-        }
+        // void draw_pose(image::Image &img, std::vector<int> points, int radius = 4, image::Color color = image::COLOR_RED, const std::vector<image::Color> &colors = std::vector<image::Color>(), bool body = true, bool close = false);
 
         /**
          * Draw segmentation on image
@@ -131,10 +110,7 @@ namespace maix::nn
          * @param threshold only mask's value > threshold will be draw on image, value from 0 to 255.
          * @maixpy maix.nn.YOLOv8.draw_seg_mask
          */
-        void draw_seg_mask(image::Image &img, int x, int y, image::Image &seg_mask, int threshold = 127)
-        {
-            YOLO11::draw_seg_mask(img, x, y, seg_mask, threshold);
-        }
+        // void draw_seg_mask(image::Image &img, int x, int y, image::Image &seg_mask, int threshold = 127);
 
     public:
         /**

@@ -1,6 +1,6 @@
 menu "vision component configuration"
 config VISION_ENABLE
-    bool "Enable vision component"
+    bool # not visable in menuconfig, just for dependency use.
     default y
     select AX620E_MSP_ENABLE_NPU_LIB    if PLATFORM = "maixcam2"
     select AX620E_MSP_ENABLE_SENSOR_LIB if PLATFORM = "maixcam2"

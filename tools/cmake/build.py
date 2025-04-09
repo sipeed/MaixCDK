@@ -75,16 +75,16 @@ def get_components_files(components, valid_components, kconfigs):
             files[name] = []
     return files
 
-def get_component_requirements(component_name, component_dir, find_dirs):
+def get_component_requirements(component_name, component_dir, find_dirs, platform):
     requires = []
     component_py = os.path.join(component_dir, "component.py")
     if os.path.exists(component_py):
-        found, requires = execute_component_py_func(component_py, "add_requirements", find_dirs)
+        found, requires = execute_component_py_func(component_py, "add_requirements", platform, find_dirs)
         if not found:
             requires = []
     return requires
 
-def find_valid_components(components, find_dirs):
+def find_valid_components(components, find_dirs, platform):
     '''
         get project depends(not accurately, just exclude some obvious not depend components)
         return valid components name
@@ -95,7 +95,7 @@ def find_valid_components(components, find_dirs):
         component_py = os.path.join(dir, "component.py")
         found = False
         if os.path.exists(component_py):
-            found, depends_component = execute_component_py_func(component_py, "add_requirements", find_dirs)
+            found, depends_component = execute_component_py_func(component_py, "add_requirements", platform, find_dirs)
         if not found:
             cmakelist = os.path.join(dir, "CMakeLists.txt")
             with open(cmakelist, "r", encoding="utf-8") as f:
@@ -143,7 +143,7 @@ def get_components_find_dirs(configs):
 
 def get_all_components_dl_info(find_dirs, kconfigs):
     components = get_components_dirs(find_dirs)
-    valid_components = find_valid_components(components, find_dirs)
+    valid_components = find_valid_components(components, find_dirs, kconfigs["PLATFORM"])
     files_info = get_components_files(components, valid_components, kconfigs)
     return files_info
 
@@ -315,18 +315,19 @@ def menuconfig(sdk_path, build_path, configs, gui = True):
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
+    platform = sys.argv[2]
     if cmd == "get_valid_components":
-        find_dirs = sys.argv[2:]
+        find_dirs = sys.argv[3:]
         for dir in find_dirs:
             if " " in dir:
                 raise Exception("Path can not contain space or special characters")
         components = get_components_dirs(find_dirs)
-        valid_components = find_valid_components(components, find_dirs)
+        valid_components = find_valid_components(components, find_dirs, platform)
         print(";".join(valid_components), end="")
     elif cmd == "get_requirements":
-        find_dirs = sys.argv[4:]
+        find_dirs = sys.argv[5:]
         for dir in find_dirs:
             if " " in dir:
                 raise Exception("Path can not contain space or special characters")
-        requires = get_component_requirements(sys.argv[2], sys.argv[3], find_dirs)
+        requires = get_component_requirements(sys.argv[3], sys.argv[4], find_dirs, platform)
         print(";".join(requires), end="")
