@@ -36,9 +36,13 @@ extern "C" {
 using namespace maix;
 
 namespace maix::middleware::maixcam2 {
+    class Frame;
     class SYS;
     class VENC;
     class ENGINE;
+    err::Err ax_jpg_enc_init(void);
+    err::Err ax_jpg_enc_deinit(void);
+    maixcam2::Frame *ax_jpg_enc_once(maixcam2::Frame *frame, int quality);
 
     typedef enum {
         AX_VENC_TYPE_JPG = 0,
@@ -826,6 +830,27 @@ namespace maix::middleware::maixcam2 {
             if (__is_inited) {
                 deinit();
             }
+
+            // release jpg
+            ax_sys_mod_t *sys_param = nullptr;
+            auto &mod_param = AxModuleParam::getInstance();
+
+            mod_param.lock(AX_MOD_SYS);
+            sys_param = (ax_sys_mod_t *)mod_param.get_param(AX_MOD_SYS);
+            auto sys_init_count = sys_param->init_count;
+            mod_param.unlock(AX_MOD_SYS);
+
+            mod_param.lock(AX_MOD_JPG);
+            auto jpg_param = (ax_jpg_mod_t *)mod_param.get_param(AX_MOD_JPG);
+            auto jpg_init_count = jpg_param->init_count;
+            mod_param.unlock(AX_MOD_JPG);
+
+            if (sys_init_count == 1 && jpg_init_count > 0) {
+                auto err = ax_jpg_enc_deinit();
+                if (err != err::ERR_NONE) {
+                    log::error("ax_jpg_enc_deinit failed, err: %d", err);
+                }
+            }
         }
 
         err::Err init() {
@@ -994,10 +1019,6 @@ namespace maix::middleware::maixcam2 {
     private:
         int _ch;
     };
-
-    err::Err ax_jpg_enc_init(void);
-    err::Err ax_jpg_enc_deinit(void);
-    maixcam2::Frame *ax_jpg_enc_once(maixcam2::Frame *frame, int quality);
 
     class VDEC {
     public:
