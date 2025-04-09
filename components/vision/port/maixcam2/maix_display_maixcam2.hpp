@@ -105,6 +105,8 @@ namespace maix::display
                                 || _format == image::FMT_YVU420SP
                                 || _format == image::FMT_BGRA8888, "Format not support");
 
+            _bl_pwm = nullptr;
+
         }
 
         DisplayAx(int layer, int width, int height, image::Format format)
@@ -123,6 +125,8 @@ namespace maix::display
             this->_layer = layer;       // layer 0 means vedio layer
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
+
+            _bl_pwm = nullptr;
         }
 
         ~DisplayAx()
