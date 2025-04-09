@@ -13,17 +13,6 @@
 #include <fcntl.h>
 #include <list>
 
-extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/avutil.h>
-#include <libavutil/opt.h>
-#include <libswscale/swscale.h>
-#include <libavutil/imgutils.h>
-#include <libswresample/swresample.h>
-}
-#include "sophgo_middleware.hpp"
-
 using namespace maix;
 using namespace maix::network;
 

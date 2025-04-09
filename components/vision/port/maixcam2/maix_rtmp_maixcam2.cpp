@@ -21,7 +21,10 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
+#include "ax_middleware.hpp"
+
 using namespace maix;
+using namespace maix::middleware::maixcam2;
 
 class RTMPClient
 {
@@ -700,8 +703,192 @@ namespace maix::rtmp {
 	static void _push_camera_thread(void *priv)
 	{
 		PrivateParam *param = (PrivateParam *)priv;
-		// camera::Camera *camera = *param->camera;
-		// audio::Recorder *audio_recorder = *param->recorder;
+		camera::Camera *camera = *param->camera;
+		audio::Recorder *audio_recorder = *param->recorder;
+		video::Encoder *video_encoder = *param->encoder;
+		// display::Display *disp = *param->display;
+		RTMPClient *rtmp_client = param->rtmp_client;
+		int vi_ch = camera->get_channel();
+
+		uint64_t video_pts = 0, audio_pts = 0;
+        uint64_t last_read_pcm_ms = 0, last_read_cam_ms = 0;
+        bool has_audio = audio_recorder ? true : false;
+
+        auto *vi = (VI *)camera->get_driver();
+        auto *venc = (VENC *)video_encoder->get_driver();
+        // clear pcm buffer
+        if (has_audio) {
+            Bytes *pcm_data = audio_recorder->record();
+            if (pcm_data) {
+                delete pcm_data;
+                pcm_data = NULL;
+            }
+        }
+
+		param->status = PrivateParam::RTMP_RUNNING;
+		while (param->status == PrivateParam::RTMP_RUNNING && !app::need_exit()) {
+			// /* sync video and audio pts */
+			audio_pts = video_pts;
+			// log::info("[VIDEO] %d(pts:%d) [AUDIO] %d(pts:%d)", last_read_cam_ms, video_pts, last_read_pcm_ms, audio_pts);
+
+            bool found_cam_frame = false;
+            bool found_venc_stream = false;
+            AX_VENC_STREAM_T venc_stream = {0};
+
+            auto cam_frame = vi->pop(vi_ch);
+            if (cam_frame) {
+                found_cam_frame = true;
+            }
+
+            auto *venc_frame = venc->pop(100);
+            if (!venc_frame) {
+                found_venc_stream = false;
+            } else {
+                found_venc_stream = true;
+                venc_frame->get_venc_stream(&venc_stream);
+            }
+
+			if (param->status == PrivateParam::RTMP_STOP) {
+				if (found_venc_stream) {
+					delete venc_frame;
+                    venc_frame = NULL;
+                    found_venc_stream = false;
+				}
+
+				if (found_cam_frame) {
+                    delete cam_frame;
+                    cam_frame = NULL;
+                    found_cam_frame = false;
+				}
+				break;
+			}
+
+            if (found_venc_stream) {
+                if (!rtmp_client->is_opened()) {
+                    if (venc_stream.stPack.u32NaluNum > 1) {
+                        int sps_pps_size = 0;
+                        for (int i = 0; i < (int)venc_stream.stPack.u32NaluNum - 1; i++) {
+                            sps_pps_size += venc_stream.stPack.stNaluInfo[i].u32NaluLength;
+                        }
+                        uint8_t *sps_pps = (uint8_t *)malloc(sps_pps_size);
+                        if (sps_pps) {
+                            for (int i = 0; i < (int)venc_stream.stPack.u32NaluNum - 1; i++) {
+                                memcpy(sps_pps +  venc_stream.stPack.stNaluInfo[i].u32NaluOffset,
+                                        venc_stream.stPack.pu8Addr + venc_stream.stPack.stNaluInfo[i].u32NaluOffset,
+                                        venc_stream.stPack.stNaluInfo[i].u32NaluLength);
+                            }
+                            if (err::ERR_NONE == rtmp_client->config_sps_pps(sps_pps, sps_pps_size)) {
+								while (err::ERR_NONE != rtmp_client->open()) {
+									if (param->status == PrivateParam::RTMP_STOP) {
+										break;
+									}
+									time::sleep_ms(500);
+									log::info("Can't connect rtmp server, retry again..");
+								}
+
+                                if (has_audio) {
+                                    Bytes *pcm_data = audio_recorder->record();
+                                    if (pcm_data) {
+                                        delete pcm_data;
+                                        pcm_data = NULL;
+                                    }
+                                }
+
+                                last_read_pcm_ms = 0;
+                                last_read_cam_ms = 0;
+                            } else {
+                                log::error("rtmp init failed!");
+                                break;
+                            }
+                            free(sps_pps);
+                        }
+                    }
+                }
+
+                if (rtmp_client->is_opened()) {
+                    uint8_t *data = NULL;
+                    int data_size = 0;
+                    if (venc_stream.stPack.u32NaluNum == 1) {
+                        data = venc_stream.stPack.pu8Addr;
+                        data_size = venc_stream.stPack.u32Len;
+                    } else if (venc_stream.stPack.u32NaluNum > 1) {
+                        data = venc_stream.stPack.pu8Addr + venc_stream.stPack.stNaluInfo[venc_stream.stPack.u32NaluNum - 1].u32NaluOffset;
+                        data_size = venc_stream.stPack.stNaluInfo[venc_stream.stPack.u32NaluNum - 1].u32NaluLength;
+                    }
+
+                    if (data_size) {
+                        if (last_read_cam_ms == 0) {
+                            video_pts = 0;
+                            last_read_cam_ms = time::ticks_ms();
+                        } else {
+                            video_pts += rtmp_client->ms_to_pts(rtmp_client->get_video_timebase(), time::ticks_ms() - last_read_cam_ms);
+                            last_read_cam_ms = time::ticks_ms();
+                        }
+                        if (err::ERR_NONE != rtmp_client->push(data, data_size, video_pts)) {
+                            log::error("rtmp push failed!");
+                            break;
+                        }
+                    }
+                }
+
+                if (venc_frame) {
+                    delete venc_frame;
+                }
+            }
+
+            if (has_audio && rtmp_client->is_opened()) {
+                int frame_size_per_second = rtmp_client->get_frame_size_per_second();
+                uint64_t loop_ms = 0;
+                int read_pcm_size = 0;
+                if (last_read_pcm_ms == 0) {
+                    loop_ms = 30;
+                    read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+                    audio_pts = 0;
+                    last_read_pcm_ms = time::ticks_ms();
+                } else {
+                    loop_ms = time::ticks_ms() - last_read_pcm_ms;
+                    last_read_pcm_ms = time::ticks_ms();
+
+                    read_pcm_size = frame_size_per_second * loop_ms * 1.5 / 1000;
+                    audio_pts += rtmp_client->ms_to_pts(rtmp_client->get_audio_timebase(), loop_ms);
+                }
+
+                auto remain_frame_count = audio_recorder->get_remaining_frames();
+                auto bytes_per_frame = audio_recorder->frame_size();
+                auto remain_frame_bytes = remain_frame_count * bytes_per_frame;
+                read_pcm_size = (read_pcm_size + 1023) & ~1023;
+                if (read_pcm_size > remain_frame_bytes) {
+                    read_pcm_size = remain_frame_bytes;
+                }
+                // log::info("pts:%d  pts %f s", audio_pts, rtmp_client->timebase_to_ms(rtmp_client->get_audio_timebase(), audio_pts) / 1000);
+                Bytes *pcm_data = audio_recorder->record_bytes(read_pcm_size);
+                if (pcm_data) {
+                    if (pcm_data->data_len > 0) {
+                        if (err::ERR_NONE != rtmp_client->push(pcm_data->data, pcm_data->data_len, audio_pts, true)) {
+                            log::error("rtmp push failed!");
+                            break;
+                        }
+                    }
+                    delete pcm_data;
+                }
+            }
+
+            if (found_cam_frame) {
+                // push vi to venc
+                if (0 != venc->push(cam_frame, 1000)) {
+                    log::error("mmf venc push error!");
+                }
+
+                // // push image to vo
+                // if (disp && disp->is_opened()) {
+                //     mmf_vo_frame_push2(0, 0, 2, cam_frame);
+                // }
+
+                if (found_cam_frame) {
+                    delete cam_frame;
+                }
+            }
+		}
 
 		param->status = PrivateParam::RTMP_IDLE;
 	}
