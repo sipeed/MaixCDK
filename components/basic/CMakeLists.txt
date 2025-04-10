@@ -22,6 +22,10 @@ elseif(PLATFORM_MAIXCAM2)
 append_srcs_dir(ADD_SRCS "port/maixcam2")
 endif()
 
+if(CONFIG_OMP_ENABLE)
+    list(APPEND ADD_DEFINITIONS -fopenmp)
+endif()
+
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test.c")
 # set(ADD_ASM_SRCS "src/asm.S")
 # list(APPEND ADD_SRCS ${ADD_ASM_SRCS})

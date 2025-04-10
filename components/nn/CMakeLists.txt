@@ -11,7 +11,6 @@ if(PLATFORM_MAIXCAM)
     list(APPEND ADD_DEFINITIONS -DDR_WAV_IMPLEMENTATION)
 else()
     append_srcs_dir(ADD_SRCS "port/linux")
-    list(APPEND ADD_DEFINITIONS -fopenmp)
 endif()
 
 register_component()
