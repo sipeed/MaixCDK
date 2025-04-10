@@ -177,7 +177,8 @@ namespace maix::image
             std::vector<int> pixels;
             if (!(_format == image::Format::FMT_RGB888 || _format == image::Format::FMT_BGR888 ||
                 _format == image::Format::FMT_RGB565 || _format == image::Format::FMT_BGR565 ||
-                _format == image::Format::FMT_GRAYSCALE)) {
+                _format == image::Format::FMT_GRAYSCALE ||
+                _format == image::Format::FMT_RGBA8888 || _format == image::Format::FMT_BGRA8888)) {
                 log::error("get_pixel not support format: %d\r\n", _format);
                 return pixels;
             }
@@ -224,6 +225,23 @@ namespace maix::image
                 }
                 break;
             }
+            case image::Format::FMT_RGBA8888: // fall through
+            case image::Format::FMT_BGRA8888:
+                if (!rgbtuple) {
+                    int value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
+                    pixels.push_back(value);
+                } else {
+                    int value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
+                    int v0 = (value >> 24) & 0xFF;
+                    int v1 = (value >> 16) & 0xFF;
+                    int v2 = (value >> 8) & 0xFF;
+                    int v3 = value & 0xFF;
+                    pixels.push_back(v0);
+                    pixels.push_back(v1);
+                    pixels.push_back(v2);
+                    pixels.push_back(v3);
+                }
+                break;
             default:
                 log::error("get_pixel not support format: %d\r\n", _format);
                 break;
@@ -246,7 +264,8 @@ namespace maix::image
         err::Err set_pixel(int x, int y, std::vector<int> pixel) {
             if (!(_format == image::Format::FMT_RGB888 || _format == image::Format::FMT_BGR888 ||
                 _format == image::Format::FMT_RGB565 || _format == image::Format::FMT_BGR565 ||
-                _format == image::Format::FMT_GRAYSCALE)) {
+                _format == image::Format::FMT_GRAYSCALE ||
+                _format == image::Format::FMT_RGBA8888 || _format == image::Format::FMT_BGRA8888)) {
                 log::error("get_pixel not support format: %d\r\n", _format);
                 return err::Err::ERR_RUNTIME;
             }
@@ -295,7 +314,20 @@ namespace maix::image
                 }
                 break;
             }
-
+            case image::Format::FMT_RGBA8888: // fall through
+            case image::Format::FMT_BGRA8888:
+                if (pixel.size() == 1) {
+                    ((uint32_t *)_data)[y * _width + x] = (uint32_t)pixel[0];
+                } else if (pixel.size() == 4) {
+                    ((uint8_t *)_data)[(y * _width << 2) + (x << 2) + 0] = pixel[0];
+                    ((uint8_t *)_data)[(y * _width << 2) + (x << 2) + 1] = pixel[1];
+                    ((uint8_t *)_data)[(y * _width << 2) + (x << 2) + 2] = pixel[2];
+                    ((uint8_t *)_data)[(y * _width << 2) + (x << 2) + 3] = pixel[3];
+                } else {
+                    log::error("set_pixel pixel size must be 1 or 4, but %d\r\n", pixel.size());
+                    return err::Err::ERR_RUNTIME;
+                }
+                break;
             default:
                 log::error("get_pixel not support format: %d\r\n", _format);
                 break;

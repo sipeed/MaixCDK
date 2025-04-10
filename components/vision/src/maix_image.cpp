@@ -722,7 +722,7 @@ namespace maix::image
                 cvt_code = cv::COLOR_RGBA2BGRA;
                 break;
             case image::FMT_YVU420SP:
-                cvt_code = cv::COLOR_BGR2YUV_YV12;
+                cvt_code = cv::COLOR_RGB2YUV_YV12;
                 break;
             default:
                 throw err::Exception(err::ERR_NOT_IMPL, "not support format");
