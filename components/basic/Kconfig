@@ -1,0 +1,23 @@
+menu "Basic config"
+config OMP_ENABLE
+    bool "Enable omp"
+    default n if PLATFORM = "maixcam"
+    default y if PLATFORM = "maixcam2"
+    help
+        Enable OMP to accelerate performance on multi-core platforms.
+config OMP_ENABLE_DYNAMIC
+    bool "Enable omp dynamic"
+    default n if PLATFORM = "maixcam"
+    default n if PLATFORM = "maixcam2"
+    depends on OMP_ENABLE
+    help
+        Enable or disable dynamic adjustment of the number of threads in a parallel region
+
+config OMP_THREAD_NUMBER
+    int "Config omp thread number"
+    default 1 if PLATFORM = "maixcam"
+    default 2 if PLATFORM = "maixcam2"
+    depends on OMP_ENABLE
+    help
+        Set the number of threads that will be used in parallel regions
+endmenu

@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <vector>
 
+#if CONFIG_OMP_ENABLE
+#include "omp.h"
+#endif
+
 namespace maix::util
 {
     void disable_kernel_debug() {
@@ -43,6 +47,17 @@ namespace maix::util
     }
 
     static std::vector<void(*)()> *exit_function_list;
+
+    void init_before_main() {
+#if CONFIG_OMP_ENABLE
+#if OMP_ENABLE_DYNAMIC
+        omp_set_dynamic(1);
+#else
+        omp_set_dynamic(0);
+#endif
+        omp_set_num_threads(CONFIG_OMP_THREAD_NUMBER);
+#endif
+    }
 
     void register_exit_function(void (*process)(void)) {
         if (exit_function_list == nullptr) {

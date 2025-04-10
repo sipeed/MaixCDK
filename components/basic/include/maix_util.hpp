@@ -19,6 +19,7 @@ namespace maix::util
     */
     #define CATCH_EXCEPTION_RUN_RETURN(func, err_ret_value, ...) \
         while(1){ \
+            maix::util::init_before_main();\
             try \
             { \
                 int ret = (int)func(__VA_ARGS__); \
@@ -66,6 +67,13 @@ namespace maix::util
      * @maixcdk maix.util.enable_kernel_debug
     */
     void enable_kernel_debug();
+
+    /**
+     * @brief Initialize before main
+     * The function is used to add preparatory operations that need to be executed before the main program runs.
+     * @maixpy maix.util.init_before_main
+    */
+    void init_before_main();
 
     /**
      * @brief register exit function

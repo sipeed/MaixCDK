@@ -13,6 +13,9 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <sched.h>
+#include <thread>
+#include "omp.h"
 #ifdef PLATFORM_MAIXCAM
 #include "sophgo_middleware.hpp"
 #elif defined(PLATFORM_MAIXCAM2)
@@ -1551,8 +1554,21 @@ __EXIT:
     image::Image *Image::copy()
     {
         image::Image *ret = new image::Image(_width, _height, _format);
-        ;
+
+#if defined(PLATFORM_MAIXCAM2)
+        auto src = (uint8_t *)_data;
+        auto dst = (uint8_t *)ret->data();
+        auto copy_size = ret->data_size() / 2;
+#pragma omp parallel sections
+{
+#pragma omp section
+        memcpy(dst, src, copy_size);
+#pragma omp section
+        memcpy(dst + copy_size, src + copy_size, copy_size);
+}
+#else
         memcpy(ret->data(), _data, _width * _height * image::fmt_size[_format]);
+#endif
         return ret;
     }
 
@@ -1692,6 +1708,26 @@ __EXIT:
             if (!ok)
                 return err::ERR_RUNTIME;
             break;
+        case FMT_YVU420SP:
+        {
+            cv::Mat bgr;
+            img.rows = _height * 3 / 2;
+            cv::cvtColor(img, bgr, cv::COLOR_YUV2BGR_NV21);
+            ok = cv::imwrite(path, bgr, params);
+            if (!ok)
+                return err::ERR_RUNTIME;
+            break;
+        }
+        case FMT_YUV420SP:
+        {
+            cv::Mat bgr;
+            img.rows = _height * 3 / 2;
+            cv::cvtColor(img, bgr, cv::COLOR_YUV2BGR_NV12);
+            ok = cv::imwrite(path, bgr, params);
+            if (!ok)
+                return err::ERR_RUNTIME;
+            break;
+        }
         case FMT_JPEG:
         {
             std::string lower_path(path);
