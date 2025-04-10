@@ -22,6 +22,7 @@
 #include "ax_middleware.hpp"
 using namespace maix::middleware;
 #endif
+#include <omp.h>
 
 namespace maix::image
 {
@@ -357,7 +358,7 @@ namespace maix::image
         }
     }
 
-    void Image::_create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy)
+    void Image::_create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg)
     {
         _format = format;
         _width = width;
@@ -389,12 +390,60 @@ namespace maix::image
             if (!_actual_data)
                 throw err::Exception(err::ERR_NO_MEM, "malloc image data failed");
             _data = (void *)(((uint64_t)_actual_data + 0x1000) & ~0xFFF);
-#if PLATFORM_MAIXCAM
-            // memset(_data, 0, _data_size);
-#else
-            memset(_data, 0, _data_size);
-#endif
-            // log::debug("malloc image data\n");
+            // set background color
+            if(bg.format == image::FMT_INVALID)
+            {
+                // do nothing
+            }
+            else if(bg.format == image::FMT_GRAYSCALE)
+            {
+                memset(_data, bg.gray, _data_size);
+            }
+            else if ((bg.format == image::FMT_RGB888 || bg.format == image::FMT_BGR888) && (_format == image::FMT_RGB888 || _format == image::FMT_BGR888))
+            {
+                if(bg.r == bg.g && bg.g == bg.b)
+                {
+                    memset(_data, bg.r, _data_size);
+                }
+                else
+                {
+                    uint8_t *p = (uint8_t *)_data;
+                    #pragma omp parallel for
+                    for (int i = 0; i < _width * _height; i++)
+                    {
+                        p[i * 3] = bg.r;
+                        p[i * 3 + 1] = bg.g;
+                        p[i * 3 + 2] = bg.b;
+                    }
+                }
+            }
+            else if ((bg.format == image::FMT_RGBA8888 || bg.format == image::FMT_BGRA8888) && (_format == image::FMT_RGBA8888 || _format == image::FMT_BGRA8888))
+            {
+                if(bg.r == bg.g && bg.g == bg.b && bg.alpha == 255)
+                {
+                    memset(_data, bg.r, _data_size);
+                }
+                else
+                {
+                    uint8_t *p = (uint8_t *)_data;
+                    #pragma omp parallel for
+                    for (int i = 0; i < _width * _height; i++)
+                    {
+                        p[i * 4] = bg.r;
+                        p[i * 4 + 1] = bg.g;
+                        p[i * 4 + 2] = bg.b;
+                        p[i * 4 + 3] = bg.alpha;
+                    }
+                }
+            }
+            else
+            {
+                free(_actual_data);
+                _actual_data = NULL;
+                _data = NULL;
+                log::error("image bg format not support, format: %d\n", bg.format);
+                throw err::Exception(err::ERR_ARGS, "image bg format not support, use grayscale(recommend)/rgb/rgba");
+            }
             _is_malloc = true;
         }
         else
@@ -418,17 +467,17 @@ namespace maix::image
         }
     }
 
-    Image::Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy)
+    Image::Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg)
     {
-        _create_image(width, height, format, data, data_size, copy);
+        _create_image(width, height, format, data, data_size, copy, bg);
     }
 
-    Image::Image(int width, int height, image::Format format)
+    Image::Image(int width, int height, image::Format format, const image::Color &bg)
     // Image::Image(int width, int height, image::Format format, Bytes *data, bool copy)
     {
         // if(!data)
         // {
-        _create_image(width, height, format, nullptr, 0, false);
+        _create_image(width, height, format, nullptr, 0, false, bg);
         // return;
         // }
         // _create_image(width, height, format, data->data, data->size(), copy);
@@ -1378,7 +1427,7 @@ __EXIT:
             cv_dst_h = height + height / 2;
             break;
         default:
-            throw std::runtime_error("not support format");
+            throw std::runtime_error("image resize: not support format");
             break;
         }
         /// calculate size if width or height is -1

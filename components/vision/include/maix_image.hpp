@@ -69,10 +69,13 @@ namespace maix::image
          * @param width image width, should > 0
          * @param height image height, should > 0
          * @param format image format @see image::Format
+         * @param bg background color, default is black, grayscale color will be faster,
+         *           if bg is image.COLOR_INVALID, will not fill background color, so background may be garbage(random content).
+         *           So you can set to image.COLOR_INVALID to save time in some case.
          * @maixpy maix.image.Image.__init__
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format = image::Format::FMT_RGB888);
+        Image(int width, int height, image::Format format = image::Format::FMT_RGB888, const image::Color &bg = image::Color::from_gray(0));
         // Image(int width, int height, image::Format format = image::Format::FMT_RGB888, Bytes *data = nullptr, bool copy = true);
 
         /**
@@ -85,9 +88,12 @@ namespace maix::image
          * If the image is in jpeg format, data must be filled in.
          * @param data_size image data size, only for compressed format like jpeg png, data_size must be filled in, or should be -1, default is -1.
          * @param copy if true and data is not nullptr, will copy data to new buffer, else will use data directly. default is true to avoid memory leak.
+         * @param bg background color, default is black, grayscale color will be faster,
+         *           if bg is image.COLOR_INVALID, will not fill background color, so background may be garbage(random content).
+         *           So you can set to image.COLOR_INVALID to save time in some case.
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy);
+        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::Color::from_gray(0));
 
         Image() {
             _width = 0;
@@ -1558,7 +1564,7 @@ namespace maix::image
 
         int _get_cv_pixel_num(image::Format &format);
         std::vector<int> _get_available_roi(std::vector<int> roi, std::vector<int> other_roi = std::vector<int>());
-        void _create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy);
+        void _create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::Color::from_gray(0));
     }; // class Image
 
     /**

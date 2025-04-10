@@ -53,13 +53,14 @@ namespace maix::image
                 this->alpha = alpha;
                 break;
             case image::FMT_RGBA8888:
+            case image::FMT_INVALID:
                 r = ch1;
                 g = ch2;
                 b = ch3;
                 this->alpha = alpha;
                 break;
             default:
-                throw std::runtime_error("not support format");
+                throw std::runtime_error("Color construct: not support format");
                 break;
             }
         }
@@ -292,5 +293,10 @@ namespace maix::image
      * @maixpy maix.image.COLOR_GRAY
     */
     const image::Color COLOR_GRAY = image::Color::from_rgb(127, 127, 127);
+    /**
+     * Predefined color invalid, for special usage.
+     * @maixpy maix.image.COLOR_INVALID
+    */
+    const image::Color COLOR_INVALID = image::Color(0, 0, 0, 0, image::Format::FMT_INVALID);
 
 }
