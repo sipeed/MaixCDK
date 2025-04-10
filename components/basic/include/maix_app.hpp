@@ -243,6 +243,7 @@ namespace maix::app
 
     /**
      * Get system config item value.
+     * You can find all supported config items in https://wiki.sipeed.com/maixpy/doc/zh/basic/app.html .
      * @param item name of setting item, e.g. wifi, language. more see settings APP.
      * @param key config key, e.g. for wifi, key can be ssid, for language, key can be locale.
      * @param value default value, if not found, return this value.
@@ -254,8 +255,10 @@ namespace maix::app
 
     /**
      * Set system config item value.
-     * It's not recommend to use this method in your APP, this method should only called by settings APP.
-     * This method may deprecated in future.
+     * @attention It's not recommend to use this method in your APP, this method should only called by settings APP.
+     * If you have to do set config in your APP, some settings will not take effect until restart APP or reboot.
+     * For example, if you change wifi ssid here, wifi will not take effect until reboot, it is recommend to call wifi API to connect.
+     * @maixpy maix.app.set_sys_config_kv
     */
     err::Err set_sys_config_kv(const string &item, const string &key, const string &value, bool write_file = true);
 

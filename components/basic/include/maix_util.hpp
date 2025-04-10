@@ -93,5 +93,72 @@ namespace maix::util
         log::info(" Press any key to continue...");
         getchar();
     }
+
+    /**
+     * strip string, and return new striped string, will alloc new string.
+     * @maixpy maix.util.str_strip
+     */
+    std::string str_strip(std::string &s);
+
+    /**
+     * strip string and replace string, won't alloc new string.
+     * @maixcdk maix.util.str_strip_replace
+     */
+    void str_strip_replace(std::string &s);
+
+    /**
+     * return ad string view of strip string, only a view of string, so use it carefully!
+     * @maixcdk maix.util.str_strip_view
+     */
+    std::string_view str_strip_view(std::string_view str);
+
+    /**
+     * split string with a charactor, and return a string view, so use it carefully.
+     * @maixcdk maix.util.str_split_view
+     */
+    std::vector<std::string_view> str_split_view(std::string_view str, char delimiter);
+
+    /**
+     * split string with string, and return a string view, so use it carefully.
+     * @maixcdk maix.util.str_split_view
+     */
+    std::vector<std::string_view> str_split_view(std::string_view str, std::string_view delimiter);
+
+
+    /**
+    * split string with a charactor, and return a new string.
+    * @maixcdk maix.util.str_split
+    */
+    std::vector<std::string> str_split(const std::string &str, char delimiter);
+
+    /**
+    * split string with a charactor, and return a new string.
+    * @maixcdk maix.util.str_split
+    */
+    std::vector<std::string> str_split(const std::string &str, const std::string &delimiter);
+
+    /**
+     * split n times(will get max n + 1 strings) with a charactor, and return a string view, so use it carefully.
+     * @maixcdk maix.util.str_splitn_view
+     */
+    std::vector<std::string_view> str_splitn_view(std::string_view str, char delimiter, int n);
+
+    /**
+     * split n times(wll get max n + 1 strings) with string, and return a string view, so use it carefully.
+     * @maixcdk maix.util.str_splitn_view
+     */
+    std::vector<std::string_view> str_splitn_view(std::string_view str, std::string_view delimiter);
+
+    /**
+     * split n times (will get max n + 1 strings) with char delimiter, and return a new string (safer version with copying).
+     * @maixcdk maix.util.str_splitn
+     */
+     std::vector<std::string> str_splitn(const std::string& str, char delimiter, int n);
+
+    /**
+     * split n times (will get max n + 1 strings) with string delimiter, and return a new string (safer version with copying).
+     * @maixcdk maix.util.str_splitn
+     */
+    std::vector<std::string> str_splitn(const std::string& str, const std::string& delimiter, int n);
 }
 

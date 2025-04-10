@@ -5,11 +5,9 @@
  * @update 2023.9.8: Add framework, create this file.
  */
 
-#include "maix_app.hpp"
-#include "maix_fs.hpp"
-#include "maix_log.hpp"
-#include "stdio.h"
-#include "global_config.h"
+ #include "stdio.h"
+ #include "global_config.h"
+ #include "maix_basic.hpp"
 
 #include "math.h"
 #include "inifile.h"
@@ -19,6 +17,13 @@
 #include <assert.h>
 
 #define APP_ROOT_PATH "/maixapp"
+#define MAIX_SYS_CONFIG_PATH "/boot/configs"
+#define MAIX_SYS_CONFIG_PATH2 "/maixapp/sys_conf.ini"
+
+#define MAIX_SYS_CONFIG_FILE_TYPE_NONE 0
+#define MAIX_SYS_CONFIG_FILE_TYPE_KW   1   // MAIX_SYS_CONFIG_PATH
+#define MAIX_SYS_CONFIG_FILE_TYPE_INI  2   // MAIX_SYS_CONFIG_PATH2
+
 namespace maix::app
 {
     // cache system config info
@@ -31,6 +36,8 @@ namespace maix::app
     static bool should_exit = false;
     static std::string _app_id = PROJECT_ID;
     static bool _app_id_searched = false;
+    static std::string _sys_config_path;
+    static int _sys_config_type = MAIX_SYS_CONFIG_FILE_TYPE_NONE;
 
     static string _read_id(const string &app_yaml)
     {
@@ -338,16 +345,142 @@ namespace maix::app
      */
     string get_sys_config_path()
     {
-        string path = string(APP_ROOT_PATH "/sys_conf.ini");
-        return path;
+        if(_sys_config_type != 0)
+            return _sys_config_path;
+        if(fs::exists(MAIX_SYS_CONFIG_PATH))
+        {
+            _sys_config_path = MAIX_SYS_CONFIG_PATH;
+            _sys_config_type = MAIX_SYS_CONFIG_FILE_TYPE_KW;
+        }
+        else
+        {
+            _sys_config_path = MAIX_SYS_CONFIG_PATH2;
+            _sys_config_type = MAIX_SYS_CONFIG_FILE_TYPE_INI;
+        }
+        return _sys_config_path;
     }
 
+    static void _check_value(string &value)
+    {
+        // check if value is string with quotes(' and "), if so, remove it
+        if (value.size() > 1 && value[0] == '"' && value[value.size() - 1] == '"')
+        {
+            value = value.substr(1, value.size() - 2);
+        }
+        else if (value.size() > 1 && value[0] == '\'' && value[value.size() - 1] == '\'')
+        {
+            value = value.substr(1, value.size() - 2);
+        }
+    }
+
+    static int _load_configs_from_kw_file(const std::string &path)
+    {
+        fs::File *f = fs::open(path, "r");
+        if(!f)
+        {
+            log::error("open sys config file %s failed", path);
+            return 1;
+        }
+        int ret = RET_OK;
+        // parse key word items
+        // format:
+        //        maix_<item>_<key>=value
+        // e.g.   maix_comm_method=uart
+        std::string *line = f->readline();
+        while(line)
+        {
+            maix::util::str_strip_replace(*line);
+            if(!line->empty() && (*line)[0] != '#')
+            {
+                auto kw = maix::util::str_split_view(*line, '=');
+                if(kw.size() == 2)
+                {
+                    auto item_key = maix::util::str_strip_view(kw[0]);
+                    auto item_value = maix::util::str_strip_view(kw[1]);
+                    auto item = maix::util::str_splitn_view(item_key, '_', 2);
+                    if(item.size() == 3)
+                    {
+                        string section_name = string(item[1]);
+                        string key_name = string(item[2]);
+                        string value = string(item_value);
+                        _check_value(value);
+                        ret = sys_conf_ini.SetStringValue(section_name, key_name, value);
+                        if (ret != RET_OK)
+                        {
+                            log::error("set sys config %s: %s = %s failed: %d", section_name.c_str(), key_name.c_str(), value.c_str(), ret);
+                        }
+                    }
+                    else
+                    {
+                        log::error("sys config file %s format error, line: %s", path.c_str(), line->c_str());
+                    }
+                }
+                else
+                {
+                    log::error("sys config file %s format error, line: %s", path.c_str(), line->c_str());
+                }
+            }
+            delete line;
+            line = f->readline();
+        }
+        delete f;
+        return ret;
+    }
     static inline int create_sys_conf_load()
     {
         string path = get_sys_config_path();
-        if (!fs::exists(path))
-            sys_conf_ini.SaveAs(path);
-        return sys_conf_ini.Load(path);
+        if(_sys_config_type == MAIX_SYS_CONFIG_FILE_TYPE_INI)
+        {
+            if (!fs::exists(path))
+            {
+                sys_conf_ini.SaveAs(path);
+            }
+            return sys_conf_ini.Load(path);
+        }
+        else
+        {
+            if (!fs::exists(path))
+            {
+                fs::File *f = fs::open(path, "w");
+                if(f)
+                {
+                    delete f;
+                }
+                else
+                {
+                    log::error("Create sys config file %s error", path.c_str());
+                }
+            }
+            return _load_configs_from_kw_file(path);
+        }
+    }
+
+    err::Err _save_sys_config_kv_file()
+    {
+        string path = get_sys_config_path();
+        fs::File *f = fs::open(path, "w");
+        if(!f)
+        {
+            log::error("open sys config file %s failed", path.c_str());
+            return err::ERR_RUNTIME;
+        }
+        // save key word items
+        // format:
+        //        maix_<item>_<key>=value
+        // e.g.   maix_comm_method=uart
+        for(auto it = sys_conf_ini.begin(); it != sys_conf_ini.end(); ++it)
+        {
+            string section_name = (*it)->name ;
+            for(auto item : **it)
+            {
+                string &key_name = item.key;
+                string &value = item.value;
+                f->write((section_name + "_" + key_name + "=" + value + "\n").c_str(), (int)(section_name.size() + key_name.size() + value.size() + 3));
+            }
+        }
+        f->close();
+        delete f;
+        return err::ERR_NONE;
     }
 
     string get_sys_config_kv(const string &item, const string &key, const string &value, bool from_cache)
@@ -393,11 +526,18 @@ namespace maix::app
         }
         if (write_file)
         {
-            ret = sys_conf_ini.Save();
-            if (ret != RET_OK)
+            if(_sys_config_type == MAIX_SYS_CONFIG_FILE_TYPE_INI)
             {
-                log::error("save sys config failed: %d\n", ret);
-                return err::ERR_RUNTIME;
+                ret = sys_conf_ini.Save();
+                if (ret != RET_OK)
+                {
+                    log::error("save sys config failed: %d\n", ret);
+                    return err::ERR_RUNTIME;
+                }
+            }
+            else
+            {
+                return _save_sys_config_kv_file();
             }
         }
         return err::ERR_NONE;

@@ -90,6 +90,8 @@ class IniFile
     }
 
  public:
+    typedef vector<IniSection *>::iterator IniSection_it;
+
     /* 打开并解析一个名为fname的INI文件 */
     int Load(const string &fname);
     /* 将内容保存到当前文件 */
@@ -130,7 +132,15 @@ class IniFile
     bool HasSection(const string &section);
     /* 获取指定section的所有ken=value信息 */
     IniSection *getSection(const string &section = "");
-    
+
+    IniSection_it begin() {
+        return sections_vt.begin();  // 段结构体的begin元素指向section的头指针
+    }
+
+    IniSection_it end() {
+        return sections_vt.end();  // 段结构体的begin元素指向section的尾指针
+    }
+
     /* 是否存在某个key */
     bool HasKey(const string &section, const string &key);
 
@@ -192,7 +202,6 @@ class IniFile
     bool StartWith(const string &str, const string &prefix);
 
  private:
-    typedef vector<IniSection *>::iterator IniSection_it;
     vector<IniSection *> sections_vt;  // 用于存储段集合的vector容器
     string iniFilePath;
     string commentDelimiter;

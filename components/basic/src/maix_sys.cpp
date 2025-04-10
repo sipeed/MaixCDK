@@ -53,13 +53,19 @@ namespace maix::sys
     std::string maixpy_version()
     {
 #if PLATFORM_MAIXCAM
+    std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
+#elif PLATFORM_MAIXCAM2
+    std::ifstream version_file("/usr/local/lib/python3.13/site-packages/maix/version.py");
+#else
+        log::warn("maixpy_version() not implemented for this platform");
+        return "";
+#endif
         // fast way, read /usr/lib/python3.11/site-packages/maix/version.py
         // find key value:
         //      version_major = 4
         //      version_minor = 4
         //      version_patch = 20
         // return $version_major.$version_minor.$version_patch
-        std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
         if (!version_file.is_open())
         {
             log::warn("Failed to open version file.");
@@ -101,10 +107,6 @@ namespace maix::sys
         std::ostringstream version_stream;
         version_stream << version_major << "." << version_minor << "." << version_patch;
         return version_stream.str();
-#else
-        log::warn("maixpy_version() not implemented for this platform");
-        return "";
-#endif
     }
 
     std::string runtime_version()
