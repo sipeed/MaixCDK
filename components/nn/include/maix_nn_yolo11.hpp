@@ -257,7 +257,7 @@ namespace maix::nn
 
             // output info
             _out_chw = true;
-            int _anchor_num = 0;
+            _anchor_num = 0;
             for(size_t i=0; i < _stride.size(); ++i)
             {
                 _anchor_num += _input_size.width()/_stride[i] * _input_size.height() / _stride[i];
@@ -647,7 +647,7 @@ namespace maix::nn
         bool _out_chw;
         int  _reg_max = 16;
         std::vector<float> _stride = {8, 16, 32};
-        int _anchor_num;
+        int _anchor_num = 0;
         bool _obb_need_sigmoid;
 
     private:
@@ -748,14 +748,28 @@ namespace maix::nn
                         int prob_offset = _reg_max * 4;
                         int batch_data_size = prob_offset + class_num;
                         float *angle_ptr = (float *)(*kp_out)->data();
-                        for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
-                        {
-                            int nh = dets[i]->shape()[1];
-                            int nw = dets[i]->shape()[2];
-                            int anchor_num = nh * nw;
-                            float *feature = (float*)dets[i]->data();
-                            for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
+                        // for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
+                        // {
+                        //     for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
+                            #pragma omp parallel for
+                            for(int index = 0; index < _anchor_num; ++index)
                             {
+                                int i = 1;
+                                int anchor_idx;
+                                if (index >= idx_start[2]) {
+                                    i = 2;
+                                    anchor_idx = index - idx_start[2];
+                                } else if (index < idx_start[1]) {
+                                    i = 0;
+                                    anchor_idx = index;
+                                }
+                                else{
+                                    anchor_idx = index - idx_start[1];
+                                }
+                                // int nh = dets[i]->shape()[1];
+                                int nw = dets[i]->shape()[2];
+                                float *feature = (float*)dets[i]->data();
+
                                 int ax = anchor_idx % nw;
                                 int ay = anchor_idx / nw;
                                 int offset = idx_start[i] + anchor_idx;
@@ -788,10 +802,13 @@ namespace maix::nn
                                 float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5) * _stride[i] - bbox_w * 0.5;
                                 float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5) * _stride[i] - bbox_h * 0.5;
                                 _KpInfoYolo11 *kp_info = new _KpInfoYolo11(offset, ax, ay, _stride[i]);
-                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score, {}, angle);
-                                obj.temp = (void *)kp_info;
+                                #pragma omp critical
+                                {
+                                    Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score, {}, angle);
+                                    obj.temp = (void *)kp_info;
+                                }
                             }
-                        }
+                        // }
                     }
                 }
                 else
@@ -805,14 +822,32 @@ namespace maix::nn
                         int class_num = (int)labels.size();
                         int prob_offset = _reg_max * 4;
                         int batch_data_size = prob_offset + class_num;
-                        for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
-                        {
-                            int nh = dets[i]->shape()[1];
-                            int nw = dets[i]->shape()[2];
-                            int anchor_num = nh * nw;
-                            float *feature = (float*)dets[i]->data();
-                            for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
+                        // for(int i = 0; i < 3; ++i) // 1 x nh x nw x (_reg_max * 4 + class_num)
+                        // {
+                        //     int nh = dets[i]->shape()[1];
+                        //     int nw = dets[i]->shape()[2];
+                        //     int anchor_num = nh * nw;
+                        //     float *feature = (float*)dets[i]->data();
+                        //     for (int anchor_idx = 0; anchor_idx < anchor_num; ++anchor_idx)
+                            #pragma omp parallel for
+                            for(int index = 0; index < _anchor_num; ++index)
                             {
+                                int i = 1;
+                                int anchor_idx;
+                                if (index >= idx_start[2]) {
+                                    i = 2;
+                                    anchor_idx = index - idx_start[2];
+                                } else if (index < idx_start[1]) {
+                                    i = 0;
+                                    anchor_idx = index;
+                                }
+                                else{
+                                    anchor_idx = index - idx_start[1];
+                                }
+                                // int nh = dets[i]->shape()[1];
+                                int nw = dets[i]->shape()[2];
+                                float *feature = (float*)dets[i]->data();
+
                                 int ax = anchor_idx % nw;
                                 int ay = anchor_idx / nw;
                                 float *p = feature + batch_data_size * anchor_idx;
@@ -834,10 +869,13 @@ namespace maix::nn
                                 float bbox_w = (ax + 0.5 + dis[2]) * _stride[i] - bbox_x;
                                 float bbox_h = (ay + 0.5 + dis[3]) * _stride[i] - bbox_y;
                                 _KpInfoYolo11 *kp_info = new _KpInfoYolo11(idx_start[i] + anchor_idx, ax, ay, _stride[i]);
-                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score);
-                                obj.temp = (void *)kp_info;
+                                #pragma omp critical
+                                {
+                                    Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score);
+                                    obj.temp = (void *)kp_info;
+                                }
                             }
-                        }
+                        // }
                     }
                 }
             }
