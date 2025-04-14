@@ -118,6 +118,7 @@ namespace maix::image
         uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
         err::check_null_raise(uv_temp, "malloc uv_temp failed");
         memcpy(uv_temp, nv21_data + offset, nv_len);
+        #pragma omp parallel for
         for (int i = 0; i < half_len; i++)
         {
             nv21_data[offset + i * 2] = uv_temp[i];                // V
@@ -873,6 +874,7 @@ namespace maix::image
             uint8_t *uv_temp = (uint8_t *)malloc(nv_len);
             err::check_null_raise(uv_temp, "malloc uv_temp failed");
             memcpy(uv_temp, nv21 + offset, nv_len);
+            #pragma omp parallel for
             for (int i = 0; i < half_len; i++)
             {
                 nv21[offset + i * 2] = uv_temp[i];                // V
@@ -887,6 +889,12 @@ namespace maix::image
             int width = _height;
             uint8_t *src = (uint8_t *)_data;
             uint8_t *dst = (uint8_t *)img->data();
+#if CONFIG_OMP_ENABLE
+            #pragma omp parallel for
+            for (int i = 0; i < width * height; i ++) {
+                dst[i] = (src[i * 3 + 0] * 38 + src[i * 3 + 1] * 75 + src[i * 3 + 2] * 15) >> 7;
+            }
+#else
             for (int i = 0; i < height; i++)
             {
                 for (int j = 0; j < width; j++)
@@ -894,6 +902,7 @@ namespace maix::image
                     dst[i * width + j] = (src[(i * width + j) * 3 + 0] * 38 + src[(i * width + j) * 3 + 1] * 75 + src[(i * width + j) * 3 + 2] * 15) >> 7;
                 }
             }
+#endif
         }
         else
         {
@@ -1097,6 +1106,7 @@ __EXIT:
             else // merge two BGRA images
             {
                 uint8_t *data = (uint8_t *)_data;
+                #pragma omp parallel for
                 for (int y = 0; y < adjustedRect.height; y++)
                 {
                     for (int x = 0; x < adjustedRect.width; x++)

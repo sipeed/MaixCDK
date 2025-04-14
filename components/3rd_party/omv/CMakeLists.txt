@@ -111,6 +111,9 @@ list(APPEND ADD_DEFINITIONS_PRIVATE -w)
 if(PLATFORM_MAIXCAM2)
     list(APPEND ADD_DEFINITIONS_PRIVATE -D__ARM_ARCH=0)
 endif()
+if(CONFIG_OMP_ENABLE)
+    list(APPEND ADD_DEFINITIONS_PRIVATE -fopenmp)
+endif()
 #### Add compile option for this component
 #### Add components that depend on this component
 # list(APPEND ADD_DEFINITIONS -DAAAAA222=1

@@ -1593,7 +1593,7 @@ matd_t *matd_select(const matd_t * a, int r0, int r1, int c0, int c1)
     assert(a != NULL);
 
     assert(r0 >= 0 && r0 < a->nrows);
-    assert(c0 >= 0 && c0 < (int)A->ncols);
+    assert(c0 >= 0 && c0 < a->ncols);
 
     int nrows = r1 - r0 + 1;
     int ncols = c1 - c0 + 1;
@@ -9170,6 +9170,7 @@ static inline unionfind_t *unionfind_create(uint32_t maxid)
 {
     unionfind_t *uf = (unionfind_t*) fb_alloc(sizeof(unionfind_t), FB_ALLOC_NO_HINT);
     uf->data = (struct ufrec*) fb_alloc((maxid+1) * sizeof(struct ufrec), FB_ALLOC_NO_HINT);
+    #pragma omp parallel for
     for (int i = 0; i <= (int)maxid; i++) {
         uf->data[i].parent = i;
     }
@@ -10271,6 +10272,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     uint8_t *im_min = fb_alloc(tw*th*sizeof(uint8_t), FB_ALLOC_NO_HINT);
 
     // first, collect min/max statistics for each tile
+    #pragma omp parallel for
     for (int ty = 0; ty < th; ty++) {
         for (int tx = 0; tx < tw; tx++) {
 #if defined( OPTIMIZED ) && (defined(ARM_MATH_CM7) || defined(ARM_MATH_CM4))
@@ -10326,6 +10328,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         // (center, top, bottom, left right)
         // First pass does the entire center area
         int ty, tx, dy, dx;
+        #pragma omp parallel for
         for (ty = 1; ty < th-1; ty++) {
             for (tx = 1; tx < tw-1; tx++) {
                 uint8_t max = 0, min = 255;
@@ -10345,6 +10348,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         }
         // top edge
         ty = 0;
+        #pragma omp parallel for
         for (tx = 1; tx < tw-1; tx++) {
             uint8_t max = 0, min = 255;
             for (dy = 0; dy <= 1; dy++) {
@@ -10362,6 +10366,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         }
         // bottom edge
         ty = th-1;
+        #pragma omp parallel for
         for (tx = 1; tx < tw-1; tx++) {
             uint8_t max = 0, min = 255;
             for (dy = -1; dy <= 0; dy++) {
@@ -10379,6 +10384,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         }
         // left edge
         tx = 0;
+        #pragma omp parallel for
         for (ty = 1; ty < th-1; ty++) {
             uint8_t max = 0, min = 255;
             for (dy = -1; dy <= 1; dy++) {
@@ -10396,6 +10402,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         }
         // right edge
         tx = tw-1;
+        #pragma omp parallel for
         for (ty = 1; ty < th-1; ty++) {
             uint8_t max = 0, min = 255;
             for (dy = -1; dy <= 1; dy++) {
@@ -10482,6 +10489,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     else // need to do it the slow way
 #endif // OPTIMIZED
     {
+    #pragma omp parallel for
     for (int ty = 0; ty < th; ty++) {
         for (int tx = 0; tx < tw; tx++) {
 
@@ -10527,6 +10535,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
 
     // we skipped over the non-full-sized tiles above. Fix those now.
     if (1) {
+        #pragma omp parallel for
         for (int y = 0; y < h; y++) {
 
             // what is the first x coordinate we need to process in this row?
@@ -10573,8 +10582,8 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         tmp->height = h;
         tmp->stride = s;
         tmp->buf = fb_alloc(w * h, FB_ALLOC_NO_HINT);
-
-        for (int y = 1; y + 1 < h; y++) {
+        #pragma omp parallel for
+        for (int y = 1; y < h - 1; y++) {
             for (int x = 1; x + 1 < w; x++) {
                 uint8_t max = 0;
                 for (int dy = -1; dy <= 1; dy++) {
@@ -10587,8 +10596,8 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
                 tmp->buf[y*s+x] = max;
             }
         }
-
-        for (int y = 1; y + 1 < h; y++) {
+        #pragma omp parallel for
+        for (int y = 1; y < h - 1; y++) {
             for (int x = 1; x + 1 < w; x++) {
                 uint8_t min = 255;
                 for (int dy = -1; dy <= 1; dy++) {
@@ -10626,6 +10635,7 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im, bool ove
     DEBUG_START();
     unionfind_t *uf = unionfind_create(w * h);
 
+    // #pragma omp parallel for
     for (int y = 0; y < h - 1; y++) {
         do_unionfind_line(uf, threshim, h, w, ts, y);
     }
@@ -10665,6 +10675,8 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im, bool ove
     DEBUG_PRINT();
 #endif
     DEBUG_START();
+
+    // #pragma omp parallel for
     for (int y = 1; y < h-1; y++) {
         for (int x = 1; x < w-1; x++) {
 
@@ -10791,8 +10803,8 @@ zarray_t *apriltag_quad_thresh(apriltag_detector_t *td, image_u8_t *im, bool ove
 
     DEBUG_START();
     if (quads) {
+        // #pragma omp parallel for
         for (int i = 0; i < sz; i++) {
-
             zarray_t *cluster;
             zarray_get(clusters, i, &cluster);
 
@@ -11790,6 +11802,7 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
     ////////////////////////////////////////////////////////////////
     // Step 2. Decode tags from each quad.
     if (1) {
+        #pragma omp parallel for
         for (int i = 0; i < zarray_size(quads); i++) {
             struct quad *quad_original;
             zarray_get_volatile(quads, i, &quad_original);
@@ -11913,7 +11926,7 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
     if (1) {
         zarray_t *poly0 = g2d_polygon_create_zeros(4);
         zarray_t *poly1 = g2d_polygon_create_zeros(4);
-
+        #pragma omp parallel for
         for (int i0 = 0; i0 < zarray_size(detections); i0++) {
 
             apriltag_detection_t *det0;
@@ -12074,7 +12087,6 @@ void imlib_find_apriltags(list_t *out, image_t *ptr, rectangle_t *roi, apriltag_
 
     DEBUG_START();
     list_init(out, sizeof(find_apriltags_list_lnk_data_t));
-
     for (int i = 0, j = zarray_size(detections); i < j; i++) {
         apriltag_detection_t *det;
         zarray_get(detections, i, &det);
