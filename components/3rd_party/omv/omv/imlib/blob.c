@@ -9,7 +9,7 @@
  * Blob detection code.
  */
 #include "imlib.h"
-
+#include "omp.h"
 typedef struct xylr {
     int16_t x, y, l, r, t_l, b_l;
 }
@@ -150,6 +150,9 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
     lifo_alloc_all(&lifo, &lifo_len, sizeof(xylr_t));
 
     list_init(out, sizeof(find_blobs_list_lnk_data_t));
+
+    omp_lock_t omp_lock;
+    omp_init_lock(&omp_lock);
 
     size_t code = 0;
     for (list_lnk_t *it = iterator_start_from_head(thresholds); it; it = iterator_next(it)) {
@@ -1076,7 +1079,9 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
                 break;
             }
             case PIXFORMAT_RGB888: {
-                for (int y = roi->y, yy = roi->y + roi->h, y_max = yy - 1; y < yy; y += y_stride) {
+                int yy = roi->y + roi->h, y_max = yy - 1;
+                #pragma omp parallel for
+                for (int y = roi->y; y < yy; y += y_stride) {
                     pixel_rgb_t *row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(ptr, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w, x_max = xx - 1; x < xx; x += x_stride) {
@@ -1169,8 +1174,9 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
                                 int bot_left = left;
                                 bool break_out = false;
                                 for(;;) {
+                                    omp_set_lock(&omp_lock);
                                     if (lifo_size(&lifo) < lifo_len) {
-
+                                        omp_unset_lock(&omp_lock);
                                         if (y > roi->y) {
                                             row = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(ptr, y - 1);
                                             bmp_row = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y - 1);
@@ -1188,7 +1194,9 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
                                                     context.r = right;
                                                     context.t_l = i + 1; // Don't test the same pixel again...
                                                     context.b_l = bot_left;
+                                                    omp_set_lock(&omp_lock);
                                                     lifo_enqueue(&lifo, &context);
+                                                    omp_unset_lock(&omp_lock);
                                                     x = i;
                                                     y = y - 1;
                                                     recurse = true;
@@ -1221,7 +1229,9 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
                                                     context.r = right;
                                                     context.t_l = top_left;
                                                     context.b_l = i + 1; // Don't test the same pixel again...
+                                                    omp_set_lock(&omp_lock);
                                                     lifo_enqueue(&lifo, &context);
+                                                    omp_unset_lock(&omp_lock);
                                                     x = i;
                                                     y = y + 1;
                                                     recurse = true;
@@ -1237,16 +1247,19 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
                                             blob_perimeter += right - left + 1;
                                         }
                                     } else {
+                                        omp_unset_lock(&omp_lock);
                                         blob_perimeter += (right - left + 1) * 2;
                                     }
-
+                                    omp_set_lock(&omp_lock);
                                     if (!lifo_size(&lifo)) {
                                         break_out = true;
+                                        omp_unset_lock(&omp_lock);
                                         break;
                                     }
 
                                     xylr_t context;
                                     lifo_dequeue(&lifo, &context);
+                                    omp_unset_lock(&omp_lock);
                                     x = context.x;
                                     y = context.y;
                                     left = context.l;
@@ -1352,6 +1365,8 @@ void imlib_find_blobs(list_t *out, image_t *ptr, rectangle_t *roi, unsigned int 
 
         code += 1;
     }
+
+    omp_destroy_lock(&omp_lock);
 
     lifo_free(&lifo);
     if (y_hist_bins) {

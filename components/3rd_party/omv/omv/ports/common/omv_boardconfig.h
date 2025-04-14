@@ -12,6 +12,7 @@
 #define __OMV_BOARDCONFIG_H__
 
 #include "cmsis_compiler.h"
+#include "omp.h"
 #include "stdbool.h"
 
 #ifdef __cplusplus

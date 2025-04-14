@@ -20,6 +20,10 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
+#if defined(OMV_OPTIMIZE_ENABLE) && defined(PLATFORM_MAIXCAM2)
+#include <arm_neon.h>
+#endif
+
 #define DEBUG_EN 0
 #if DEBUG_EN
  #include <sys/time.h>
@@ -10275,7 +10279,7 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
     #pragma omp parallel for
     for (int ty = 0; ty < th; ty++) {
         for (int tx = 0; tx < tw; tx++) {
-#if defined( OPTIMIZED ) && (defined(ARM_MATH_CM7) || defined(ARM_MATH_CM4))
+#if defined( OPTIMIZED ) && (defined(ARM_MATH_DSP))
         uint32_t tmp, max32 = 0, min32 = 0xffffffff;
         for (int dy=0; dy < tilesz; dy++) {
             uint32_t v = *(uint32_t *)&im->buf[(ty*tilesz+dy)*s + tx*tilesz];
@@ -10299,6 +10303,25 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
         min32 = __SEL(tmp, min32); // 2-->1
         im_max[ty*tw+tx] = (uint8_t)max32;
         im_min[ty*tw+tx] = (uint8_t)min32;
+#elif defined(OMV_OPTIMIZE_ENABLE) && defined(PLATFORM_MAIXCAM2)
+        uint8x8_t max_v = vdup_n_u8(0);
+        uint8x8_t min_v = vdup_n_u8(0xFF);
+        for (int dy = 0; dy < tilesz; dy++) {
+            uint8x8_t v = vld1_u8(&im->buf[(ty * tilesz + dy) * s + tx * tilesz]);  // 加载 8 字节（我们只用前 4 字节）
+            max_v = vmax_u8(max_v, v);
+            min_v = vmin_u8(min_v, v);
+        }
+
+        uint16x4_t max_u16 = (uint16x4_t)vpmax_u8(max_v, max_v); // 4→2
+        max_u16 = (uint16x4_t)vpmax_u8((uint8x8_t)max_u16, (uint8x8_t)max_u16); // 2→1
+        uint8_t maxval = vget_lane_u8((uint8x8_t)max_u16, 0);
+
+        uint16x4_t min_u16 = (uint16x4_t)vpmin_u8(min_v, min_v);
+        min_u16 = (uint16x4_t)vpmin_u8((uint8x8_t)min_u16, (uint8x8_t)min_u16);
+        uint8_t minval = vget_lane_u8((uint8x8_t)min_u16, 0);
+
+        im_max[ty * tw + tx] = maxval;
+        im_min[ty * tw + tx] = minval;
 #else
         uint8_t max = 0, min = 255;
         for (int dy = 0; dy < tilesz; dy++) {
@@ -10485,6 +10508,50 @@ image_u8_t *threshold(apriltag_detector_t *td, image_u8_t *im)
                     } // dy
             } // tx
         } // ty
+    }
+    else // need to do it the slow way
+#elif defined(OMV_OPTIMIZE_ENABLE) && defined(PLATFORM_MAIXCAM2)
+    if ((s & 0x3) == 0 && tilesz == 4) {
+        const uint32_t lowcontrast = 0x7f7f7f7f;
+        const int s32 = s / 4;
+        const int minmax = td->qtp.min_white_black_diff;
+
+        uint32x4_t lowcontrast_v = vdupq_n_u32(lowcontrast);
+        #pragma omp parallel for
+        for (int ty = 0; ty < th; ty++) {
+            for (int tx = 0; tx < tw; tx++) {
+                int min = im_min[ty * tw + tx];
+                int max = im_max[ty * tw + tx];
+
+                if (max - min < minmax) {
+                    // low contrast, fill 4 rows with same value
+                    for (int i = 0; i < 4; i++) {
+                        uint32_t *d32 = (uint32_t *)&threshim->buf[(ty * tilesz + i) * s + tx * tilesz];
+                        vst1q_u32(d32, lowcontrast_v);
+                    }
+                    continue;
+                }
+
+                // prepare threshold value vector
+                uint8_t thresh = (min + (max - min) / 2) + 1;
+                uint8x8_t thresh_v = vdup_n_u8(thresh);
+
+                for (int dy = 0; dy < tilesz; dy++) {
+                    uint8_t *src = &im->buf[(ty * tilesz + dy) * s + tx * tilesz];
+                    uint8_t *dst = &threshim->buf[(ty * tilesz + dy) * s + tx * tilesz];
+
+                    // load 4 pixels
+                    uint8x8_t pixels = vld1_u8(src); // loads 8 but we only need 4
+                    uint8x8_t mask = vcge_u8(pixels, thresh_v); // pixel >= threshold
+
+                    // map result to 0xFF or 0x00
+                    uint8x8_t result = vmvn_u8(vbic_u8(mask, mask)); // 1→0xFF, 0→0x00
+
+                    // store lower 4 bytes
+                    vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(result), 0);
+                }
+            }
+        }
     }
     else // need to do it the slow way
 #endif // OPTIMIZED
