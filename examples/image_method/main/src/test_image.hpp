@@ -17,5 +17,9 @@ int test_find_lines(image::Image *img);
 int test_ed_lib(image::Image *img);
 int test_tracking_line(image::Image *img);
 int test_find_barcode(image::Image *img);
+int test_to_format(image::Image *img);
+int test_draw_image(image::Image *img);
+int test_ccm(image::Image *img);
+int test_find_apriltags(image::Image *img);
 
 #endif
