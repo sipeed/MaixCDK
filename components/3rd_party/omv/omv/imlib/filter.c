@@ -1601,9 +1601,9 @@ void imlib_midpoint_filter(image_t *img, const int ksize, float bias, bool thres
                         continue; // Short circuit.
                     }
 
-                    int r_min = COLOR_R5_MAX, r_max = COLOR_R5_MIN;
-                    int g_min = COLOR_G6_MAX, g_max = COLOR_G6_MIN;
-                    int b_min = COLOR_B5_MAX, b_max = COLOR_B5_MIN;
+                    int r_min = COLOR_R8_MAX, r_max = COLOR_R8_MIN;
+                    int g_min = COLOR_G8_MAX, g_max = COLOR_G8_MIN;
+                    int b_min = COLOR_B8_MAX, b_max = COLOR_B8_MIN;
                     if (x >= ksize && x < img->w-ksize && y >= ksize && y < img->h-ksize) {
                         for (int j = -ksize; j <= ksize; j++) {
                             pixel_rgb_t *k_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img,y+j);

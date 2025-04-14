@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 // #include "cmsis_gcc.h"
-#include "arm_compat.h"
+#include "cmsis_compiler.h"
 #include "unaligned_memcpy.h"
 
 // ARM Cortex-M4/M7 Processors can access memory using unaligned 32-bit reads/writes.

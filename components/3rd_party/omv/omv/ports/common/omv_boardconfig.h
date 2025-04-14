@@ -11,7 +11,7 @@
 #ifndef __OMV_BOARDCONFIG_H__
 #define __OMV_BOARDCONFIG_H__
 
-#include "arm_compat.h"
+#include "cmsis_compiler.h"
 #include "stdbool.h"
 
 #ifdef __cplusplus

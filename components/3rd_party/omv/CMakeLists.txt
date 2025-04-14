@@ -6,10 +6,14 @@ set(omv_include_dir "."
                     "${src_path}"
                     "${src_path}/imlib"
                     "${src_path}/common"
-                    "${src_path}/ports/linux"
-                    "${src_path}/ports/linux/cmsis"
-                    "${src_path}/ports/linux/oofatfs"
-                    "${src_path}/ports/linux/py")
+                    "${src_path}/ports/common"
+                    "${src_path}/ports/common/oofatfs"
+                    "${src_path}/ports/common/py"
+                    "${src_path}/ports/linux")
+if(PLATFORM_MAIXCAM2)
+    list(APPEND omv_include_dir "${src_path}/ports/maixcam2")
+endif()
+
 list(APPEND ADD_INCLUDE ${omv_include_dir})
 set_property(SOURCE ${omv_include_dir} PROPERTY GENERATED 1)
 # list(APPEND ADD_PRIVATE_INCLUDE "")
@@ -21,9 +25,9 @@ list(APPEND ADD_SRCS    # DO NOT ADD "${src_path}/alloc/framebuffer.c" of omv, i
                         "${src_path}/alloc/umm_malloc.c"
                         "${src_path}/alloc/unaligned_memcpy.c"
                         "${src_path}/alloc/xalloc.c"
-                        "${src_path}/ports/linux/py/mpprint.c"
-                        "${src_path}/ports/linux/py/obj.c"
-                        "${src_path}/ports/linux/py/runtime.c"
+                        "${src_path}/ports/common/py/mpprint.c"
+                        "${src_path}/ports/common/py/obj.c"
+                        "${src_path}/ports/common/py/runtime.c"
                         "${src_path}/imlib/imlib.c"
                         "${src_path}/imlib/hough.c"
                         "${src_path}/imlib/lsd.c"
@@ -108,11 +112,18 @@ set_property(SOURCE "${src_path}/alloc" PROPERTY GENERATED 1)
 #### modules, including component that depend
 #### on this component
 list(APPEND ADD_DEFINITIONS_PRIVATE -w)
-if(PLATFORM_MAIXCAM2)
-    list(APPEND ADD_DEFINITIONS_PRIVATE -D__ARM_ARCH=0)
+if(PLATFORM_MAIXCAM)
+    list(APPEND ADD_DEFINITIONS_PRIVATE -DPLATFORM_MAIXCAM=1)
+elseif(PLATFORM_MAIXCAM2)
+    list(APPEND ADD_DEFINITIONS_PRIVATE -D__ARM_ARCH=0 -DPLATFORM_MAIXCAM2=1)
+else()
+    list(APPEND ADD_DEFINITIONS_PRIVATE -DOMV_LINUX=1)
 endif()
-if(CONFIG_OMP_ENABLE)
-    list(APPEND ADD_DEFINITIONS_PRIVATE -fopenmp)
+
+if(CONFIG_OMV_OPTIMIZE_ENABLE)
+    if(CONFIG_OMP_ENABLE)
+        list(APPEND ADD_DEFINITIONS_PRIVATE -fopenmp -DOMV_OPTIMIZE_ENABLE=1)
+    endif()
 endif()
 #### Add compile option for this component
 #### Add components that depend on this component

@@ -1063,7 +1063,6 @@ void imlib_ccm(image_t *img, float *ccm, bool offset) {
             int i_bo = IM_MIN(fast_roundf(bo * 256), 4096);
 
             #if defined(ARM_MATH_DSP)
-            #error "RGB888 format not support this operation"
             long smuad_rr_rb = __PKHBT(i_rb, i_rr, 16);
             long smuad_gr_gb = __PKHBT(i_gb, i_gr, 16);
             long smuad_br_bb = __PKHBT(i_bb, i_br, 16);
@@ -1072,16 +1071,16 @@ void imlib_ccm(image_t *img, float *ccm, bool offset) {
             if (offset) {
                 for (; n > 0; n -= 1) {
                     pixel_rgb_t pixel = *ptr;
+                    int r = COLOR_RGB888_TO_R8(pixel);
                     int g = COLOR_RGB888_TO_G8(pixel);
+                    int b = COLOR_RGB888_TO_B8(pixel);
                     #if defined(ARM_MATH_DSP)
                     // This code is only slightly faster than the non-DSP version...
-                    int r_b = __PKHBT(pixel & 0x1F, pixel, 5);
+                    int r_b = __PKHBT(b, r, 16);
                     int new_r = __USAT_ASR(__SMLAD(r_b, smuad_rr_rb, (i_rg * g) + i_ro), 8, 8);
                     int new_g = __USAT_ASR(__SMLAD(r_b, smuad_gr_gb, (i_gg * g) + i_go), 8, 8);
                     int new_b = __USAT_ASR(__SMLAD(r_b, smuad_br_bb, (i_bg * g) + i_bo), 8, 8);
                     #else
-                    int r = COLOR_RGB888_TO_R8(pixel);
-                    int b = COLOR_RGB888_TO_B8(pixel);
                     int new_r = __USAT_ASR((i_rr * r) + (i_rg * g) + (i_rb * b) + i_ro, 8, 8);
                     int new_g = __USAT_ASR((i_gr * r) + (i_gg * g) + (i_gb * b) + i_go, 8, 8);
                     int new_b = __USAT_ASR((i_br * r) + (i_bg * g) + (i_bb * b) + i_bo, 8, 8);
@@ -1091,16 +1090,16 @@ void imlib_ccm(image_t *img, float *ccm, bool offset) {
             } else {
                 for (; n > 0; n -= 1) {
                     pixel_rgb_t pixel = *ptr;
+                    int r = COLOR_RGB888_TO_R8(pixel);
                     int g = COLOR_RGB888_TO_G8(pixel);
+                    int b = COLOR_RGB888_TO_B8(pixel);
                     #if defined(ARM_MATH_DSP)
                     // This code is only slightly faster than the non-DSP version...
-                    int r_b = __PKHBT(pixel & 0x1F, pixel, 5);
+                    int r_b = __PKHBT(b, r, 16);
                     int new_r = __USAT_ASR(__SMLAD(r_b, smuad_rr_rb, i_rg * g), 8, 8);
                     int new_g = __USAT_ASR(__SMLAD(r_b, smuad_gr_gb, i_gg * g), 8, 8);
                     int new_b = __USAT_ASR(__SMLAD(r_b, smuad_br_bb, i_bg * g), 8, 8);
                     #else
-                    int r = COLOR_RGB888_TO_R8(pixel);
-                    int b = COLOR_RGB888_TO_B8(pixel);
                     int new_r = __USAT_ASR((i_rr * r) + (i_rg * g) + (i_rb * b), 8, 8);
                     int new_g = __USAT_ASR((i_gr * r) + (i_gg * g) + (i_gb * b), 8, 8);
                     int new_b = __USAT_ASR((i_br * r) + (i_bg * g) + (i_bb * b), 8, 8);
