@@ -42,7 +42,9 @@ void imlib_edge_canny(image_t *src, rectangle_t *roi, int low_thresh, int high_t
     imlib_sepconv3(src, kernel_gauss_3, 1.0f / 16.0f, 0.0f);
 
     //2. Finding Image Gradients
-    for (int gy = 1, y = roi->y + 1; y < roi->y + roi->h - 1; y++, gy++) {
+    #pragma omp parallel for
+    for (int y = roi->y + 1; y < roi->y + roi->h - 1; y++) {
+        int gy = y - roi->y;
         for (int gx = 1, x = roi->x + 1; x < roi->x + roi->w - 1; x++, gx++) {
             int vx = 0, vy = 0;
             // sobel kernel in the horizontal direction
@@ -84,7 +86,9 @@ void imlib_edge_canny(image_t *src, rectangle_t *roi, int low_thresh, int high_t
 
     // 3. Hysteresis Thresholding
     // 4. Non-maximum Suppression and output
-    for (int gy = 0, y = roi->y; y < roi->y + roi->h; y++, gy++) {
+    #pragma omp parallel for
+    for (int y = roi->y; y < roi->y + roi->h; y++) {
+        int gy = y - roi->y;
         for (int gx = 0, x = roi->x; x < roi->x + roi->w; x++, gx++) {
             int i = y * w + x;
             gvec_t *va = NULL, *vb = NULL, *vc = &gm[gy * roi->w + gx];

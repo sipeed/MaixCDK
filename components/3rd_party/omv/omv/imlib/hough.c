@@ -557,7 +557,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
 
     switch (ptr->pixfmt) {
         case PIXFORMAT_BINARY: {
-            for (int y = roi->y + 1, yy = roi->y + roi->h - 1; y < yy; y += y_stride) {
+            int yy = roi->y + roi->h - 1;
+            #pragma omp parallel for
+            for (int y = roi->y + 1; y < yy; y += y_stride) {
                 uint32_t *row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(ptr, y);
                 for (int x = roi->x + (y % x_stride) + 1, xx = roi->x + roi->w - 1; x < xx; x += x_stride) {
                     int pixel; // Sobel Algorithm Below
@@ -622,7 +624,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
             break;
         }
         case PIXFORMAT_GRAYSCALE: {
-            for (int y = roi->y + 1, yy = roi->y + roi->h - 1; y < yy; y += y_stride) {
+            int yy = roi->y + roi->h - 1;
+            #pragma omp parallel for
+            for (int y = roi->y + 1; y < yy; y += y_stride) {
                 uint8_t *row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(ptr, y);
                 for (int x = roi->x + (y % x_stride) + 1, xx = roi->x + roi->w - 1; x < xx; x += x_stride) {
                     int pixel; // Sobel Algorithm Below
@@ -687,7 +691,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
             break;
         }
         case PIXFORMAT_RGB565: {
-            for (int y = roi->y + 1, yy = roi->y + roi->h - 1; y < yy; y += y_stride) {
+            int yy = roi->y + roi->h - 1;
+            #pragma omp parallel for
+            for (int y = roi->y + 1; y < yy; y += y_stride) {
                 uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(ptr, y);
                 for (int x = roi->x + (y % x_stride) + 1, xx = roi->x + roi->w - 1; x < xx; x += x_stride) {
                     int pixel; // Sobel Algorithm Below
@@ -752,7 +758,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
             break;
         }
         case PIXFORMAT_RGB888: {
-            for (int y = roi->y + 1, yy = roi->y + roi->h - 1; y < yy; y += y_stride) {
+            int yy = roi->y + roi->h - 1;
+            #pragma omp parallel for
+            for (int y = roi->y + 1; y < yy; y += y_stride) {
                 pixel_rgb_t *row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(ptr, y);
                 for (int x = roi->x + (y % x_stride) + 1, xx = roi->x + roi->w - 1; x < xx; x += x_stride) {
                     int pixel; // Sobel Algorithm Below
@@ -840,7 +848,8 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
     // Y_MAX
 
     list_init(out, sizeof(find_circles_list_lnk_data_t));
-
+    omp_lock_t omp_lock;
+    omp_init_lock(&omp_lock);
     for (int r = r_min, rr = r_max; r < rr; r += r_step) {
         // ignore r = 0/1
         int a_size, b_size, hough_divide = 1; // divides a and b accumulators
@@ -865,12 +874,16 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
         uint32_t *acc = fb_alloc0(sizeof(uint32_t) * a_size * b_size, FB_ALLOC_NO_HINT);
         int16_t *rcos = fb_alloc(sizeof(int16_t) * 360, FB_ALLOC_NO_HINT);
         int16_t *rsin = fb_alloc(sizeof(int16_t) * 360, FB_ALLOC_NO_HINT);
+
+        #pragma omp parallel for
         for (int i = 0; i < 360; i++) {
             rcos[i] = (int16_t) roundf(r * cos_table[i]);
             rsin[i] = (int16_t) roundf(r * sin_table[i]);
         }
 
-        for (int y = 0, yy = roi->h; y < yy; y++) {
+        int yy = roi->h;
+        #pragma omp parallel for
+        for (int y = 0; y < yy; y++) {
             for (int x = 0, xx = roi->w; x < xx; x++) {
                 int index = (roi->w * y) + x;
                 int theta = theta_acc[index];
@@ -917,7 +930,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
             }
         }
 
-        for (int y = 1, yy = b_size - 1; y < yy; y++) {
+        yy = b_size - 1;
+        #pragma omp parallel for
+        for (int y = 1; y < yy; y++) {
             uint32_t *row_ptr = acc + (a_size * y);
             uint32_t val;
             for (int x = 1, xx = a_size - 1; x < xx; x++) {
@@ -937,8 +952,9 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
                     lnk_data.p.x = ((x - 1) << hough_shift) + r + roi->x; // remove offset
                     lnk_data.p.y = ((y - 1) << hough_shift) + r + roi->y; // remove offset
                     lnk_data.r = r;
-
+                    omp_set_lock(&omp_lock);
                     list_push_back(out, &lnk_data);
+                    omp_unset_lock(&omp_lock);
                     if (val > row_ptr[x + 1]) {
                         x++; // can skip the next pixel
                     }
@@ -953,6 +969,7 @@ void imlib_find_circles(list_t *out, image_t *ptr, rectangle_t *roi, unsigned in
 
     if (magnitude_acc) fb_free(magnitude_acc);  // magnitude_acc
     if (theta_acc) fb_free(theta_acc);          // theta_acc
+    omp_destroy_lock(&omp_lock);
 
     for (;;) {
         // Merge overlapping.

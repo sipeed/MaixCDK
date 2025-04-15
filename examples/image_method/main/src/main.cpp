@@ -145,6 +145,11 @@ static int cmd_init(int argc, char* argv[])
     priv.method_list.push_back(image_method_t{"draw_image", test_draw_image});
     priv.method_list.push_back(image_method_t{"find_apriltags", test_find_apriltags});
     priv.method_list.push_back(image_method_t{"ccm", test_ccm});
+    priv.method_list.push_back(image_method_t{"binary", test_binary});
+    priv.method_list.push_back(image_method_t{"find_circles", test_find_circles});
+    priv.method_list.push_back(image_method_t{"find_edges", test_find_edges});
+    priv.method_list.push_back(image_method_t{"find_rects", test_find_rects});
+    priv.method_list.push_back(image_method_t{"get_regression", test_get_regression});
 
     // Get init param
     if (argc > 1) {

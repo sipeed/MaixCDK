@@ -23,7 +23,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
         iterator_get(thresholds, it, &lnk_data);
         switch (img->pixfmt) {
             case PIXFORMAT_BINARY: {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     uint32_t *old_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     for (int x = 0, xx = img->w; x < xx; x++) {
@@ -35,7 +37,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 break;
             }
             case PIXFORMAT_GRAYSCALE: {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     uint8_t *old_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     for (int x = 0, xx = img->w; x < xx; x++) {
@@ -47,7 +51,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 break;
             }
             case PIXFORMAT_RGB565: {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     uint16_t *old_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     for (int x = 0, xx = img->w; x < xx; x++) {
@@ -59,7 +65,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 break;
             }
             case PIXFORMAT_RGB888: {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     pixel_rgb_t *old_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     for (int x = 0, xx = img->w; x < xx; x++) {
@@ -79,7 +87,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
     switch (img->pixfmt) {
         case PIXFORMAT_BINARY: {
             if (!zero) {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     uint32_t *old_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -91,7 +101,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                     }
                 }
             } else {
-                for (int y = 0, yy = img->h; y < yy; y++) {
+                int yy = img->h;
+                #pragma omp parallel for
+                for (int y = 0; y < yy; y++) {
                     uint32_t *old_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(img, y);
                     uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                     uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -110,7 +122,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
         case PIXFORMAT_GRAYSCALE: {
             if (out->pixfmt == PIXFORMAT_BINARY) {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint8_t *old_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -122,7 +136,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint8_t *old_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -138,7 +154,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 }
             } else {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint8_t *old_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint8_t *out_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(out, y);
@@ -150,7 +168,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint8_t *old_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint8_t *out_row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(out, y);
@@ -170,7 +190,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
         case PIXFORMAT_RGB565: {
             if (out->pixfmt == PIXFORMAT_BINARY) {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint16_t *old_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -182,7 +204,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint16_t *old_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -198,7 +222,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 }
             } else {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint16_t *old_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint16_t *out_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(out, y);
@@ -210,7 +236,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         uint16_t *old_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint16_t *out_row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(out, y);
@@ -230,7 +258,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
         case PIXFORMAT_RGB888: {
             if (out->pixfmt == PIXFORMAT_BINARY) {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         pixel_rgb_t *old_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -242,7 +272,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         pixel_rgb_t *old_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         uint32_t *out_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(out, y);
@@ -256,7 +288,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                 }
             } else {
                 if (!zero) {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         pixel_rgb_t *old_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         pixel_rgb_t *out_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(out, y);
@@ -268,7 +302,9 @@ void imlib_binary(image_t *out, image_t *img, list_t *thresholds, bool invert, b
                         }
                     }
                 } else {
-                    for (int y = 0, yy = img->h; y < yy; y++) {
+                    int yy = img->h;
+                    #pragma omp parallel for
+                    for (int y = 0; y < yy; y++) {
                         pixel_rgb_t *old_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(img, y);
                         uint32_t *bmp_row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(&bmp, y);
                         pixel_rgb_t *out_row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(out, y);

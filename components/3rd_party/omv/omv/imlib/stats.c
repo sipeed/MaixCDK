@@ -1113,7 +1113,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
 
             switch (ptr->pixfmt) {
                 case PIXFORMAT_BINARY: {
-                    for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                    int yy = roi->y + roi->h;
+                    #pragma omp parallel for
+                    for (int y = roi->y; y < yy; y += y_stride) {
                         uint32_t *row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(ptr, y);
                         for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                             if (COLOR_THRESHOLD_BINARY(IMAGE_GET_BINARY_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1133,7 +1135,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                     break;
                 }
                 case PIXFORMAT_GRAYSCALE: {
-                    for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                    int yy = roi->y + roi->h;
+                    #pragma omp parallel for
+                    for (int y = roi->y; y < yy; y += y_stride) {
                         uint8_t *row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(ptr, y);
                         for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                             if (COLOR_THRESHOLD_GRAYSCALE(IMAGE_GET_GRAYSCALE_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1153,7 +1157,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                     break;
                 }
                 case PIXFORMAT_RGB565: {
-                    for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                    int yy = roi->y + roi->h;
+                    #pragma omp parallel for
+                    for (int y = roi->y; y < yy; y += y_stride) {
                         uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(ptr, y);
                         for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                             if (COLOR_THRESHOLD_RGB565(IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1173,7 +1179,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                     break;
                 }
                 case PIXFORMAT_RGB888: {
-                    for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                    int yy = roi->y + roi->h;
+                    #pragma omp parallel for
+                    for (int y = roi->y; y < yy; y += y_stride) {
                         pixel_rgb_t *row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(ptr, y);
                         for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                             if (COLOR_THRESHOLD_RGB888(IMAGE_GET_RGB888_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1292,7 +1300,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
 
                 switch (ptr->pixfmt) {
                     case PIXFORMAT_BINARY: {
-                        for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                        int yy = roi->y + roi->h;
+                        #pragma omp parallel for
+                        for (int y = roi->y; y < yy; y += y_stride) {
                             uint32_t *row_ptr = IMAGE_COMPUTE_BINARY_PIXEL_ROW_PTR(ptr, y);
                             for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                                 if (COLOR_THRESHOLD_BINARY(IMAGE_GET_BINARY_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1314,7 +1324,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                         break;
                     }
                     case PIXFORMAT_GRAYSCALE: {
-                        for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                        int yy = roi->y + roi->h;
+                        #pragma omp parallel for
+                        for (int y = roi->y; y < yy; y += y_stride) {
                             uint8_t *row_ptr = IMAGE_COMPUTE_GRAYSCALE_PIXEL_ROW_PTR(ptr, y);
                             for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                                 if (COLOR_THRESHOLD_GRAYSCALE(IMAGE_GET_GRAYSCALE_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1336,7 +1348,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                         break;
                     }
                     case PIXFORMAT_RGB565: {
-                        for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                        int yy = roi->y + roi->h;
+                        #pragma omp parallel for
+                        for (int y = roi->y; y < yy; y += y_stride) {
                             uint16_t *row_ptr = IMAGE_COMPUTE_RGB565_PIXEL_ROW_PTR(ptr, y);
                             for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                                 if (COLOR_THRESHOLD_RGB565(IMAGE_GET_RGB565_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1358,7 +1372,9 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                         break;
                     }
                     case PIXFORMAT_RGB888: {
-                        for (int y = roi->y, yy = roi->y + roi->h; y < yy; y += y_stride) {
+                        int yy = roi->y + roi->h;
+                        #pragma omp parallel for
+                        for (int y = roi->y; y < yy; y += y_stride) {
                             pixel_rgb_t *row_ptr = IMAGE_COMPUTE_RGB888_PIXEL_ROW_PTR(ptr, y);
                             for (int x = roi->x + (y % x_stride), xx = roi->x + roi->w; x < xx; x += x_stride) {
                                 if (COLOR_THRESHOLD_RGB888(IMAGE_GET_RGB888_PIXEL_FAST(row_ptr, x), &lnk_data, invert)) {
@@ -1393,7 +1409,7 @@ bool imlib_get_regression(find_lines_list_lnk_data_t *out,
                 if (delta_sum) {
                     // The code below computes the average slope between all pairs of points.
                     // This is a N^2 operation that can easily blow up if the image is not threshold carefully...
-
+                    #pragma omp parallel for
                     for (int i = 0; i < points_count; i++) {
                         point_t *p0 = &points[i];
                         for (int j = i + 1; j < points_count; j++) {

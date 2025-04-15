@@ -57,3 +57,24 @@ int test_ccm(image::Image *img) {
     delete new_img;
     return 0;
 }
+
+int test_binary(image::Image *img) {
+    std::vector<std::vector<int>> thresholds = {{0, 50}};
+    auto t = time::ticks_us();
+    img->binary(thresholds);
+    auto t2 = time::ticks_us();
+    log::info("binary cost time:%d us\n", t2 - t);
+    return 0;
+}
+
+int test_get_regression(image::Image *img) {
+    std::vector<std::vector<int>> thresholds = {{0, 80, -120, -10, 0, 30}};
+    auto t = time::ticks_us();
+    auto lines = img->get_regression(thresholds);
+    auto t2 = time::ticks_us();
+    log::info("get regression %d, cost %ld us(%ld ms)", lines.size(), t2 - t, (t2 - t) / 1000);
+    for (auto &l : lines) {
+        img->draw_line(l.x1(), l.y1(), l.x2(), l.y2(), image::COLOR_GREEN, 2);
+    }
+    return 0;
+}

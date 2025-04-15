@@ -12271,6 +12271,7 @@ void imlib_find_rects(list_t *out, image_t *ptr, rectangle_t *roi, uint32_t thre
     ////////////////////////////////////////////////////////////////
     // Decode tags from each quad.
     if (1) {
+        #pragma omp parallel for
         for (int i = 0; i < zarray_size(detections); i++) {
             struct quad *quad_original;
             zarray_get_volatile(detections, i, &quad_original);

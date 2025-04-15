@@ -21,5 +21,10 @@ int test_to_format(image::Image *img);
 int test_draw_image(image::Image *img);
 int test_ccm(image::Image *img);
 int test_find_apriltags(image::Image *img);
+int test_binary(image::Image *img);
+int test_find_circles(image::Image *img);
+int test_find_edges(image::Image *img);
+int test_find_rects(image::Image *img);
+int test_get_regression(image::Image *img);
 
 #endif
