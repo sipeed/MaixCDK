@@ -1274,6 +1274,23 @@ _error:
         }
     }
 
+    static void _config_extern_register_of_720p90_os04a10(double exptime_ms)
+    {
+        char cmd[128];
+        double base_exptime_ms = 1000.0 / 90.0;
+        if (exptime_ms > base_exptime_ms) {
+            uint64_t base_value = 0x5cc;
+            double scale = 132.839999726;
+            uint64_t reg_val = base_value + (exptime_ms - base_exptime_ms) * scale;
+            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+            system(cmd);
+        } else {
+            uint64_t reg_val = 0x05cc;
+            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+            system(cmd);
+        }
+    }
+
     err::Err Camera::set_fps(double fps) {
         double new_fps = fps;
         camera_priv_t *priv = (camera_priv_t *)this->_param;
@@ -1282,10 +1299,15 @@ _error:
             new_fps = fps / 2;
         break;
         case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
-        case OV_OS04A10_MIPI_4M_720P90_12BIT:
         {
             int exp_time_ms = (int)(1000.0 / fps);
             _config_extern_register_of_os04a10(exp_time_ms);
+        }
+        break;
+        case OV_OS04A10_MIPI_4M_720P90_12BIT:
+        {
+            double exp_time_ms = 1000.0 / fps;
+            _config_extern_register_of_720p90_os04a10(exp_time_ms);
         }
         break;
         case SMS_SC035GS_MIPI_480P_120FPS_12BIT:
@@ -1313,9 +1335,12 @@ _error:
         } else {
             switch (priv->sns_type) {
             case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
-            case OV_OS04A10_MIPI_4M_720P90_12BIT:
                 mmf_set_exptime(_ch, value);
                 _config_extern_register_of_os04a10(value / 1000);
+            break;
+            case OV_OS04A10_MIPI_4M_720P90_12BIT:
+                mmf_set_exptime(_ch, value);
+                _config_extern_register_of_720p90_os04a10((double)value / 1000);
             break;
             default:
                 mmf_set_exptime(_ch, value);
@@ -1531,9 +1556,13 @@ _error:
         } else {
             switch (priv->sns_type) {
             case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
-            case OV_OS04A10_MIPI_4M_720P90_12BIT:
                 if (value == 0) {
                     _config_extern_register_of_os04a10(0);  // revert exposure time register of os04a10
+                }
+            break;
+            case OV_OS04A10_MIPI_4M_720P90_12BIT:
+                if (value == 0) {
+                    _config_extern_register_of_720p90_os04a10(0);  // revert exposure time register of os04a10
                 }
             break;
             default:
