@@ -34,9 +34,8 @@ namespace maix::nn
          * @maixcdk maix.nn.YOLOv8.YOLOv8
          */
         YOLOv8(const string &model = "", bool dual_buff = true)
-        : YOLO11(model, dual_buff)
+        : YOLO11(model, "yolov8", dual_buff)
         {
-            type_str = "yolov8";
         }
 
         /**

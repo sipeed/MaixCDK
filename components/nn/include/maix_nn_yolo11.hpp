@@ -93,6 +93,22 @@ namespace maix::nn
             }
         }
 
+        YOLO11(const string &model, const std::string &type_str, bool dual_buff = true)
+        {
+            this->type_str = type_str;
+            _model = nullptr;
+            _type = YOLO11_Type::DETECT;
+            _dual_buff = dual_buff;
+            if (!model.empty())
+            {
+                err::Err e = load(model);
+                if (e != err::ERR_NONE)
+                {
+                    throw err::Exception(e, "load model failed");
+                }
+            }
+        }
+
         ~YOLO11()
         {
             if (_model)
@@ -1105,7 +1121,6 @@ namespace maix::nn
             else
             {
                 int keypoint_num = kp_out->shape()[2] / 3; // 1, 8400, 51
-                log::info("%d", keypoint_num);
                 for (size_t i = 0; i < objs.size(); ++i)
                 {
                     nn::Object &o = objs.at(i);

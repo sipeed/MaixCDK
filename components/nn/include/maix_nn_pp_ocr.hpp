@@ -200,7 +200,10 @@ namespace maix::nn
                 return err::ERR_ARGS;
             }
             std::vector<nn::LayerInfo> inputs = _model->inputs_info();
-            _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
+            if(inputs[0].shape[3] <= 4) // nhwc
+                _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
+            else
+                _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
             log::print("\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
 
             // rec model
@@ -291,7 +294,10 @@ namespace maix::nn
                     _model = nullptr;
                 }
                 std::vector<nn::LayerInfo> rec_inputs = _rec_model->inputs_info();
-                _rec_input_size = image::Size(rec_inputs[0].shape[3], rec_inputs[0].shape[2]);
+                if(rec_inputs[0].shape[3] <= 4) // nhwc
+                    _rec_input_size = image::Size(rec_inputs[0].shape[2], rec_inputs[0].shape[1]);
+                else
+                    _rec_input_size = image::Size(rec_inputs[0].shape[3], rec_inputs[0].shape[2]);
                 std::vector<nn::LayerInfo> rec_outputs = _rec_model->outputs_info();
                 size_t labels_num = rec_outputs[0].shape[2] - 2;
                 if(labels_num != labels.size())
@@ -305,7 +311,7 @@ namespace maix::nn
                 _max_ch_num = rec_outputs[0].shape[1];
                 if(_max_ch_num * 8 != _rec_input_size.width())
                 {
-                    log::error("input width not match, model need: %lld, actual: %lld", _max_ch_num * 8, _input_size.width());
+                    log::error("input width not match, model need: %lld, actual: %lld", _max_ch_num * 8, _rec_input_size.width());
                     return err::ERR_ARGS;
                 }
             }

@@ -357,6 +357,17 @@ namespace maix::nn
                 }
                 _input_size = _facedetector_yolov8->input_size();
             }
+            else if(model_type == "yolo11")
+            {
+                _facedetector_yolov8 = new YOLO11("", _dual_buff);
+                err::Err e = _facedetector_yolov8->load(detect_model);
+                if (e != err::ERR_NONE)
+                {
+                    log::error("load detect model failed");
+                    return e;
+                }
+                _input_size = _facedetector_yolov8->input_size();
+            }
             else
             {
                 log::error("model %s not support, only support retinaface and yolov8", model_type.c_str());
@@ -808,7 +819,7 @@ namespace maix::nn
         std::vector<std::vector<float>> _anchor; // [[dense_cx, dense_cy, s_kx, s_ky],]
         std::vector<float> _variance;
         Retinaface *_facedetector_retina;
-        YOLOv8 *_facedetector_yolov8;
+        YOLO11 *_facedetector_yolov8;
         FaceDetector *_facedetector;
         int _feature_input_size;
         bool _dual_buff;

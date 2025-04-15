@@ -1,5 +1,6 @@
 #include "maix_nn_pp_ocr.hpp"
 #include "pp_ocr_postprocess_op.h"
+#include <omp.h>
 
 namespace maix::nn
 {
@@ -53,16 +54,14 @@ namespace maix::nn
             cv::Mat bit_map(shape[2], shape[3], CV_8UC1);
             uint8_t *p_binary_data = (uint8_t*)bit_map.data;
             uint8_t _thresh_uint8 = (uint8_t)(_thresh * 255);
+            #pragma omp parallel for
             for(int i=0; i < shape[3] * shape[2]; ++i)
             {
-                *p_img_data = (uint8_t)(*p_data * 255);
-                if(*p_img_data > _thresh_uint8)
-                    *p_binary_data = 1;
+                p_img_data[i] = (uint8_t)(p_data[i] * 255);
+                if(p_img_data[i] > _thresh_uint8)
+                    p_binary_data[i] = 1;
                 else
-                    *p_binary_data = 0;
-                ++p_data;
-                ++p_img_data;
-                ++p_binary_data;
+                    p_binary_data[i] = 0;
             }
 
             // post process
@@ -122,17 +121,19 @@ namespace maix::nn
             tensor::Tensor *out = it->second;
             float *data = (float*)out->data();
             float max_score;
+            #pragma omp parallel for
             for(int i = 0; i < _max_ch_num; ++i)
             {
-                max_score = 0;
-                for(int j = 0; j < _prob_num; ++j)
+                float *p_data = data + i * _prob_num;
+                max_score = p_data[0];
+                max_idxes[i] = 0;
+                for(int j = 1; j < _prob_num; ++j)
                 {
-                    if(*data > max_score)
+                    if(p_data[j] > max_score)
                     {
-                        max_score = *data;
+                        max_score = p_data[j];
                         max_idxes[i] = j;
                     }
-                    ++data;
                 }
             }
             break;

@@ -298,7 +298,7 @@ namespace maix::sys
         }
         FILE *file = NULL;
         char line[128];
-        std::string model = "";
+        std::string model = "unknown";
         file = fopen("/proc/device-tree/model", "r");
         if (file)
         {
@@ -307,7 +307,7 @@ namespace maix::sys
                 model = line;
                 model.erase(0, model.find_first_not_of(" \t\n"));
                 model.erase(model.find_last_not_of(" \t\n") + 1);
-#if PLATFORM_MAIXCAM
+#if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
                 // if(model.find("MaixCAM") != std::string::npos || model.find("LicheeRv Nano") != std::string::npos)
                 // 包含 maixcam 或者 licheerv nano (不区分大小写，先把 model 转换为小写)
                 std::string model_lower = model;
@@ -321,6 +321,17 @@ namespace maix::sys
                     }
                     else
                         _device_name = "MaixCAM";
+                    return _device_name;
+                }
+                else if (model_lower.find("maixcam2") != std::string::npos)
+                {
+                    fclose(file);
+                    auto it = _device_configs.find("name");
+                    if (it != _device_configs.end()) {
+                        _device_name = it->second;
+                    }
+                    else
+                        _device_name = "MaixCAM2";
                     return _device_name;
                 }
 #else
