@@ -400,7 +400,8 @@ namespace maix::image
             {
                 memset(_data, bg.gray, _data_size);
             }
-            else if ((bg.format == image::FMT_RGB888 || bg.format == image::FMT_BGR888) && (_format == image::FMT_RGB888 || _format == image::FMT_BGR888))
+            else if ((bg.format == image::FMT_RGB888 || bg.format == image::FMT_BGR888 || bg.format == image::FMT_RGBA8888 || bg.format == image::FMT_BGRA8888) &&
+                (_format == image::FMT_RGB888 || _format == image::FMT_BGR888))
             {
                 if(bg.r == bg.g && bg.g == bg.b)
                 {
@@ -418,9 +419,10 @@ namespace maix::image
                     }
                 }
             }
-            else if ((bg.format == image::FMT_RGBA8888 || bg.format == image::FMT_BGRA8888) && (_format == image::FMT_RGBA8888 || _format == image::FMT_BGRA8888))
+            else if ((bg.format == image::FMT_RGB888 || bg.format == image::FMT_BGR888 || bg.format == image::FMT_RGBA8888 || bg.format == image::FMT_BGRA8888) &
+                (_format == image::FMT_RGBA8888 || _format == image::FMT_BGRA8888))
             {
-                if(bg.r == bg.g && bg.g == bg.b && bg.alpha == 255)
+                if(bg.r == bg.g && bg.g == bg.b && bg.alpha == 1)
                 {
                     memset(_data, bg.r, _data_size);
                 }
