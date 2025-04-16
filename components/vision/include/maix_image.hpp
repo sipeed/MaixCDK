@@ -202,7 +202,7 @@ namespace maix::image
                 uint8_t v1 = ((uint8_t *)_data)[y * _width * 3 + x * 3 + 1];
                 uint8_t v2 = ((uint8_t *)_data)[y * _width * 3 + x * 3 + 2];
                 if (!rgbtuple) {
-                    int value = v0 << 16 | v1 << 8 | v2;
+                    uint32_t value = v2 << 16 | v1 << 8 | v0;
                     pixels.push_back(value);
                 } else {
                     pixels.push_back(v0);
@@ -218,7 +218,7 @@ namespace maix::image
             case image::Format::FMT_RGB565:
             {
                 if (!rgbtuple) {
-                    int value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
+                    uint32_t value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
                     pixels.push_back(value);
                 } else {
                     uint32_t value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
@@ -234,7 +234,7 @@ namespace maix::image
             case image::Format::FMT_RGBA8888: // fall through
             case image::Format::FMT_BGRA8888:
                 if (!rgbtuple) {
-                    int value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
+                    uint32_t value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
                     pixels.push_back(value);
                 } else {
                     uint32_t value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
