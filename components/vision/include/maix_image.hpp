@@ -179,8 +179,8 @@ namespace maix::image
          *
          * @maixpy maix.image.Image.get_pixel
         */
-        std::vector<int> get_pixel(int x, int y, bool rgbtuple = false) {
-            std::vector<int> pixels;
+        std::vector<uint32_t> get_pixel(int x, int y, bool rgbtuple = false) {
+            std::vector<uint32_t> pixels;
             if (!(_format == image::Format::FMT_RGB888 || _format == image::Format::FMT_BGR888 ||
                 _format == image::Format::FMT_RGB565 || _format == image::Format::FMT_BGR565 ||
                 _format == image::Format::FMT_GRAYSCALE ||
@@ -221,10 +221,10 @@ namespace maix::image
                     int value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
                     pixels.push_back(value);
                 } else {
-                    int value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
-                    int v0 = (value >> 11) & 0x1F;
-                    int v1 = (value >> 5) & 0x3F;
-                    int v2 = value & 0x1F;
+                    uint32_t value = ((uint16_t *)_data)[y * _width + x] & 0xffff;
+                    uint32_t v0 = (value >> 11) & 0x1F;
+                    uint32_t v1 = (value >> 5) & 0x3F;
+                    uint32_t v2 = value & 0x1F;
                     pixels.push_back(v0);
                     pixels.push_back(v1);
                     pixels.push_back(v2);
@@ -237,11 +237,11 @@ namespace maix::image
                     int value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
                     pixels.push_back(value);
                 } else {
-                    int value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
-                    int v0 = (value >> 24) & 0xFF;
-                    int v1 = (value >> 16) & 0xFF;
-                    int v2 = (value >> 8) & 0xFF;
-                    int v3 = value & 0xFF;
+                    uint32_t value = ((uint32_t *)_data)[y * _width + x] & 0xffffffff;
+                    uint32_t v0 = value & 0xFF;
+                    uint32_t v1 = (value >> 8) & 0xFF;
+                    uint32_t v2 = (value >> 16) & 0xFF;
+                    uint32_t v3 = (value >> 24) & 0xFF;
                     pixels.push_back(v0);
                     pixels.push_back(v1);
                     pixels.push_back(v2);
@@ -267,7 +267,7 @@ namespace maix::image
          * @return error code, Err::ERR_NONE is ok, other is error
          * @maixpy maix.image.Image.set_pixel
         */
-        err::Err set_pixel(int x, int y, std::vector<int> pixel) {
+        err::Err set_pixel(int x, int y, std::vector<uint32_t> pixel) {
             if (!(_format == image::Format::FMT_RGB888 || _format == image::Format::FMT_BGR888 ||
                 _format == image::Format::FMT_RGB565 || _format == image::Format::FMT_BGR565 ||
                 _format == image::Format::FMT_GRAYSCALE ||
