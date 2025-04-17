@@ -75,7 +75,7 @@ namespace maix::image
          * @maixpy maix.image.Image.__init__
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format = image::Format::FMT_RGB888, const image::Color &bg = image::Color::from_gray(0));
+        Image(int width, int height, image::Format format = image::Format::FMT_RGB888, const image::Color &bg = image::FMT_INVALID);
         // Image(int width, int height, image::Format format = image::Format::FMT_RGB888, Bytes *data = nullptr, bool copy = true);
 
         /**
@@ -93,7 +93,7 @@ namespace maix::image
          *           So you can set to image.COLOR_INVALID to save time in some case.
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::Color::from_gray(0));
+        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::FMT_INVALID);
 
         Image() {
             _width = 0;
@@ -1564,7 +1564,7 @@ namespace maix::image
 
         int _get_cv_pixel_num(image::Format &format);
         std::vector<int> _get_available_roi(std::vector<int> roi, std::vector<int> other_roi = std::vector<int>());
-        void _create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::Color::from_gray(0));
+        void _create_image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::FMT_INVALID);
     }; // class Image
 
     /**
