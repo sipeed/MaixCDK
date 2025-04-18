@@ -1121,7 +1121,7 @@ void ui_photo_list_screen_update(void)
 
                     lv_obj_t *sub_obj3 = lv_obj_create(img);
                     lv_obj_align(sub_obj3, LV_ALIGN_DEFAULT, 5, 5);
-                    lv_obj_set_size(sub_obj3, 5, 5);
+                    lv_obj_set_size(sub_obj3, 15, 15);
                     lv_obj_set_style_radius(sub_obj3, 0, 0);
                     lv_obj_remove_flag(sub_obj3, LV_OBJ_FLAG_SCROLLABLE);
                     lv_obj_set_style_radius(sub_obj3, 90, 0);
