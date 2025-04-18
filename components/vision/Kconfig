@@ -4,6 +4,7 @@ config VISION_ENABLE
     default y
     select AX620E_MSP_ENABLE_NPU_LIB    if PLATFORM = "maixcam2"
     select AX620E_MSP_ENABLE_SENSOR_LIB if PLATFORM = "maixcam2"
+    select AX620E_MSP_ENABLE_VO_LIB     if PLATFORM = "maixcam2"
     help
       To use this component, you must enable it here.
 endmenu
