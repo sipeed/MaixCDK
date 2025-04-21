@@ -62,7 +62,7 @@ static const OS04A10_MODE_S g_astOs04a10_mode[OS04A10_MODE_NUM] = {
 		},
 	},
 	[OS04A10_MODE_720P90_12BIT] = {
-		.name = "640x480_fps130_12bit",
+		.name = "720p_fps90_12bit",
 		.astImg[0] = {
 			.stSnsSize = {
 				.u32Width = 1280,

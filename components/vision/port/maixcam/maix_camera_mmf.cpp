@@ -512,8 +512,10 @@ _retry:
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
                 if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin_90fps.os04a10"), "set config path failed!");
                 } else {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
                 }
                 sensor_cfg.lane_id = {2, 3, 1, 4, 0};
                 sensor_cfg.pn_swap = {1, 1, 1, 1, 1};
@@ -523,7 +525,6 @@ _retry:
                 sensor_cfg.exptime_min = 33333;
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
-                err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
             } else if (!strcmp(sensor_name, "gcore_gc02m1")) {
                 sensor_cfg.sns_type = GCORE_GC02M1_MIPI_2M_30FPS_10BIT;
                 sensor_cfg.lane_id = {0, 1, -1, -1, -1};
