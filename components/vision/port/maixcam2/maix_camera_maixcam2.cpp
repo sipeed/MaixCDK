@@ -403,6 +403,11 @@ namespace maix::camera
         int buff_num_tmp =( buff_num == -1) ? _buff_num : buff_num;
         camera_priv_t *priv = (camera_priv_t *)_param;
 
+        // check resolution
+        if (format == image::FMT_RGB888) {
+            err::check_bool_raise(width_tmp < 1920 && height_tmp < 1080, "The resolution of an image in RGB888 format must not exceed 1920x1080");
+        }
+
         // check format
         err::check_bool_raise(_check_format(format_tmp), "Format not support");
 
