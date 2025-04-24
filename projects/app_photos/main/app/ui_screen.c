@@ -951,6 +951,7 @@ static void _ui_small_photo_screen_init(void)
     // lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_pad_all(obj, 0, 0);
+    lv_obj_set_style_pad_bottom(obj, 80, 0);
     lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
     lv_obj_set_style_bg_color(obj, lv_color_hex(0xffffff), 0);
     lv_obj_set_flex_flow(obj, LV_FLEX_FLOW_COLUMN);
