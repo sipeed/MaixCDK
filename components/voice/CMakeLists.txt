@@ -37,8 +37,10 @@ endif()
 list(APPEND ADD_REQUIREMENTS basic)
 if(PLATFORM_LINUX)
     list(APPEND ADD_REQUIREMENTS )
-elseif(PLATFORM_MAIXCAM OR PLATFORM_MAIXCAM2)
+elseif(PLATFORM_MAIXCAM)
     list(APPEND ADD_REQUIREMENTS tinyalsa)
+elseif(PLATFORM_MAIXCAM2)
+    list(APPEND ADD_REQUIREMENTS maixcam_lib tinyalsa)
 endif()
 ###############################################
 

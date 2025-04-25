@@ -66,6 +66,7 @@ namespace maix::audio
 
         /**
          * Mute
+         * @note MaixCAM2 dose not support this api.
          * @param data mute data, If you set this parameter to true, audio will set the value to mute,
          * if you don't, it will return the current mute status.
          * @return Returns whether mute is currently enabled.
@@ -121,6 +122,7 @@ namespace maix::audio
 
         /**
          * Return the number of frames available for reading during recording, unit is frame.
+         * @note MaixCAM2 dose not support this api.
          * @note The number of bytes per frame can be calculated using frame_size().
          * @return remaining frames
          * @maixpy maix.audio.Recorder.get_remaining_frames

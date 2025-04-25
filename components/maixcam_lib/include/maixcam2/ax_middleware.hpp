@@ -23,6 +23,11 @@ extern "C" {
 #include "ax_buffer_tool.h"
 #include "ax_vin_error_code.h"
 #include "ax_vo_api.h"
+#include "ax_ai_api.h"
+#include "ax_ao_api.h"
+#include "ax_aenc_api.h"
+#include "ax_adec_api.h"
+#include "ax_acodec_api.h"
 #include "common_sys.h"
 #include "common_venc.h"
 #include "common_vin.h"
@@ -127,6 +132,44 @@ namespace maix::middleware::maixcam2 {
     } ax_vdec_param_t;
 
     typedef struct {
+        int channels;
+        int rate;
+        int encode_rate;
+        AX_AUDIO_BIT_WIDTH_E bits;
+        AX_AI_LAYOUT_MODE_E layout;
+        AX_PAYLOAD_TYPE_E payload_type;
+        unsigned int period_size;
+        unsigned int period_count;
+        bool cfg_pool_en;
+        AX_POOL_CONFIG_T pool_cfg;
+        bool cfg_pub_attr;
+        AX_AI_ATTR_T pub_attr;
+        bool vqe_en;
+        AX_AP_UPTALKVQE_ATTR_T vqe_attr;
+        bool ns_en;
+        AX_NS_CONFIG_T ns_attr;
+        bool hpf_en;
+        AX_ACODEC_FREQ_ATTR_T hpf_attr;
+        bool lpf_en;
+        AX_ACODEC_FREQ_ATTR_T lpf_attr;
+        bool eq_en;
+        AX_ACODEC_EQ_ATTR_T eq_attr;
+        bool aed_en;
+        AX_AED_ATTR_T aed_attr;
+    } ax_audio_in_param_t;
+
+    typedef struct {
+        bool vqe_en;
+        AX_AP_DNVQE_ATTR_T vqe_attr;
+        bool hpf_en;
+        AX_ACODEC_FREQ_ATTR_T hpf_attr;
+        bool lpf_en;
+        AX_ACODEC_FREQ_ATTR_T lpf_attr;
+        bool eq_en;
+        AX_ACODEC_EQ_ATTR_T eq_attr;
+    } ax_audio_out_param_t;
+
+    typedef struct {
         pthread_mutex_t lock;
         int init_count;
         COMMON_SYS_ARGS_T tCommonArgs;
@@ -195,6 +238,33 @@ namespace maix::middleware::maixcam2 {
         int init_count;
     } ax_vo_mod_t;
 
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        int card;
+        int device;
+        SYS *sys;
+        AX_POOL pool_id;
+        ax_audio_in_param_t param;
+        bool eq_en;
+        bool hpf_en;
+        bool lpf_en;
+        bool aed_en;
+        AX_AI_ATTR_T attr;
+    } ax_ai_mod_t;
+
+    typedef struct {
+        pthread_mutex_t lock;
+        int init_count;
+        SYS *sys;
+        int card;
+        int device;
+        AX_POOL pool_id;
+        ax_audio_out_param_t param;
+
+        AX_AO_ATTR_T attr;
+    } ax_ao_mod_t;
+
     typedef enum {
         AX_MOD_SYS,
         AX_MOD_ENGINE,
@@ -203,6 +273,9 @@ namespace maix::middleware::maixcam2 {
         AX_MOD_VENC,
         AX_MOD_VDEC,
         AX_MOD_JPG,
+        AX_MOD_AI,
+        AX_MOD_AO,
+        AX_MOD_MAX,
     } ax_mod_e;
 
     class AxModuleParam {
@@ -235,6 +308,12 @@ namespace maix::middleware::maixcam2 {
             case AX_MOD_JPG:
                 pthread_mutex_lock(&__jpg_mod.lock);
             break;
+            case AX_MOD_AI:
+                pthread_mutex_lock(&__ai_mod.lock);
+            break;
+            case AX_MOD_AO:
+                pthread_mutex_lock(&__ao_mod.lock);
+            break;
             default:
                 err::check_raise(err::ERR_RUNTIME, "unknown ax module");
             break;
@@ -264,6 +343,12 @@ namespace maix::middleware::maixcam2 {
             case AX_MOD_JPG:
                 return &__jpg_mod;
             break;
+            case AX_MOD_AI:
+                return &__ai_mod;
+            break;
+            case AX_MOD_AO:
+                return &__ao_mod;
+            break;
             default:
                 return nullptr;
             }
@@ -292,6 +377,12 @@ namespace maix::middleware::maixcam2 {
             case AX_MOD_JPG:
                 pthread_mutex_unlock(&__jpg_mod.lock);
             break;
+            case AX_MOD_AI:
+                pthread_mutex_unlock(&__ai_mod.lock);
+            break;
+            case AX_MOD_AO:
+                pthread_mutex_unlock(&__ao_mod.lock);
+            break;
             default:
                 err::check_raise(err::ERR_RUNTIME, "unknown ax module");
             break;
@@ -305,7 +396,8 @@ namespace maix::middleware::maixcam2 {
         ax_venc_mod_t __venc_mod;
         ax_vdec_mod_t __vdec_mod;
         ax_jpg_mod_t __jpg_mod;
-
+        ax_ai_mod_t __ai_mod;
+        ax_ao_mod_t __ao_mod;
         AxModuleParam() {
             __sys_mod.lock = PTHREAD_MUTEX_INITIALIZER;
             __engine_mod.lock = PTHREAD_MUTEX_INITIALIZER;
@@ -314,6 +406,8 @@ namespace maix::middleware::maixcam2 {
             __venc_mod.lock = PTHREAD_MUTEX_INITIALIZER;
             __vdec_mod.lock = PTHREAD_MUTEX_INITIALIZER;
             __jpg_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __ai_mod.lock = PTHREAD_MUTEX_INITIALIZER;
+            __ao_mod.lock = PTHREAD_MUTEX_INITIALIZER;
         }
         ~AxModuleParam() = default;
         AxModuleParam(const AxModuleParam &) = delete;
@@ -881,7 +975,7 @@ namespace maix::middleware::maixcam2 {
                 tVinParam.eSysCase = __get_vi_case_from_sensor_name((char *)get_sensor_res.second.c_str());
 
                 // check if enable ai-isp
-                AX_BOOL ai_isp_on = app::get_sys_config_kv("npu", "ai_isp", "1") == "1" ? AX_TRUE : AX_FALSE;
+                AX_BOOL ai_isp_on = app::get_sys_config_kv("npu", "ai_isp") == "1" ? AX_TRUE : AX_FALSE;
                 tVinParam.bAiispEnable = ai_isp_on;
 
                 __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
@@ -930,6 +1024,7 @@ namespace maix::middleware::maixcam2 {
         FRAME_FROM_MALLOC,
         FRAME_FROM_VDEC_GET_STREAM,
         FRAME_FROM_AX_MALLOC,
+        FRAME_FROM_AUDIO_GET_FRAME,
     } frame_from_e;
 
     class Frame {
@@ -948,9 +1043,11 @@ namespace maix::middleware::maixcam2 {
         Frame(int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         Frame(int pool_id, int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         Frame(void *data, int data_size, frame_from_e from = FRAME_FROM_MALLOC);
+        Frame(int card, int device, AX_AUDIO_FRAME_T *frame, frame_from_e from = FRAME_FROM_AUDIO_GET_FRAME);
         ~Frame();
         frame_from_e from();
         err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
+        err::Err get_audio_frame(AX_AUDIO_FRAME_T * frame);
         err::Err get_venc_stream(AX_VENC_STREAM_T * stream);
         err::Err get_video_frame_info(AX_VIDEO_FRAME_INFO_T * stream);
     };
@@ -1029,6 +1126,36 @@ namespace maix::middleware::maixcam2 {
         err::Err get_config(ax_vdec_param_t *cfg);
     private:
         int _ch;
+        void *param;
+    };
+
+    class AudioIn {
+    public:
+        AudioIn(ax_audio_in_param_t *cfg);
+        ~AudioIn();
+        err::Err init();
+        err::Err deinit();
+        maixcam2::Frame *read(int32_t timeout_ms);
+        float volume(float volume);
+        err::Err reset();
+        int period_size(int size);
+        int period_count(int count);
+    private:
+        void *param;
+    };
+
+    class AudioOut {
+    public:
+        AudioOut(ax_audio_out_param_t *cfg);
+        ~AudioOut();
+        err::Err init();
+        err::Err deinit();
+        bool mute(int mute); // mute = -1, get mute, mute = 0, mute, mute = 1, unmute
+        float volume(float volume); // volume = -1, get volume, volume = 0~1, set volume
+        err::Err pause();
+        err::Err resume();
+        err::Err write(maixcam2::Frame *frame);
+    private:
         void *param;
     };
 };

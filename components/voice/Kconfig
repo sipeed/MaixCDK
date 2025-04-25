@@ -1,0 +1,8 @@
+menu "voice component configuration"
+config VOICE_ENABLE
+    bool # not visable in menuconfig, just for dependency use.
+    default y
+    select AX620E_MSP_ENABLE_AUDIO_LIB     if PLATFORM = "maixcam2"
+    help
+      To use this component, you must enable it here.
+endmenu

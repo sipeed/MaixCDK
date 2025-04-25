@@ -10,10 +10,11 @@
 #include "maix_err.hpp"
 #include "maix_audio.hpp"
 #include <sys/wait.h>
-#include "tinyalsa/pcm.h"
-#include "tinyalsa/mixer.h"
+#include "ax_middleware.hpp"
+#include <list>
 
 using namespace maix;
+using namespace maix::middleware;
 
 namespace maix::audio
 {
@@ -151,107 +152,41 @@ namespace maix::audio
         struct pcm *pcm = nullptr;
         FILE *file = nullptr;
         wav_header_t wav_header;
+        int channels;
+        int ax_channels;
+        int rate;
+        int bits;
         bool block;
+        audio::Format format;
+        union {
+            maixcam2::AudioIn *ax_ai;
+            maixcam2::AudioOut *ax_ao;
+        };
+        std::list<Bytes *> remaining_pcm_list;
     } audio_param_t;
 
-    enum pcm_format to_tinyalsa_format(audio::Format format) {
+    static AX_AUDIO_BIT_WIDTH_E __maix_to_ax_fmt(audio::Format format) {
         switch (format) {
         case FMT_S8:
-            return PCM_FORMAT_S8;
+            return AX_AUDIO_BIT_WIDTH_8;
         case FMT_S16_LE:
-            return PCM_FORMAT_S16_LE;
+            return AX_AUDIO_BIT_WIDTH_16;
         case FMT_S32_LE:
-            return PCM_FORMAT_S32_LE;
+            return AX_AUDIO_BIT_WIDTH_32;
         case FMT_S16_BE:
-            return PCM_FORMAT_S16_BE;
+            return AX_AUDIO_BIT_WIDTH_16;
         case FMT_S32_BE:
-            return PCM_FORMAT_S32_BE;
+            return AX_AUDIO_BIT_WIDTH_32;
         default:
             std::string error_msg = "not support audio format(" + std::to_string(format) + ")";
             err::check_raise(err::ERR_ARGS, error_msg);
         }
 
-        return PCM_FORMAT_INVALID;
+        return AX_AUDIO_BIT_WIDTH_BUTT;
     }
 
-
-    static audio::Format _audio_format_from_tinyalsa(enum pcm_format format) {
-        switch (format)
-        {
-        case PCM_FORMAT_S8: return audio::Format::FMT_S8;
-        case PCM_FORMAT_S16_LE: return audio::Format::FMT_S16_LE;
-        case PCM_FORMAT_S32_LE: return audio::Format::FMT_S32_LE;
-        case PCM_FORMAT_S16_BE: return audio::Format::FMT_S16_BE;
-        case PCM_FORMAT_S32_BE: return audio::Format::FMT_S32_BE;
-        default: return audio::Format::FMT_NONE;
-        }
-    }
-
-    static enum pcm_format wav_sample_bit_to_tinyalsa_format(int sample_bit)
-    {
-        switch (sample_bit) {
-            case 8: return PCM_FORMAT_S8;
-            case 16: return PCM_FORMAT_S16_LE;
-            case 32: return PCM_FORMAT_S32_LE;
-            default:
-            {
-                std::string error_msg = "not support sample bit(" + std::to_string(sample_bit) + ")";
-                err::check_raise(err::ERR_ARGS, error_msg);
-            }
-        }
-        return PCM_FORMAT_INVALID;
-    }
-
-    static bool __check_rate_is_valid(struct pcm_params *params, unsigned int rate) {
-        unsigned int min;
-        unsigned int max;
-        min = pcm_params_get_min(params, PCM_PARAM_RATE);
-        max = pcm_params_get_max(params, PCM_PARAM_RATE);
-        if (min > rate || max < rate) {
-            log::error("please check your sample rate, it should be in [%d, %d]", min, max);
-            return false;
-        }
-
-        return true;
-    }
-
-    static bool __check_channel_is_valid(struct pcm_params *params, unsigned int channel) {
-        unsigned int min;
-        unsigned int max;
-        min = pcm_params_get_min(params, PCM_PARAM_CHANNELS);
-        max = pcm_params_get_max(params, PCM_PARAM_CHANNELS);
-        if (min > channel || max < channel) {
-            log::error("please check your channel, it should be in [%d, %d]", min, max);
-            return false;
-        }
-
-        return true;
-    }
-
-    static bool __check_period_size_is_valid(struct pcm_params *params, unsigned int period_size) {
-        unsigned int min;
-        unsigned int max;
-        min = pcm_params_get_min(params, PCM_PARAM_PERIOD_SIZE);
-        max = pcm_params_get_max(params, PCM_PARAM_PERIOD_SIZE);
-        if (min > period_size || max < period_size) {
-            log::error("please check your period size, it should be in [%d, %d]", min, max);
-            return false;
-        }
-
-        return true;
-    }
-
-    static bool __check_period_count_is_valid(struct pcm_params *params, unsigned int period_count) {
-        unsigned int min;
-        unsigned int max;
-        min = pcm_params_get_min(params, PCM_PARAM_PERIODS);
-        max = pcm_params_get_max(params, PCM_PARAM_PERIODS);
-        if (min > period_count || max < period_count) {
-            log::error("please check your period count, it should be in [%d, %d]", min, max);
-            return false;
-        }
-
-        return true;
+    static uint64_t __frames_to_bytes(audio_param_t *param, int frame_count) {
+        return frame_count * param->bits / 8 * param->channels;
     }
 
     Recorder::Recorder(std::string path, int sample_rate, audio::Format format, int channel, bool block) {
@@ -262,57 +197,42 @@ namespace maix::audio
             }
         }
 
-        auto tinyalsa_format = to_tinyalsa_format(format);
         audio_param_t *param = new audio_param_t();
         err::check_null_raise(param, "malloc failed");
-        channel = 2;        // TODO: fix me!!!!!!!!!!!
-        struct pcm_config config = {
-            .channels = (uint32_t)channel,
-            .rate = (uint32_t)sample_rate,
-            .period_size = 1024,
-            .period_count = 40,
-            .format = tinyalsa_format,
-            .start_threshold = 1024,
-            .stop_threshold = 1024 * 40
-        };
-        param->file = nullptr;
-        param->card = 0;
-        param->device = 0;
-        param->path = path;
+        auto ax_bit_width = __maix_to_ax_fmt(format);
+        param->format = format;
+        param->channels = channel;
+        param->ax_channels = 2;
+        param->rate = sample_rate;
+        param->bits = (ax_bit_width + 1) * 8;
         param->block = block;
-        uint32_t pcm_flag = PCM_IN | (!param->block ? PCM_NONBLOCK : 0);
-        auto params = pcm_params_get(param->card, param->device, pcm_flag);
-        err::check_null_raise(params, "failed to get pcm params");
-        err::check_bool_raise(__check_rate_is_valid(params, config.rate), "sample rate is not valid");
-        err::check_bool_raise(__check_channel_is_valid(params, config.channels), "channel number is not valid");
-        err::check_bool_raise(__check_period_size_is_valid(params, config.period_size), "period size is not valid");
-        err::check_bool_raise(__check_period_count_is_valid(params, config.period_count), "period count is not valid");
-        pcm_params_free(params);
+        param->path = path;
+        param->file = nullptr;
+        err::check_bool_raise(channel == 1 || channel == 2, "Only support channel setting 1 or 2");
 
-        param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
-        if (param->pcm == NULL) {
-            err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
-        } else if (!pcm_is_ready(param->pcm)){
-            pcm_close(param->pcm);
-            err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
-        }
-        if (param->block) {
-            pcm_prepare(param->pcm);
-        }
+        maixcam2::ax_audio_in_param_t audio_in_param = {
+            .channels = param->ax_channels,
+            .rate = sample_rate,
+            .bits = ax_bit_width,
+            .layout = AX_AI_MIC_MIC,
+            .period_size = 160,
+            .period_count = 8,
+        };
+        param->ax_ai = new maixcam2::AudioIn(&audio_in_param);
+        param->ax_ai->init();
         _param = param;
     }
 
     Recorder::~Recorder() {
         audio_param_t *param = (audio_param_t *)_param;
         if (param) {
-            if (param->pcm) {
-                pcm_close(param->pcm);
-                param->pcm = nullptr;
+            if (param->file) {
+                this->finish();
             }
 
-            if (param->file) {
-                fclose(param->file);
-                param->file = nullptr;
+            if (param->ax_ai) {
+                delete param->ax_ai;
+                param->ax_ai = nullptr;
             }
 
             delete param;
@@ -321,157 +241,59 @@ namespace maix::audio
     }
 
     bool Recorder::mute(int data) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct mixer *mixer = mixer_open(param->card);
-        if (!mixer) {
-            err::check_raise(err::ERR_RUNTIME, "Open mixer failed");
-        }
-
-        auto ctl = mixer_get_ctl_by_name_and_device(mixer, "ADC Capture Mute", param->device);
-        if (!ctl) {
-            mixer_close(mixer);
-            err::check_raise(err::ERR_RUNTIME, "Get mixer mute ctl failed");
-        }
-
-        auto num_values = mixer_ctl_get_num_values(ctl);
-        auto is_muted = mixer_ctl_get_value(ctl, 0) ? true : false;
-
-        if (data >= 0) {
-            auto dist_mute = (data == 0) ? false : true;
-            for (size_t i = 0 ; i < num_values ; i++) {
-                auto res = mixer_ctl_set_value(ctl, i, dist_mute);
-                if (res != 0) {
-                    mixer_close(mixer);
-                    err::check_raise(err::ERR_RUNTIME, "Set mixer mute ctl failed, res:" + std::to_string(res));
-                }
-            }
-            is_muted = dist_mute;
-        }
-
-        mixer_close(mixer);
-        return is_muted;
+        err::check_raise(err::ERR_NOT_IMPL, "maixcam2 not supports this function");
+        return false;
     }
 
     int Recorder::volume(int value) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct mixer *mixer = mixer_open(param->card);
-        if (!mixer) {
-            err::check_raise(err::ERR_RUNTIME, "Open mixer failed");
+        if (param->ax_ai) {
+            return param->ax_ai->volume(value);
         }
-
-        auto ctl = mixer_get_ctl_by_name_and_device(mixer, "ADC Capture Volume", param->device);
-        if (!ctl) {
-            mixer_close(mixer);
-            err::check_raise(err::ERR_RUNTIME, "Get mixer volume ctl failed");
-        }
-
-        auto num_values = mixer_ctl_get_num_values(ctl);
-        auto curr_volume = mixer_ctl_get_percent(ctl, 0);
-        if (value >= 0) {
-            auto dist_volume = value > 100 ? 100 : value;
-            for (size_t i = 0 ; i < num_values ; i++) {
-                auto res = mixer_ctl_set_percent(ctl, i, dist_volume);
-                if (res != 0) {
-                    mixer_close(mixer);
-                    err::check_raise(err::ERR_RUNTIME, "Set mixer mute ctl failed, res:" + std::to_string(res));
-                }
-            }
-
-            curr_volume = dist_volume;
-        }
-
-        mixer_close(mixer);
-        return curr_volume;
+        return 0;
     }
 
     void Recorder::reset(bool start) {
+        (void)start;
         audio_param_t *param = (audio_param_t *)_param;
-        pcm_drain(param->pcm);
-        pcm_stop(param->pcm);
-        pcm_prepare(param->pcm);
-        if (start) {
-            pcm_start(param->pcm);
+        if (param->ax_ai) {
+            param->ax_ai->reset();
         }
     }
 
     maix::Bytes *Recorder::record(int record_ms) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-
         if (record_ms < 0) {
             return record_bytes(record_ms);
         } else {
-            int record_size = record_ms * pcm_get_rate(pcm) / 1000;
-            return record_bytes(pcm_frames_to_bytes(pcm, record_size));
+            int frame_count = record_ms * param->rate / 1000;
+            int bytes = frame_size(frame_count);
+            return record_bytes(bytes);
         }
     }
 
     int Recorder::frame_size(int frame_count) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
         frame_count = frame_count <= 0 ? 1 : frame_count;
-        return pcm_frames_to_bytes(pcm, frame_count);
+        return __frames_to_bytes(param, frame_count);
     }
 
     int Recorder::get_remaining_frames() {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        unsigned int avail;
-        struct timespec tstamp;
-
-        err::check_bool_raise(!pcm_get_htimestamp(pcm, &avail, &tstamp), "Get htimestamp failed");
-
-        return (int)avail;
+        return 0;
     }
 
     int Recorder::period_size(int period_size) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-
-        if (period_size >= 0) {
-            const struct pcm_config *config = pcm_get_config(pcm);
-            struct pcm_config new_config;
-            memcpy(&new_config, config, sizeof(new_config));
-            new_config.period_size = period_size;
-            new_config.start_threshold = new_config.period_size;
-            new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            auto res = pcm_set_config(pcm, &new_config);
-            if (res) {
-                log::error("pcm set period size config failed, res = %d: %s", res, pcm_get_error(pcm));
-                err::check_bool_raise(!res, "Set audio config failed");
-            }
-        }
-
-        const struct pcm_config *curr_config = pcm_get_config(pcm);
-        return curr_config->period_size;
+        return param->ax_ai->period_size(period_size);
     }
 
     int Recorder::period_count(int period_count) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-
-        if (period_count >= 0) {
-            const struct pcm_config *config = pcm_get_config(pcm);
-            struct pcm_config new_config;
-            memcpy(&new_config, config, sizeof(new_config));
-            new_config.period_count = period_count;
-            new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            auto res = pcm_set_config(pcm, &new_config);
-            if (res) {
-                log::error("pcm set period count config failed, res = %d: %s", res, pcm_get_error(pcm));
-                err::check_bool_raise(!res, "Set audio config failed");
-            }
-        }
-
-        const struct pcm_config *curr_config = pcm_get_config(pcm);
-        return curr_config->period_count;
+        return param->ax_ai->period_count(period_count);
     }
-
 
     maix::Bytes *Recorder::record_bytes(int record_size) {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        const struct pcm_config *config = pcm_get_config(pcm);
 
         if (param->file == nullptr && param->path.size() > 0) {
             param->file = fopen(param->path.c_str(), "w+");
@@ -480,10 +302,10 @@ namespace maix::audio
             if (fs::splitext(param->path)[1] == ".wav") {
                 wav_header_t header = {
                     .file_size = 44,
-                    .channel = (int)config->channels,
-                    .sample_rate = (int)config->rate,
-                    .sample_bit = (int)pcm_format_to_bits(config->format),
-                    .bitrate = (int)(config->channels * config->rate * pcm_format_to_bits(config->format) / 8),
+                    .channel = (int)param->channels,
+                    .sample_rate = (int)param->rate,
+                    .sample_bit = (int)param->bits,
+                    .bitrate = (int)(param->channels * param->rate * param->bits / 8),
                     .data_size = 0,
                 };
 
@@ -498,39 +320,124 @@ namespace maix::audio
             }
         }
 
-        auto remaining_frames = get_remaining_frames();
-        auto bytes_per_frame = pcm_frames_to_bytes(pcm, 1);
-        auto remaining_bytes = remaining_frames * bytes_per_frame;
+        Bytes *out_bytes = nullptr;
         if (record_size < 0) {
-            record_size = remaining_bytes;
-        } else {
-            if (!param->block) {
-                if ((uint32_t)record_size > remaining_bytes) {
-                    record_size = remaining_bytes;
-                }
+            std::list<Bytes*> pcm_list;
+            int total_pcm_size = 0;
+            for (auto it = param->remaining_pcm_list.begin(); it != param->remaining_pcm_list.end();) {
+                auto pcm = *it;
+                pcm_list.push_back(pcm);
+                total_pcm_size = pcm->data_len;
+                it = param->remaining_pcm_list.erase(it);
+            }
 
-                if (record_size == 0) {
-                    return new Bytes();
+            while (!app::need_exit()) {
+                auto audio_frame = param->ax_ai->read(0);
+                if (audio_frame) {
+                    Bytes *pcm = nullptr;
+                    if (param->channels == 1) {
+                        if (param->bits == 16) {
+                            pcm = new Bytes(nullptr, audio_frame->len / 2);
+                            int16_t *src = (int16_t *)audio_frame->data;
+                            int16_t *dst = (int16_t *)pcm->data;
+                            int j = 0;
+                            for (int i = 1; i < audio_frame->len / this->frame_size(); i += param->ax_channels) {
+                                dst[j ++] = src[i];
+                            }
+                        } else {
+                            err::check_raise(err::ERR_NOT_IMPL, "Can't invert channel to 1");
+                        }
+                    } else {
+                        pcm = new Bytes((uint8_t *)audio_frame->data, audio_frame->len);
+                    }
+
+                    pcm_list.push_back(pcm);
+                    total_pcm_size += pcm->data_len;
+                    delete audio_frame;
+                } else {
+                    break;
                 }
             }
-        }
 
-        auto remain_frame_count = pcm_bytes_to_frames(pcm, record_size);
-        auto out_bytes = new Bytes(nullptr, record_size);
-        err::check_null_raise(out_bytes, "Create new bytes failed!");
-        while (remain_frame_count > 0 && !app::need_exit()) {
-            auto buffer = out_bytes->data + out_bytes->data_len - remain_frame_count * bytes_per_frame;
-            auto read_frame_count = remain_frame_count > 1024 ? 1024 : remain_frame_count;
-            auto len = pcm_readi(pcm, buffer, read_frame_count);
-            if (len == -EPIPE) {
-                pcm_prepare(pcm);
-            } else if (len < 0) {
-                log::error("pcm read error(%d): %s", len, pcm_get_error(pcm));
-                delete out_bytes;
+            out_bytes = new Bytes(nullptr, total_pcm_size);
+            if (!out_bytes) {
                 return new Bytes();
+            }
+
+            int offset = 0;
+            for (auto it = pcm_list.begin(); it != pcm_list.end(); ++it) {
+                auto pcm = *it;
+                memcpy(out_bytes->data + offset, pcm->data, pcm->data_len);
+                offset += pcm->data_len;
+                delete pcm;
+            }
+        } else {
+            std::list<Bytes*> pcm_list;
+            int total_pcm_size = 0;
+            for (auto it = param->remaining_pcm_list.begin(); it != param->remaining_pcm_list.end();) {
+                auto pcm = *it;
+                pcm_list.push_back(pcm);
+                total_pcm_size = pcm->data_len;
+                it = param->remaining_pcm_list.erase(it);
+            }
+
+            while (!app::need_exit()) {
+                if (total_pcm_size >= record_size) {
+                    break;
+                }
+
+                auto audio_frame = param->ax_ai->read(param->block ? -1 : 0);
+                if (audio_frame) {
+                    Bytes *pcm = nullptr;
+                    if (param->channels == 1) {
+                        if (param->bits == 16) {
+                            pcm = new Bytes(nullptr, audio_frame->len / 2);
+                            int16_t *src = (int16_t *)audio_frame->data;
+                            int16_t *dst = (int16_t *)pcm->data;
+                            int j = 0;
+                            for (int i = 1; i < audio_frame->len / this->frame_size(); i += param->ax_channels) {
+                                dst[j ++] = src[i];
+                            }
+                        } else {
+                            err::check_raise(err::ERR_NOT_IMPL, "Can't invert channel to 1");
+                        }
+                    } else {
+                        pcm = new Bytes((uint8_t *)audio_frame->data, audio_frame->len);
+                    }
+
+                    pcm_list.push_back(pcm);
+                    total_pcm_size += pcm->data_len;
+                    delete audio_frame;
+                } else {
+                    break;
+                }
+            }
+
+            if (total_pcm_size >= record_size) {
+                out_bytes = new Bytes(nullptr, record_size);
+                if (!out_bytes) {
+                    return new Bytes();
+                }
+                int offset = 0;
+                for (auto it = pcm_list.begin(); it != pcm_list.end();) {
+                    auto pcm = *it;
+                    memcpy(out_bytes->data + offset, pcm->data, pcm->data_len);
+                    offset += pcm->data_len;
+                    delete pcm;
+                    it = pcm_list.erase(it);
+                    if (offset >= record_size) {
+                        break;
+                    }
+                }
+
+                for (auto pcm: pcm_list) {
+                    param->remaining_pcm_list.push_back(pcm);
+                }
             } else {
-                // log::info("pcm read total %d, need read:%d, actual read: %d, remain %d ", pcm_frames_to_bytes(pcm, out_bytes->data_len), remain_frame_count, len, remain_frame_count - len);
-                remain_frame_count -= len;
+                out_bytes = new Bytes();
+                for (auto pcm: pcm_list) {
+                    param->remaining_pcm_list.push_back(pcm);
+                }
             }
         }
 
@@ -577,20 +484,18 @@ namespace maix::audio
 
     int Recorder::sample_rate() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return pcm_get_rate(pcm);
+
+        return param->rate;
     }
 
     audio::Format Recorder::format() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return _audio_format_from_tinyalsa(pcm_get_format(pcm));
+        return param->format;
     }
 
     int Recorder::channel() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return pcm_get_channels(pcm);
+        return param->channels;
     }
 #if CONFIG_BUILD_WITH_MAIXPY
     maix::Bytes *Player::NoneBytes = new maix::Bytes();
@@ -599,294 +504,295 @@ namespace maix::audio
 #endif
 
     Player::Player(std::string path, int sample_rate, audio::Format format, int channel, bool block) {
-        if (path.size() > 0) {
-            if (fs::splitext(path)[1] != ".wav"
-                && fs::splitext(path)[1] != ".pcm") {
-                err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
-            }
-        }
-        auto tinyalsa_format = to_tinyalsa_format(format);
-        FILE *new_file = nullptr;
-        wav_header_t wav_header = {0};
-        if (new_file == NULL && path.size() > 0) {
-            new_file = fopen(path.c_str(), "rb+");
-            err::check_null_raise(new_file, "Open file failed!");
+        // if (path.size() > 0) {
+        //     if (fs::splitext(path)[1] != ".wav"
+        //         && fs::splitext(path)[1] != ".pcm") {
+        //         err::check_raise(err::ERR_RUNTIME, "Only files with the `.pcm` and `.wav` extensions are supported.");
+        //     }
+        // }
+//         auto tinyalsa_format = to_tinyalsa_format(format);
+//         FILE *new_file = nullptr;
+//         wav_header_t wav_header = {0};
+//         if (new_file == NULL && path.size() > 0) {
+//             new_file = fopen(path.c_str(), "rb+");
+//             err::check_null_raise(new_file, "Open file failed!");
 
-            if (fs::splitext(path)[1] == ".wav") {
-                uint8_t buffer[44];
+//             if (fs::splitext(path)[1] == ".wav") {
+//                 uint8_t buffer[44];
 
-                if (sizeof(buffer) != fread(buffer, 1, sizeof(buffer), new_file)) {
-                    err::check_raise(err::ERR_RUNTIME, "read wav header failed!");
-                }
+//                 if (sizeof(buffer) != fread(buffer, 1, sizeof(buffer), new_file)) {
+//                     err::check_raise(err::ERR_RUNTIME, "read wav header failed!");
+//                 }
 
-                if (0 != _read_wav_header(&wav_header, buffer, sizeof(buffer))) {
-                    err::check_raise(err::ERR_RUNTIME, "parse wav header failed!");
-                }
+//                 if (0 != _read_wav_header(&wav_header, buffer, sizeof(buffer))) {
+//                     err::check_raise(err::ERR_RUNTIME, "parse wav header failed!");
+//                 }
 
-                sample_rate = wav_header.sample_rate;
-                channel = wav_header.channel;
-                tinyalsa_format = wav_sample_bit_to_tinyalsa_format(wav_header.sample_bit);
-                // printf("sample rate:%d channel:%d format:%d\r\n", _sample_rate, _channel, _format);
-            }
-        }
+//                 sample_rate = wav_header.sample_rate;
+//                 channel = wav_header.channel;
+//                 tinyalsa_format = wav_sample_bit_to_tinyalsa_format(wav_header.sample_bit);
+//                 // printf("sample rate:%d channel:%d format:%d\r\n", _sample_rate, _channel, _format);
+//             }
+//         }
 
-        audio_param_t *param = new audio_param_t();
-        err::check_null_raise(param, "malloc failed");
-        struct pcm_config config = {
-            .channels = (uint32_t)channel,
-            .rate = (uint32_t)sample_rate,
-            .period_size = 1024,
-            .period_count = 40,
-            .format = tinyalsa_format,
-            .start_threshold = 1024,
-            .stop_threshold = 1024 * 40
-        };
+//         audio_param_t *param = new audio_param_t();
+//         err::check_null_raise(param, "malloc failed");
+//         struct pcm_config config = {
+//             .channels = (uint32_t)channel,
+//             .rate = (uint32_t)sample_rate,
+//             .period_size = 1024,
+//             .period_count = 40,
+//             .format = tinyalsa_format,
+//             .start_threshold = 1024,
+//             .stop_threshold = 1024 * 40
+//         };
 
-        memcpy(&param->wav_header, &wav_header, sizeof(wav_header));
-        param->file = new_file;
-        param->card = 1;
-        param->device = 0;
-        param->path = path;
-        param->block = block;
-        uint32_t pcm_flag = PCM_OUT | (!param->block ? PCM_NONBLOCK : 0);
+//         memcpy(&param->wav_header, &wav_header, sizeof(wav_header));
+//         param->file = new_file;
+//         param->card = 1;
+//         param->device = 0;
+//         param->path = path;
+//         param->block = block;
+//         uint32_t pcm_flag = PCM_OUT | (!param->block ? PCM_NONBLOCK : 0);
 
-#ifdef PLATFORM_MAIXCAM
-        // Fix segment error when start pcm with samplerate=44100 for the first time.
-        if (channel != 1 || sample_rate != 16000 || tinyalsa_format != PCM_FORMAT_S16_LE) {
-            config.channels = 1;
-            config.rate = 16000;
-            config.format = PCM_FORMAT_S16_LE;
-            param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
-            if (param->pcm == NULL) {
-                err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
-            } else if (!pcm_is_ready(param->pcm)){
-                pcm_close(param->pcm);
-                err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
-            }
-            pcm_prepare(param->pcm);
-            pcm_start(param->pcm);
-            uint8_t *data = new uint8_t[320];
-            pcm_writei(param->pcm, data, 160);
-            delete[] data;
-            pcm_drain(param->pcm);
-            pcm_close(param->pcm);
-            config.channels = (uint32_t)channel;
-            config.rate = (uint32_t)sample_rate;
-            config.format = tinyalsa_format;
-        }
-#endif
-        param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
-        if (param->pcm == NULL) {
-            err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
-        } else if (!pcm_is_ready(param->pcm)){
-            pcm_close(param->pcm);
-            err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
-        }
-        _param = param;
+// #ifdef PLATFORM_MAIXCAM
+//         // Fix segment error when start pcm with samplerate=44100 for the first time.
+//         if (channel != 1 || sample_rate != 16000 || tinyalsa_format != PCM_FORMAT_S16_LE) {
+//             config.channels = 1;
+//             config.rate = 16000;
+//             config.format = PCM_FORMAT_S16_LE;
+//             param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
+//             if (param->pcm == NULL) {
+//                 err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
+//             } else if (!pcm_is_ready(param->pcm)){
+//                 pcm_close(param->pcm);
+//                 err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
+//             }
+//             pcm_prepare(param->pcm);
+//             pcm_start(param->pcm);
+//             uint8_t *data = new uint8_t[320];
+//             pcm_writei(param->pcm, data, 160);
+//             delete[] data;
+//             pcm_drain(param->pcm);
+//             pcm_close(param->pcm);
+//             config.channels = (uint32_t)channel;
+//             config.rate = (uint32_t)sample_rate;
+//             config.format = tinyalsa_format;
+//         }
+// #endif
+//         param->pcm = pcm_open(param->card, param->device, pcm_flag, &config);
+//         if (param->pcm == NULL) {
+//             err::check_null_raise(param->pcm, "failed to allocate memory for PCM");
+//         } else if (!pcm_is_ready(param->pcm)){
+//             pcm_close(param->pcm);
+//             err::check_raise(err::ERR_RUNTIME, "failed to open PCM");
+//         }
+        // _param = param;
     }
 
     Player::~Player() {
-        audio_param_t *param = (audio_param_t *)_param;
-        if (param) {
-            if (param->pcm) {
-                pcm_close(param->pcm);
-                param->pcm = nullptr;
-            }
+        // audio_param_t *param = (audio_param_t *)_param;
+        // if (param) {
+        //     if (param->pcm) {
+        //         pcm_close(param->pcm);
+        //         param->pcm = nullptr;
+        //     }
 
-            if (param->file) {
-                fclose(param->file);
-                param->file = nullptr;
-            }
+        //     if (param->file) {
+        //         fclose(param->file);
+        //         param->file = nullptr;
+        //     }
 
-            delete param;
-            _param = nullptr;
-        }
+        //     delete param;
+        //     _param = nullptr;
+        // }
     }
 
     int Player::volume(int value) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct mixer *mixer = mixer_open(param->card);
-        if (!mixer) {
-            err::check_raise(err::ERR_RUNTIME, "Open mixer failed");
-        }
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct mixer *mixer = mixer_open(param->card);
+        // if (!mixer) {
+        //     err::check_raise(err::ERR_RUNTIME, "Open mixer failed");
+        // }
 
-        auto ctl = mixer_get_ctl_by_name_and_device(mixer, "DAC Playback Volume", param->device);
-        if (!ctl) {
-            mixer_close(mixer);
-            err::check_raise(err::ERR_RUNTIME, "Get mixer volume ctl failed");
-        }
+        // auto ctl = mixer_get_ctl_by_name_and_device(mixer, "DAC Playback Volume", param->device);
+        // if (!ctl) {
+        //     mixer_close(mixer);
+        //     err::check_raise(err::ERR_RUNTIME, "Get mixer volume ctl failed");
+        // }
 
-        auto num_values = mixer_ctl_get_num_values(ctl);
-        auto curr_volume = mixer_ctl_get_percent(ctl, 0);
-        curr_volume = 100 - curr_volume;
-        if (value >= 0) {
-            auto dist_volume = value > 100 ? 100 : value;
-            dist_volume = 100 - dist_volume;
-            for (size_t i = 0 ; i < num_values ; i++) {
-                auto res = mixer_ctl_set_percent(ctl, i, dist_volume);
-                if (res != 0) {
-                    mixer_close(mixer);
-                    err::check_raise(err::ERR_RUNTIME, "Set mixer mute ctl failed, res:" + std::to_string(res));
-                }
-            }
+        // auto num_values = mixer_ctl_get_num_values(ctl);
+        // auto curr_volume = mixer_ctl_get_percent(ctl, 0);
+        // curr_volume = 100 - curr_volume;
+        // if (value >= 0) {
+        //     auto dist_volume = value > 100 ? 100 : value;
+        //     dist_volume = 100 - dist_volume;
+        //     for (size_t i = 0 ; i < num_values ; i++) {
+        //         auto res = mixer_ctl_set_percent(ctl, i, dist_volume);
+        //         if (res != 0) {
+        //             mixer_close(mixer);
+        //             err::check_raise(err::ERR_RUNTIME, "Set mixer mute ctl failed, res:" + std::to_string(res));
+        //         }
+        //     }
 
-            curr_volume = 100 - dist_volume;
-        }
+        //     curr_volume = 100 - dist_volume;
+        // }
 
-        mixer_close(mixer);
-        return curr_volume;
+        // mixer_close(mixer);
+        // return curr_volume;
+        return 0;
     }
 
     err::Err Player::play(maix::Bytes *data) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct pcm *pcm = param->pcm;
         err::Err ret = err::ERR_NONE;
 
-        auto bytes_per_frame = pcm_frames_to_bytes(pcm, 1);
-        if (!data || !data->data || !data->size()) {
-            if (param->file == NULL && param->path.size() > 0) {
-                param->file = fopen(param->path.c_str(), "rb+");
-                err::check_null_raise(param->file, "Open file failed!");
-            }
+        // auto bytes_per_frame = pcm_frames_to_bytes(pcm, 1);
+        // if (!data || !data->data || !data->size()) {
+        //     if (param->file == NULL && param->path.size() > 0) {
+        //         param->file = fopen(param->path.c_str(), "rb+");
+        //         err::check_null_raise(param->file, "Open file failed!");
+        //     }
 
-            if (fs::splitext(param->path)[1] == ".wav") {
-                fseek(param->file, 44, 0);
-            }
+        //     if (fs::splitext(param->path)[1] == ".wav") {
+        //         fseek(param->file, 44, 0);
+        //     }
 
-            int read_len = 0;
-            uint32_t buffer_size = 4096;
-            uint8_t *buffer = new uint8_t[buffer_size];
-            while ((read_len = fread(buffer, 1, buffer_size, param->file)) > 0 && !app::need_exit()) {
-                auto remain_frame_count = pcm_bytes_to_frames(pcm, read_len);
-                auto buffer2 = buffer + read_len - remain_frame_count * bytes_per_frame;
-                while (remain_frame_count > 0 && !app::need_exit()) {
-                    if (!param->block) {
-                        auto remain_frames = get_remaining_frames();
-                        if ((uint32_t)remain_frames < remain_frame_count) {
-                            time::sleep_ms(1);
-                            continue;
-                        }
-                    }
+        //     int read_len = 0;
+        //     uint32_t buffer_size = 4096;
+        //     uint8_t *buffer = new uint8_t[buffer_size];
+        //     while ((read_len = fread(buffer, 1, buffer_size, param->file)) > 0 && !app::need_exit()) {
+        //         auto remain_frame_count = pcm_bytes_to_frames(pcm, read_len);
+        //         auto buffer2 = buffer + read_len - remain_frame_count * bytes_per_frame;
+        //         while (remain_frame_count > 0 && !app::need_exit()) {
+        //             if (!param->block) {
+        //                 auto remain_frames = get_remaining_frames();
+        //                 if ((uint32_t)remain_frames < remain_frame_count) {
+        //                     time::sleep_ms(1);
+        //                     continue;
+        //                 }
+        //             }
 
-                    auto len = pcm_writei(pcm, buffer2, remain_frame_count);
-                    if (len == -EPIPE) {
-                        pcm_prepare(pcm);
-                        break;
-                    } else if (len < 0) {
-                        log::error("pcm write error(%d): %s", len, pcm_get_error(pcm));
-                        return err::ERR_RUNTIME;
-                    } else {
-                        // log::info("pcm write total %d, write %d, remain %d ", pcm_frames_to_bytes(pcm, remain_frame_count), len, remain_frame_count);
-                        remain_frame_count -= len;
-                    }
-                }
-            }
-        } else {
-            auto remain_frame_count = pcm_bytes_to_frames(pcm, data->data_len);
-            auto buffer2 = data->data + data->data_len - remain_frame_count * bytes_per_frame;
-            while (remain_frame_count > 0 && !app::need_exit()) {
-                if (!param->block) {
-                    auto remain_frames = get_remaining_frames();
-                    if ((uint32_t)remain_frames < remain_frame_count) {
-                        time::sleep_ms(100);
-                        continue;
-                    }
-                }
+        //             auto len = pcm_writei(pcm, buffer2, remain_frame_count);
+        //             if (len == -EPIPE) {
+        //                 pcm_prepare(pcm);
+        //                 break;
+        //             } else if (len < 0) {
+        //                 log::error("pcm write error(%d): %s", len, pcm_get_error(pcm));
+        //                 return err::ERR_RUNTIME;
+        //             } else {
+        //                 // log::info("pcm write total %d, write %d, remain %d ", pcm_frames_to_bytes(pcm, remain_frame_count), len, remain_frame_count);
+        //                 remain_frame_count -= len;
+        //             }
+        //         }
+        //     }
+        // } else {
+        //     auto remain_frame_count = pcm_bytes_to_frames(pcm, data->data_len);
+        //     auto buffer2 = data->data + data->data_len - remain_frame_count * bytes_per_frame;
+        //     while (remain_frame_count > 0 && !app::need_exit()) {
+        //         if (!param->block) {
+        //             auto remain_frames = get_remaining_frames();
+        //             if ((uint32_t)remain_frames < remain_frame_count) {
+        //                 time::sleep_ms(100);
+        //                 continue;
+        //             }
+        //         }
 
-                auto len = pcm_writei(pcm, buffer2, remain_frame_count);
-                if (len == -EPIPE) {
-                    pcm_prepare(pcm);
-                    break;
-                } else if (len < 0) {
-                    log::error("pcm write error(%d): %s", len, pcm_get_error(pcm));
-                    return err::ERR_RUNTIME;
-                } else {
-                    // log::info("pcm write total %d, need write:%d, actual write: %d, remain %d ", pcm_frames_to_bytes(pcm, remain_frame_count), remain_frame_count, len, remain_frame_count - len);
-                    remain_frame_count -= len;
-                }
-            }
-        }
+        //         auto len = pcm_writei(pcm, buffer2, remain_frame_count);
+        //         if (len == -EPIPE) {
+        //             pcm_prepare(pcm);
+        //             break;
+        //         } else if (len < 0) {
+        //             log::error("pcm write error(%d): %s", len, pcm_get_error(pcm));
+        //             return err::ERR_RUNTIME;
+        //         } else {
+        //             // log::info("pcm write total %d, need write:%d, actual write: %d, remain %d ", pcm_frames_to_bytes(pcm, remain_frame_count), remain_frame_count, len, remain_frame_count - len);
+        //             remain_frame_count -= len;
+        //         }
+        //     }
+        // }
 
         return ret;
     }
 
     int Player::frame_size(int frame_count) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        frame_count = frame_count <= 0 ? 1 : frame_count;
-        return pcm_frames_to_bytes(pcm, frame_count);
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct pcm *pcm = param->pcm;
+        // frame_count = frame_count <= 0 ? 1 : frame_count;
+        // return pcm_frames_to_bytes(pcm, frame_count);
+        return 0;
     }
 
     int Player::get_remaining_frames() {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        unsigned int avail;
-        struct timespec tstamp;
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct pcm *pcm = param->pcm;
+        unsigned int avail = 0;
+        // struct timespec tstamp;
 
-        err::check_bool_raise(!pcm_get_htimestamp(pcm, &avail, &tstamp), "Get htimestamp failed");
+        // err::check_bool_raise(!pcm_get_htimestamp(pcm, &avail, &tstamp), "Get htimestamp failed");
         return (int)avail;
     }
 
     int Player::period_size(int period_size) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct pcm *pcm = param->pcm;
 
-        if (period_size >= 0) {
-            const struct pcm_config *config = pcm_get_config(pcm);
-            struct pcm_config new_config;
-            memcpy(&new_config, config, sizeof(new_config));
-            new_config.period_size = period_size;
-            new_config.start_threshold = new_config.period_size;
-            new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
-        }
+        // if (period_size >= 0) {
+        //     const struct pcm_config *config = pcm_get_config(pcm);
+        //     struct pcm_config new_config;
+        //     memcpy(&new_config, config, sizeof(new_config));
+        //     new_config.period_size = period_size;
+        //     new_config.start_threshold = new_config.period_size;
+        //     new_config.stop_threshold = new_config.period_size * new_config.period_count;
+        //     err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
+        // }
 
-        const struct pcm_config *curr_config = pcm_get_config(pcm);
-        return curr_config->period_size;
+        // const struct pcm_config *curr_config = pcm_get_config(pcm);
+        // return curr_config->period_size;
+        return 0;
     }
 
     int Player::period_count(int period_count) {
-        audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
+        // audio_param_t *param = (audio_param_t *)_param;
+        // struct pcm *pcm = param->pcm;
 
-        if (period_count >= 0) {
-            const struct pcm_config *config = pcm_get_config(pcm);
-            struct pcm_config new_config;
-            memcpy(&new_config, config, sizeof(new_config));
-            new_config.period_count = period_count;
-            new_config.stop_threshold = new_config.period_size * new_config.period_count;
-            err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
-        }
+        // if (period_count >= 0) {
+        //     const struct pcm_config *config = pcm_get_config(pcm);
+        //     struct pcm_config new_config;
+        //     memcpy(&new_config, config, sizeof(new_config));
+        //     new_config.period_count = period_count;
+        //     new_config.stop_threshold = new_config.period_size * new_config.period_count;
+        //     err::check_bool_raise(!pcm_set_config(pcm, &new_config), "Set audio config failed");
+        // }
 
-        const struct pcm_config *curr_config = pcm_get_config(pcm);
-        return curr_config->period_count;
+        // const struct pcm_config *curr_config = pcm_get_config(pcm);
+        // return curr_config->period_count;
+        return 0;
     }
 
     void Player::reset(bool start) {
-        audio_param_t *param = (audio_param_t *)_param;
-        pcm_drain(param->pcm);
-        pcm_stop(param->pcm);
-        pcm_prepare(param->pcm);
-        if (start) {
-            pcm_start(param->pcm);
-        }
+        // audio_param_t *param = (audio_param_t *)_param;
+        // pcm_drain(param->pcm);
+        // pcm_stop(param->pcm);
+        // pcm_prepare(param->pcm);
+        // if (start) {
+        //     pcm_start(param->pcm);
+        // }
     }
 
     int Player::sample_rate() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return pcm_get_rate(pcm);
+        return param->rate;
     }
 
     audio::Format Player::format() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return _audio_format_from_tinyalsa(pcm_get_format(pcm));
+        return param->format;
     }
 
     int Player::channel() {
         audio_param_t *param = (audio_param_t *)_param;
-        struct pcm *pcm = param->pcm;
-        return pcm_get_channels(pcm);
+        return param->channels;
     }
 } // namespace maix::audio

@@ -88,6 +88,8 @@ endif()
 
 if(CONFIG_AX620E_MSP_ENABLE_AUDIO_LIB)
     list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_audio_3a.so"
+                                        "${msp_glibc_path}/lib/libax_audio.so"
+                                        "${msp_glibc_path}/third-party/lib/libsamplerate.so"
     )
 endif()
 
@@ -140,7 +142,6 @@ if(CONFIG_AX620E_MSP_ENABLE_EXTRA_LIB)
                                         # "${msp_app_path}/component/resource/lib/arm64/glibc/appweb/libmpr.so"
     )
 endif()
-
 
 set_property(SOURCE ${libax_dynamic_lib_file} PROPERTY GENERATED 1)
 list(APPEND ADD_DYNAMIC_LIB ${libax_dynamic_lib_file})
