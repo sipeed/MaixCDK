@@ -219,7 +219,7 @@ namespace maix::audio
             .period_count = 8,
         };
         param->ax_ai = new maixcam2::AudioIn(&audio_in_param);
-        param->ax_ai->init();
+        err::check_raise(param->ax_ai->init(), "audio init failed");
         _param = param;
     }
 
@@ -245,10 +245,37 @@ namespace maix::audio
         return false;
     }
 
+    // value [0, 100], return [0, 10]
+    static float __volume_int_to_float(int value) {
+        value = value > 100 ? 100 : value;
+        float f_value = 0;
+        if (value < 50) {
+            f_value = (float)value / 50;
+        } else {
+            f_value = ((float)(value - 50) / 50 * 9) + 1;
+        }
+
+        return f_value;
+    }
+
+    // value [0, 10], return [0, 100]
+    static int __volume_float_to_int(float value) {
+        int new_value = 0;
+        if (value < 1) {
+            new_value = value * 50;
+        } else {
+            new_value = ((value - 1) / 9 * 50) + 50;
+        }
+
+        return new_value;
+    }
+
     int Recorder::volume(int value) {
         audio_param_t *param = (audio_param_t *)_param;
         if (param->ax_ai) {
-            return param->ax_ai->volume(value);
+            auto f_value = __volume_int_to_float(value);
+            auto new_volume = param->ax_ai->volume(f_value);
+            return __volume_float_to_int(new_volume);
         }
         return 0;
     }
@@ -258,6 +285,12 @@ namespace maix::audio
         audio_param_t *param = (audio_param_t *)_param;
         if (param->ax_ai) {
             param->ax_ai->reset();
+        }
+
+        for (auto it = param->remaining_pcm_list.begin(); it != param->remaining_pcm_list.end();) {
+            auto pcm = *it;
+            delete pcm;
+            it = param->remaining_pcm_list.erase(it);
         }
     }
 
@@ -419,15 +452,28 @@ namespace maix::audio
                     return new Bytes();
                 }
                 int offset = 0;
+                Bytes *remaining_pcm = nullptr;
                 for (auto it = pcm_list.begin(); it != pcm_list.end();) {
                     auto pcm = *it;
-                    memcpy(out_bytes->data + offset, pcm->data, pcm->data_len);
-                    offset += pcm->data_len;
+                    if (pcm->data_len + offset > record_size) {
+                        int copy_size = record_size - offset;
+                        memcpy(out_bytes->data + offset, pcm->data, copy_size);
+                        remaining_pcm = new Bytes((uint8_t *)pcm->data + copy_size, pcm->data_len - copy_size);
+                        offset += (pcm->data_len - copy_size);
+                    } else {
+                        memcpy(out_bytes->data + offset, pcm->data, pcm->data_len);
+                        offset += pcm->data_len;
+                    }
+
                     delete pcm;
                     it = pcm_list.erase(it);
                     if (offset >= record_size) {
                         break;
                     }
+                }
+
+                if (remaining_pcm) {
+                    param->remaining_pcm_list.push_back(remaining_pcm);
                 }
 
                 for (auto pcm: pcm_list) {
