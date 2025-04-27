@@ -975,7 +975,7 @@ namespace maix::middleware::maixcam2 {
                 tVinParam.eSysCase = __get_vi_case_from_sensor_name((char *)get_sensor_res.second.c_str());
 
                 // check if enable ai-isp
-                AX_BOOL ai_isp_on = app::get_sys_config_kv("npu", "ai_isp") == "1" ? AX_TRUE : AX_FALSE;
+                AX_BOOL ai_isp_on = app::get_sys_config_kv("npu", "ai_isp", "1") == "1" ? AX_TRUE : AX_FALSE;
                 tVinParam.bAiispEnable = ai_isp_on;
 
                 __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
