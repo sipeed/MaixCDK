@@ -551,7 +551,8 @@ namespace maix::nn
                 // strip line
                 line.erase(0, line.find_first_not_of(" \t\r\n"));
                 line.erase(line.find_last_not_of(" \t\r\n") + 1);
-                labels.push_back(line);
+                if(!line.empty())
+                    labels.push_back(line);
             }
             f->close();
             delete f;

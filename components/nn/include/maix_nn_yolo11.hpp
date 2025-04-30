@@ -104,7 +104,9 @@ namespace maix::nn
                 err::Err e = load(model);
                 if (e != err::ERR_NONE)
                 {
-                    throw err::Exception(e, "load model failed");
+                    char tmp[128] = {0};
+                    snprintf(tmp, sizeof(tmp), "load model %s failed", model.c_str());
+                    throw err::Exception(e, tmp);
                 }
             }
         }
@@ -683,7 +685,8 @@ namespace maix::nn
                 // strip line
                 line.erase(0, line.find_first_not_of(" \t\r\n"));
                 line.erase(line.find_last_not_of(" \t\r\n") + 1);
-                labels.push_back(line);
+                if(!line.empty())
+                    labels.push_back(line);
             }
             f->close();
             delete f;

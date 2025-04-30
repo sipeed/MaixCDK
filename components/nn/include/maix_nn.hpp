@@ -223,7 +223,7 @@ namespace maix::nn
          * @param[in] input input tensor
          * @param[out] output output tensor, a key-value dict, key is layer name, value is tensor.
          *                    In C++, value can be allocated by caller, if outputs size is zero, forward will allocate memory, so you should delete it after use.
-         * @return error code, if forward success, return err::ERR_NONE
+         * @return error code, if forward success, return err::ERR_NONE, if dual_buff mode and not ready, return err::ERR_NOT_READY.
          */
         virtual err::Err forward(tensor::Tensors &inputs, tensor::Tensors &outputs, bool copy_result = true, bool dual_buff_wait = false) = 0;
 

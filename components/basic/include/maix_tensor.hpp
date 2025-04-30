@@ -557,11 +557,11 @@ namespace maix
             */
             void clear()
             {
-                for(const auto &k : _keys)
+                std::vector<std::string> keys = _keys;
+                for(const auto &k : keys)
                 {
                     rm_tensor(k);
                 }
-                _keys.clear();
             }
 
             /**
