@@ -671,6 +671,10 @@ _retry:
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
         }
 
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_720P90_12BIT) {
+            system("i2ctransfer -fy 4 w4@0x36 0x38 0x0c 0x06 0x90");    // config os04a10 720p90fps to 80fps
+        }
+
         ISP_EXPOSURE_ATTR_S stExpAttr;
         memset(&stExpAttr, 0, sizeof(ISP_EXPOSURE_ATTR_S));
         err::check_bool_raise(CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &stExpAttr), "GetExposureAttr failed!");
