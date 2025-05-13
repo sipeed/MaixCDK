@@ -455,7 +455,7 @@ namespace maix::audio
                 Bytes *remaining_pcm = nullptr;
                 for (auto it = pcm_list.begin(); it != pcm_list.end();) {
                     auto pcm = *it;
-                    if (pcm->data_len + offset > record_size) {
+                    if ((int)(pcm->data_len + offset) > record_size) {
                         int copy_size = record_size - offset;
                         memcpy(out_bytes->data + offset, pcm->data, copy_size);
                         remaining_pcm = new Bytes((uint8_t *)pcm->data + copy_size, pcm->data_len - copy_size);

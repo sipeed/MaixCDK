@@ -8,6 +8,7 @@
 #pragma once
 #include "maix_basic.hpp"
 #include <memory>
+#include "wav_file_reader.h"
 
 /**
  * @brief maix.audio module
@@ -32,6 +33,79 @@ namespace maix::audio
         FMT_U32_LE,         // unsigned 32 bits, little endian
         FMT_U16_BE,         // unsigned 16 bits, big endian
         FMT_U32_BE,         // unsigned 32 bits, big endian
+    };
+
+    /**
+     * Wav file reader
+     * @maixpy maix.audio.WavReader
+    */
+    class WavReader
+    {
+        int _channels;
+        int _sample_rate;
+        int _sample_bits;
+        int _data_size;
+        std::unique_ptr<sakado::WavFileReader> _reader;
+        std::unique_ptr<maix::Bytes> _pcm;
+    public:
+        /**
+         * @brief Construct a new WavReader object.
+         * @param path wav file path
+         * @maixpy maix.audio.WavReader.__init__
+        */
+        WavReader(std::string path) {
+            _reader = std::make_unique<sakado::WavFileReader>(path);
+            _sample_bits = _reader->BitsPerSample;
+            _channels = _reader->NumChannels;
+            _sample_rate = _reader->SampleRate;
+            _data_size = _reader->DataSize;
+            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
+            if (_reader->BitsPerSample == 16) {
+                _reader->Read((short *)_pcm->data, _data_size / _channels / _sample_bits * 8);
+            } else if (_reader->BitsPerSample == 8) {
+                _reader->Read((uint8_t *)_pcm->data, _data_size / _channels / _sample_bits * 8);
+            }
+        }
+        ~WavReader() {
+
+        }
+
+        /**
+         * Get pcm data
+         * @return pcm data. datatype @see Bytes
+         * @maixpy maix.audio.WavReader.pcm
+        */
+        Bytes *pcm(bool copy = true) {
+            return new maix::Bytes(_pcm->data, _pcm->data_len, false, copy);
+        }
+
+        /**
+         * Get sample bit
+         * @return sample bit
+         * @maixpy maix.audio.WavReader.sample_bits
+        */
+        int sample_bits() {return _sample_bits;}
+
+        /**
+         * Get sample bit
+         * @return sample bit
+         * @maixpy maix.audio.WavReader.channels
+        */
+        int channels() {return _channels;}
+
+        /**
+         * Get sample rate
+         * @return sample rate
+         * @maixpy maix.audio.WavReader.sample_rate
+        */
+        int sample_rate() {return _sample_rate;}
+
+        /**
+         * Get data size
+         * @return data size
+         * @maixpy maix.audio.WavReader.data_size
+        */
+        int data_size() {return _data_size;}
     };
 
     /**

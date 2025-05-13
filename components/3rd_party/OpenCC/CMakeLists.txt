@@ -1,59 +1,48 @@
-
-list(APPEND ADD_INCLUDE "include")
-list(APPEND ADD_PRIVATE_INCLUDE "include_private")
-append_srcs_dir(ADD_SRCS "src")
-list(APPEND ADD_REQUIREMENTS basic ini vision clipper2)
-
-if(PLATFORM_MAIXCAM)
-    append_srcs_dir(ADD_SRCS "port/maixcam")
-    list(APPEND ADD_REQUIREMENTS maixcam_lib alsa_lib)
-    list(APPEND ADD_DYNAMIC_LIB "lib/libms_asr_sg2002.so")
-    list(APPEND ADD_DEFINITIONS -DDR_WAV_IMPLEMENTATION)
-elseif(PLATFORM_MAIXCAM2)
-    append_srcs_dir(ADD_SRCS "port/maixcam2")
-    list(APPEND ADD_REQUIREMENTS eigen librosa_simple OpenCC)
-else()
-    append_srcs_dir(ADD_SRCS "port/linux")
-endif()
-
-register_component()
-
-# Config enable component2 or not in Kconfig
+set(srcs_path "${DL_EXTRACTED_PATH}/opencc_srcs/OpenCC")
 ################# Add include #################
-# list(APPEND ADD_INCLUDE "include"
-#     )
+list(APPEND ADD_INCLUDE "${srcs_path}/src"
+    )
 # list(APPEND ADD_PRIVATE_INCLUDE "include_private")
 ###############################################
 
 ############## Add source files ###############
-# list(APPEND ADD_SRCS  "src/lib2.c"
+append_srcs_dir(ADD_SRCS "${srcs_path}/src")
+list(REMOVE_ITEM ADD_SRCS "${srcs_path}/src/ConfigTest.cpp"
+                        "${srcs_path}/src/BinaryDictTest.cpp"
+                        "${srcs_path}/src/ConversionChainTest.cpp"
+                        "${srcs_path}/src/DartsDictTest.cpp"
+                        "${srcs_path}/src/DictGroupTest.cpp"
+                        "${srcs_path}/src/ConversionTest.cpp"
+                        "${srcs_path}/src/SimpleConverterTest.cpp"
+                        "${srcs_path}/src/MarisaDictTest.cpp"
+                        "${srcs_path}/src/PhraseExtractTest.cpp"
+                        "${srcs_path}/src/MaxMatchSegmentationTest.cpp"
+                        "${srcs_path}/src/SerializedValuesTest.cpp"
+                        "${srcs_path}/src/py_opencc.cpp"
+                        "${srcs_path}/src/TextDictTest.cpp"
+                        "${srcs_path}/src/UTF8StringSliceTest.cpp"
+                        "${srcs_path}/src/UTF8UtilTest.cpp"
+                        )
+# list(APPEND ADD_SRCS  "src/lib1.c"
 #     )
-# FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
-# FILE(GLOB EXTRA_SRC  "src/*.c")
-# list(APPEND ADD_SRCS  ${EXTRA_SRC})
-# aux_source_directory(src ADD_SRCS)  # collect all source file in src dir, will set var ADD_SRCS
+# aux_source_directory("inifile2/src" ADD_SRCS)  # collect all source file in src dir, will set var ADD_SRCS
 # append_srcs_dir(ADD_SRCS "src")     # append source file in src dir to var ADD_SRCS
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test.c")
-# set(ADD_ASM_SRCS "src/asm.S")
-# list(APPEND ADD_SRCS ${ADD_ASM_SRCS})
-# SET_PROPERTY(SOURCE ${ADD_ASM_SRCS} PROPERTY LANGUAGE C) # set .S  ASM file as C language
-# SET_SOURCE_FILES_PROPERTIES(${ADD_ASM_SRCS} PROPERTIES COMPILE_FLAGS "-x assembler-with-cpp -D BBBBB")
 ###############################################
 
-
 ###### Add required/dependent components ######
-# list(APPEND ADD_REQUIREMENTS basic ini)
+list(APPEND ADD_REQUIREMENTS rapidjson darts-clone marisa-trie)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
 # list(APPEND ADD_LINK_SEARCH_PATH "${CONFIG_TOOLCHAIN_PATH}/lib")
-# list(APPEND ADD_REQUIREMENTS pthread m)  # add system libs, pthread and math lib for example here
-# set (OpenCV_DIR opencv/lib/cmake/opencv4)
-# find_package(OpenCV REQUIRED)
+# list(APPEND ADD_REQUIREMENTS m)  # add system libs, pthread or m(math) lib for example
 ###############################################
 
 ############ Add static libs ##################
-# list(APPEND ADD_STATIC_LIB "lib/libtest.a")
+# if(CONFIG_COMPONENT1_INCLUDE_STATIC_LIB)
+#     list(APPEND ADD_STATIC_LIB "lib/libtest.a")
+# endif()
 ###############################################
 
 ############ Add dynamic libs ##################
@@ -80,5 +69,5 @@ register_component()
 ###############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib
-# register_component()
+register_component()
 
