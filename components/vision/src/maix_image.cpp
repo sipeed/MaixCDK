@@ -142,6 +142,10 @@ namespace maix::image
         else
         {
             mat = cv::imread(path, cv::IMREAD_UNCHANGED);
+            if (mat.depth() != 0) {
+                mat.convertTo(mat, CV_8UC(mat.channels()), 1.0 / 256.0);
+            }
+
             if (mat.empty())
                 return nullptr;
             if (mat.channels() == 1)
