@@ -475,7 +475,7 @@ namespace maix::app
             {
                 string &key_name = item.key;
                 string &value = item.value;
-                f->write(("maix_" + section_name + "_" + key_name + "=" + value + "\n").c_str(), (int)(section_name.size() + key_name.size() + value.size() + 3));
+                f->write(("maix_" + section_name + "_" + key_name + "=" + value + "\n").c_str(), (int)(section_name.size() + key_name.size() + value.size() + 8));
             }
         }
         f->close();
