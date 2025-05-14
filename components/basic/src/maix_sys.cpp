@@ -487,10 +487,45 @@ namespace maix::sys
 
         fclose(file);
 
+        res["cma_total"] = 0;
+        res["cma_used"] = 0;
         res["used"] = (total_memory - free_memory) * 1024;
         res["total"] = total_memory * 1024;
 #if PLATFORM_MAIXCAM
         res["hw_total"] = 256 * 1024 * 1024;
+#elif PLATFORM_MAIXCAM2
+        file = fopen("/proc/ax_proc/mem_cmm_info", "r");
+        if (!file)
+        {
+            log::error("Cannot open /proc/ax_proc/mem_cmm_info");
+            return res;
+        }
+
+        unsigned long total_cmm_memory = 0;
+        unsigned long used_cmm_memory = 0;
+        while (fgets(line, sizeof(line), file))
+        {
+            int i = 0;
+            while(1)
+            {
+                if(line[i] != ' ' && line[i] != '\t')
+                    break;
+                ++i;
+            }
+            if (sscanf(line + i, "total size=%dKB%*[^u]used=%dKB", &total_cmm_memory, &used_cmm_memory) == 2)
+            {
+                break;
+            }
+        }
+
+        fclose(file);
+        res["cma_total"] = total_cmm_memory;
+        res["cma_used"] = used_cmm_memory;
+        res["hw_total"] = (res["total"] + total_cmm_memory) * 1024;
+        if (res["hw_total"] > 3.9 * 1024 * 1024 * 1024 && res["hw_total"] < 4.1 * 1024 * 1024 * 1024)
+            res["hw_total"] = 4 * 1024 * 1024 * 1024; // 4G version
+        else if (res["hw_total"] > 0.9 * 1024 * 1024 * 1024 && res["hw_total"] < 1.1 * 1024 * 1024 * 1024)
+            res["hw_total"] = 1 * 1024 * 1024 * 1024; // 1G version
 #else
         res["hw_total"] = res["total"];
 #endif
