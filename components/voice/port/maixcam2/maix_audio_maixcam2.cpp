@@ -648,6 +648,7 @@ namespace maix::audio
         } else {
             log::error("get_remaining_frames failed, ret:%d", ret);
         }
+        log::warn("This function is not supported yet");
         return avail;
     }
 

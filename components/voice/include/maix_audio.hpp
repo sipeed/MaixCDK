@@ -458,6 +458,7 @@ namespace maix::audio
 
         /**
          * Return the number of idle frames available for writing during playback, unit: frame. if there are no idle frames, it will cause blocking.
+         * @note MaixCAM2 dose not support this api.
          * @note The number of bytes per frame can be calculated using frame_size().
          * @return remaining frames
          * @maixpy maix.audio.Player.get_remaining_frames
