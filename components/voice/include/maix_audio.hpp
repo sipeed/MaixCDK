@@ -8,7 +8,6 @@
 #pragma once
 #include "maix_basic.hpp"
 #include <memory>
-#include "wav_file_reader.h"
 
 /**
  * @brief maix.audio module
@@ -36,44 +35,207 @@ namespace maix::audio
     };
 
     /**
-     * Wav file reader
-     * @maixpy maix.audio.WavReader
+     * Map the audio format to the number of bits
+     * @param format audio format
+     * @return number of bits
+     * @maixpy maix.audio.fmt_bits
     */
-    class WavReader
+    const std::vector<int> fmt_bits = {
+        0, 8, 16, 32, 16, 32, 8, 16, 32, 16, 32
+    };
+
+    /**
+     * Audio file reader
+     * @maixpy maix.audio.AudioFileReader
+    */
+    class AudioFileReader
     {
+    private:
         int _channels;
         int _sample_rate;
         int _sample_bits;
         int _data_size;
-        std::unique_ptr<sakado::WavFileReader> _reader;
         std::unique_ptr<maix::Bytes> _pcm;
+        typedef struct {
+            unsigned long fmt_size;
+            unsigned short fmt_id;
+            unsigned short channels;
+            unsigned long sample_rate;
+            unsigned short bits_per_sample;
+            unsigned short block_align;
+            unsigned long bytes_per_sec;
+            unsigned long data_size;  // size of pcm
+        } wav_header_t;
+
+        err::Err read_wav_header(std::string path, wav_header_t &header, int &header_seek) {
+            err::Err ret = err::ERR_NONE;
+            char ch[5];
+            unsigned int size;
+
+            FILE *fp = fopen(path.c_str(), "rb");
+            if (!fp) {
+                return err::ERR_RUNTIME;
+            }
+
+			fread(ch, 1, 4, fp);
+			ch[4] = '\0';
+			if (strcmp(ch, "RIFF")) {
+				fclose(fp);
+				return err::ERR_RUNTIME;
+			}
+
+			fseek(fp, 4, fs::SEEK_CUR);
+			fread(ch, 1, 4, fp);
+			ch[4] = '\0';
+			if (strcmp(ch, "WAVE")) {
+				fclose(fp);
+				return err::ERR_RUNTIME;
+			}
+
+			fseek(fp, 4, fs::SEEK_CUR);
+			fread(&header.fmt_size, 4, 1, fp);
+			fread(&header.fmt_id, 2, 1, fp);
+			fread(&header.channels, 2, 1, fp);
+			fread(&header.sample_rate, 4, 1, fp);
+			fread(&header.bytes_per_sec, 4, 1, fp);
+			fread(&header.block_align, 2, 1, fp);
+			fread(&header.bits_per_sample, 2, 1, fp);
+			fseek(fp, header.fmt_size - 16, fs::SEEK_CUR);
+			fread(ch, 1, 4, fp);
+			while (strcmp(ch, "data")) {
+				if (fread(&size, 4, 1, fp) != 1) {
+					fclose(fp);
+					return err::ERR_RUNTIME;
+				}
+				fseek(fp, size, fs::SEEK_CUR);
+				fread(ch, 1, 4, fp);
+			}
+			fread(&header.data_size, 4, 1, fp);
+
+			if (header.bits_per_sample != 8 && header.bits_per_sample != 16) {
+				fclose(fp);
+				return err::ERR_RUNTIME;
+			}
+
+			if (header.channels != 1 && header.channels != 2) {
+				fclose(fp);
+				return err::ERR_RUNTIME;
+			}
+
+            header_seek = ftell(fp);
+
+            fclose(fp);
+            return ret;
+        }
+
+        err::Err read_wav(std::string path) {
+            err::Err ret = err::ERR_NONE;
+
+            wav_header_t wav_header;
+            int header_seek = 0;
+            ret = read_wav_header(path, wav_header, header_seek);
+            if (ret != err::ERR_NONE) {
+                log::error("read_wav_header error");
+                return ret;
+            }
+
+            auto new_file = fopen(path.c_str(), "rb");
+            if (!new_file) {
+                log::error("open wav file failed!");
+                return err::ERR_RUNTIME;
+            }
+
+            fseek(new_file, header_seek, fs::SEEK_SET);
+
+            _channels = wav_header.channels;
+            _sample_rate = wav_header.sample_rate;
+            _data_size = wav_header.data_size;
+            _sample_bits = wav_header.bits_per_sample;
+
+            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
+            if (!_pcm) {
+                log::error("allocate memory failed!");
+                fclose(new_file);
+                return err::ERR_RUNTIME;
+            }
+
+            if (fread(_pcm->data, 1, _data_size, new_file) != (size_t)_data_size) {
+                log::error("read wav file failed!");
+                fclose(new_file);
+                return err::ERR_RUNTIME;
+            }
+            fclose(new_file);
+
+            return ret;
+        }
+
+
+        err::Err read_pcm(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
+            err::Err ret = err::ERR_NONE;
+
+            auto new_file = fopen(path.c_str(), "rb");
+            if (!new_file) {
+                log::error("open wav file failed!");
+                return err::ERR_RUNTIME;
+            }
+            fseek(new_file, 0, fs::SEEK_END);
+            _data_size = ftell(new_file);
+            auto bytes_per_frame = channels * bits_per_sample / 8;
+            _data_size = (_data_size / bytes_per_frame) * bytes_per_frame;
+            _sample_rate = sample_rate;
+            _channels = channels;
+            _sample_bits = bits_per_sample;
+
+            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
+            if (!_pcm) {
+                log::error("allocate memory failed!");
+                fclose(new_file);
+                return err::ERR_RUNTIME;
+            }
+            fseek(new_file, 0, fs::SEEK_SET);
+            if (fread(_pcm->data, 1, _data_size, new_file) != (size_t)_data_size) {
+                log::error("read wav file failed!");
+                fclose(new_file);
+                return err::ERR_RUNTIME;
+            }
+            fclose(new_file);
+
+            return ret;
+        }
     public:
         /**
-         * @brief Construct a new WavReader object.
-         * @param path wav file path
-         * @maixpy maix.audio.WavReader.__init__
+         * @brief Construct a new AudioFileReader object.
+         * @param path wav or pcm file path
+         * @param sample_rate sample rate, need to be filled in when parsing .pcm files
+         * @param channels channels, need to be filled in when parsing .pcm files
+         * @param bits_per_sample bits per sample, need to be filled in when parsing .pcm files
+         * @maixpy maix.audio.AudioFileReader.__init__
         */
-        WavReader(std::string path) {
-            _reader = std::make_unique<sakado::WavFileReader>(path);
-            _sample_bits = _reader->BitsPerSample;
-            _channels = _reader->NumChannels;
-            _sample_rate = _reader->SampleRate;
-            _data_size = _reader->DataSize;
-            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
-            if (_reader->BitsPerSample == 16) {
-                _reader->Read((short *)_pcm->data, _data_size / _channels / _sample_bits * 8);
-            } else if (_reader->BitsPerSample == 8) {
-                _reader->Read((uint8_t *)_pcm->data, _data_size / _channels / _sample_bits * 8);
+        AudioFileReader(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
+            err::check_bool_raise(path.size() > 0, "path is empty");
+            _sample_bits = bits_per_sample;
+            _channels = channels;
+            _sample_rate = sample_rate;
+
+            if (fs::exists(path)) {
+                auto extension = fs::splitext(path)[1];
+                if (extension == ".wav") {
+                    err::check_raise(read_wav(path));
+                } else if (extension == ".pcm") {
+                    err::check_raise(read_pcm(path, _sample_rate, _channels, _sample_bits));
+                } else {
+                    err::check_raise(err::ERR_NOT_FOUND, "Only files with the `.pcm` and `.wav` extensions are supported.");
+                }
             }
         }
-        ~WavReader() {
+        ~AudioFileReader() {
 
         }
 
         /**
          * Get pcm data
          * @return pcm data. datatype @see Bytes
-         * @maixpy maix.audio.WavReader.pcm
+         * @maixpy maix.audio.AudioFileReader.pcm
         */
         Bytes *pcm(bool copy = true) {
             return new maix::Bytes(_pcm->data, _pcm->data_len, false, copy);
@@ -82,28 +244,28 @@ namespace maix::audio
         /**
          * Get sample bit
          * @return sample bit
-         * @maixpy maix.audio.WavReader.sample_bits
+         * @maixpy maix.audio.AudioFileReader.sample_bits
         */
         int sample_bits() {return _sample_bits;}
 
         /**
          * Get sample bit
          * @return sample bit
-         * @maixpy maix.audio.WavReader.channels
+         * @maixpy maix.audio.AudioFileReader.channels
         */
         int channels() {return _channels;}
 
         /**
          * Get sample rate
          * @return sample rate
-         * @maixpy maix.audio.WavReader.sample_rate
+         * @maixpy maix.audio.AudioFileReader.sample_rate
         */
         int sample_rate() {return _sample_rate;}
 
         /**
          * Get data size
          * @return data size
-         * @maixpy maix.audio.WavReader.data_size
+         * @maixpy maix.audio.AudioFileReader.data_size
         */
         int data_size() {return _data_size;}
     };

@@ -159,6 +159,18 @@ namespace maix::middleware::maixcam2 {
     } ax_audio_in_param_t;
 
     typedef struct {
+        int channels;
+        int rate;
+        int encode_rate;
+        AX_AUDIO_BIT_WIDTH_E bits;
+        AX_PAYLOAD_TYPE_E payload_type;
+        unsigned int period_size;
+        unsigned int period_count;
+        bool insert_silence;
+        bool cfg_pool_en;
+        AX_POOL_CONFIG_T pool_cfg;
+        bool cfg_pub_attr;
+        AX_AO_ATTR_T pub_attr;
         bool vqe_en;
         AX_AP_DNVQE_ATTR_T vqe_attr;
         bool hpf_en;
@@ -256,12 +268,14 @@ namespace maix::middleware::maixcam2 {
     typedef struct {
         pthread_mutex_t lock;
         int init_count;
-        SYS *sys;
         int card;
         int device;
+        SYS *sys;
         AX_POOL pool_id;
         ax_audio_out_param_t param;
-
+        bool eq_en;
+        bool hpf_en;
+        bool lpf_en;
         AX_AO_ATTR_T attr;
     } ax_ao_mod_t;
 
@@ -1025,6 +1039,7 @@ namespace maix::middleware::maixcam2 {
         FRAME_FROM_VDEC_GET_STREAM,
         FRAME_FROM_AX_MALLOC,
         FRAME_FROM_AUDIO_GET_FRAME,
+        FRAME_FROM_AUDIO_FRAME,
     } frame_from_e;
 
     class Frame {
@@ -1044,6 +1059,7 @@ namespace maix::middleware::maixcam2 {
         Frame(int pool_id, int w, int h, void *data, int data_size, AX_IMG_FORMAT_E fmt);
         Frame(void *data, int data_size, frame_from_e from = FRAME_FROM_MALLOC);
         Frame(int card, int device, AX_AUDIO_FRAME_T *frame, frame_from_e from = FRAME_FROM_AUDIO_GET_FRAME);
+        Frame(int card, int device, void *data, int data_size, AX_AUDIO_BIT_WIDTH_E bit_width, AX_AUDIO_SOUND_MODE_E sound_mode, frame_from_e from = FRAME_FROM_AUDIO_FRAME);
         ~Frame();
         frame_from_e from();
         err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
@@ -1135,7 +1151,7 @@ namespace maix::middleware::maixcam2 {
         ~AudioIn();
         err::Err init();
         err::Err deinit();
-        maixcam2::Frame *read(int32_t timeout_ms);
+        maixcam2::Frame *read(int32_t timeout_ms = -1);
         float volume(float volume);
         err::Err reset();
         int period_size(int size);
@@ -1154,7 +1170,12 @@ namespace maix::middleware::maixcam2 {
         float volume(float volume); // volume = -1, get volume, volume = 0~1, set volume
         err::Err pause();
         err::Err resume();
-        err::Err write(maixcam2::Frame *frame);
+        err::Err write(maixcam2::Frame *frame, int32_t timeout_ms = -1);
+        err::Err clear(void);
+        err::Err wait(int32_t timeout_ms = -1);
+        err::Err state(int &total_num, int &free_num, int &busy_num, int &pcm_delay);
+        int period_size(int size = -1);
+        int period_count(int count = -1);
     private:
         void *param;
     };

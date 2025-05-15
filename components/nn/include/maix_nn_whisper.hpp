@@ -441,7 +441,7 @@ namespace maix::nn
                 return "";
             }
 
-            audio::WavReader wav_reader(file);
+            audio::AudioFileReader wav_reader(file);
             auto pcm = wav_reader.pcm(false);
             return forward_raw(pcm, wav_reader.sample_rate(), wav_reader.channels(), wav_reader.sample_bits());
         }
