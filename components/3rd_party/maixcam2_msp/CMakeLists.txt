@@ -90,7 +90,7 @@ if(CONFIG_AX620E_MSP_ENABLE_AUDIO_LIB)
     list(APPEND libax_dynamic_lib_file  "${msp_glibc_path}/lib/libax_audio_3a.so"
                                         "${msp_glibc_path}/lib/libax_audio.so"
                                         "${msp_glibc_path}/third-party/lib/libsamplerate.so"
-                                        "${msp_glibc_path}/third-party/lib/tinyalsa.so"
+                                        "${msp_glibc_path}/third-party/lib/libtinyalsa.so"
     )
 endif()
 

@@ -17,7 +17,7 @@ def add_file_downloads(confs : dict) -> list:
                 'maixcam2_msp'
             ],
             'rename': {
-                f'maixcam2_msp_arm64_glibc_v3.0.0_20241120230136': 'maixcam2_msp'
+                f'maixcam2_msp': 'maixcam2_msp'
             }
         },
     ]
