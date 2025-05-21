@@ -107,7 +107,7 @@ namespace maix::sys
      *                 OS kernel may reserve some memory for some hardware like camera, npu, display etc.
      * @maixpy maix.sys.memory_info
      */
-    std::map<std::string, int> memory_info();
+    std::map<std::string, int64_t> memory_info();
 
     /**
      * Bytes to human readable string

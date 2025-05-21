@@ -458,9 +458,9 @@ namespace maix::sys
         return "";
     }
 
-    std::map<std::string, int> memory_info()
+    std::map<std::string, int64_t> memory_info()
     {
-        std::map<std::string, int> res;
+        std::map<std::string, int64_t> res;
         FILE *file = fopen("/proc/meminfo", "r");
         if (!file)
         {
@@ -512,7 +512,7 @@ namespace maix::sys
                     break;
                 ++i;
             }
-            if (sscanf(line + i, "total size=%dKB%*[^u]used=%dKB", &total_cmm_memory, &used_cmm_memory) == 2)
+            if (sscanf(line + i, "total size=%ldKB%*[^u]used=%ldKB", &total_cmm_memory, &used_cmm_memory) == 2)
             {
                 break;
             }
@@ -522,8 +522,8 @@ namespace maix::sys
         res["cma_total"] = total_cmm_memory;
         res["cma_used"] = used_cmm_memory;
         res["hw_total"] = (res["total"] + total_cmm_memory) * 1024;
-        if (res["hw_total"] > 3.9 * 1024 * 1024 * 1024 && res["hw_total"] < 4.1 * 1024 * 1024 * 1024)
-            res["hw_total"] = 4 * 1024 * 1024 * 1024; // 4G version
+        if (res["hw_total"] > (int64_t)3.9 * 1024 * 1024 * 1024 && res["hw_total"] < (int64_t)4.1 * 1024 * 1024 * 1024)
+            res["hw_total"] = (int64_t)4 * 1024 * 1024 * 1024; // 4G version
         else if (res["hw_total"] > 0.9 * 1024 * 1024 * 1024 && res["hw_total"] < 1.1 * 1024 * 1024 * 1024)
             res["hw_total"] = 1 * 1024 * 1024 * 1024; // 1G version
 #else
