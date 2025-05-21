@@ -86,6 +86,17 @@ namespace maix::nn
     };
 
     /**
+     * layer layout types
+     * @maixpy maix.nn.Layout
+     */
+    enum class Layout
+    {
+        NCHW = 0,    // [N, C, H, W]
+        NHWC = 1,    // [N, H, W, C]
+        UNKNOWN = 4
+    };
+
+    /**
      * NN model layer info
      * @maixpy maix.nn.LayerInfo
     */
@@ -126,6 +137,12 @@ namespace maix::nn
          * @maixpy maix.nn.LayerInfo.shape
          */
         std::vector<int> shape;
+
+        /**
+         * If layer layout, if layout is chw, typically the shape is [N, C, H, W], hwc is [N, H, W, C].
+         * @maixpy maix.nn.Layout
+         */
+         nn::Layout layout = nn::Layout::UNKNOWN;
 
         /**
          * Shape as one int type, multiply all dims of shape

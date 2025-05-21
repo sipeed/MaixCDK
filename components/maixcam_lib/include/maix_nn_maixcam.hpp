@@ -72,7 +72,7 @@ namespace maix::nn
          * @param[in] img input image
          * @return output tensor
          */
-        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool clear_buff = false, bool chw = true) final;
+        virtual tensor::Tensors *forward_image(image::Image &img, std::vector<float> mean = std::vector<float>(), std::vector<float> scale = std::vector<float>(), image::Fit fit = image::Fit::FIT_CONTAIN, bool copy_result = true, bool dual_buff_wait = false, bool chw = true) final;
 
     private:
         bool _loaded;

@@ -304,7 +304,39 @@ namespace maix::nn
 
     tensor::Tensors *NN::forward_image(image::Image &img, std::vector<float> mean, std::vector<float> scale, image::Fit fit, bool copy_result, bool dual_buff_wait, bool chw)
     {
-        return _impl->forward_image(img, mean, scale, fit, copy_result, dual_buff_wait, chw);
+        int input_w = 0;
+        int input_h = 0;
+        int input_c = 0;
+        nn::LayerInfo info = _impl->inputs_info()[0];
+        if(info.layout == nn::Layout::NCHW)
+        {
+            input_w = info.shape[3];
+            input_h = info.shape[2];
+            input_c = info.shape[1];
+        }
+        else
+        {
+            input_w = info.shape[2];
+            input_h = info.shape[1];
+            input_c = info.shape[3];
+        }
+        image::Image *img_p = &img;
+        bool img_need_free = false;
+        // check channel
+        if(image::fmt_size[img.format()] != input_c)
+        {
+            log::error("model need image channel is %d, but image have %d", input_c, image::fmt_size[img.format()]);
+            throw err::Exception(err::ERR_ARGS, "model input channel not match image channel");
+        }
+        if (input_w != img.width() || input_h != img.height())
+        {
+            img_p = img.resize(input_w, input_h, fit);
+            img_need_free = true;
+        }
+        tensor::Tensors *res = _impl->forward_image(*img_p, mean, scale, fit, copy_result, dual_buff_wait, chw);
+        if (img_need_free)
+            delete img_p;
+        return res;
     }
 
     int SelfLearnClassifier::learn()
