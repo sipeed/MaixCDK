@@ -1,0 +1,23 @@
+# onnxruntime version major minor patch
+menu "onnxruntime version"
+config ONNXRUNTIME_VERSION_MAJOR
+    int "onnxruntime package major version"
+    default 1 if PLATFORM = "maixcam"
+    default 1 if PLATFORM = "maixcam2"
+    help
+      onnxruntime package major version, 0 means auto select according to board
+
+config ONNXRUNTIME_VERSION_MINOR
+    int "onnxruntime package minor version"
+    default 20 if PLATFORM = "maixcam"
+    default 22 if PLATFORM = "maixcam2"
+    help
+      onnxruntime package minor version
+
+config ONNXRUNTIME_VERSION_PATCH
+    int "onnxruntime package patch version"
+    default 1 if PLATFORM = "maixcam"
+    default 0 if PLATFORM = "maixcam2"
+    help
+      onnxruntime package patch version
+endmenu

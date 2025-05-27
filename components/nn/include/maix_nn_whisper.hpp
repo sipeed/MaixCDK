@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#ifdef PLATFORM_MAIXCAM2
 #include "maix_basic.hpp"
 #include "maix_nn.hpp"
 #include "maix_image.hpp"
@@ -441,9 +442,12 @@ namespace maix::nn
                 return "";
             }
 
-            audio::AudioFileReader wav_reader(file);
-            auto pcm = wav_reader.pcm(false);
-            return forward_raw(pcm, wav_reader.sample_rate(), wav_reader.channels(), wav_reader.sample_bits());
+            audio::File audio_file;
+            audio_file.load(file);
+            auto pcm = audio_file.get_pcm(false);
+            auto result = forward_raw(pcm, audio_file.sample_rate(), audio_file.channels(), audio_file.sample_bits());
+            delete pcm;
+            return result;
         }
 
         // static void print_test(char *name, int *data, int len, int oft = 50) {
@@ -726,3 +730,4 @@ namespace maix::nn
         }
     };
 } // namespace maix::nn
+#endif

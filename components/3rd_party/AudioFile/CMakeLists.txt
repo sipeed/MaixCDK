@@ -1,16 +1,6 @@
-set(onnxruntime_version_str "${CONFIG_ONNXRUNTIME_VERSION_MAJOR}.${CONFIG_ONNXRUNTIME_VERSION_MINOR}.${CONFIG_ONNXRUNTIME_VERSION_PATCH}")
-set(onnxruntime_unzip_path "${DL_EXTRACTED_PATH}/onnxruntime_srcs")
-if(PLATFORM_MAIXCAM)
-set(src_path "${onnxruntime_unzip_path}/maixcam_onnxruntime_v${onnxruntime_version_str}")
-elseif(PLATFORM_MAIXCAM2)
-set(src_path "${onnxruntime_unzip_path}/maixcam2_onnxruntime_v${onnxruntime_version_str}")
-endif()
+# set(onnxruntime_unzip_path "${DL_EXTRACTED_PATH}/onnxruntime_srcs")
 ################# Add include #################
-if(PLATFORM_MAIXCAM)
-    list(APPEND ADD_INCLUDE "${src_path}/include")
-elseif(PLATFORM_MAIXCAM2)
-    list(APPEND ADD_INCLUDE "${src_path}/include/onnxruntime")
-endif()
+list(APPEND ADD_INCLUDE ".")
 
 # list(APPEND ADD_PRIVATE_INCLUDE "include_private")
 ###############################################
@@ -30,8 +20,6 @@ endif()
 ###### Add link search path for requirements/libs ######
 # list(APPEND ADD_LINK_SEARCH_PATH "${CONFIG_TOOLCHAIN_PATH}/lib")
 # list(APPEND ADD_REQUIREMENTS m)  # add system libs, pthread or m(math) lib for example
-list(APPEND ADD_DYNAMIC_LIB "${src_path}/lib/libonnxruntime.so.1"
-)
 
 ###############################################
 
@@ -51,7 +39,6 @@ list(APPEND ADD_DYNAMIC_LIB "${src_path}/lib/libonnxruntime.so.1"
 #### Just for this component, won't affect other 
 #### modules, including component that depend 
 #### on this component
-# list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 
 #### Add compile option for this component
 #### Add components that depend on this component
@@ -61,7 +48,6 @@ list(APPEND ADD_DYNAMIC_LIB "${src_path}/lib/libonnxruntime.so.1"
 
 ############ Add static libs ##################
 #### Update parent's variables like CMAKE_C_LINK_FLAGS
-# set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--start-group libmaix/libtest.a -ltest2 -Wl,--end-group" PARENT_SCOPE)
 ###############################################
 
 # register component, DYNAMIC or SHARED flags will make component compiled to dynamic(shared) lib

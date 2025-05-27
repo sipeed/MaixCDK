@@ -8,6 +8,7 @@
 #pragma once
 #include "maix_basic.hpp"
 #include <memory>
+#include "AudioFile.h"
 
 /**
  * @brief maix.audio module
@@ -46,131 +47,56 @@ namespace maix::audio
 
     /**
      * Audio file reader
-     * @maixpy maix.audio.AudioFileReader
+     * @maixpy maix.audio.File
     */
-    class AudioFileReader
+    class File: public AudioFile<float>
     {
     private:
         int _channels;
         int _sample_rate;
         int _sample_bits;
-        int _data_size;
-        std::unique_ptr<maix::Bytes> _pcm;
-        typedef struct {
-            unsigned long fmt_size;
-            unsigned short fmt_id;
-            unsigned short channels;
-            unsigned long sample_rate;
-            unsigned short bits_per_sample;
-            unsigned short block_align;
-            unsigned long bytes_per_sec;
-            unsigned long data_size;  // size of pcm
-        } wav_header_t;
+        bool is_pcm_file = false;
 
-        err::Err read_wav_header(std::string path, wav_header_t &header, int &header_seek) {
-            err::Err ret = err::ERR_NONE;
-            char ch[5];
-            unsigned int size;
-
-            FILE *fp = fopen(path.c_str(), "rb");
-            if (!fp) {
-                return err::ERR_RUNTIME;
-            }
-
-			fread(ch, 1, 4, fp);
-			ch[4] = '\0';
-			if (strcmp(ch, "RIFF")) {
-				fclose(fp);
-				return err::ERR_RUNTIME;
-			}
-
-			fseek(fp, 4, fs::SEEK_CUR);
-			fread(ch, 1, 4, fp);
-			ch[4] = '\0';
-			if (strcmp(ch, "WAVE")) {
-				fclose(fp);
-				return err::ERR_RUNTIME;
-			}
-
-			fseek(fp, 4, fs::SEEK_CUR);
-			fread(&header.fmt_size, 4, 1, fp);
-			fread(&header.fmt_id, 2, 1, fp);
-			fread(&header.channels, 2, 1, fp);
-			fread(&header.sample_rate, 4, 1, fp);
-			fread(&header.bytes_per_sec, 4, 1, fp);
-			fread(&header.block_align, 2, 1, fp);
-			fread(&header.bits_per_sample, 2, 1, fp);
-			fseek(fp, header.fmt_size - 16, fs::SEEK_CUR);
-			fread(ch, 1, 4, fp);
-			while (strcmp(ch, "data")) {
-				if (fread(&size, 4, 1, fp) != 1) {
-					fclose(fp);
-					return err::ERR_RUNTIME;
-				}
-				fseek(fp, size, fs::SEEK_CUR);
-				fread(ch, 1, 4, fp);
-			}
-			fread(&header.data_size, 4, 1, fp);
-
-			if (header.bits_per_sample != 8 && header.bits_per_sample != 16) {
-				fclose(fp);
-				return err::ERR_RUNTIME;
-			}
-
-			if (header.channels != 1 && header.channels != 2) {
-				fclose(fp);
-				return err::ERR_RUNTIME;
-			}
-
-            header_seek = ftell(fp);
-
-            fclose(fp);
-            return ret;
+        static float _clamp_float(float val) {
+            return std::max(-1.0f, std::min(1.0f, val));
         }
 
-        err::Err read_wav(std::string path) {
-            err::Err ret = err::ERR_NONE;
+        static void _float_to_pcm_bytes(const float* float_data, size_t sample_count, int bit_depth, uint8_t *out_bytes) {
+            for (size_t i = 0; i < sample_count; ++i) {
+                float sample = _clamp_float(float_data[i]);
 
-            wav_header_t wav_header;
-            int header_seek = 0;
-            ret = read_wav_header(path, wav_header, header_seek);
-            if (ret != err::ERR_NONE) {
-                log::error("read_wav_header error");
-                return ret;
+                switch (bit_depth) {
+                    case 8: {
+                        // 8-bit PCM is unsigned
+                        uint8_t val = static_cast<uint8_t>((sample + 1.0f) * 127.5f);  // [−1,1] → [0,255]
+                        out_bytes[i] = val;
+                        break;
+                    }
+                    case 16: {
+                        int16_t val = static_cast<int16_t>(sample * 32767.0f);
+                        std::memcpy(&out_bytes[i * 2], &val, 2);
+                        break;
+                    }
+                    case 24: {
+                        int32_t val = static_cast<int32_t>(sample * 8388607.0f);
+                        uint8_t* p = &out_bytes[i * 3];
+                        p[0] = val & 0xFF;
+                        p[1] = (val >> 8) & 0xFF;
+                        p[2] = (val >> 16) & 0xFF;
+                        break;
+                    }
+                    case 32: {
+                        int32_t val = static_cast<int32_t>(sample * 2147483647.0f);
+                        std::memcpy(&out_bytes[i * 4], &val, 4);
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Unsupported bit depth");
+                }
             }
-
-            auto new_file = fopen(path.c_str(), "rb");
-            if (!new_file) {
-                log::error("open wav file failed!");
-                return err::ERR_RUNTIME;
-            }
-
-            fseek(new_file, header_seek, fs::SEEK_SET);
-
-            _channels = wav_header.channels;
-            _sample_rate = wav_header.sample_rate;
-            _data_size = wav_header.data_size;
-            _sample_bits = wav_header.bits_per_sample;
-
-            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
-            if (!_pcm) {
-                log::error("allocate memory failed!");
-                fclose(new_file);
-                return err::ERR_RUNTIME;
-            }
-
-            if (fread(_pcm->data, 1, _data_size, new_file) != (size_t)_data_size) {
-                log::error("read wav file failed!");
-                fclose(new_file);
-                return err::ERR_RUNTIME;
-            }
-            fclose(new_file);
-
-            return ret;
         }
 
-
-        err::Err read_pcm(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
+        err::Err _load_pcm(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
             err::Err ret = err::ERR_NONE;
 
             auto new_file = fopen(path.c_str(), "rb");
@@ -179,21 +105,21 @@ namespace maix::audio
                 return err::ERR_RUNTIME;
             }
             fseek(new_file, 0, fs::SEEK_END);
-            _data_size = ftell(new_file);
+            int data_size = ftell(new_file);
             auto bytes_per_frame = channels * bits_per_sample / 8;
-            _data_size = (_data_size / bytes_per_frame) * bytes_per_frame;
+            data_size = (data_size / bytes_per_frame) * bytes_per_frame;
             _sample_rate = sample_rate;
             _channels = channels;
             _sample_bits = bits_per_sample;
 
-            _pcm = std::make_unique<maix::Bytes>(nullptr, _data_size);
-            if (!_pcm) {
+            pcm = std::make_unique<maix::Bytes>(nullptr, data_size);
+            if (!pcm) {
                 log::error("allocate memory failed!");
                 fclose(new_file);
                 return err::ERR_RUNTIME;
             }
             fseek(new_file, 0, fs::SEEK_SET);
-            if (fread(_pcm->data, 1, _data_size, new_file) != (size_t)_data_size) {
+            if (fread(pcm->data, 1, data_size, new_file) != (size_t)data_size) {
                 log::error("read wav file failed!");
                 fclose(new_file);
                 return err::ERR_RUNTIME;
@@ -202,72 +128,300 @@ namespace maix::audio
 
             return ret;
         }
+
+        err::Err _load_wav_aiff(std::string path) {
+            bool loadedOK = AudioFile::load(path);
+            if (!loadedOK) {
+                log::error("load wav or aiff file failed!");
+                return err::ERR_RUNTIME;
+            }
+
+            _sample_bits = AudioFile::getBitDepth();
+            _sample_rate = AudioFile::getSampleRate();
+            _channels = AudioFile::getNumChannels();
+            auto sample_count = AudioFile::getNumSamplesPerChannel() * _channels;
+            int offset = 0;
+            std::vector<float> samples(sample_count);
+            for (int i = 0; i < AudioFile::getNumSamplesPerChannel(); i++)
+            {
+                for (int channel = 0; channel < AudioFile::getNumChannels(); channel++)
+                {
+                    samples[offset ++] = AudioFile::samples[channel][i];
+                }
+            }
+
+            float_to_pcm_bytes(samples.data(), sample_count, _sample_bits, pcm);
+
+            // std::vector<uint8_t> out_bytes;
+            // float_to_pcm_bytes(samples.data(), sample_count, _sample_bits, out_bytes);
+            // pcm = std::make_unique<maix::Bytes>(out_bytes.data(), out_bytes.size());
+            return err::ERR_NONE;
+        }
+
+        err::Err _save_pcm(std::string path)
+        {
+            err::Err ret = err::ERR_NONE;
+            auto new_file = fopen(path.c_str(), "w+");
+            if (!new_file) {
+                log::error("open pcm file failed!");
+                return err::ERR_RUNTIME;
+            }
+
+            if (fwrite(pcm->data, 1, pcm->data_len, new_file) != (size_t)pcm->data_len) {
+                log::error("write pcm file failed!");
+                fclose(new_file);
+                return err::ERR_RUNTIME;
+            }
+            fclose(new_file);
+            return ret;
+        }
+
+        err::Err _save_wav(std::string path) {
+            AudioFile::setNumChannels(_channels);
+            AudioFile::setSampleRate(_sample_rate);
+            AudioFile::setBitDepth(_sample_bits);
+            AudioFile::setNumSamplesPerChannel(pcm->data_len / _channels / _sample_bits * 8);
+
+            std::vector<float> samples;
+            int offset = 0;
+            pcm_bytes_to_float(pcm->data, pcm->data_len / _sample_bits * 8, _sample_bits, samples);
+            for (int i = 0; i < AudioFile::getNumSamplesPerChannel(); i++)
+            {
+                for (int channel = 0; channel < AudioFile::getNumChannels(); channel++)
+                {
+                    AudioFile::samples[channel][i] = samples[offset ++];
+                }
+            }
+            auto ok = AudioFile::save(path, AudioFileFormat::Wave);
+            if (ok) {
+                return err::ERR_NONE;
+            } else {
+                return err::ERR_RUNTIME;
+            }
+        }
+
+        err::Err _save_aiff(std::string path) {
+            AudioFile::setNumChannels(_channels);
+            AudioFile::setSampleRate(_sample_rate);
+            AudioFile::setBitDepth(_sample_bits);
+            AudioFile::setNumSamplesPerChannel(pcm->data_len / _channels);
+
+            std::vector<float> samples;
+            int offset = 0;
+            pcm_bytes_to_float(pcm->data, pcm->data_len, _sample_bits, samples);
+            for (int i = 0; i < AudioFile::getNumSamplesPerChannel(); i++)
+            {
+                for (int channel = 0; channel < AudioFile::getNumChannels(); channel++)
+                {
+                    AudioFile::samples[channel][i] = samples[offset ++];
+                }
+            }
+            auto ok = AudioFile::save(path, AudioFileFormat::Aiff);
+            if (ok) {
+                return err::ERR_NONE;
+            } else {
+                return err::ERR_RUNTIME;
+            }
+        }
     public:
+        std::unique_ptr<maix::Bytes> pcm;
+
         /**
-         * @brief Construct a new AudioFileReader object.
+         * @brief Convert a float value to PCM data
+         * @param float_data The float value to convert.
+         * @param sample_count The number of samples
+         * @param bit_depth The bit depth
+         * @param out_bytes The output buffer to store the converted data.
+        */
+        void float_to_pcm_bytes(const float* float_data, size_t sample_count, int bit_depth, std::vector<uint8_t>& out_bytes) {
+            out_bytes.clear();
+            size_t bytes_per_sample = bit_depth / 8;
+            out_bytes.resize(sample_count * bytes_per_sample);
+
+            _float_to_pcm_bytes(float_data, sample_count, bit_depth, out_bytes.data());
+        }
+
+        void float_to_pcm_bytes(const float* float_data, size_t sample_count, int bit_depth, Bytes **out_bytes) {
+            size_t bytes_per_sample = bit_depth / 8;
+            auto pcm_bytes = new Bytes(nullptr, sample_count * bytes_per_sample);
+            *out_bytes = pcm_bytes;
+
+            _float_to_pcm_bytes(float_data, sample_count, bit_depth, pcm_bytes->data);
+        }
+
+        void float_to_pcm_bytes(const float* float_data, size_t sample_count, int bit_depth, std::unique_ptr<Bytes> &out_bytes) {
+            size_t bytes_per_sample = bit_depth / 8;
+            out_bytes = std::make_unique<Bytes>(nullptr, sample_count * bytes_per_sample);
+
+            _float_to_pcm_bytes(float_data, sample_count, bit_depth, out_bytes->data);
+        }
+
+        /**
+         * @brief Convert a PCM sample to a float
+         * @param pcm_data The PCM data
+         * @param sample_count The number of samples
+         * @param bit_depth The bit depth
+         * @param float_out The output buffer
+        */
+        void pcm_bytes_to_float(const uint8_t* pcm_data, size_t sample_count, int bit_depth, std::vector<float>& float_out) {
+            float_out.resize(sample_count);
+
+            for (size_t i = 0; i < sample_count; ++i) {
+                switch (bit_depth) {
+                    case 8: {
+                        uint8_t val = pcm_data[i];
+                        float_out[i] = (val / 127.5f) - 1.0f;
+                        break;
+                    }
+                    case 16: {
+                        int16_t val;
+                        std::memcpy(&val, &pcm_data[i * 2], 2);
+                        float_out[i] = val / 32768.0f;
+                        break;
+                    }
+                    case 24: {
+                        const uint8_t* p = &pcm_data[i * 3];
+                        int32_t val = (p[2] << 16) | (p[1] << 8) | p[0];
+                        // sign-extend to 32-bit if necessary
+                        if (val & 0x800000) val |= 0xFF000000;
+                        float_out[i] = val / 8388608.0f;
+                        break;
+                    }
+                    case 32: {
+                        int32_t val;
+                        std::memcpy(&val, &pcm_data[i * 4], 4);
+                        float_out[i] = val / 2147483648.0f;
+                        break;
+                    }
+                    default:
+                        throw std::runtime_error("Unsupported bit depth");
+                }
+            }
+        }
+
+        /**
+         * @brief Construct a new File object.
          * @param path wav or pcm file path
          * @param sample_rate sample rate, need to be filled in when parsing .pcm files
          * @param channels channels, need to be filled in when parsing .pcm files
          * @param bits_per_sample bits per sample, need to be filled in when parsing .pcm files
-         * @maixpy maix.audio.AudioFileReader.__init__
+         * @maixpy maix.audio.File.__init__
         */
-        AudioFileReader(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
-            err::check_bool_raise(path.size() > 0, "path is empty");
+        File(int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
             _sample_bits = bits_per_sample;
             _channels = channels;
             _sample_rate = sample_rate;
+        }
+        ~File() {
 
+        }
+
+        /**
+         * Loads an audio file from a given file path.
+         * @param path The file path to load the audio file from.
+         * @param sample_rate The sample rate of the audio file. Only required for PCM files
+         * @param channels The number of channels in the audio file. Only required for PCM files
+         * @param bits_per_sample The number of bits per sample in the audio file. Only required for PCM files
+         * @return An error code indicating whether the operation was successful or not.
+         * @maixpy maix.audio.File.load
+        */
+        err::Err load(std::string path, int sample_rate = 16000, int channels = 1, int bits_per_sample = 16) {
             if (fs::exists(path)) {
                 auto extension = fs::splitext(path)[1];
-                if (extension == ".wav") {
-                    err::check_raise(read_wav(path));
-                } else if (extension == ".pcm") {
-                    err::check_raise(read_pcm(path, _sample_rate, _channels, _sample_bits));
+                if (extension == ".pcm") {
+                    is_pcm_file = true;
+                    return _load_pcm(path, sample_rate, channels, bits_per_sample);
+                } else if (extension == ".wav") {
+                    return _load_wav_aiff(path);
+                } else if (extension == ".aiff") {
+                    return _load_wav_aiff(path);
                 } else {
-                    err::check_raise(err::ERR_NOT_FOUND, "Only files with the `.pcm` and `.wav` extensions are supported.");
+                    log::error("Only files with the `.pcm` and `.wav` extensions are supported.");
+                    return err::ERR_RUNTIME;
                 }
             }
+            return err::ERR_NONE;
         }
-        ~AudioFileReader() {
 
+        /**
+         * Saves an audio file to a given file path.
+         * @param path The path to the file where the audio file will be saved.
+         * @return An error code indicating whether the operation was successful or not.
+         * @maixpy maix.audio.File.save
+        */
+        err::Err save(std::string path) {
+            auto extension = fs::splitext(path)[1];
+            if (extension == ".pcm") {
+                is_pcm_file = true;
+                return _save_pcm(path);
+            } else if (extension == ".wav") {
+                return _save_wav(path);
+            } else if (extension == ".aiff") {
+                return _save_aiff(path);
+            } else {
+                log::error("Only files with the `.pcm` and `.wav` extensions are supported.");
+                return err::ERR_RUNTIME;
+            }
+
+            return err::ERR_NONE;
         }
 
         /**
          * Get pcm data
          * @return pcm data. datatype @see Bytes
-         * @maixpy maix.audio.AudioFileReader.pcm
+         * @maixpy maix.audio.File.get_pcm
         */
-        Bytes *pcm(bool copy = true) {
-            return new maix::Bytes(_pcm->data, _pcm->data_len, false, copy);
+        Bytes *get_pcm(bool copy = true) {
+            return new maix::Bytes(pcm->data, pcm->data_len, false, copy);
+        }
+
+        /**
+         * Set pcm data
+         * @param new_pcm pcm data. datatype @see Bytes
+         * @maixpy maix.audio.File.set_pcm
+        */
+        void set_pcm(Bytes *new_pcm, bool copy = true) {
+            pcm = std::make_unique<maix::Bytes>(new_pcm->data, new_pcm->data_len, true, copy);
         }
 
         /**
          * Get sample bit
-         * @return sample bit
-         * @maixpy maix.audio.AudioFileReader.sample_bits
+         * @param new_sample_bit if new_sample_bit > 0, set sample bit
+         * @return current sample bit
+         * @maixpy maix.audio.File.sample_bits
         */
-        int sample_bits() {return _sample_bits;}
+        int sample_bits(int new_sample_bits = -1) {
+            if (new_sample_bits > 0) {
+                _sample_bits = new_sample_bits;
+            }
+            return _sample_bits;
+        }
 
         /**
-         * Get sample bit
-         * @return sample bit
-         * @maixpy maix.audio.AudioFileReader.channels
+         * Get channels
+         * @param new_channels if new_channels > 0, change channels
+         * @return current channels
+         * @maixpy maix.audio.File.channels
         */
-        int channels() {return _channels;}
+        int channels(int new_channels = -1) {
+            if (new_channels > 0) {
+                _channels = new_channels;
+            }
+            return _channels;
+        }
 
         /**
          * Get sample rate
-         * @return sample rate
-         * @maixpy maix.audio.AudioFileReader.sample_rate
+         * @param new_sample_rate if new_sample_rate > 0, change sample rate
+         * @return current sample rate
+         * @maixpy maix.audio.File.sample_rate
         */
-        int sample_rate() {return _sample_rate;}
-
-        /**
-         * Get data size
-         * @return data size
-         * @maixpy maix.audio.AudioFileReader.data_size
-        */
-        int data_size() {return _data_size;}
+        int sample_rate(int new_sample_rate = -1) {
+            if (new_sample_rate > 0) {
+                _sample_rate = new_sample_rate;
+            }
+            return _sample_rate;
+        }
     };
 
     /**

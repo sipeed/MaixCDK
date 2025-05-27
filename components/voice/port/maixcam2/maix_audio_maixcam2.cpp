@@ -110,7 +110,7 @@ namespace maix::audio
             maixcam2::AudioOut *ax_ao;
         };
         std::list<Bytes *> remaining_pcm_list;
-        std::unique_ptr<AudioFileReader> wav_reader;
+        std::unique_ptr<audio::File> wav_reader;
         AX_AUDIO_BIT_WIDTH_E ax_bit_width;
         AX_AUDIO_SOUND_MODE_E ax_sound_mode;
     } audio_param_t;
@@ -536,7 +536,8 @@ namespace maix::audio
         err::check_null_raise(param, "malloc failed");
         AX_AUDIO_BIT_WIDTH_E ax_bit_width = AX_AUDIO_BIT_WIDTH_16;
         if (path.size() > 0) {
-            param->wav_reader = std::make_unique<AudioFileReader>(path, sample_rate, channel, fmt_bits[format]);
+            param->wav_reader = std::make_unique<audio::File>(sample_rate, channel, fmt_bits[format]);
+            param->wav_reader->load(path);
             sample_rate = param->wav_reader->sample_rate();
             channel = param->wav_reader->channels();
             ax_bit_width = (AX_AUDIO_BIT_WIDTH_E)(param->wav_reader->sample_bits() / 8 - 1);
@@ -608,7 +609,7 @@ namespace maix::audio
 
         if (!data || !data->data || !data->size()) {
             if (param->path.size() > 0 && fs::exists(param->path)) {
-                auto pcm = param->wav_reader->pcm();
+                auto pcm = param->wav_reader->get_pcm();
                 maixcam2::Frame frame = maixcam2::Frame(param->card, param->device,
                     pcm->data, pcm->data_len, param->ax_bit_width, param->ax_sound_mode);
                 ret = param->ax_ao->write(&frame);
