@@ -104,12 +104,12 @@ namespace maix::nn
                 if (input_type == "rgb")
                 {
                     _input_img_fmt = maix::image::FMT_RGB888;
-                    log::print("\tinput type: rgb\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tinput type: rgb\n");
                 }
                 else if (input_type == "bgr")
                 {
                     _input_img_fmt = maix::image::FMT_BGR888;
-                    log::print("\tinput type: bgr\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tinput type: bgr\n");
                 }
                 else
                 {
@@ -129,13 +129,13 @@ namespace maix::nn
                 {
                     this->det = true;
                     this->rec = false;
-                    log::print("\tdet: true\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tdet: true\n");
                 }
                 else
                 {
                     this->det = false;
                     this->rec = true;
-                    log::print("\tdet: false\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tdet: false\n");
                 }
             }
             else
@@ -147,7 +147,7 @@ namespace maix::nn
             {
                 std::string mean_str = _extra_info["mean"];
                 std::vector<std::string> mean_strs = split(mean_str, ",");
-                log::print("\tmean:");
+                log::print(log::LogLevel::LEVEL_INFO, "\tmean:");
                 for (auto &it : mean_strs)
                 {
                     try
@@ -162,9 +162,9 @@ namespace maix::nn
                         log::error("mean value error, should float");
                         return err::ERR_ARGS;
                     }
-                    log::print("%f ", this->det ? this->mean.back() : this->rec_mean.back());
+                    log::print(log::LogLevel::LEVEL_INFO, "%f ", this->det ? this->mean.back() : this->rec_mean.back());
                 }
-                log::print("\n");
+                log::print(log::LogLevel::LEVEL_INFO, "\n");
             }
             else if(!this->rec)
             {
@@ -175,7 +175,7 @@ namespace maix::nn
             {
                 std::string scale_str = _extra_info["scale"];
                 std::vector<std::string> scale_strs = split(scale_str, ",");
-                log::print("\tscale:");
+                log::print(log::LogLevel::LEVEL_INFO, "\tscale:");
                 for (auto &it : scale_strs)
                 {
                     try
@@ -190,9 +190,9 @@ namespace maix::nn
                         log::error("scale value error, should float");
                         return err::ERR_ARGS;
                     }
-                    log::print("%f ", this->det ? this->scale.back() : this->rec_scale.back());
+                    log::print(log::LogLevel::LEVEL_INFO, "%f ", this->det ? this->scale.back() : this->rec_scale.back());
                 }
-                log::print("\n");
+                log::print(log::LogLevel::LEVEL_INFO, "\n");
             }
             else if(!this->rec)
             {
@@ -204,7 +204,7 @@ namespace maix::nn
                 _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
             else
                 _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
-            log::print("\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
+            log::print(log::LogLevel::LEVEL_INFO, "\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
 
             // rec model
             if (_extra_info.find("rec_model") != _extra_info.end())
@@ -215,7 +215,7 @@ namespace maix::nn
                     return err::ERR_ARGS;
                 }
                 std::string rec_model = fs::dirname(model) + "/" + _extra_info["rec_model"];
-                log::print("\trec_model: %s\n", rec_model.c_str());
+                log::print(log::LogLevel::LEVEL_INFO, "\trec_model: %s\n", rec_model.c_str());
                 _rec_model = new nn::NN(rec_model, false);
                 if (!_rec_model)
                 {
@@ -235,7 +235,7 @@ namespace maix::nn
                 {
                     std::string mean_str = _extra_info["rec_mean"];
                     std::vector<std::string> mean_strs = split(mean_str, ",");
-                    log::print("\trec_mean:");
+                    log::print(log::LogLevel::LEVEL_INFO, "\trec_mean:");
                     for (auto &it : mean_strs)
                     {
                         try
@@ -247,15 +247,15 @@ namespace maix::nn
                             log::error("rec_mean value error, should float");
                             return err::ERR_ARGS;
                         }
-                        log::print("%f ", this->rec_mean.back());
+                        log::print(log::LogLevel::LEVEL_INFO, "%f ", this->rec_mean.back());
                     }
-                    log::print("\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\n");
                 }
                 if (_extra_info.find("rec_scale") != _extra_info.end())
                 {
                     std::string scale_str = _extra_info["rec_scale"];
                     std::vector<std::string> scale_strs = split(scale_str, ",");
-                    log::print("\trec_scale:");
+                    log::print(log::LogLevel::LEVEL_INFO, "\trec_scale:");
                     for (auto &it : scale_strs)
                     {
                         try
@@ -267,9 +267,9 @@ namespace maix::nn
                             log::error("rec_scale value error, should float");
                             return err::ERR_ARGS;
                         }
-                        log::print("%f ", this->rec_scale.back());
+                        log::print(log::LogLevel::LEVEL_INFO, "%f ", this->rec_scale.back());
                     }
-                    log::print("\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\n");
                 }
                 if(this->rec_scale.empty() || this->rec_mean.empty())
                 {
@@ -280,7 +280,7 @@ namespace maix::nn
                 err::Err e = _model->extra_info_labels(labels);
                 if(e == err::Err::ERR_NONE)
                 {
-                    log::print("\tlabels num: %ld\n", labels.size());
+                    log::print(log::LogLevel::LEVEL_INFO, "\tlabels num: %ld\n", labels.size());
                 }
                 else
                 {

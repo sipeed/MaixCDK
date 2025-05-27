@@ -254,6 +254,17 @@ namespace maix::fs
         return list;
     }
 
+    std::string join(const std::vector<std::string> &paths)
+    {
+        // join paths use fs_sys::path::operator/
+        fs_sys::path p;
+        for (auto &path : paths)
+        {
+            p /= path;
+        }
+        return p.string();
+    }
+
     fs::File *open(const std::string &path, const std::string &mode)
     {
         err::Err error = err::ERR_NONE;

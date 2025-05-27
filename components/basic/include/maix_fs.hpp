@@ -184,6 +184,14 @@ namespace maix::fs
     std::vector<std::string> *listdir(const std::string &path, bool recursive = false, bool full_path = false);
 
     /**
+     * Join paths
+     * @param paths paths to join
+     * @return joined path if success, empty string if failed
+     * @maixpy maix.fs.join
+     */
+    std::string join(const std::vector<std::string> &paths);
+
+    /**
      * File read write ops
      * @maixpy maix.fs.File
     */

@@ -49,12 +49,12 @@ int _main(int argc, char* argv[])
     log::info("Inputs:");
     for(auto item : inputs_info)
     {
-        log::print("       %s\n", item.to_str().c_str());
+        log::print(log::LogLevel::LEVEL_INFO, "       %s\n", item.to_str().c_str());
     }
     log::info("Outputs:");
     for(auto item : outputs_info)
     {
-        log::print("       %s\n", item.to_str().c_str());
+        log::print(log::LogLevel::LEVEL_INFO, "       %s\n", item.to_str().c_str());
     }
 
 
@@ -97,11 +97,11 @@ int _main(int argc, char* argv[])
     {
         tensor::Tensor *tensor = it.second;
         log::info("======= output '%s':", it.first.c_str());
-        log::print("       info: %s\n",(*tensor).to_str().c_str());
+        log::print(log::LogLevel::LEVEL_INFO, "       info: %s\n",(*tensor).to_str().c_str());
 
         auto names = split(it.first, "/");
         std::string filename = names[names.size() - 1] + ".bin";
-        log::print("       save as bin file to '%s'\n", filename.c_str());
+        log::print(log::LogLevel::LEVEL_INFO, "       save as bin file to '%s'\n", filename.c_str());
         fs::File *f = fs::open(filename, "wb");
         if(!f)
         {

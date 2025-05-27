@@ -143,7 +143,7 @@ namespace maix::nn
         if (model_path.empty() || !fs::exists(model_path.c_str()))
         {
             log::error("model path %s not exists\n", model_path.c_str());
-            return err::ERR_ARGS;
+            return err::ERR_NOT_FOUND;
         }
 
         if(model_path.find(".mud") == std::string::npos)
@@ -231,7 +231,7 @@ namespace maix::nn
         if(model_path.empty() || !fs::exists(model_path))
         {
             log::error("model path %s not exists\n", model_path.c_str());
-            return err::ERR_ARGS;
+            return err::ERR_NOT_FOUND;
         }
         err::Err e = _mud.load(model_path);
         if (e != err::ERR_NONE)

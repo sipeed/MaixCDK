@@ -134,12 +134,12 @@ namespace maix::nn
                 if (input_type == "rgb")
                 {
                     _input_img_fmt = maix::image::FMT_RGB888;
-                    log::print("\tinput type: rgb\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tinput type: rgb\n");
                 }
                 else if (input_type == "bgr")
                 {
                     _input_img_fmt = maix::image::FMT_BGR888;
-                    log::print("\tinput type: bgr\n");
+                    log::print(log::LogLevel::LEVEL_INFO, "\tinput type: bgr\n");
                 }
                 else
                 {
@@ -156,7 +156,7 @@ namespace maix::nn
             {
                 std::string mean_str = _extra_info["mean"];
                 std::vector<std::string> mean_strs = split(mean_str, ",");
-                log::print("\tmean:");
+                log::print(log::LogLevel::LEVEL_INFO, "\tmean:");
                 for (auto &it : mean_strs)
                 {
                     try
@@ -168,9 +168,9 @@ namespace maix::nn
                         log::error("mean value error, should float");
                         return err::ERR_ARGS;
                     }
-                    log::print("%f ", this->mean.back());
+                    log::print(log::LogLevel::LEVEL_INFO, "%f ", this->mean.back());
                 }
-                log::print("\n");
+                log::print(log::LogLevel::LEVEL_INFO, "\n");
             }
             else
             {
@@ -181,7 +181,7 @@ namespace maix::nn
             {
                 std::string scale_str = _extra_info["scale"];
                 std::vector<std::string> scale_strs = split(scale_str, ",");
-                log::print("\tscale:");
+                log::print(log::LogLevel::LEVEL_INFO, "\tscale:");
                 for (auto &it : scale_strs)
                 {
                     try
@@ -193,9 +193,9 @@ namespace maix::nn
                         log::error("scale value error, should float");
                         return err::ERR_ARGS;
                     }
-                    log::print("%f ", this->scale.back());
+                    log::print(log::LogLevel::LEVEL_INFO, "%f ", this->scale.back());
                 }
-                log::print("\n");
+                log::print(log::LogLevel::LEVEL_INFO, "\n");
             }
             else
             {
@@ -208,7 +208,7 @@ namespace maix::nn
                 _input_size = image::Size(inputs[0].shape[2], inputs[0].shape[1]);
             else
                 _input_size = image::Size(inputs[0].shape[3], inputs[0].shape[2]);
-            log::print("\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
+            log::print(log::LogLevel::LEVEL_INFO, "\tinput size: %dx%d\n\n", _input_size.width(), _input_size.height());
             for(auto &l : outputs)
             {
                 if(l.name.find("points") != std::string::npos)

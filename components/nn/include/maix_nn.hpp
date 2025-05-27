@@ -140,7 +140,7 @@ namespace maix::nn
 
         /**
          * If layer layout, if layout is chw, typically the shape is [N, C, H, W], hwc is [N, H, W, C].
-         * @maixpy maix.nn.Layout
+         * @maixpy maix.nn.LayerInfo.layout
          */
          nn::Layout layout = nn::Layout::UNKNOWN;
 

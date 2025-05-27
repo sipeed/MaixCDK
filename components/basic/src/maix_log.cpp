@@ -14,9 +14,29 @@ namespace maix::log
 {
 
     static char log_buf[512];
+    static volatile LogLevel log_level = LogLevel::LEVEL_INFO;
+    static volatile bool log_color = false;
+
+    void set_log_level(LogLevel level, bool color)
+    {
+        log_level = level;
+        log_color = color;
+    }
+
+    LogLevel get_log_level()
+    {
+        return log_level;
+    }
+
+    bool get_log_use_color()
+    {
+        return log_color;
+    }
 
     void error(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_ERROR)
+            return;
         static const char *err_start = "-- [E] ";
         // print error and call err::set_error
         va_list args;
@@ -30,6 +50,8 @@ namespace maix::log
 
     void error0(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_ERROR)
+            return;
         static const char *err_start = "-- [E] ";
         // print error and call err::set_error
         va_list args;
@@ -43,6 +65,8 @@ namespace maix::log
 
     void warn(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_WARN)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [W] ");
@@ -53,6 +77,8 @@ namespace maix::log
 
     void warn0(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_WARN)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [W] ");
@@ -62,6 +88,8 @@ namespace maix::log
 
     void info(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_INFO)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [I] ");
@@ -72,6 +100,8 @@ namespace maix::log
 
     void info0(const char *fmt, ...)
     {
+        if(log_level < LogLevel::LEVEL_INFO)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [I] ");
@@ -82,6 +112,8 @@ namespace maix::log
     void debug(const char *fmt, ...)
     {
 #if DEBUG
+        if(log_level < LogLevel::LEVEL_DEBUG)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [D] ");
@@ -96,6 +128,8 @@ namespace maix::log
     void debug0(const char *fmt, ...)
     {
 #if DEBUG
+        if(log_level < LogLevel::LEVEL_DEBUG)
+            return;
         va_list args;
         va_start(args, fmt);
         printf("-- [D] ");
@@ -108,6 +142,17 @@ namespace maix::log
 
     void print(const char *fmt, ...)
     {
+        printf("[WARN] log::print(fmt, ...) function is deprecated, please use log::print(log::LogLevel, fmt, ...) instead\n");
+        va_list args;
+        va_start(args, fmt);
+        vprintf(fmt, args);
+        va_end(args);
+    }
+
+    void print(LogLevel level, const char *fmt, ...)
+    {
+        if(level > log_level)
+            return;
         va_list args;
         va_start(args, fmt);
         vprintf(fmt, args);

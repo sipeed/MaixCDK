@@ -31,12 +31,12 @@ int _main(int argc, char* argv[])
         if(rx_len > 0)
         {
             log::info("received %d: \"%s\"\n", rx_len, rx_buff);
-            log::print("hex:\n");
+            log::print(log::LogLevel::LEVEL_INFO, "hex:\n");
             for(int i=0; i < rx_len; ++i)
             {
-                log::print("%02x ", rx_buff[i]);
+                log::print(log::LogLevel::LEVEL_INFO, "%02x ", rx_buff[i]);
             }
-            log::print("\n\n");
+            log::print(log::LogLevel::LEVEL_INFO, "\n\n");
             serial.write(rx_buff, rx_len);
             log::info("sent %d: \"%s\"\n", rx_len, rx_buff);
         }

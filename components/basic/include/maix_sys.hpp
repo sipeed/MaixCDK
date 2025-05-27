@@ -105,6 +105,10 @@ namespace maix::sys
      *           used: used memory size in Byte.
      *       hw_total: total memory size in Byte of hardware, the total <= hw_total，
      *                 OS kernel may reserve some memory for some hardware like camera, npu, display etc.
+     *       custom_total: Board or Chip custom memory management area. For example, for MaixCAM is IOA, for MaixCAM2 is CMM.
+     *       custom_used: Board or Chip custom memory management area used size.
+     *       cma_total: Contiguous Memory Allocator (Linux CMA standard) total size in Byte.
+     *       cma_used: Contiguous Memory Allocator (Linux CMA standard) used size in Byte.
      * @maixpy maix.sys.memory_info
      */
     std::map<std::string, int64_t> memory_info();

@@ -151,7 +151,7 @@ int _main(int argc, char* argv[])
     }
 
     // printf args info
-    log::print("\n");
+    log::print(log::LogLevel::LEVEL_INFO, "\n");
     log::info("model path: %s", model_path);
     log::info("image path: %s", img_path);
     log::info("model type: %s", model_type.c_str());
@@ -159,15 +159,15 @@ int _main(int argc, char* argv[])
     log::info("mean: ");
     for(auto &it : mean)
     {
-        log::print("%f, ", it);
+        log::print(log::LogLevel::LEVEL_INFO, "%f, ", it);
     }
-    log::print("\n");
+    log::print(log::LogLevel::LEVEL_INFO, "\n");
     log::info("scale: ");
     for(auto &it : scale)
     {
-        log::print("%f, ", it);
+        log::print(log::LogLevel::LEVEL_INFO, "%f, ", it);
     }
-    log::print("\n");
+    log::print(log::LogLevel::LEVEL_INFO, "\n");
 
     std::vector<nn::LayerInfo> inputs_info = model.inputs_info();
     for(auto &it : inputs_info)
