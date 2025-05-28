@@ -11,7 +11,7 @@
 
 namespace maix::peripheral::spi
 {
-    SPI::SPI(int id, spi::Mode mode, int freq, int polarity, int phase, int bits, unsigned char cs_enable, bool soft_cs, std::string cs)
+    SPI::SPI(int id, spi::Mode mode, int freq, int polarity, int phase, int bits, unsigned char cs_enable, bool soft_cs, std::string cs, int hw_cs_id)
     {
         throw err::Exception(err::Err::ERR_NOT_IMPL, "SPI not implemented");
     }

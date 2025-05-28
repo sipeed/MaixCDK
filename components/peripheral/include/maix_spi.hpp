@@ -42,10 +42,11 @@ namespace maix::peripheral::spi
          * @param[in] cs_enable cs pin active level, default is 0(low)
          * @param[in] soft_cs not use hardware cs, bool type, if set true, you can operate cs pin use gpio manually.
          * @param[in] cs soft cs pin number, std::string type, default is "GPIOA19", if SPI support multi hardware cs, you can set it to other value.
+         * @param[in] hw_cs_id hardware cs id, int type, default is 0, if SPI support multi hardware cs, you can set it to other value.
          * @maixpy maix.peripheral.spi.SPI.__init__
          */
         SPI(int id, spi::Mode mode, int freq, int polarity = 0, int phase = 0,
-            int bits = 8, unsigned char cs_enable=0, bool soft_cs = false, std::string cs = "GPIOA19");
+            int bits = 8, unsigned char cs_enable=0, bool soft_cs = false, std::string cs = "GPIOA19", int hw_cs_id = 0);
         ~SPI();
 
         /**

@@ -63,7 +63,7 @@ namespace maix::peripheral::spi
     }
 
     SPI::SPI(int id, spi::Mode mode, int freq, int polarity, int phase,
-            int bits, unsigned char cs_enable, bool soft_cs, std::string cs)
+            int bits, unsigned char cs_enable, bool soft_cs, std::string cs, int hw_cs_id)
                 :_used_soft_cs(soft_cs), _cs_enable(cs_enable), _bits(bits), _freq(freq)
     {
         {
@@ -87,7 +87,7 @@ namespace maix::peripheral::spi
                                 "GPIO as the CS pin.");
             }
 
-            std::string dev_name("/dev/spidev"+std::to_string(id)+".0");
+            std::string dev_name("/dev/spidev"+std::to_string(id)+"."+std::to_string(hw_cs_id));
             log::debug("try to open %s...", dev_name.c_str());
             _fd = ::open(dev_name.c_str(), O_RDWR);
             if (_fd < 0)
