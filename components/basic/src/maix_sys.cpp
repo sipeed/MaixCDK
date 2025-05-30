@@ -487,8 +487,8 @@ namespace maix::sys
 
         fclose(file);
 
-        res["custom_total"] = 0; // Board or Chip custom memory management area. For MaixCAM is IOA, for MaixCAM2 is CMM.
-        res["custom_used"] = 0;
+        res["cmm_total"] = 0; // Board or Chip contiguous memory management area. For MaixCAM is IOA, for MaixCAM2 is CMM.
+        res["cmm_used"] = 0;
         res["cma_total"] = 0;    // Contiguous Memory Allocator (Linux CMA standard)
         res["cma_used"] = 0;
         res["used"] = (total_memory - free_memory) * 1024;
@@ -521,8 +521,8 @@ namespace maix::sys
         }
 
         fclose(file);
-        res["custom_total"] = total_cmm_memory * 1024;
-        res["custom_used"] = used_cmm_memory * 1024;
+        res["cmm_total"] = total_cmm_memory * 1024;
+        res["cmm_used"] = used_cmm_memory * 1024;
         res["hw_total"] = res["total"] + total_cmm_memory * 1024;
         if (res["hw_total"] > (int64_t)3.9 * 1024 * 1024 * 1024 && res["hw_total"] < (int64_t)4.1 * 1024 * 1024 * 1024)
             res["hw_total"] = (int64_t)4 * 1024 * 1024 * 1024; // 4G version

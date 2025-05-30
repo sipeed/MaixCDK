@@ -75,7 +75,7 @@ namespace maix::image
          * @maixpy maix.image.Image.__init__
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format = image::Format::FMT_RGB888, const image::Color &bg = image::FMT_INVALID);
+        Image(int width, int height, image::Format format = image::Format::FMT_RGB888, const image::Color &bg = image::COLOR_INVALID);
         // Image(int width, int height, image::Format format = image::Format::FMT_RGB888, Bytes *data = nullptr, bool copy = true);
 
         /**
@@ -93,7 +93,7 @@ namespace maix::image
          *           So you can set to image.COLOR_INVALID to save time in some case.
          * @maixcdk maix.image.Image.Image
          */
-        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::FMT_INVALID);
+        Image(int width, int height, image::Format format, uint8_t *data, int data_size, bool copy, const image::Color &bg = image::COLOR_INVALID);
 
         Image() {
             _width = 0;
