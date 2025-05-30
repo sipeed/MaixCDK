@@ -9,6 +9,23 @@ try:
 except Exception:
     from gen_markdown import module_to_md
 
+DEBUG = False
+
+def print_def(def_type, definition):
+    if def_type == "class":
+        color = "\033[1;32m"
+    elif def_type == "enum":
+        color = "\033[1;33m"
+    elif def_type == "func":
+        color = "\033[1;34m"
+    elif def_type == "var":
+        color = "\033[1;35m"
+    elif def_type == "module":
+        color = "\033[1;36m"
+    else:
+        color = "\033[1;37m"
+    print("{}{}\033[0m: {}".format(color, def_type, definition, "\033[0m"))
+
 def get_headers_recursive(dir):
     headers = []
     for root, dirs, files in os.walk(dir):
@@ -16,6 +33,53 @@ def get_headers_recursive(dir):
             if file.endswith(".h") or file.endswith(".hpp"):
                 headers.append(os.path.join(root, file))
     return headers
+
+# find ;(var) and )(function) and = (var)
+# var definition:
+#   std::string hello;
+#   std::string hello = "hello"
+#   static std::string hello = "hello";
+# func definition:
+#   MyClass(int i, const char *j = "10")
+#   std::map<std::string, int> get_dict(std::map<std::string, int> in, int i, const char *j = "10")
+#   Bytes &operator=(const Bytes &other)
+#   const Bytes &operator=(const Bytes &other)
+#   Bytes * operator=(const Bytes &other)
+#   std::function<void(Qwen &, const QwenResp &)> get_reply_callback()
+#   static std::function<void(Qwen &, const QwenResp &)> get_reply_callback()
+#   virtual err::Err open() = 0
+def find_func_name_start(first_line):
+    line = first_line
+    pices = line.split(" ")
+    for i in range(len(pices)):
+        if pices[i].startswith("__") and pices[i].endswith("__"):
+            continue
+        if pices[i] in ["static", "extern", "inline", "const", "volatile", "mutable", "__attribute__", "__restrict", "virtual", "override", "final"]:
+            continue
+        line = " ".join(pices[i:])
+        break
+    brackets = []
+    brackets_pair = {
+        "(": ")",
+        "<": ">",
+    }
+    func_var_start = first_line.index(line)
+    last = None
+    for i in range(len(line)):
+        if line[i] == " " and not brackets:
+            if last not in [")", "{"]: # Whisper(const string &model = "", std::string language = "zh") {
+                func_var_start = first_line.index(line[i + 1:])
+            if first_line[func_var_start] in ["*", "&"]:
+                func_var_start += 1
+            break
+        if line[i] in ["(", "<"]:
+            brackets.append(line[i])
+        elif line[i] in [")", ">"]:
+            if line[i] != brackets_pair[brackets[-1]] or not brackets:
+                raise Exception("find_func_name_start error: {} not a valid supported function".format(line))
+            brackets.pop()
+        last = line[i]
+    return func_var_start
 
 def get_code_def(code):
     '''
@@ -71,36 +135,58 @@ def get_code_def(code):
     else:
         # find ;(var) and )(function) and = (var)
         # var definition:
+        #   std::string hello;
         #   std::string hello = "hello"
+        #   static std::string hello = "hello";
         # func definition:
+        #   MyClass(int i, const char *j = "10")
         #   std::map<std::string, int> get_dict(std::map<std::string, int> in, int i, const char *j = "10")
         #   Bytes &operator=(const Bytes &other)
-        idx = code.find(";")
-        if code.find("operator") >= 0:
-            idx3 = -1
-        else:
-            idx3 = code.find("=")
-        start_idx = code.find("(")
-        sub_count = 1
-        idx2 = -1
-        for i in range(start_idx + 1, len(code)):
-            if code[i] == "(":
-                sub_count += 1
-            elif code[i] == ")":
-                sub_count -= 1
-            if sub_count == 0:
-                idx2 = i
-                break
-        if idx < 0 and idx2 < 0:
-            raise Exception("get_func_def error: {} not a function or var".format(code))
-        if idx2 < 0 or idx < idx2 or (idx3 >=0 and idx3 < start_idx):
-            def_type = "var"
-            definition = code[:idx]
-            end_idx = idx + start_idx
-        else:
+        #   const Bytes &operator=(const Bytes &other)
+        #   Bytes * operator=(const Bytes &other)
+        #   std::function<void(Qwen &, const QwenResp &)> get_reply_callback()
+        #   static std::function<void(Qwen &, const QwenResp &)> get_reply_callback()
+        #   virtual err::Err open() = 0
+        first_line = code.split("\n", 1)[0]
+        idx = find_func_name_start(first_line)
+
+        if "operator" in first_line or "(" in first_line[idx:].strip().split(" ", 1)[0]:
             def_type = "func"
-            definition = code[:idx2 + 1]
-            end_idx = idx2 + 1 + start_idx
+            idx2 = code.find(";")
+            matche1 = re.search(r'\)\s*\{', code)
+            matche2 = re.search(r'\)\s*\:', code)
+            if matche1:
+                idx3 = matche1.start() + 1
+            else:
+                idx3 = -1
+            if matche2:
+                idx4 = matche2.start() + 1
+                if idx3 < 0:
+                    idx3 = idx4
+                else:
+                    idx3 = min(idx3, idx4)
+            if idx2 > 0 and idx3 > 0:
+                idx2 = min(idx2, idx3)
+            elif idx2 < 0 and idx3 < 0:
+                raise Exception("get_func_def error: {} not a function or var".format(code))
+            else:
+                idx2 = max(idx2, idx3)
+            definition = code[:idx2].strip()
+            if "virtual" in definition:
+                last_equal_idx = definition.rfind("=")
+                if last_equal_idx > 0:
+                    definition = definition[:last_equal_idx].strip()
+        else:
+            def_type = "var"
+            idx2 = code.find(";")
+            if idx2 < 0:
+                raise Exception("get_func_def error: {} not a function or var".format(code))
+            definition = code[:idx2].strip()
+
+        start_idx = 0
+        end_idx = 0
+    if DEBUG:
+        print_def(def_type, definition)
     return def_type, definition.strip(), (start_idx, end_idx)
 
 def get_enum_values(code):
@@ -257,21 +343,17 @@ def get_func_def_info(code):
 
     args = []
     # ret_code, params_code = find_parentheses_pair(code)
-    idx = code.find("(")
-    ret_code = code[:idx].strip()
-    params_code = code[idx + 1:-1].strip()
-    ret_type_name = ret_code.rsplit(" ", 1)
-    if len(ret_type_name) == 1:
-        func_name = ret_type_name[0]
-        return_type = None
-    else:
-        return_type, func_name = ret_type_name
-        func_name = re.findall(r"([\*&]*)([\S]+)", func_name)[0]
-        return_type = (return_type + func_name[0]).strip()
-        func_name = func_name[1]
-        if return_type.startswith("static") or return_type.startswith("extern"):
-            return_type = return_type.split(" ", 1)[1].strip()
-    func_name = func_name.strip()
+    first_line = code.split("\n", 1)[0]
+    idx = find_func_name_start(first_line)
+    idx_param = code[idx:].find("(") + idx
+    return_type = code[:idx].strip()
+    func_name = code[idx:idx_param].strip()
+    if func_name[0] in ["*", "&"]:
+        func_name = func_name[1:]
+        return_type += " " + func_name[0]
+    if return_type.startswith("static") or return_type.startswith("extern"):
+        return_type = return_type.split(" ", 1)[1].strip()
+    params_code = code[idx_param + 1:-1].strip()
     except_pair = {
         "<": ">",
         "{": "}"
@@ -450,7 +532,7 @@ def parse_api(code, apis, sdks = ["maixpy", "maixcdk"], header_name = None, modu
             raise Exception("item type no valid: {}, {}".format(item["type"], definition))
         if definition.startswith("static"):
             item["kv"]["static"] = True
-        item["def_idx"] = [idx, idx2]
+        # item["def_idx"] = [idx, idx2]
         item["def"] = definition
 
     comments_parsed = find_comments(code)
