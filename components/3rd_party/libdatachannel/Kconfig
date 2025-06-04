@@ -1,0 +1,18 @@
+
+
+menu "libdatachannel component configuration"
+    menu "LIBDATACHANNEL version"
+        config LIBDATACHANNEL_VERSION_MAJOR
+            int "LIBDATACHANNEL version major"
+            default 0 if PLATFORM = "maixcam"
+            default 0 if PLATFORM = "maixcam2"
+        config LIBDATACHANNEL_VERSION_MINOR
+            int "LIBDATACHANNEL version minor"
+            default 22 if PLATFORM = "maixcam"
+            default 22 if PLATFORM = "maixcam2"
+        config LIBDATACHANNEL_VERSION_PATCH
+            int "LIBDATACHANNEL version patch"
+            default 4 if PLATFORM = "maixcam"
+            default 4 if PLATFORM = "maixcam2"
+    endmenu
+endmenu

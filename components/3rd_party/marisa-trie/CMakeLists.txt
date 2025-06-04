@@ -1,4 +1,5 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/marisa_trie_srcs/marisa-trie")
+set(marisa_trie_version_str "${CONFIG_MARISA_TRIE_VERSION_MAJOR}.${CONFIG_MARISA_TRIE_VERSION_MINOR}.${CONFIG_MARISA_TRIE_VERSION_PATCH}")
+set(srcs_path "${DL_EXTRACTED_PATH}/marisa_trie_srcs/marisa-trie-${marisa_trie_version_str}")
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${srcs_path}/include")
 list(APPEND ADD_INCLUDE "${srcs_path}/lib")

@@ -4,7 +4,7 @@ def add_file_downloads(confs : dict) -> list:
         @param confs kconfig vars, dict type
         @return list type, items is dict type
     '''
-    version = "2.6.0"
+    version = f"{confs['CONFIG_LIBSRTP_VERSION_MAJOR']}.{confs['CONFIG_LIBSRTP_VERSION_MINOR']}.{confs['CONFIG_LIBSRTP_VERSION_PATCH']}"
     url = f"https://github.com/cisco/libsrtp/archive/refs/tags/v{version}.tar.gz"
     if version == "2.6.0":
         sha256sum = "bf641aa654861be10570bfc137d1441283822418e9757dc71ebb69a6cf84ea6b"
@@ -13,10 +13,8 @@ def add_file_downloads(confs : dict) -> list:
     sites = ["https://github.com/cisco/libsrtp"]
     filename = f"libsrtp-{version}.tar.gz"
     path = f"libsrtp_srcs"
-    check_file = 'libsrtp'
-    rename = {
-        f'libsrtp-{version}': 'libsrtp'
-    }
+    check_file = f'libsrtp-{version}'
+    rename = {}
 
     return [
         {

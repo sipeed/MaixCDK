@@ -1,4 +1,5 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/libjuice_srcs/libjuice")
+set(libdatachannel_version_str "${CONFIG_LIBJUICE_VERSION_MAJOR}.${CONFIG_LIBJUICE_VERSION_MINOR}.${CONFIG_LIBJUICE_VERSION_PATCH}")
+set(srcs_path "${DL_EXTRACTED_PATH}/libjuice_srcs/libjuice-${libdatachannel_version_str}")
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${srcs_path}/include"
     )

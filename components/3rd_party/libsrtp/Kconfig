@@ -1,0 +1,18 @@
+
+
+menu "libsrtp component configuration"
+    menu "LIBSRTP version"
+        config LIBSRTP_VERSION_MAJOR
+            int "LIBSRTP version major"
+            default 2 if PLATFORM = "maixcam"
+            default 2 if PLATFORM = "maixcam2"
+        config LIBSRTP_VERSION_MINOR
+            int "LIBSRTP version minor"
+            default 6 if PLATFORM = "maixcam"
+            default 6 if PLATFORM = "maixcam2"
+        config LIBSRTP_VERSION_PATCH
+            int "LIBSRTP version patch"
+            default 0 if PLATFORM = "maixcam"
+            default 0 if PLATFORM = "maixcam2"
+    endmenu
+endmenu

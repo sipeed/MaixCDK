@@ -1,0 +1,18 @@
+
+
+menu "marisa-trie component configuration"
+    menu "MARISA_TRIE version"
+        config MARISA_TRIE_VERSION_MAJOR
+            int "MARISA_TRIE version major"
+            default 0 if PLATFORM = "maixcam"
+            default 0 if PLATFORM = "maixcam2"
+        config MARISA_TRIE_VERSION_MINOR
+            int "MARISA_TRIE version minor"
+            default 2 if PLATFORM = "maixcam"
+            default 2 if PLATFORM = "maixcam2"
+        config MARISA_TRIE_VERSION_PATCH
+            int "MARISA_TRIE version patch"
+            default 6 if PLATFORM = "maixcam"
+            default 6 if PLATFORM = "maixcam2"
+    endmenu
+endmenu

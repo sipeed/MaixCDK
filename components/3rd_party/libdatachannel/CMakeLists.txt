@@ -1,4 +1,5 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/libdatachannel_srcs/libdatachannel")
+set(libdatachannel_version_str "${CONFIG_LIBDATACHANNEL_VERSION_MAJOR}.${CONFIG_LIBDATACHANNEL_VERSION_MINOR}.${CONFIG_LIBDATACHANNEL_VERSION_PATCH}")
+set(srcs_path "${DL_EXTRACTED_PATH}/libdatachannel_srcs/libdatachannel-${libdatachannel_version_str}")
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${srcs_path}/include"
     )

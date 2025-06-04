@@ -1,5 +1,22 @@
 # AX620e MSP Options, only for maixcam2 platform
 if PLATFORM = "maixcam2"
+menu "maixcam2_msp component configuration"
+    menu "MAIXCAM2_MSP version"
+        config MAIXCAM2_MSP_VERSION_MAJOR
+            int "MAIXCAM2_MSP version major"
+            default 3
+        config MAIXCAM2_MSP_VERSION_MINOR
+            int "MAIXCAM2_MSP version minor"
+            default 0
+        config MAIXCAM2_MSP_VERSION_PATCH
+            int "MAIXCAM2_MSP version patch"
+            default 0
+        config MAIXCAM2_MSP_COMPILED_VERSION
+            int "MAIXCAM2_MSP compiled version"
+            default 20241120230136
+    endmenu
+endmenu
+
 menu "AX620E MSP Options"
 
 config AX620E_MSP_ENABLE_NPU_LIB

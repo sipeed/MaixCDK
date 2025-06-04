@@ -1,7 +1,8 @@
+set(kaldi_native_fbank_version_str "${CONFIG_KALDI_NATIVE_FBANK_VERSION_MAJOR}.${CONFIG_KALDI_NATIVE_FBANK_VERSION_MINOR}.${CONFIG_KALDI_NATIVE_FBANK_VERSION_PATCH}")
 set(kaldi_native_fbank_unzip_path "${DL_EXTRACTED_PATH}/kaldi-native-fbank_srcs")
-set(src_path "${kaldi_native_fbank_unzip_path}")
+set(src_path "${kaldi_native_fbank_unzip_path}/kaldi-native-fbank-${kaldi_native_fbank_version_str}")
 ################# Add include #################
-list(APPEND ADD_INCLUDE "${src_path}/kaldi-native-fbank"
+list(APPEND ADD_INCLUDE ${src_path}
     )
 # list(APPEND ADD_PRIVATE_INCLUDE "include_private")
 ###############################################
@@ -9,12 +10,12 @@ list(APPEND ADD_INCLUDE "${src_path}/kaldi-native-fbank"
 ############## Add source files ###############
 # list(APPEND ADD_SRCS  "src/lib1.c"
 #     )
-append_srcs_dir(ADD_SRCS "${src_path}/kaldi-native-fbank/kaldi-native-fbank/csrc"
+append_srcs_dir(ADD_SRCS ${src_path}/kaldi-native-fbank/csrc
 )
-list(REMOVE_ITEM ADD_SRCS "${src_path}/kaldi-native-fbank/kaldi-native-fbank/csrc/test-log.cc"
-"${src_path}/kaldi-native-fbank/kaldi-native-fbank/csrc/test-online-fbank.cc"
-"${src_path}/kaldi-native-fbank/kaldi-native-fbank/csrc/test-online-feature.cc"
-"${src_path}/kaldi-native-fbank/kaldi-native-fbank/csrc/test-rfft.cc")
+list(REMOVE_ITEM ADD_SRCS ${src_path}/kaldi-native-fbank/csrc/test-log.cc
+${src_path}/kaldi-native-fbank/csrc/test-online-fbank.cc
+${src_path}/kaldi-native-fbank/csrc/test-online-feature.cc
+${src_path}/kaldi-native-fbank/csrc/test-rfft.cc)
 
 # aux_source_directory("inifile2/src" ADD_SRCS)  # collect all source file in src dir, will set var ADD_SRCS
 # append_srcs_dir(ADD_SRCS "src")     # append source file in src dir to var ADD_SRCS

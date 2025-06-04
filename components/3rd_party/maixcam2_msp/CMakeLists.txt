@@ -1,4 +1,5 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/maixcam2_msp_srcs/maixcam2_msp")
+set(maixcam2_msp_version_str "${CONFIG_MAIXCAM2_MSP_VERSION_MAJOR}.${CONFIG_MAIXCAM2_MSP_VERSION_MINOR}.${CONFIG_MAIXCAM2_MSP_VERSION_PATCH}_${CONFIG_MAIXCAM2_MSP_COMPILED_VERSION}")
+set(srcs_path "${DL_EXTRACTED_PATH}/maixcam2_msp_srcs/maixcam2_msp_arm64_glibc_v${maixcam2_msp_version_str}")
 ################# Add include #################
 set(msp_glibc_path "${srcs_path}/out/arm64_glibc")
 set(msp_common_path "${srcs_path}/sample/common")

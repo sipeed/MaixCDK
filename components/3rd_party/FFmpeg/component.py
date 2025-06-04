@@ -46,10 +46,8 @@ def add_file_downloads(confs : dict) -> list:
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
         filename = f"ffmpeg_maixcam2_libs_n{version}.tar.xz"
         path = f"ffmpeg_srcs"
-        check_file = 'ffmpeg_maixcam2_libs_n{version}'
-        rename = {
-            f'ffmpeg_maixcam2_libs_n{version}': f'ffmpeg_maixcam2_libs_n{version}'
-        }
+        check_file = f'ffmpeg_maixcam2_libs_n{version}'
+        rename = {}
 
         return [
             {

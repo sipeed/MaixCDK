@@ -1,0 +1,18 @@
+
+
+menu "libjuice component configuration"
+    menu "LIBJUICE version"
+        config LIBJUICE_VERSION_MAJOR
+            int "LIBJUICE version major"
+            default 1 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
+        config LIBJUICE_VERSION_MINOR
+            int "LIBJUICE version minor"
+            default 5 if PLATFORM = "maixcam"
+            default 5 if PLATFORM = "maixcam2"
+        config LIBJUICE_VERSION_PATCH
+            int "LIBJUICE version patch"
+            default 8 if PLATFORM = "maixcam"
+            default 8 if PLATFORM = "maixcam2"
+    endmenu
+endmenu

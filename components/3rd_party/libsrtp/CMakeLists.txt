@@ -1,4 +1,5 @@
-set(srcs_path "${DL_EXTRACTED_PATH}/libsrtp_srcs/libsrtp")
+set(libsrtp_version_str "${CONFIG_LIBSRTP_VERSION_MAJOR}.${CONFIG_LIBSRTP_VERSION_MINOR}.${CONFIG_LIBSRTP_VERSION_PATCH}")
+set(srcs_path "${DL_EXTRACTED_PATH}/libsrtp_srcs/libsrtp-${libsrtp_version_str}")
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${srcs_path}/include"
     )

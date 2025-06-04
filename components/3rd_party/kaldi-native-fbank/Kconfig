@@ -1,0 +1,16 @@
+menu "kaldi native fbank component configuration"
+    menu "KALDI_NATIVE_FBANK version"
+        config KALDI_NATIVE_FBANK_VERSION_MAJOR
+            int "KALDI_NATIVE_FBANK version major"
+            default 1 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
+        config KALDI_NATIVE_FBANK_VERSION_MINOR
+            int "KALDI_NATIVE_FBANK version minor"
+            default 20 if PLATFORM = "maixcam"
+            default 20 if PLATFORM = "maixcam2"
+        config KALDI_NATIVE_FBANK_VERSION_PATCH
+            int "KALDI_NATIVE_FBANK version patch"
+            default 1 if PLATFORM = "maixcam"
+            default 1 if PLATFORM = "maixcam2"
+    endmenu
+endmenu
