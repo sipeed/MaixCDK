@@ -1574,7 +1574,7 @@ namespace maix::image
      * @return Image object, if load failed, will return None(nullptr in C++), so you should care about it.
      * @maixpy maix.image.load
      */
-    image::Image *load(const char *path, image::Format format = image::Format::FMT_RGB888);
+    image::Image *load(const std::string &path, image::Format format = image::Format::FMT_RGB888);
 
     /**
      * Create image from bytes

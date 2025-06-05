@@ -939,7 +939,7 @@ MaixCDK API documentation, modules:
     readme += "| --- | --- |\n"
     for m, v in module_members.items():
         # add link to module api doc
-        readme += "|[{}::{}](./{}/{}.md) | {} |\n".format(args.module_name, m, m, args.module_name, v["doc"]["brief"].replace("\n", "<br>")
+        readme += "|[{}::{}](./{}/{}.md) | {} |\n".format(args.module_name, m, args.module_name, m, v["doc"]["brief"].replace("\n", "<br>")
                     )
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme)

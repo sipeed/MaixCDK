@@ -123,7 +123,7 @@ namespace maix::sys
      * @return human readable string, e.g. "1.21 KB"
      * @maixpy maix.sys.bytes_to_human
      */
-    std::string bytes_to_human(unsigned long long bytes, int precision = 2, int base = 1024, const std::string &unit = "B", const std::string &sep = " ");
+    std::string bytes_to_human(unsigned long long bytes, int precision = 2, int base = 1024, const std::vector<std::string> &units = std::vector<std::string>(), const std::string &sep = " ");
 
     /**
      * Get CPU frequency

@@ -30,8 +30,8 @@ endif()
 ###### Add link search path for requirements/libs ######
 # list(APPEND ADD_LINK_SEARCH_PATH "${CONFIG_TOOLCHAIN_PATH}/lib")
 # list(APPEND ADD_REQUIREMENTS m)  # add system libs, pthread or m(math) lib for example
-list(APPEND ADD_DYNAMIC_LIB "${src_path}/lib/libonnxruntime.so.1"
-)
+list(APPEND ADD_DYNAMIC_LIB "${src_path}/lib/libonnxruntime.so.1")
+list(APPEND ADD_DIST_LIB_IGNORE "${src_path}/lib/libonnxruntime.so.1")
 
 ###############################################
 

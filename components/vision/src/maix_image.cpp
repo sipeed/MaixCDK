@@ -128,7 +128,12 @@ namespace maix::image
             free(uv_temp);
     }
 
-    image::Image *load(const char *path, image::Format format)
+    std::string format_name(maix::image::Format fmt)
+    {
+        return fmt_names[fmt];
+    }
+
+    image::Image *load(const std::string &path, image::Format format)
     {
         cv::Mat mat;
         if (format == image::FMT_BGR888 || format == image::FMT_RGB888)

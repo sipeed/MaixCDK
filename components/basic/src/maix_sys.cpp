@@ -534,20 +534,23 @@ namespace maix::sys
         return res;
     }
 
-    std::string bytes_to_human(unsigned long long bytes, int precision, int base, const std::string &unit, const std::string &sep)
+    std::string bytes_to_human(unsigned long long bytes, int precision, int base, const std::vector<std::string> &units, const std::string &sep)
     {
-        const char *units[] = {"", "K", "M", "G", "T", "P", "E", "Z", "Y"};
+        static const std::vector<std::string> default_units = {
+            "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
+        };
+        const std::vector<std::string>& actual_units = units.empty() ? default_units : units;
         size_t unit_index = 0;
         double bytes_double = static_cast<double>(bytes);
 
-        while (bytes_double >= base && unit_index < sizeof(units) / sizeof(*units))
+        while (bytes_double >= base && unit_index < actual_units.size())
         {
             bytes_double /= base;
             ++unit_index;
         }
 
         std::ostringstream out;
-        out << std::fixed << std::setprecision(precision) << bytes_double << sep << units[unit_index] << unit;
+        out << std::fixed << std::setprecision(precision) << bytes_double << sep << actual_units[unit_index];
         return out.str();
     }
 

@@ -109,7 +109,9 @@ namespace maix::image
         };
 
     /**
-     * Image format string
+     * Image format string.
+     * !!Deprecated!! Please use format_name() function instead.
+     * This attribute will be removed in future.
      * @maixpy maix.image.fmt_names
      */
     const std::vector<std::string> fmt_names = {
@@ -149,6 +151,13 @@ namespace maix::image
         "COMPRESSED_MAX",
         "INVALID"
         };
+
+    /**
+     * Get format name by format.
+     * @return format name string
+     * @maixpy maix.image.format_name
+     */
+     std::string format_name(maix::image::Format fmt);
 
     /**
      * Image size type
