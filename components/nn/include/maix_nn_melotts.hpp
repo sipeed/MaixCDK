@@ -6,6 +6,7 @@
  */
 
 #pragma once
+#ifdef PLATFORM_MAIXCAM2
 #include "maix_basic.hpp"
 #include "maix_nn.hpp"
 #include "maix_image.hpp"
@@ -883,3 +884,4 @@ namespace maix::nn
         std::string type_str = "melotts";
     };
 } // namespace maix::nn
+#endif // PLATFORM_MAIXCAM2

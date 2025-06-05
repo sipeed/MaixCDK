@@ -13,7 +13,7 @@ def add_file_downloads(confs : dict) -> list:
         sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]
         filename = f"sg2002_onnxruntime_v{version}.tar.xz"
         path = f"onnxruntime_srcs"
-        check_file = f'maixcam_onnxruntime'
+        check_file = f'maixcam_onnxruntime_v{version}'
         rename = {
             f'sg2002_onnxruntime_v{version}': check_file
         }
