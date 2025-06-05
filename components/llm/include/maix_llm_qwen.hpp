@@ -172,7 +172,7 @@ namespace maix::nn
         }
 
         /**
-         * Set system prompt
+         * Set system prompt, will auto call clear_context.
          * @param prompt system prompt
          * @maixpy maix.nn.Qwen.set_system_prompt
          */
@@ -198,7 +198,9 @@ namespace maix::nn
 
         /**
          * Set reply callback
-         * @param callback reply callback
+         * @param callback reply callback, when token(words) generated, this function will be called,
+         * so you can get response message in real time in this callback funtion.
+         * If set to None(nullptr in C++), you can get response after all response message generated.
          * @maixpy maix.nn.Qwen.set_reply_callback
          */
         void set_reply_callback(std::function<void(nn::Qwen &, const nn::QwenResp &)> callback = nullptr)

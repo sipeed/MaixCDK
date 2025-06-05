@@ -172,7 +172,7 @@ public:
         return true;
     }
 
-    bool Encode(std::string input, std::string last_reply, std::vector<int> &tokens, std::vector<int> &tokens_diff, bool b_img_prompt) override
+    bool Encode(std::string input, std::string last_reply, std::vector<int> &tokens, std::vector<int> &tokens_diff, bool b_img_prompt, int vpm_len) override
     {
         nlohmann::json j;
         j["uid"] = uid;
@@ -183,6 +183,8 @@ public:
         }
 
         j["img_prompt"] = b_img_prompt;
+        if(b_img_prompt)
+            j["vpm_len"] = vpm_len;
         auto ret = cli->Post("/encode", j.dump(), "application/json");
         auto rep = ret.value();
         if (rep.status != 200)
@@ -197,7 +199,7 @@ public:
                     return false;
                 }
                 // retry encode with new uid
-                return Encode(input, last_reply, tokens, tokens_diff, b_img_prompt);
+                return Encode(input, last_reply, tokens, tokens_diff, b_img_prompt, vpm_len);
             }
             ALOGE("encode failed, status: %d", rep.status);
             return false;
@@ -215,10 +217,12 @@ public:
         }
 
         std::vector<int> _token_ids = j2["token_ids"];
-        std::vector<int> _tokens_diff = j2["diff"];
-
         tokens = _token_ids;
-        tokens_diff = _tokens_diff;
+        if(!b_img_prompt)
+        {
+            std::vector<int> _tokens_diff = j2["diff"];
+            tokens_diff = _tokens_diff;
+        }
 
         return true;
     }

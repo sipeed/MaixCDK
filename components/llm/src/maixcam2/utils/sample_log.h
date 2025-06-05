@@ -49,30 +49,30 @@ extern bool ax_log_use_color;
 #define MACRO_END
 #endif
 
-#define ALOGE(fmt, ...) printf("%s" "[E][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_RED : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_RED : "")
+#define ALOGE(fmt, ...) printf("%s" "[E][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_RED : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_END : "")
 
 #define ALOGW(fmt, ...)               \
     do{ \
         if (ax_log_level >= SAMPLE_LOG_WARN) \
-            printf("%s" "[W][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_YELLOW : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_YELLOW : ""); \
+            printf("%s" "[W][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_YELLOW : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_END : ""); \
     }while(0)
 
 #define ALOGI(fmt, ...)               \
     do { \
         if (ax_log_level >= SAMPLE_LOG_INFO) \
-            printf("%s" "[I][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_GREEN : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_GREEN : ""); \
+            printf("%s" "[I][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_GREEN : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_END : ""); \
     }while(0)
 
 #define ALOGD(fmt, ...)                \
     do{ \
         if (ax_log_level >= SAMPLE_LOG_DEBUG) \
-            printf("%s" "[D][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_WHITE : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_WHITE : ""); \
+            printf("%s" "[D][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_WHITE : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_END : ""); \
     }while(0)
 
 #define ALOGN(fmt, ...)                 \
     do{ \
         if (ax_log_level >= SAMPLE_LOG_NOTICE) \
-            printf("%s" "[N][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_PURPLE : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_PURPLE : ""); \
+            printf("%s" "[N][%32s][%4d]: " fmt "%s" "\n", ax_log_use_color ? MACRO_PURPLE : "", __FUNCTION__, __LINE__, ##__VA_ARGS__, ax_log_use_color ? MACRO_END : ""); \
     }while(0)
 
 #endif /* _SAMPLE_LOG_H_ */

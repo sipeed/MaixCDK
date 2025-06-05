@@ -7,37 +7,17 @@
 
 #include "maix_llm_qwen.hpp"
 #include "maix_nn.hpp"
-#include "LLM.hpp"
+#include "LLM_Qwen.hpp"
 #include "ax_middleware.hpp"
+#include "tokenizer_service_util.hpp"
 
 namespace maix::nn
 {
-
-    // 执行命令并返回退出状态
-    static int executeCommand(const std::string& command) {
-        int status = std::system(command.c_str());
-        return WEXITSTATUS(status);  // 提取退出码
-    }
-
-    // 检查服务是否处于active状态
-    static bool isServiceActive(const std::string& serviceName) {
-        std::string cmd = "systemctl is-active --quiet " + serviceName;
-        int status = executeCommand(cmd);
-        return status == 0;
-    }
-
-    // 尝试启动服务
-    static bool startService(const std::string& serviceName) {
-        std::string cmd = "systemctl start " + serviceName;
-        int status = executeCommand(cmd);
-        return status == 0;
-    }
-
     class QwenObj
     {
     public:
         MUD mud;
-        LLM lLaMa;
+        LLM_Qwen::LLM lLaMa;
         maix::middleware::maixcam2::SYS *ax_sys;
         maix::middleware::maixcam2::ENGINE *ax_engine;
         std::string last_reply;
@@ -121,7 +101,7 @@ namespace maix::nn
             return e;
         std::string model_dir = fs::dirname(model);
         // init llm model
-        LLMAttrType attr;
+        LLM_Qwen::LLMAttrType attr;
         attr.system_prompt = _system_prompt;
         attr.tokenizer_type = TKT_HTTP;
         bool ai_isp_on = app::get_sys_config_kv("npu", "ai_isp", "0") == "1" ? true : false;
@@ -169,7 +149,7 @@ namespace maix::nn
             _tokenizer_type = obj->mud.items["extra"]["tokenizer_type"];
         }
 
-        attr.runing_callback = _on_msg;
+        attr.runing_callback = nullptr;
         attr.reserve = obj;
 
         // print params
@@ -211,33 +191,14 @@ namespace maix::nn
 
         // check tokenizer service
         // find http://127.0.0.1 in obj->mud.items["extra"]["tokenizer_url"]
-        if(obj->mud.items["extra"]["tokenizer_url"].find("http://127.0.0.1") != std::string::npos ||
-              obj->mud.items["extra"]["tokenizer_url"].find("http://localhost") != std::string::npos
-        )
+        e = check_start_tokenizer_service(obj->mud.items["extra"]["tokenizer_url"]);
+        if(e != err::ERR_NONE)
         {
-            if(!isServiceActive("llm-tokenizer.service"))
-            {
-                log::info("llm-tokenizer.service is not active, starting it...");
-                if(!startService("llm-tokenizer.service"))
-                {
-                    log::error("llm-tokenizer.service is not active and start failed, please check by command `systemctl status llm-tokenizer.service`");
-                    delete obj->ax_engine;
-                    obj->ax_engine = nullptr;
-                    delete obj->ax_sys;
-                    obj->ax_sys = nullptr;
-                    return err::ERR_RUNTIME;
-                }
-                time::sleep(2);
-                if(!isServiceActive("llm-tokenizer.service"))
-                {
-                    log::error("llm-tokenizer.service is not active, please check by command `systemctl status llm-tokenizer.service`");
-                    delete obj->ax_engine;
-                    obj->ax_engine = nullptr;
-                    delete obj->ax_sys;
-                    obj->ax_sys = nullptr;
-                    return err::ERR_RUNTIME;
-                }
-            }
+            delete obj->ax_engine;
+            obj->ax_engine = nullptr;
+            delete obj->ax_sys;
+            obj->ax_sys = nullptr;
+            return e;
         }
 
         // init llm model
@@ -284,14 +245,7 @@ namespace maix::nn
     void Qwen::set_system_prompt(const std::string &prompt)
     {
         _system_prompt = prompt;
-        if(_loaded)
-        {
-            QwenObj *obj = (QwenObj *)_data;
-            std::vector<int> _token_ids;
-            obj->lLaMa.SetSystemPrompt(_system_prompt, _token_ids);
-            obj->lLaMa.GenerateKVCachePrefill(_token_ids, obj->k_caches, obj->v_caches, obj->precompute_len);
-            // log::info("precompute_len: %d", obj->precompute_len);
-        }
+        clear_context();
     }
 
     nn::QwenResp Qwen::send(const std::string &msg)
@@ -306,6 +260,18 @@ namespace maix::nn
             obj->resp.err_msg = "msg is empty";
             return obj->resp;
         }
+
+        // check callback
+        auto attr = obj->lLaMa.getAttr();
+        if(_callback)
+        {
+            attr->runing_callback = _on_msg;
+        }
+        else
+        {
+            attr->runing_callback = nullptr;
+        }
+
         // run LLM model
         std::vector<unsigned short> prompt_data;
         std::vector<int> tokens_ids, tokens_diff;
@@ -328,6 +294,15 @@ namespace maix::nn
 
     err::Err Qwen::clear_context()
     {
-        return err::ERR_NONE;
+        if(_loaded)
+        {
+            QwenObj *obj = (QwenObj *)_data;
+            std::vector<int> _token_ids;
+            obj->lLaMa.SetSystemPrompt(_system_prompt, _token_ids);
+            obj->lLaMa.GenerateKVCachePrefill(_token_ids, obj->k_caches, obj->v_caches, obj->precompute_len);
+            // log::info("precompute_len: %d", obj->precompute_len);
+            return err::ERR_NONE;
+        }
+        return err::ERR_NOT_OPEN;
     }
 } // namespace maix::nn

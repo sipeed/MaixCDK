@@ -17,7 +17,7 @@ class BaseTokenizer
 public:
     virtual bool Init(std::string model_path, const std::string &tokenizer_type) = 0;
     virtual bool Reset(std::string system_prompt, std::vector<int> &tokens) = 0;
-    virtual bool Encode(std::string input, std::string last_reply, std::vector<int> &tokens, std::vector<int> &tokens_diff, bool b_img_prompt = false) = 0;
+    virtual bool Encode(std::string input, std::string last_reply, std::vector<int> &tokens, std::vector<int> &tokens_diff, bool b_img_prompt = false, int vpm_len = 169) = 0;
     // virtual std::vector<int> Encode(std::string input, std::string last_reply, bool b_img_prompt = false) = 0;
     virtual std::string Decode(const std::vector<int> input) = 0;
     virtual int GetBosID() = 0;

@@ -48,26 +48,26 @@ namespace maix::nn
     }
 
 
-    std::string Qwen::system_prompt(const std::string &prompt)
+    void Qwen::set_system_prompt(const std::string &prompt)
     {
         _system_prompt = prompt;
-        return _system_prompt;
+        clear_context();
     }
 
-    nn::QwenResp Qwen::send(const std::string &msg, std::function<void(const QwenResp &)> callback)
+    nn::QwenResp Qwen::send(const std::string &msg)
     {
         QwenResp resp;
         resp.msg = msg;
         resp.err_code = err::ERR_NONE;
         resp.err_msg = "";
-        std::string msg = "hello, not implement for this platform yet\n";
-        for(auto c : msg)
+        std::string resp_msg = "hello, not implement for this platform yet\n";
+        for(auto c : resp_msg)
         {
             time::sleep_ms(20);
-            respresp_tmp.msg += c;
+            resp.msg += c;
             resp.msg_new = c;
-            if (callback)
-                callback(resp);
+            if (_callback)
+                _callback(*this, resp);
         }
         return resp;
     }

@@ -417,7 +417,7 @@ void ax_runner_ax650::deinit()
 int ax_runner_ax650::inference()
 {
     int ret = AX_ENGINE_RunSync(m_handle->handle, &m_handle->io_data[0]);
-    for (size_t i = 0; i < get_num_outputs(); i++)
+    for (int i = 0; i < get_num_outputs(); i++)
     {
         auto &tensor = get_output(i);
         AX_SYS_MinvalidateCache(tensor.phyAddr, tensor.pVirAddr, tensor.nSize);
@@ -429,7 +429,7 @@ int ax_runner_ax650::inference(int grpid)
 {
     int ret = AX_ENGINE_RunGroupIOSync(m_handle->handle, m_handle->context, grpid, &m_handle->io_data[grpid]);
 
-    for (size_t i = 0; i < get_num_outputs(); i++)
+    for (int i = 0; i < get_num_outputs(); i++)
     {
         auto &tensor = get_output(grpid, i);
         AX_SYS_MinvalidateCache(tensor.phyAddr, tensor.pVirAddr, tensor.nSize);

@@ -45,7 +45,7 @@ void update_cqdm(t_cqdm *cqdm, int x, const char *unit, const char *log_str)
             fprintf(stdout, "█");
         for (int i = 0; i < (cqdm->size - temp * cqdm->size); i++)
             fprintf(stdout, " ");
-        fprintf(stdout, " | %3d / %3d [%2.2fs<%2.2fs, %2.2f %s/s] \033[1;30;32m%s\033[0m", x + 1, cqdm->total, cqdm->total_time,
+        fprintf(stdout, " | %3d / %-3d [%2.2fs<%2.2fs, %2.2f %s/s] \033[1;30;32m%s\033[0m", x + 1, cqdm->total, cqdm->total_time,
                 cqdm->average_time * cqdm->total, 1 / cqdm->average_time, unit, log_str);
     }
     else

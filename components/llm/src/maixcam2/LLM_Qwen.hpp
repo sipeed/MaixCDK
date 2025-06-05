@@ -15,6 +15,9 @@
 #include "LLMPostprocess.hpp"
 #include "maix_llm_qwen.hpp"
 
+namespace maix::nn::LLM_Qwen
+{
+
 #define ALIGN_DOWN(x, a) ((x) & ~((a) - 1))
 
 typedef void (*LLMRuningCallback)(int *p_token, int n_token, const char *p_str, float token_per_sec, void *reserve);
@@ -52,8 +55,6 @@ struct LLMAttrType
     std::vector<int> prefill_max_kv_cache_num_grp;
 
     int prefill_grpid = -1;
-
-    std::string post_config_path = "post_config.json";
 
     bool b_use_mmap_load_embed = false;
 
@@ -215,7 +216,7 @@ public:
 
         if (!postprocess.load_config(post_config))
         {
-            ALOGW("load postprocess config(%s) failed", attr.post_config_path.c_str());
+            ALOGW("load postprocess config failed");
         }
 
         // Reset();
@@ -670,8 +671,10 @@ public:
             mask[i] = 0;
         }
         timer t_cost;
+        timer t_tmp;
         timer ttft_timer;
         ttft_timer.start();
+        float decode_t_all = 0;
 
         for (int p = 0; p < prefill_split_num; p++)
         {
@@ -892,7 +895,10 @@ public:
                     {
                         float t_cost_ms = t_cost.cost();
                         float token_per_sec = token_ids.size() / (t_cost_ms / 1000);
+                        t_tmp.start();
                         auto tmp_out = tokenizer->Decode(cached_token);
+                        decode_t_all += t_tmp.cost();
+                        final_out += tmp_out;
                         _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
                         cached_token.clear();
                     }
@@ -908,7 +914,10 @@ public:
                     {
                         float t_cost_ms = t_cost.cost();
                         float token_per_sec = token_ids.size() / (t_cost_ms / 1000);
+                        t_tmp.start();
                         auto tmp_out = tokenizer->Decode(cached_token);
+                        decode_t_all += t_tmp.cost();
+                        final_out += tmp_out;
                         _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
                         cached_token.clear();
                     }
@@ -927,11 +936,19 @@ public:
         float t_cost_ms = t_cost.cost();
         ALOGN("hit eos,avg %.2f token/s\n", token_ids.size() / (t_cost_ms / 1000));
 
+        if (!_attr.runing_callback)
+        {
+            t_tmp.start();
+            final_out = tokenizer->Decode(token_ids);
+            decode_t_all += t_tmp.cost();
+        }
+        ALOGN("decode cost %.0fms in total", decode_t_all);
+
         // 去掉 len_of_input 那部分
         // token_ids.erase(token_ids.begin(), token_ids.begin() + len_of_input);
-
-        final_out = tokenizer->Decode(token_ids);
 
         return final_out;
     }
 };
+
+}; // namespace LLM_Qwen
