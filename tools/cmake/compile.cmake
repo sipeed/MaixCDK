@@ -538,6 +538,11 @@ macro(project name)
         add_definitions(-DRELEASE=1 -DDEBUG=0)
     endif()
 
+    # add PLATFORM_XXXX definition
+    string(TOUPPER "${PLATFORM}" PLATFORM_UPPER)
+    set(PLATFORM_DEFINE "PLATFORM_${PLATFORM_UPPER}")
+    add_definitions(-D${PLATFORM_DEFINE}=1)
+
     # clear components depends info
     set(clear_req_cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/components_depends.py clear ${CMAKE_BINARY_DIR}/config/components_depends.json)
     execute_process(${clear_req_cmd} RESULT_VARIABLE cmd_res)
