@@ -272,6 +272,12 @@ namespace maix::nn
         nn::InternVLResp send(const std::string &msg);
 
         /**
+         * Cancel running
+         * @maixpy maix.nn.InternVL.cancel
+         */
+         void cancel();
+
+        /**
          * Get model version
          * @return model version
          * @maixpy maix.nn.InternVL.version

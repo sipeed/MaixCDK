@@ -227,6 +227,12 @@ namespace maix::nn
         nn::QwenResp send(const std::string &msg);
 
         /**
+         * Cancel running
+         * @maixpy maix.nn.Qwen.cancel
+         */
+         void cancel();
+
+        /**
          * Clear context
          * @return error code, if clear success, return err::ERR_NONE
          * @maixpy maix.nn.Qwen.clear_context

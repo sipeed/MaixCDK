@@ -349,4 +349,10 @@
          return obj->resp;
      }
 
+     void InternVL::cancel()
+     {
+        QwenObj *obj = (QwenObj *)_data;
+        obj->lLaMa.Stop();
+     }
+
  } // namespace maix::nn

@@ -156,4 +156,9 @@
          return obj->resp;
      }
 
+     void InternVL::cancel()
+     {
+ 
+     }
+
  } // namespace maix::nn

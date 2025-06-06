@@ -292,6 +292,12 @@ namespace maix::nn
         return obj->resp;
     }
 
+    void Qwen::cancel()
+    {
+        QwenObj *obj = (QwenObj *)_data;
+        obj->lLaMa.Stop();
+    }
+
     err::Err Qwen::clear_context()
     {
         if(_loaded)

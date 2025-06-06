@@ -72,6 +72,11 @@ namespace maix::nn
         return resp;
     }
 
+    void Qwen::cancel()
+    {
+
+    }
+
     err::Err Qwen::clear_context()
     {
         return err::ERR_NONE;
