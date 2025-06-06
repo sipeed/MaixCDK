@@ -675,6 +675,7 @@ public:
         timer ttft_timer;
         ttft_timer.start();
         float decode_t_all = 0;
+        int decode_req_times = 0;
 
         for (int p = 0; p < prefill_split_num; p++)
         {
@@ -898,6 +899,7 @@ public:
                         t_tmp.start();
                         auto tmp_out = tokenizer->Decode(cached_token);
                         decode_t_all += t_tmp.cost();
+                        ++decode_req_times;
                         final_out += tmp_out;
                         _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
                         cached_token.clear();
@@ -917,6 +919,7 @@ public:
                         t_tmp.start();
                         auto tmp_out = tokenizer->Decode(cached_token);
                         decode_t_all += t_tmp.cost();
+                        ++decode_req_times;
                         final_out += tmp_out;
                         _attr.runing_callback(cached_token.data(), cached_token.size(), tmp_out.c_str(), token_per_sec, _attr.reserve);
                         cached_token.clear();
@@ -934,7 +937,7 @@ public:
         printf("\n\n");
         fflush(stdout);
         float t_cost_ms = t_cost.cost();
-        ALOGN("hit eos,avg %.2f token/s\n", token_ids.size() / (t_cost_ms / 1000));
+        ALOGN("hit eos, avg %.2f token/s\n", token_ids.size() / (t_cost_ms / 1000));
 
         if (!_attr.runing_callback)
         {
@@ -942,7 +945,7 @@ public:
             final_out = tokenizer->Decode(token_ids);
             decode_t_all += t_tmp.cost();
         }
-        ALOGN("decode cost %.0fms in total", decode_t_all);
+        ALOGN("decode cost: total %.0fms, avg %.0fms/req, avg %.0fms/token", decode_t_all, decode_t_all / decode_req_times, decode_t_all / token_ids.size());
 
         // 去掉 len_of_input 那部分
         // token_ids.erase(token_ids.begin(), token_ids.begin() + len_of_input);

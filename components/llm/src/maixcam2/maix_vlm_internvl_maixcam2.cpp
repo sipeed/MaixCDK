@@ -351,7 +351,7 @@
 
      void InternVL::cancel()
      {
-        QwenObj *obj = (QwenObj *)_data;
+        InternVLObj *obj = (InternVLObj *)_data;
         obj->lLaMa.Stop();
      }
 
