@@ -35,9 +35,9 @@ int _main(int argc, char *argv[])
         log::info("start converting now");
 
         auto t = time::ticks_ms();
-        auto result = whisper.forward(wav_path);
+        auto result = whisper.transcribe(wav_path);
         auto t2 = time::ticks_ms();
-        log::info("whisper forward cost %d ms", t2 - t);
+        log::info("whisper transcribe cost %d ms", t2 - t);
 
         if(result.size() == 0)
         {

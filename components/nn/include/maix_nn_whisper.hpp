@@ -419,13 +419,13 @@ namespace maix::nn
         }
 
         /**
-         * Forward image
+         * Transcribe audio file to text
          * @note If the wav file has multiple channels, only the first channel will be used.
          * @param file Pass in an audio file, supporting files in WAV format.
          * @return The output result after automatic speech recognition.
-         * @maixpy maix.nn.Whisper.forward
+         * @maixpy maix.nn.Whisper.transcribe
         */
-        std::string forward(std::string &file) {
+        std::string transcribe(std::string &file) {
             if (fs::exists(file) == false) {
                 return "";
             }
@@ -445,7 +445,7 @@ namespace maix::nn
             audio::File audio_file;
             audio_file.load(file);
             auto pcm = audio_file.get_pcm(false);
-            auto result = forward_raw(pcm, audio_file.sample_rate(), audio_file.channels(), audio_file.sample_bits());
+            auto result = transcribe_raw(pcm, audio_file.sample_rate(), audio_file.channels(), audio_file.sample_bits());
             delete pcm;
             return result;
         }
@@ -493,12 +493,12 @@ namespace maix::nn
         // }
 
         /**
-         * Forward image
+         * Transcribe pcm data to text
          * @param pcm RAW data
          * @return The output result after automatic speech recognition.
-         * @maixpy maix.nn.Whisper.forward_raw
+         * @maixpy maix.nn.Whisper.transcribe_raw
         */
-        std::string forward_raw(Bytes *pcm, int sample_rate = 16000, int channels = 1, int bits_per_frame = 16) {
+        std::string transcribe_raw(Bytes *pcm, int sample_rate = 16000, int channels = 1, int bits_per_frame = 16) {
             err::Err err = err::ERR_NONE;
             if (sample_rate != _input_pcm_samplerate) {
                 log::error("wav sample rate not match, must be %d!", _input_pcm_samplerate);
