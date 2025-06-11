@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <chrono>
 #include <thread>
+#include "sample_log.h"
 
 /**
  * @brief Attempts to establish a TCP connection to a specified host and port.
@@ -93,9 +94,7 @@ static bool test_connect_http(const std::string &http_url, int timeout)
         if (test_connect(host, port))
             return true;
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        printf("\033[1;30;31m"
-               "connect failed %s, try again in %2d/%2d \n"
-               "\033[0m",
+        ALOGW("connect failed %s, try again in %2d/%2d",
                http_url.c_str(), timeout, tmp);
     }
     return false;

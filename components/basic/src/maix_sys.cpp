@@ -312,18 +312,7 @@ namespace maix::sys
                 // 包含 maixcam 或者 licheerv nano (不区分大小写，先把 model 转换为小写)
                 std::string model_lower = model;
                 std::transform(model.begin(), model.end(), model_lower.begin(), ::tolower);
-                if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
-                {
-                    fclose(file);
-                    auto it = _device_configs.find("name");
-                    if (it != _device_configs.end()) {
-                        _device_name = it->second;
-                    }
-                    else
-                        _device_name = "MaixCAM";
-                    return _device_name;
-                }
-                else if (model_lower.find("maixcam2") != std::string::npos)
+                if (model_lower.find("maixcam2") != std::string::npos)
                 {
                     fclose(file);
                     auto it = _device_configs.find("name");
@@ -332,6 +321,17 @@ namespace maix::sys
                     }
                     else
                         _device_name = "MaixCAM2";
+                    return _device_name;
+                }
+                else if (model_lower.find("maixcam") != std::string::npos || model_lower.find("licheerv nano") != std::string::npos)
+                {
+                    fclose(file);
+                    auto it = _device_configs.find("name");
+                    if (it != _device_configs.end()) {
+                        _device_name = it->second;
+                    }
+                    else
+                        _device_name = "MaixCAM";
                     return _device_name;
                 }
 #else

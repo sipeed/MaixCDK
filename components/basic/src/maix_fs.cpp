@@ -272,7 +272,7 @@ namespace maix::fs
         error = file->open(path, mode);
         if (error != err::ERR_NONE)
         {
-            log::error("open file %s failed, error code: %d\n", path.c_str(), error);
+            log::debug("open file %s failed, error code: %d", path.c_str(), error);
             delete file;
             return nullptr;
         }
@@ -294,7 +294,7 @@ namespace maix::fs
         _fp = std::fopen(path.c_str(), mode.c_str());
         if (_fp == nullptr)
         {
-            log::error("open file %s failed\n", path.c_str());
+            log::debug("open file %s failed", path.c_str());
             return err::ERR_ARGS;
         }
         return err::ERR_NONE;
