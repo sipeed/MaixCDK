@@ -12,7 +12,7 @@ using RGB = std::array<uint8_t, 3>;
 using CmapArray = std::vector<RGB>;
 
 /**
- * @brief Cmap
+ * @brief Cmap, !!!!depracated!!!!, please use maix.image.CMap.
  * @maixpy maix.ext_dev.cmap.Cmap
  */
 enum class Cmap {

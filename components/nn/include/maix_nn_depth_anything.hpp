@@ -1,36 +1,38 @@
-/**
+ /**
  * @author neucrack@sipeed
  * @copyright Sipeed Ltd 2023-
  * @license Apache 2.0
- * @update 2023.9.8: Add framework, create this file.
+ * @update 2025.6.9: Add depth anything v2 support
  */
 
 #pragma once
+#include <cfloat>
 #include "maix_basic.hpp"
 #include "maix_nn.hpp"
 #include "maix_image.hpp"
 #include "maix_nn_F.hpp"
+#include "maix_image_cmap.hpp"
 
 namespace maix::nn
 {
     /**
-     * Classifier
-     * @maixpy maix.nn.Classifier
+     * DepthAnything
+     * @maixpy maix.nn.DepthAnything
      */
-    class Classifier
+    class DepthAnything
     {
     public:
         /**
-         * Construct a new Classifier object
+         * Construct a new DepthAnything object
          * @param model MUD model path, if empty, will not load model, you can call load() later.
          *                  if not empty, will load model and will raise err::Exception if load failed.
          * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
          *                      If you want to ensure every time forward output the input's result, set this arg to false please.
          *                      Default true to ensure speed.
-         * @maixpy maix.nn.Classifier.__init__
-         * @maixcdk maix.nn.Classifier.Classifier
+         * @maixpy maix.nn.DepthAnything.__init__
+         * @maixcdk maix.nn.DepthAnything.DepthAnything
          */
-        Classifier(const string &model = "", bool dual_buff = true)
+         DepthAnything(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
             _dual_buff = dual_buff;
@@ -44,7 +46,7 @@ namespace maix::nn
             }
         }
 
-        ~Classifier()
+        ~DepthAnything()
         {
             if (_model)
             {
@@ -56,14 +58,14 @@ namespace maix::nn
         /**
          * Load model from file, model format is .mud,
          * MUD file should contain [extra] section, have key-values:
-         * - model_type: classifier
+         * - model_type: depth_anything_v2
          * - input_type: rgb or bgr
          * - mean: 123.675, 116.28, 103.53
          * - scale: 0.017124753831663668, 0.01750700280112045, 0.017429193899782137
          * - labels: imagenet_classes.txt
          * @param model MUD model path
          * @return error code, if load failed, return error code
-         * @maixpy maix.nn.Classifier.load
+         * @maixpy maix.nn.DepthAnything.load
          */
         err::Err load(const string &model)
         {
@@ -80,9 +82,9 @@ namespace maix::nn
             _extra_info = _model->extra_info();
             if (_extra_info.find("model_type") != _extra_info.end())
             {
-                if (_extra_info["model_type"] != "classifier")
+                if (_extra_info["model_type"] != "depth_anything_v2")
                 {
-                    log::error("model_type not match, expect 'classifier', but got '%s'", _extra_info["model_type"].c_str());
+                    log::error("model_type not match, expect 'depth_anything_v2', but got '%s'", _extra_info["model_type"].c_str());
                     return err::ERR_ARGS;
                 }
             }
@@ -162,16 +164,6 @@ namespace maix::nn
                 log::error("scale key not found");
                 return err::ERR_ARGS;
             }
-            err::Err e = _model->extra_info_labels(labels);
-            if(e == err::Err::ERR_NONE)
-            {
-                log::info("labels num: %ld", labels.size());
-            }
-            else
-            {
-                log::error("labels key not found: %s", err::to_str(e).c_str());
-                return err::ERR_ARGS;
-            }
             _inputs = _model->inputs_info();
             if(_inputs[0].shape[3] <= 4) // nhwc
                 _input_size = image::Size(_inputs[0].shape[2], _inputs[0].shape[1]);
@@ -181,67 +173,125 @@ namespace maix::nn
         }
 
         /**
-         * Forward image to model, get result. Only for image input, use classify_raw for tensor input.
+         * Forward model and get raw image depth estimation data.
          * @param img image, format should match model input_type， or will raise err.Exception
-         * @param softmax if true, will do softmax to result, or will return raw value
-         * @param fit image resize fit mode, default Fit.FIT_COVER, see image.Fit.
+         * @param fit image resize fit mode if input image not equal to model' input size,
+         *            will auto resize to model's input size then detect, and recover to image input size.
+         *            Default Fit.FIT_CONTAIN, see image.Fit.
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
-         * @return result, a list of (label, score). If in dual_buff mode, value can be one element list and score is zero when not ready. In C++, you need to delete it after use.
-         * @maixpy maix.nn.Classifier.classify
+         * @return result, a tensor.Tensor object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
+         * @maixpy maix.nn.DepthAnything.get_depth
          */
-        std::vector<std::pair<int, float>> *classify(image::Image &img, bool softmax = true, image::Fit fit = image::FIT_COVER)
-        {
+         tensor::Tensor *get_depth(image::Image &img, image::Fit fit = image::FIT_CONTAIN)
+         {
             if (img.format() != _input_img_fmt)
             {
                 throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
+            }
+            if(!(fit == image::FIT_CONTAIN || fit == image::FIT_FILL || fit == image::FIT_COVER))
+            {
+                throw err::Exception("fit only support FIT_CONTAIN, FIT_FILL, FIT_COVER.");
             }
             tensor::Tensors *outputs;
             outputs = _model->forward_image(img, this->mean, this->scale, fit, false, false);
             if (!outputs)
             {
-                std::vector<std::pair<int, float>> *res = new std::vector<std::pair<int, float>>(1);
-                res->at(0).first = 0;
-                res->at(0).second = 0;
-                return res;
+                return nullptr;
             }
             tensor::Tensor *tensor = outputs->begin()->second;
             if (tensor->dtype() != tensor::DType::FLOAT32)
             {
                 throw err::Exception("output tensor dtype only support float32 now");
             }
-            if (softmax)
-                maix::nn::F::softmax(tensor, true);
-            std::vector<std::pair<int, float>> *result = new std::vector<std::pair<int, float>>(tensor->size_int());
-            float *data = (float *)tensor->data();
-            for (int i = 0; i < tensor->size_int(); i++)
+            tensor::Tensor *result = new tensor::Tensor(tensor->shape(), tensor->dtype(), tensor->data(), true);
+            delete outputs;
+            return result;
+         }
+
+        /**
+         * Forward model and get image depth estimation data normlized to [0, 255] and as a image.Image object.
+         * @param img image, format should match model input_type， or will raise err.Exception
+         * @param fit image resize fit mode if input image not equal to model' input size,
+         *            will auto resize to model's input size then detect, and recover to image input size.
+         *            Default Fit.FIT_CONTAIN, see image.Fit.
+         * @param cmap Color map used convert grayscale distance estimation image to RGB image.
+         *             Diiferent cmap will influence finally image.
+         *             Default image.CMap.INFERNO.
+         * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
+         * @return result, a image::Image object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
+         * @maixpy maix.nn.DepthAnything.get_depth_image
+         */
+        image::Image *get_depth_image(image::Image &img, image::Fit fit = image::FIT_CONTAIN, image::CMap cmap = image::CMap::INFERNO)
+        {
+            if (img.format() != _input_img_fmt)
             {
-                result->at(i).first = i;
-                result->at(i).second = data[i];
+                throw err::Exception("image format not match, input_type: " + image::fmt_names[_input_img_fmt] + ", image format: " + image::fmt_names[img.format()]);
             }
-            std::sort(result->begin(), result->end(), [](const std::pair<int, float> &a, const std::pair<int, float> &b)
-                      { return a.second > b.second; });
+            if(!(fit == image::FIT_CONTAIN || fit == image::FIT_FILL || fit == image::FIT_COVER))
+            {
+                throw err::Exception("fit only support FIT_CONTAIN, FIT_FILL, FIT_COVER.");
+            }
+            tensor::Tensors *outputs;
+            outputs = _model->forward_image(img, this->mean, this->scale, fit, false, false);
+            if (!outputs)
+            {
+                return nullptr;
+            }
+            tensor::Tensor *tensor = outputs->begin()->second;
+            if (tensor->dtype() != tensor::DType::FLOAT32)
+            {
+                throw err::Exception("output tensor dtype only support float32 now");
+            }
+            // convert to rgb
+            auto convert_image_with_cmap = [](float *data, int w, int h, image::CMap cmap){
+                auto &colors = image::cmap_colors_rgb(cmap);
+                image::Image *result = new image::Image(w, h, image::Format::FMT_RGB888);
+                float max_v = data[0];
+                float min_v = data[0];
+                for(int i = 1; i < w * h; ++i)
+                {
+                    if (data[i] > max_v)
+                        max_v = data[i];
+                    else if (data[i] < min_v)
+                        min_v = data[i];
+                }
+                if(min_v == max_v)
+                {
+                    memset(result->data(), 127, w * h * 3);
+                }
+                else
+                {
+                    float scale = 255.0f / (max_v - min_v);
+                    uint8_t *img_data = (uint8_t*)result->data();
+                    #pragma omp parallel for
+                    for(int i = 0; i < w * h; ++i)
+                    {
+                        uint8_t gray = static_cast<uint8_t>(std::clamp((data[i] - min_v) * scale, 0.0f, 255.0f));
+                        auto &rgb = colors[gray];
+                        img_data[3 * i] = rgb[0];
+                        img_data[3 * i + 1] = rgb[1];
+                        img_data[3 * i + 2] = rgb[2];
+                    }
+                }
+                return result;
+            };
+            image::Image *result = convert_image_with_cmap((float*)tensor->data(), input_width(), input_height(), cmap);
+            // check need resize
+            if(img.width() * img.height() != tensor->size_int())
+            {
+                image::Fit fit_r = (fit == image::FIT_FILL) ? fit : (fit == image::FIT_CONTAIN ? image::FIT_COVER : image::FIT_CONTAIN);
+                image::Image *result2 = result->resize(img.width(), img.height(), fit_r);
+                delete result;
+                result = result2;
+            }
             delete outputs;
             return result;
         }
 
         /**
-         * Forward tensor data to model, get result
-         * @param data tensor data, format should match model input_type， or will raise err.Excetion
-         * @param softmax if true, will do softmax to result, or will return raw value
-         * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
-         * @return result, a list of (label, score). In C++, you need to delete it after use.
-         * @maixpy maix.nn.Classifier.classify_raw
-         */
-        std::vector<std::pair<int, float>> *classify_raw(tensor::Tensor &data, bool softmax = true)
-        {
-            // TODO: add classify for tensor data
-            throw err::Exception(err::ERR_NOT_IMPL);
-        }
-
-        /**
          * Get model input size, only for image input
          * @return model input size
-         * @maixpy maix.nn.Classifier.input_size
+         * @maixpy maix.nn.DepthAnything.input_size
          */
         image::Size input_size()
         {
@@ -251,7 +301,7 @@ namespace maix::nn
         /**
          * Get model input width, only for image input
          * @return model input size of width
-         * @maixpy maix.nn.Classifier.input_width
+         * @maixpy maix.nn.DepthAnything.input_width
          */
         int input_width()
         {
@@ -261,7 +311,7 @@ namespace maix::nn
         /**
          * Get model input height, only for image input
          * @return model input size of height
-         * @maixpy maix.nn.Classifier.input_height
+         * @maixpy maix.nn.DepthAnything.input_height
          */
         int input_height()
         {
@@ -272,7 +322,7 @@ namespace maix::nn
         /**
          * Get input image format, only for image input
          * @return input image format, image::Format type.
-         * @maixpy maix.nn.Classifier.input_format
+         * @maixpy maix.nn.DepthAnything.input_format
          */
         image::Format input_format()
         {
@@ -282,7 +332,7 @@ namespace maix::nn
         /**
          * Get input shape, if have multiple input, only return first input shape
          * @return input shape, list type
-         * @maixpy maix.nn.Classifier.input_shape
+         * @maixpy maix.nn.DepthAnything.input_shape
          */
         std::vector<int> input_shape()
         {
@@ -291,26 +341,14 @@ namespace maix::nn
 
     public:
         /**
-         * Labels list
-         * @maixpy maix.nn.Classifier.labels
-         */
-        std::vector<string> labels;
-
-        /**
-         * Label file path
-         * @maixpy maix.nn.Classifier.label_path
-         */
-        std::string label_path;
-
-        /**
          * Get mean value, list type
-         * @maixpy maix.nn.Classifier.mean
+         * @maixpy maix.nn.DepthAnything.mean
          */
         std::vector<float> mean;
 
         /**
          * Get scale value, list type
-         * @maixpy maix.nn.Classifier.scale
+         * @maixpy maix.nn.DepthAnything.scale
          */
         std::vector<float> scale;
 

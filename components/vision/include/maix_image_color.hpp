@@ -21,7 +21,7 @@ namespace maix::image
     public:
         /**
          * Color constructor
-         * @param alpha alpha channel, value range: 0 ~ 1
+         * @param alpha alpha channel, value range: 0 ~ 1, 0 means transparent.
          * @maixpy maix.image.Color.__init__
          */
         Color(uint8_t ch1, uint8_t ch2 = 0, uint8_t ch3 = 0, float alpha = 0, image::Format format = image::FMT_GRAYSCALE)
@@ -65,6 +65,11 @@ namespace maix::image
             }
         }
 
+        Color(const Color&) = default;
+        Color& operator=(const Color&) = default;
+        Color(Color&&) noexcept = default;
+        Color& operator=(Color&&) noexcept = default;
+
         /**
          * Color red channel
          * @maixpy maix.image.Color.r
@@ -84,7 +89,7 @@ namespace maix::image
         uint8_t b;
 
         /**
-         * Color alpha channel, value from 0.0 to 1.0, float value
+         * Color alpha channel, value from 0.0 to 1.0, float value, 0 means transparent.
          * @maixpy maix.image.Color.alpha
         */
         float alpha;

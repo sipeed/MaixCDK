@@ -280,6 +280,12 @@ namespace maix
             */
             tensor::DType  dtype() { return _dtype; }
 
+
+            /**
+             * get tensor raw data pointer, use it carefully.
+             * @return `void *` type.
+             * @maixcdk maix.tensor.Tensor.data
+             */
             void *data() { return _data; }
 
             /**
