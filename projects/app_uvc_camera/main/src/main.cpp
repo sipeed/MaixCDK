@@ -7,6 +7,7 @@ using namespace chrono_literals;
 #include "maix_basic.hpp"
 #include "maix_fs.hpp"
 #include "maix_vision.hpp"
+#include "maix_comm.hpp"
 #include "maix_touchscreen.hpp"
 #include "maix_uvc_stream.hpp"
 
@@ -103,6 +104,9 @@ int main(int argc, char *argv[])
 {
     // Catch signal and process
     sys::register_default_signal_handle();
+
+    // support default maix communication protol commands
+    comm::add_default_comm_listener();
 
     // Use CATCH_EXCEPTION_RUN_RETURN to catch exception,
     // if we don't catch exception, when program throw exception, the objects will not be destructed.

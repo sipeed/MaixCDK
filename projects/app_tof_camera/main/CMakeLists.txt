@@ -16,7 +16,7 @@ append_srcs_dir(ADD_SRCS "app" "assets")
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic lvgl ext_dev_tof100)
+list(APPEND ADD_REQUIREMENTS basic comm lvgl ext_dev_tof100)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

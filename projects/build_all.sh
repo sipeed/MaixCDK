@@ -2,6 +2,12 @@
 
 set -e
 
+platform="maixcam"
+
+if [ -n "$1" ]; then
+    platform="$1"
+fi
+
 function build_start()
 {
     # test_script $1
@@ -15,7 +21,7 @@ function build_start()
         maixtool release
     else
         maixcdk distclean
-        maixcdk release -p maixcam
+        maixcdk release -p "$platform"
     fi
     mkdir -p ../apps
     cp -r dist/pack/* ../apps

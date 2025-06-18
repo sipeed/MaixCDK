@@ -4,6 +4,7 @@
 #include "maix_nn_yolov5.hpp"
 #include "main.h"
 #include "maix_touchscreen.hpp"
+#include "maix_comm.hpp"
 
 using namespace maix;
 
@@ -87,6 +88,9 @@ int main(int argc, char *argv[])
     // Catch SIGINT signal(e.g. Ctrl + C), and set exit flag to true.
     signal(SIGINT, [](int sig)
            { app::set_exit_flag(true); });
+
+    // support default maix communication protol commands
+    comm::add_default_comm_listener();
 
     // Use CATCH_EXCEPTION_RUN_RETURN to catch exception,
     // if we don't catch exception, when program throw exception, the objects will not be destructed.

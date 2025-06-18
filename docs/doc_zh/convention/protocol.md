@@ -58,7 +58,7 @@ update:
     * 对于请求，保留位。
     * 对于响应，`1`表示主动上报，`0`表示为响应消息。
   * 第 4~6 高位： 保留以后使用。
-  * 低 2位 `version`: 协议版本，以后修改不兼容的协议才会更改这个版本号，如果修改协议后与当前版本协议兼容则这个版本号不需要升级。目前的版本为 `0`。
+  * 低 2位 `version`: 协议版本，以后修改不兼容的协议才会更改这个版本号，如果修改协议后与当前版本协议兼容则这个版本号不需要升级。目前的版本为 `1`。
 * `cmd`: 基本命令类型，1 字节，已经预先定义了几个命令，看后文[命令定义](#命令定义)，这些预定义命令的值从 255 逐渐递减，APP 自定义的命令可以从 `0 ~ maix.protocol.CMD.CMD_APP_MAX`。
 * `body`: 内容，变长, 长度只要 `< (2^32 - 1)` 即可，不同的命令对应不同的`body`，在后面会对每个命令进行详细说明
 * `crc16`: CRC 校验值，2 字节， 用以校验帧数据在传输过程中是否出错，使用 `CRC IBM` 方法计算，可以参见[C 代码实现](#C-CRC16)，或者 [Python CRC16](#Python-CRC16)。和`data_len`同样两个字节小端存放，传输时先传输低位再传输高位。
@@ -85,7 +85,7 @@ update:
   * `body` 第一个字节为错误码, 具体的错误码见[MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp)。
   * `body` 后面的字节为错误字符串信息，`UTF-8` 编码，一般情况下建议用纯英文，提高兼容性。
 
-每个请求均应有对应的响应，即执行成功或者失败，后面均用`RESP_OK`和`RESP_ERR`来代替执行成功和失败两种响应。
+每个请求均应有对应的响应，即执行成功或者失败，后文均用`RESP_OK`和`RESP_ERR`来代替执行成功和失败两种响应。
 `RESP_OK`的 `body` 字节不说明就是没有，有会单独进行说明。
 
 ### 主动上报数据
@@ -113,7 +113,7 @@ update:
 `AA CA AC BB  0A 00 00 00  C1 F9  02  66 61 63 65 00  66 61 63 65 00  F6 06`。
 
 
-## 命令定义
+## 命令定义和系统命令
 
 协议帧中的`cmd`取值如下：
 
@@ -129,7 +129,12 @@ update:
 |CMD_KEY           | 0xFE | 按键模拟消息     |
 |CMD_TOUCH         | 0xFF | 触摸模拟消息     |
 
-注意这里有个 `CMD_APP_MAX`， 任何 APP 自定义的命令都应该在`0 ~ CMD_APP_MAX`之间，包含`0`，不包含`CMD_APP_MAX`。
+这里指定的命令都是系统命令，每个应用可以根据自身的功能特性自定义命令。
+比如 在`相机`应用中，我们可以自定义`0x01`为拍照命令, `0x02`为闪光灯设置；在`分类器`应用中，我们自定义`0x01`为识别物体命令；
+也就是说`应用命令`制定应该遵循：
+* 对于每个应用来说命令都是独立的，当进入了一个应用，就要遵循应用制定的命令规则。比如一个应用使用了 `0x01` 命令， 另一个仍然可以用`0x01`。
+* 任何 APP 自定义的命令都应该在`0 ~ CMD_APP_MAX`之间，包含`0`，不包含`CMD_APP_MAX`，保留系统命令。
+* 应该在应用使用说明文档中详细说明每个命令的定义和作用。
 
 不同的`cmd`对应不同的请求和响应数据， 以及不同的`body`，详细协议（主要阐述`cmd`和`body`）如下：
 
@@ -325,6 +330,18 @@ event 取值：
 
 ## 应用（APPS）协议说明
 
+这里使用几个应用举例，**注意不一定为应用真实命令规范**，具体请看对应的**应用说明文档**。
+
+如果应用支持 Maix 通信协议，一般会在说明文档中说明命令规范，没有说明可以认为没有，不过一般也仍然可以使用系统指令。
+
+应用说明文档一般在：
+* [MaixHub应用中心](https://maixhub.com/app)，直接找到对应应用查看主页即可。
+* 源码仓库：
+  * 网友开源的： 可以在对应的开源仓库看到。
+  * 官方开源的基于 MaixCDK 的应用：在[MaixCDK/projects](https://github.com/sipeed/MaixCDK/tree/main/projects) 对应目录可以看到。
+  * 官方开源的基于 MaixPy 的应用：在[MaixPy/projects](https://github.com/sipeed/MaixPy/tree/main/projects) 对应目录可以看到。
+
+
 ### 相机
 
 命令:
@@ -335,7 +352,7 @@ event 取值：
 
 ### 分类器
 
-TODO:
+**注意只是举例**，真实协议请看对应[应用](https://github.com/sipeed/MaixCDK/tree/main/projects/app_camera) 介绍。
 
 `body`说明：
 请求只有一个字节， 代表了命令， 具体如下表：
@@ -352,9 +369,9 @@ TODO:
 | CMD_RECOGNIZE 值  | 识别到的 id（下标），小端 | 概率， 浮点型， 小端 | 名字， UTF-8 编码 |
 
 
-### 人脸检测
+### 人脸和人脸关键点检测
 
-TODO:
+**注意只是举例**，真实协议请看对应[应用](https://github.com/sipeed/MaixPy/tree/main/projects/app_face_landmarks) 介绍。
 
 `body`说明：
 请求只有一个字节， 代表了命令， 具体如下表：
@@ -372,7 +389,7 @@ TODO:
 
 ### 人脸识别
 
-TODO:
+**注意只是举例**，真实协议请看对应[应用](https://github.com/sipeed/MaixPy/tree/main/projects/app_face_recognizer) 介绍。
 
 `body`说明：
 请求只有一个字节， 代表了命令， 具体如下表：
@@ -424,7 +441,36 @@ TODO:
 
 
 
-## 附录：代码
+## MaixPy 中使用 Maix 通信协议
+
+MaixPy 中已经将协议的解析和发送封装在`maix.comm.protocol` 和 `maix.comm.CommProtocol` 中了，使用起来很方便。
+
+请看[MaixPy 文档](https://wiki.sipeed.com/maixpy/doc/zh/comm/maix_protocol.html) 进行详细了解。
+
+
+## MaixCDK 中使用 Maix 通信协议
+
+建议先看上面的 MaixPy 使用文档，在 MaixPy 中成功使用后再尝试 MaixCDK，用法一致。
+
+注意如果你的应用没有使用`maix::comm::CommProtocol` 进行自定义命令，建议在程序开头调用一下
+```c++
+maix::comm::add_default_comm_listener();
+```
+这个函数会自动开一个线程监听系统指令，这样你的应用就支持系统指令了比如通过串口启动和退出你的应用。
+
+
+## 附录：方便移植到其它主控的代码
+
+如果你不是在 MaixCDK / MaixPy 中使用协议时，比如 MaixCAM 外接了一个 STM32 来进行通信，下面的代码方便你快速移植到 STM32 等其它设备。
+
+### 参考 MaixCDK 源码
+
+MaixCDK 开源了 Maix 通信协议的代码，可以参考:
+* [maix_protocol.hpp](https://github.com/sipeed/MaixCDK/blob/main/components/basic/include/maix_protocol.hpp)
+* [maix_protocol.cpp](https://github.com/sipeed/MaixCDK/blob/main/components/basic/src/maix_protocol.cpp)
+
+可以关注 `encode` 和 `get_msg` 函数，根据你的平台进行移植。
+
 
 ### C CRC16 IBM
 

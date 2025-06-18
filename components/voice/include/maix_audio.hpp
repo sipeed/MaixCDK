@@ -104,7 +104,7 @@ namespace maix::audio
                 log::error("open wav file failed!");
                 return err::ERR_RUNTIME;
             }
-            fseek(new_file, 0, fs::SEEK_END);
+            fseek(new_file, 0, 2); // SEEK_END
             int data_size = ftell(new_file);
             auto bytes_per_frame = channels * bits_per_sample / 8;
             data_size = (data_size / bytes_per_frame) * bytes_per_frame;
@@ -118,7 +118,7 @@ namespace maix::audio
                 fclose(new_file);
                 return err::ERR_RUNTIME;
             }
-            fseek(new_file, 0, fs::SEEK_SET);
+            fseek(new_file, 0, 0); // SEEK_SET
             if (fread(pcm->data, 1, data_size, new_file) != (size_t)data_size) {
                 log::error("read wav file failed!");
                 fclose(new_file);

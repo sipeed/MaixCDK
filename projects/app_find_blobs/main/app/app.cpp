@@ -131,7 +131,7 @@ int app_loop(maix::image::Image *img)
         int x, y;
         ui_get_active_screen_pointer(&x, &y);
         log::info("touch (%d, %d)\n", x, y);
-        std::vector<int> rgb_list = img->get_pixel(x, y, true);
+        std::vector<uint32_t> rgb_list = img->get_pixel(x, y, true);
         uint8_t rgb_values[3] = {(uint8_t)rgb_list[0], (uint8_t)rgb_list[1], (uint8_t)rgb_list[2]};
         int8_t lab[3];
         ui_utils_rgb_to_lab(rgb_values, lab);

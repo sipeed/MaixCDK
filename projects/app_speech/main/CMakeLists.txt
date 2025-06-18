@@ -25,7 +25,7 @@ append_srcs_dir(ADD_SRCS "src" "asr_lib/src" "utils/src")       # append source 
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic nn vision)
+list(APPEND ADD_REQUIREMENTS basic comm nn vision)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

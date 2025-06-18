@@ -63,7 +63,7 @@ The master device can implement the protocol based on the chip and programming l
     - For requests: Reserved.
     - For responses: `1` for active report, `0` for response message.
   - Bits 4-6: Reserved for future use.
-  - Lowest 2 bits `version`: Protocol version, updated only for incompatible changes. Compatible changes do not require a version update. The current version is `0`.
+  - Lowest 2 bits `version`: Protocol version, updated only for incompatible changes. Compatible changes do not require a version update. The current version is `1`.
 - `cmd`: 1-byte command type, with several predefined commands listed in [Command Definitions](#command-definitions). Custom commands range from `0` to `maix.protocol.CMD.CMD_APP_MAX`.
 - `body`: Variable length, `< (2^32 - 1)`. Different commands have different `body` content, detailed below for each command.
 - `crc16`: 2-byte CRC check value using the `CRC IBM` method, verifying data integrity during transmission. See [C Code Implementation](#C-CRC16) or [Python CRC16](#Python-CRC16).
@@ -92,7 +92,8 @@ Set the highest bit of `flags` (`is_resp`) to `1`.
   - The first byte of `body` is the error code. Refer to [MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp) for error codes.
   - The following bytes in `body` contain the error message in `UTF-8` encoding, preferably in plain English for better compatibility.
 
-Each request should have a corresponding response, either successful (`RESP_OK`) or failed (`RESP_ERR`). If `RESP_OK` has no specified `body`, it is empty.
+Each request must have a corresponding response, indicating either success or failure. Hereafter, `RESP_OK` and `RESP_ERR` are used to represent successful and failed responses, respectively.
+If the `body` of `RESP_OK` is not explicitly described, it means there is none. If present, it will be explained separately.
 
 
 ### Active Data Reporting
@@ -109,7 +110,7 @@ Set the highest bit of `flags` (`is_resp`) to `1` and the third bit `is_report` 
 
 ## Examples
 
-Example:  
+Example:
 
 The MCU connects to the Maix device via the serial port using the default baud rate of `115200`.
 
@@ -123,7 +124,7 @@ The MCU requests the list of applications from the Maix device. The steps are as
 
 ---
 
-## Command Definitions
+## Command Definitions And System CMDs
 
 The `cmd` values in the protocol frame are defined as follows:
 
@@ -139,7 +140,17 @@ The `cmd` values in the protocol frame are defined as follows:
 | CMD_KEY         | 0xFE  | Simulate key press message    |
 | CMD_TOUCH       | 0xFF  | Simulate touch message        |
 
-Note that `CMD_APP_MAX` defines the range for custom commands, from `0` up to (but not including) `CMD_APP_MAX`.
+
+The commands specified here are system commands. Each application can define its own custom commands based on its functional characteristics.
+For example, in the `Camera` application, `0x01` can be defined as the "take photo" command, and `0x02` as the "set flash" command;
+in the `Classifier` application, `0x01` can be defined as the "object recognition" command.
+
+In other words, the formulation of **application commands** should follow these principles:
+
+* Commands are independent within each application. Once an application is entered, its specific command rules must be followed. For instance, if one application uses command `0x01`, another can still use `0x01` for a different purpose.
+* Any custom command defined by an app must fall within the range `0 ~ CMD_APP_MAX`, including `0` but excluding `CMD_APP_MAX`, as the upper range is reserved for system commands.
+* Each command’s definition and functionality should be clearly documented in the application’s user manual.
+
 
 Each `cmd` has specific request and response data and a unique `body`. Detailed explanations for each command are provided below:
 
@@ -317,6 +328,20 @@ Event types:
 
 ## Application (APPS) Protocol Specification
 
+Here are a few example applications to illustrate the usage—**note that these are not necessarily the actual command specifications**. For precise information, please refer to the corresponding **application documentation**.
+
+If an application supports the Maix communication protocol, the command specifications are usually documented. If not explicitly stated, you may assume they are unavailable. However, system commands generally remain usable.
+
+Application documentation can typically be found in the following locations:
+
+* **[MaixHub Application Center](https://maixhub.com/app)**: Simply find and open the homepage of the corresponding application.
+* **Source Repositories**:
+
+  * **Community open-source projects**: Available in their respective open-source repositories.
+  * **Official open-source applications based on MaixCDK**: Available under the corresponding directories in [MaixCDK/projects](https://github.com/sipeed/MaixCDK/tree/main/projects).
+  * **Official open-source applications based on MaixPy**: Available under the corresponding directories in [MaixPy/projects](https://github.com/sipeed/MaixPy/tree/main/projects).
+
+
 ### Camera
 
 Commands:
@@ -327,7 +352,8 @@ Commands:
 
 ### Classifier
 
-TODO:
+**Note: These are only examples.** For the actual protocol specifications, please refer to the corresponding [application documentation](https://github.com/sipeed/MaixCDK/tree/main/projects/app_camera).
+
 
 `body` Description:
 The request consists of a single byte representing the command, as shown in the table below:
@@ -345,7 +371,7 @@ Response:
 
 ### Face Detection
 
-TODO:
+**Note: These are only examples.** For the actual protocol specifications, please refer to the corresponding [application documentation](https://github.com/sipeed/MaixPy/tree/main/projects/app_face_landmarks).
 
 `body` Description:
 The request consists of a single byte representing the command, as shown in the table below:
@@ -363,7 +389,7 @@ Response:
 
 ### Face Recognition
 
-TODO:
+**Note: These are only examples.** For the actual protocol specifications, please refer to the corresponding [application documentation](https://github.com/sipeed/MaixPy/tree/main/projects/app_face_recognizer).
 
 `body` Description:
 The request consists of a single byte representing the command, as shown in the table below:
@@ -411,7 +437,42 @@ Response:
 
 * Response for command `CMD_REMOVE`: `CMD_OK` or `CMD_ERROR`
 
-## Appendix: Code
+
+## Using Maix Communication Protocol in MaixPy
+
+In MaixPy, the protocol parsing and transmission are already encapsulated in `maix.comm.protocol` and `maix.comm.CommProtocol`, making it very convenient to use.
+
+For more details, please refer to the [MaixPy documentation](https://wiki.sipeed.com/maixpy/doc/zh/comm/maix_protocol.html).
+
+---
+
+## Using Maix Communication Protocol in MaixCDK
+
+It is recommended to first read the MaixPy documentation above and try using it successfully in MaixPy, as the usage is essentially the same in MaixCDK.
+
+**Note:** If your application does not use `maix::comm::CommProtocol` to define custom commands, it is recommended to call the following function at the beginning of your program:
+
+```c++
+maix::comm::add_default_comm_listener();
+```
+
+This function will automatically start a thread to listen for system commands, enabling support for system instructions such as starting and exiting your application via serial communication.
+
+## Appendix: Code for Easy Porting to Other MCUs
+
+If you're not using the protocol within MaixCDK or MaixPy for example, if your MaixCAM is communicating with an external STM32.
+the following information will help you quickly port the protocol to STM32 or other devices.
+
+### Refer to MaixCDK Source Code
+
+MaixCDK has open-sourced the implementation of the Maix communication protocol. You can refer to the following files:
+
+* [`maix_protocol.hpp`](https://github.com/sipeed/MaixCDK/blob/main/components/basic/include/maix_protocol.hpp)
+* [`maix_protocol.cpp`](https://github.com/sipeed/MaixCDK/blob/main/components/basic/src/maix_protocol.cpp)
+
+Pay special attention to the `encode` and `get_msg` functions, and adapt them according to the needs of your target platform.
+
+
 
 ### C CRC16 IBM
 

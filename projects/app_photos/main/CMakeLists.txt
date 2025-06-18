@@ -16,7 +16,7 @@ append_srcs_dir(ADD_SRCS "app" "assets")
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic lvgl)
+list(APPEND ADD_REQUIREMENTS basic lvgl comm)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
