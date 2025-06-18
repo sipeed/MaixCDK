@@ -475,7 +475,8 @@ namespace maix::middleware::maixcam2 {
         SAMPLE_VIN_NONE  = -1,
         SAMPLE_VIN_SINGLE_DUMMY  = 0,
         SAMPLE_VIN_SINGLE_OS04A10 = 1,
-        SAMPLE_VIN_SINGLE_SC450AI  = 2,
+        SAMPLE_VIN_SINGLE_SC450AI = 2,
+        SAMPLE_VIN_SINGLE_SC850SL = 3,
         SAMPLE_VIN_BUTT
     } SAMPLE_VIN_CASE_E;
 
@@ -530,6 +531,15 @@ namespace maix::middleware::maixcam2 {
         {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 8, AX_COMPRESS_MODE_LOSSY, 4},      /* vin raw10 use */
     };
 
+    // SC850SL
+    static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleSc850slSdr[] = {
+        {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 4, AX_COMPRESS_MODE_LOSSY, 4},    /* vin nv21/nv21 use */
+        {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 4},
+    };
+
+    static COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleSc850slSdr[] = {
+        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 5, AX_COMPRESS_MODE_LOSSY, 4},      /* vin raw10 use */
+    };
     // static AX_CAMERA_T gCams[MAX_CAMERAS] = {0};
 
     static AX_VOID __cal_dump_pool(COMMON_SYS_POOL_CFG_T pool[], AX_SNS_HDR_MODE_E eHdrMode, AX_S32 nFrameNum)
@@ -633,9 +643,7 @@ namespace maix::middleware::maixcam2 {
             // chn0_attr->tCompressInfo = {AX_COMPRESS_MODE_NONE, 0};
         }
         break;
-        default:
-            err::check_raise(err::ERR_NOT_IMPL, "not implemented");
-            break;
+        default:break;
         }
     }
 
@@ -782,6 +790,49 @@ namespace maix::middleware::maixcam2 {
         return 0;
     }
 
+
+    static AX_U32 __sample_case_single_sc850sl(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
+        SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
+    {
+        AX_CAMERA_T *pCam = NULL;
+        COMMON_VIN_MODE_E eSysMode = pVinParam->eSysMode;
+        AX_SNS_HDR_MODE_E eHdrMode = pVinParam->eHdrMode;
+        AX_S32 j = 0;
+        SAMPLE_LOAD_RAW_NODE_E eLoadRawNode = pVinParam->eLoadRawNode;
+        pCommonArgs->nCamCnt = 1;
+
+        pCam = &pCamList[0];
+        pCam->nPipeId = 0;
+        COMMON_VIN_GetSnsConfig(eSnsType, &pCam->tMipiAttr, &pCam->tSnsAttr,
+                                    &pCam->tSnsClkAttr, &pCam->tDevAttr,
+                                    &pCam->tPipeAttr[pCam->nPipeId], pCam->tChnAttr);
+        pCam->nDevId = 0;
+        pCam->nRxDev = 0;
+        pCam->tSnsClkAttr.nSnsClkIdx = 0;
+        pCam->tDevBindPipe.nNum =  1;
+        pCam->eLoadRawNode = eLoadRawNode;
+        pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj(eSnsType);
+        pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
+        pCam->eInputMode = AX_INPUT_MODE_MIPI;
+        __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
+        __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
+        for (j = 0; j < (AX_S32)pCam->tDevBindPipe.nNum; j++) {
+            pCam->tPipeInfo[j].ePipeMode = SAMPLE_PIPE_MODE_VIDEO;
+            pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
+            if (pCam->tPipeInfo[j].bAiispEnable) {
+                if (eHdrMode <= AX_SNS_LINEAR_MODE) {
+                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_sdr_dual3dnr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                } else {
+                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_hdr_2x_ainr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                }
+            } else {
+                strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+            }
+        }
+        return 0;
+    }
+
     static AX_U32 __sample_case_config(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs,
                                        COMMON_SYS_ARGS_T *pPrivArgs)
     {
@@ -826,6 +877,21 @@ namespace maix::middleware::maixcam2 {
             /* cams config */
             __sample_case_single_sc450ai(pCamList, eSnsType, pVinParam, pCommonArgs);
             break;
+        case SAMPLE_VIN_SINGLE_SC850SL:
+            eSnsType = SMARTSENS_SC850SL;
+            /* comm pool config */
+            __cal_dump_pool(gtSysCommPoolSingleSc850slSdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pCommonArgs->nPoolCfgCnt = sizeof(gtSysCommPoolSingleSc850slSdr) / sizeof(gtSysCommPoolSingleSc850slSdr[0]);
+            pCommonArgs->pPoolCfg = gtSysCommPoolSingleSc850slSdr;
+
+            /* private pool config */
+            __cal_dump_pool(gtPrivatePoolSingleSc850slSdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pPrivArgs->nPoolCfgCnt = sizeof(gtPrivatePoolSingleSc850slSdr) / sizeof(gtPrivatePoolSingleSc850slSdr[0]);
+            pPrivArgs->pPoolCfg = gtPrivatePoolSingleSc850slSdr;
+
+            /* cams config */
+            __sample_case_single_sc850sl(pCamList, eSnsType, pVinParam, pCommonArgs);
+            break;
         default:
             eSnsType = SAMPLE_SNS_DUMMY;
             /* pool config */
@@ -849,6 +915,8 @@ namespace maix::middleware::maixcam2 {
             return SAMPLE_VIN_SINGLE_OS04A10;
         } else if (strcmp(sensor_name, "sc450ai") == 0) {
             return SAMPLE_VIN_SINGLE_SC450AI;
+        } else if (strcmp(sensor_name, "sc850sl") == 0) {
+            return SAMPLE_VIN_SINGLE_SC850SL;
         } else {
             log::error("Can't find sensor %s", sensor_name);
             return SAMPLE_VIN_NONE;
@@ -889,7 +957,8 @@ namespace maix::middleware::maixcam2 {
     }
 
     static std::pair<bool, std::string> __get_sensor_name(void) {
-        char name[30];
+        // char name[30];
+        std::string name;
         // AX_S32 axRet = 0;
         // axRet = AX_MIPI_RX_Init();
         // if (0 != axRet) {
@@ -914,16 +983,20 @@ namespace maix::middleware::maixcam2 {
             // log::info("i2c4 addr: 0x%02x", addr_list[i]);
             switch (addr_list[i]) {
                 case 0x30:
-                    // log::info("find sc450ai, addr %#x", addr_list[i]);
-                    snprintf(name, sizeof(name), "sc450ai");
+                    // log::info("find sc850sl, addr %#x", addr_list[i]);
+                    name = "sc850sl";
                     return {true, name};
-                default: break;
+                case 0x36:
+                    name = "os04a10";
+                    return {true, name};
+                default:
+                    break;
             }
         }
 
         // AX_ISP_CloseSnsClk(0);
         // return {false, ""};
-        return {true, "sc450ai"};
+        return {true, "sc850sl"};
     }
 
     class SYS {
