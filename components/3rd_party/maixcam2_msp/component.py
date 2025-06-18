@@ -8,6 +8,8 @@ def add_file_downloads(confs : dict) -> list:
     url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/maixcam2_msp_arm64_glibc_{version}.tar.xz",
     if version == "v3.0.0_20241120230136":
         sha256sum = "3315bde03839e8451a864f79e0f1b1252703af821dd5d2b0418b1535a5396c84"
+    elif version == "v3.0.0_20250319114413":
+        sha256sum = "20ab34bded456d8328b825bb2cc842937651596ea43f7075de95be7ced9a953d"
     else:
         raise Exception(f"version {version} not support")
     sites = ["https://github.com/sipeed/MaixCDK/releases/tag/v0.0.0"]

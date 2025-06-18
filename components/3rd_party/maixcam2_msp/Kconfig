@@ -13,7 +13,7 @@ menu "maixcam2_msp component configuration"
             default 0
         config MAIXCAM2_MSP_COMPILED_VERSION
             int "MAIXCAM2_MSP compiled version"
-            default 20241120230136
+            default 20250319114413
     endmenu
 endmenu
 
