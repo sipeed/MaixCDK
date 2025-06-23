@@ -174,6 +174,10 @@ int _main(int argc, char* argv[])
         snprintf(buf, sizeof(buf), "cam: %ld, disp: %ld, all: %ld (ms), fps: %.2f", t2-t1, t3-t2, t3-last_loop_ms, fps);
         last_loop_ms = time::ticks_ms();
     }
+    if (disp2) {
+        delete disp2;
+        disp2 = NULL;
+    }
 
     if (cam2) {
         delete cam2;

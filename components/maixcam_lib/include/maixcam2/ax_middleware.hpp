@@ -34,6 +34,7 @@ extern "C" {
 #include "common_cam.h"
 #include "common_nt.h"
 #include "common_isp.h"
+#include "common_vo.h"
 #ifdef __cplusplus
 }
 #endif
@@ -48,7 +49,8 @@ namespace maix::middleware::maixcam2 {
     err::Err ax_jpg_enc_init(void);
     err::Err ax_jpg_enc_deinit(void);
     maixcam2::Frame *ax_jpg_enc_once(maixcam2::Frame *frame, int quality);
-
+    #define VO_MAX_LAYER        (3)
+    #define VO_MAX_CHANNELS     (3)
     typedef enum {
         AX_VENC_TYPE_JPG = 0,
         AX_VENC_TYPE_H264,
@@ -62,6 +64,26 @@ namespace maix::middleware::maixcam2 {
         AX_VDEC_TYPE_H265,
         AX_VDEC_TYPE_MJPG,
     } ax_vdec_type_e;
+
+    typedef struct {
+        int width;
+        int height;
+        int format_in;
+        int format_out;
+        int fps;
+        int depth;
+        int mirror;
+        int vflip;
+        int fit;
+        int rotate;
+        int pool_num_in;
+        int pool_num_out;
+    } ax_vo_channel_param_t;
+
+    typedef struct {
+        SAMPLE_VO_CONFIG_S vo_cfg;
+        AX_VO_SYNC_INFO_T sync_info;
+    } ax_vo_param_t;
 
     typedef struct {
         bool en;
@@ -248,6 +270,15 @@ namespace maix::middleware::maixcam2 {
     typedef struct {
         pthread_mutex_t lock;
         int init_count;
+        int init_count2;
+        IVPS_GRP nGrpId;
+        AX_S32 nChnNum;
+        AX_IVPS_GRP_ATTR_T stGrpAttr;
+        AX_IVPS_PIPELINE_ATTR_T stPipelineAttr;
+        ax_vo_param_t vo_param;
+        bool used_channels[VO_MAX_LAYER][VO_MAX_CHANNELS];      // video layer:0, graphic layer:1, cursor layer:2
+        ax_vo_channel_param_t channel_param[VO_MAX_LAYER][VO_MAX_CHANNELS];
+        int fb_fd[VO_MAX_CHANNELS];
     } ax_vo_mod_t;
 
     typedef struct {
@@ -1185,14 +1216,14 @@ namespace maix::middleware::maixcam2 {
     public:
         VO();
         ~VO();
-        err::Err init();
+        err::Err init(ax_vo_param_t *param);
         void deinit();
-        err::Err add_channel(int layer, int ch, int width, int height, AX_IMG_FORMAT_E format, int fit);
+        int get_unused_channel(int layer);
+        err::Err get_channel_param(int layer, int ch, ax_vo_channel_param_t *param);
+        err::Err add_channel(int layer, int ch, ax_vo_channel_param_t *param);
         err::Err del_channel(int layer, int ch);
         err::Err del_channel_all();
         err::Err push(int layer, int ch, maixcam2::Frame *frame);
-        int set_and_get_mirror(int ch, int value);
-        int set_and_get_flip(int ch, int value);
     };
 
     class VENC {
