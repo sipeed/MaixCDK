@@ -12,6 +12,8 @@
 #include "maix_touchscreen_sdl.hpp"
 #elif PLATFORM_MAIXCAM
 #include "maix_touchscreen_maixcam.hpp"
+#elif PLATFORM_MAIXCAM2
+#include "maix_touchscreen_maixcam2.hpp"
 #endif
 
 namespace maix::touchscreen
@@ -22,6 +24,8 @@ namespace maix::touchscreen
         _impl = new TouchScreen_SDL(device);
 #elif PLATFORM_MAIXCAM
         _impl = new TouchScreen_MaixCam();
+#elif PLATFORM_MAIXCAM2
+        _impl = new TouchScreen_MaixCam2();
 #else
     #warning "This platform not support touchscreen yet"
 #endif
@@ -36,6 +40,8 @@ namespace maix::touchscreen
         delete (TouchScreen_SDL *)_impl;
 #elif PLATFORM_MAIXCAM
         delete (TouchScreen_MaixCam *)_impl;
+#elif PLATFORM_MAIXCAM2
+        delete (TouchScreen_MaixCam2 *)_impl;
 #else
     #warning "This platform not support touchscreen yet"
 #endif
