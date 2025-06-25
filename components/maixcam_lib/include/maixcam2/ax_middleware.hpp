@@ -264,7 +264,7 @@ namespace maix::middleware::maixcam2 {
             int fit;    // fit = 0, width to new width, height to new height, may be stretch
                         // fit = 1, keep aspect ratio, fill blank area with black color
                         // fit = 2, keep aspect ratio, crop image to fit new size
-        } chn_out[AX_VIN_CHN_ID_MAX];
+        } chn_out[AX_IVPS_MAX_OUTCHN_NUM];
     } ax_vi_mod_t;
 
     typedef struct {
@@ -279,6 +279,8 @@ namespace maix::middleware::maixcam2 {
         bool used_channels[VO_MAX_LAYER][VO_MAX_CHANNELS];      // video layer:0, graphic layer:1, cursor layer:2
         ax_vo_channel_param_t channel_param[VO_MAX_LAYER][VO_MAX_CHANNELS];
         int fb_fd[VO_MAX_CHANNELS];
+        bool global_mirror;
+        bool global_flip;
     } ax_vo_mod_t;
 
     typedef struct {
@@ -762,6 +764,7 @@ namespace maix::middleware::maixcam2 {
         pCam->nDevId = 0;
         pCam->nRxDev = 0;
         pCam->nPipeId = 0;
+        pCam->nI2cAddr = 0x36;
         pCam->tSnsClkAttr.nSnsClkIdx = 0;
         pCam->tDevBindPipe.nNum =  1;
         pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
@@ -839,6 +842,7 @@ namespace maix::middleware::maixcam2 {
                                     &pCam->tPipeAttr[pCam->nPipeId], pCam->tChnAttr);
         pCam->nDevId = 0;
         pCam->nRxDev = 0;
+        pCam->nI2cAddr = 0x30;
         pCam->tSnsClkAttr.nSnsClkIdx = 0;
         pCam->tDevBindPipe.nNum =  1;
         pCam->eLoadRawNode = eLoadRawNode;
@@ -990,24 +994,6 @@ namespace maix::middleware::maixcam2 {
     static std::pair<bool, std::string> __get_sensor_name(void) {
         // char name[30];
         std::string name;
-        // AX_S32 axRet = 0;
-        // axRet = AX_MIPI_RX_Init();
-        // if (0 != axRet) {
-        //     COMM_CAM_PRT("AX_MIPI_RX_Init failed, ret=0x%x.\n", axRet);
-        //     return {false, ""};
-        // }
-
-        // axRet = AX_ISP_OpenSnsClk(0, AX_SNS_CLK_24M);
-        // if (0 != axRet) {
-        //     COMM_ISP_PRT("AX_ISP_OpenSnsClk failed, nRet=0x%x.\n", axRet);
-        //     return {false, ""};
-        // }
-        // sensor reset
-        // __hw_reset(97, 0);      // 0,97 1,49
-        // time::sleep_us(5);
-        // __hw_reset(97, 1);
-        // time::sleep_ms(5);
-
         // scan iic list
         std::vector<int> addr_list = __scan_i2c_addr(0);
         for (size_t i = 0; i < addr_list.size(); i++) {

@@ -79,7 +79,7 @@ namespace maix::camera
         return false;
     }
 
-    static std::vector<bool> __get_cam_flip_mirror(void) {
+    static void __get_cam_flip_mirror(int &new_flip, int &new_mirror) {
         bool flip = 0, mirror = 0;
         bool flip_is_found = false, mirror_is_found = false;
 
@@ -99,11 +99,11 @@ namespace maix::camera
             }
 
             std::string board_id = sys::device_id();
-            // log::info("cam flip=%s, cam mirror=%s", flip_str, mirror_str);
+            // log::info("cam flip=%s, cam mirror=%s", flip_str.c_str(), mirror_str.c_str());
             if (flip_is_found && !flip_str.empty()) {
                 flip = atoi(flip_str.c_str());
             } else {
-                if (board_id == "maixcam_pro") {
+                if (board_id == "maixcam2") {
                     flip = true;
                 } else {
                     flip = false;
@@ -114,7 +114,7 @@ namespace maix::camera
                 mirror = atoi(mirror_str.c_str());
             } else {
                 std::string board_id = sys::device_id();
-                if (board_id == "maixcam_pro") {
+                if (board_id == "maixcam2") {
                     mirror = true;
                 } else {
                     mirror = false;
@@ -122,7 +122,8 @@ namespace maix::camera
             }
         }
 
-        return {flip, mirror};
+        new_flip = flip;
+        new_mirror = mirror;
     }
 
     // static bool _get_board_config_path(char *path, int path_size)
@@ -445,14 +446,14 @@ namespace maix::camera
         }
 
         int fit = 2;
-        auto flip_mirror = __get_cam_flip_mirror();
-        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_16(height_tmp), get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, flip_mirror[1], flip_mirror[0], fit);
+        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_16(height_tmp), get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, false, false, fit);
         if (err != err::ERR_NONE) {
             delete ax_vi;
             delete ax_sys;
             err::check_raise(err, "Add channel failed");
         }
 
+        __get_cam_flip_mirror(priv->chn.vflip, priv->chn.mirror);
         priv->ax_sys = ax_sys;
         priv->ax_vi = ax_vi;
         priv->chn.id = ch;
@@ -460,10 +461,11 @@ namespace maix::camera
         priv->chn.h = height_tmp;
         priv->chn.fmt = format_tmp;
         priv->chn.fit = fit;
-        priv->chn.vflip = flip_mirror[0];
-        priv->chn.mirror = flip_mirror[1];
         _ch = ch;
         _is_opened = true;
+
+        this->vflip(priv->chn.vflip);
+        this->hmirror(priv->chn.mirror);
         return err::ERR_NONE;
     }
 
@@ -604,7 +606,7 @@ namespace maix::camera
         ret = vi->del_channel(priv->chn.id);
         err::check_raise(ret, "del channel failed");
         ret = vi->add_channel(priv->chn.id, width, height, get_ax_fmt_from_maix(priv->chn.fmt), priv->chn.fps,
-                            priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
+                            priv->chn.depth, false, false, priv->chn.fit);
         err::check_raise(ret, "del channel failed");
         return ret;
     }
@@ -616,7 +618,7 @@ namespace maix::camera
         ret = vi->del_channel(priv->chn.id);
         err::check_raise(ret, "del channel failed");
         ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
-                            fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
+                            fps ,priv->chn.depth, false, false, priv->chn.fit);
         err::check_raise(ret, "del channel failed");
         return err::ERR_NONE;
     }
@@ -644,49 +646,87 @@ namespace maix::camera
     }
 
     int Camera::hmirror(int value) {
-        err::Err ret;
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return -1;
         }
 
         auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
-        if (value >= 0) {
-            value = value > 0 ? 1 : 0;
-            if (value != priv->chn.mirror) {
-                priv->chn.mirror = value;
-                ret = vi->del_channel(priv->chn.id);
-                err::check_raise(ret, "del channel failed");
-                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
-                                    priv->chn.fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
-                err::check_raise(ret, "add channel failed");
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
+        int mirror = false;
+        switch (priv->i2c_addr) {
+        case 0x30:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x3221;
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 16);
+            if (!data) {
+                return -1;
+            }
+            #define SC850SL_MIRROR_MASK (0x60)
+            reg_val = data->data[0];
+            mirror = (reg_val & SC850SL_MIRROR_MASK) ? true : false;
+            if (value >= 0) {
+                mirror = value > 0 ? true : false;
+                if (mirror) {
+                    reg_val = (reg_val & ~SC850SL_MIRROR_MASK) | SC850SL_MIRROR_MASK;
+                } else {
+                    reg_val = (reg_val & ~SC850SL_MIRROR_MASK);
+                }
+                uint8_t temp[1] = {reg_val};
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
+            } else {
+
             }
         }
+        break;
+        default:
+        break;
+        }
 
-        return priv->chn.mirror;
+        priv->chn.mirror = mirror;
+        return mirror;
     }
 
     int Camera::vflip(int value) {
-        err::Err ret;
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return -1;
         }
 
         auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
-        if (value >= 0) {
-            value = value > 0 ? 1 : 0;
-            if (value != priv->chn.vflip) {
-                priv->chn.vflip = value;
-                ret = vi->del_channel(priv->chn.id);
-                err::check_raise(ret, "del channel failed");
-                ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
-                                    priv->chn.fps ,priv->chn.depth, priv->chn.mirror, priv->chn.vflip, priv->chn.fit);
-                err::check_raise(ret, "add channel failed");
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
+        int flip = false;
+        switch (priv->i2c_addr) {
+        case 0x30:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x3221;
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 16);
+            if (!data) {
+                return -1;
+            }
+            #define SC850SL_FLIP_MASK (0x6)
+            reg_val = data->data[0];
+            flip = (reg_val & SC850SL_FLIP_MASK) ? true : false;
+            if (value >= 0) {
+                flip = value > 0 ? true : false;
+                if (flip) {
+                    reg_val = (reg_val & ~SC850SL_FLIP_MASK) | SC850SL_FLIP_MASK;
+                } else {
+                    reg_val = (reg_val & ~SC850SL_FLIP_MASK);
+                }
+                uint8_t temp[1] = {reg_val};
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
+            } else {
+
             }
         }
+        break;
+        default:
+        break;
+        }
 
-        return priv->chn.vflip;
+        priv->chn.vflip = flip;
+        return flip;
     }
 
     int Camera::luma(int value) {
@@ -823,7 +863,7 @@ namespace maix::camera
     {
         camera_priv_t *priv = (camera_priv_t *)_param;
         (void)bit_width;
-        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
         uint8_t temp[1];
         temp[0] = (uint8_t)data;
         i2c_obj.writeto_mem(priv->i2c_addr, addr, temp, sizeof(temp), 16);
@@ -834,7 +874,7 @@ namespace maix::camera
     {
         camera_priv_t *priv = (camera_priv_t *)_param;
         (void)bit_width;
-        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
         Bytes *data = i2c_obj.readfrom_mem(priv->i2c_addr, addr, 1, 16);
         int out = -1;log::info("addr:%#x", priv->i2c_addr);
         if (data) {

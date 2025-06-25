@@ -74,7 +74,7 @@ namespace maix::display
             flip = atoi(flip_str.c_str());
         } else {
             std::string board_id = sys::device_id();
-            if (board_id == "maixcam_pro") {
+            if (board_id == "maixcam2") {
                 flip = true;
             }
         }
@@ -155,6 +155,8 @@ namespace maix::display
                                 || _format == image::FMT_YUV420SP
                                 || _format == image::FMT_BGRA8888, "Format not support");
 
+            _get_disp_configs(this->_invert_flip, this->_invert_mirror, _max_backlight);
+
             __sys = std::make_unique<SYS>();
             err::check_bool_raise(__sys != nullptr, "display construct sys failed");
             err::check_bool_raise(__sys->init() == err::ERR_NONE, "display init sys failed");
@@ -166,8 +168,8 @@ namespace maix::display
             __config_vo_param(&vo_param, width, height, format, rotate);
             err::check_bool_raise(__vo->init(&vo_param) == err::ERR_NONE, "VO init failed");
             _bl_pwm = nullptr;
-            // int pwm_id = 5;
-            // _bl_pwm = new pwm::PWM(pwm_id, 100000, 50);
+            int pwm_id = 5;
+            _bl_pwm = new pwm::PWM(pwm_id, 10000, 50);
         }
 
         DisplayAx(int layer, int width, int height, image::Format format)
@@ -188,6 +190,8 @@ namespace maix::display
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
 
+            _get_disp_configs(this->_invert_flip, this->_invert_mirror, _max_backlight);
+
             __sys = std::make_unique<SYS>();
             err::check_bool_raise(__sys != nullptr, "display construct sys failed");
             err::check_bool_raise(__sys->init() == err::ERR_NONE, "display init sys failed");
@@ -199,8 +203,8 @@ namespace maix::display
             __config_vo_param(&vo_param, width, height, format, rotate);
             err::check_bool_raise(__vo->init(&vo_param) == err::ERR_NONE, "VO init failed");
             _bl_pwm = nullptr;
-            // int pwm_id = 5;
-            // _bl_pwm = new pwm::PWM(pwm_id, 100000, 50);
+            int pwm_id = 5;
+            _bl_pwm = new pwm::PWM(pwm_id, 10000, 50);
         }
 
         ~DisplayAx()
@@ -259,8 +263,8 @@ namespace maix::display
                 .format_out = get_ax_fmt_from_maix(image::FMT_YVU420SP),
                 .fps = 60,
                 .depth = 0,
-                .mirror = false,
-                .vflip = true,
+                .mirror = _invert_mirror,
+                .vflip = _invert_flip,
                 .fit = 0,
                 .rotate = 90,
                 .pool_num_in = -1,
@@ -269,6 +273,24 @@ namespace maix::display
             if (err::ERR_NONE != (ret = __vo->add_channel(this->_layer, ch, &param))) {
                 log::error("vo add channel failed, ret:%d", ret);
                 return err::ERR_RUNTIME;
+            }
+
+            if (this->_layer == 0) {
+                AX_POOL_CONFIG_T stPoolCfg = {0};
+                stPoolCfg.MetaSize = 512;
+                stPoolCfg.BlkCnt = 2;
+                stPoolCfg.BlkSize = width * height * image::fmt_size[format];
+                stPoolCfg.CacheMode = AX_POOL_CACHE_MODE_NONCACHE;
+                strcpy((char *)stPoolCfg.PartitionName, "anonymous");
+                AX_POOL pool_id = AX_POOL_CreatePool(&stPoolCfg);
+                if (pool_id == AX_INVALID_POOLID) {
+                    log::info("AX_POOL_CreatePool failed, u32BlkCnt = %d, u64BlkSize = 0x%llx, u64MetaSize = 0x%llx\n", stPoolCfg.BlkCnt,
+                        stPoolCfg.BlkSize, stPoolCfg.MetaSize);
+                    return err::ERR_RUNTIME;
+                }
+                this->_pool_id = pool_id;
+                this->_pool_size = stPoolCfg.BlkSize;
+                this->_pool_cnt = stPoolCfg.BlkCnt;
             }
 
             this->_ch = ch;
@@ -317,16 +339,35 @@ namespace maix::display
         {
             err::check_bool_raise((img.width() % 2 == 0 && img.height() % 2 == 0), "Image width and height must be a multiple of 2.");
             int format = img.format();
-            int mmf_fit = 0;
-            switch (fit) {
-                case image::Fit::FIT_FILL: mmf_fit = 0; break;
-                case image::Fit::FIT_CONTAIN: mmf_fit = 1; break;
-                case image::Fit::FIT_COVER: mmf_fit = 2; break;
-                default: mmf_fit = 0; break;
-            }
+            // int mmf_fit = 0;
+            // switch (fit) {
+            //     case image::Fit::FIT_FILL: mmf_fit = 0; break;
+            //     case image::Fit::FIT_CONTAIN: mmf_fit = 1; break;
+            //     case image::Fit::FIT_COVER: mmf_fit = 2; break;
+            //     default: mmf_fit = 0; break;
+            // }
 
             if (this->_layer == 0) {
-                Frame *frame = new Frame(-1, img.width(), img.height(), img.data(), img.data_size(), get_ax_fmt_from_maix(img.format()));
+                if (img.data_size() < this->_pool_size) {
+                    AX_POOL_DestroyPool(this->_pool_id);
+
+                    AX_POOL_CONFIG_T stPoolCfg = {0};
+                    stPoolCfg.MetaSize = 512;
+                    stPoolCfg.BlkCnt = this->_pool_cnt;
+                    stPoolCfg.BlkSize = img.data_size();
+                    stPoolCfg.CacheMode = AX_POOL_CACHE_MODE_NONCACHE;
+                    strcpy((char *)stPoolCfg.PartitionName, "anonymous");
+                    AX_POOL pool_id = AX_POOL_CreatePool(&stPoolCfg);
+                    if (pool_id == AX_INVALID_POOLID) {
+                        log::info("AX_POOL_CreatePool failed, u32BlkCnt = %d, u64BlkSize = 0x%llx, u64MetaSize = 0x%llx\n", stPoolCfg.BlkCnt,
+                            stPoolCfg.BlkSize, stPoolCfg.MetaSize);
+                        return err::ERR_RUNTIME;
+                    }
+                    this->_pool_id = pool_id;
+                    this->_pool_size = stPoolCfg.BlkSize;
+                }
+
+                Frame *frame = new Frame(_pool_id, img.width(), img.height(), img.data(), img.data_size(), get_ax_fmt_from_maix(img.format()));
                 if (!frame) {
                     log::error("Failed to create frame");
                     return err::Err(err::ERR_RUNTIME);
@@ -460,7 +501,7 @@ namespace maix::display
         }
 
         err::Err set_hmirror(bool en) {
-            en = _invert_mirror ? !en : en;
+            _invert_mirror = en;
 
             bool need_open = false;
             if (this->_opened) {
@@ -475,7 +516,7 @@ namespace maix::display
         }
 
         err::Err set_vflip(bool en) {
-            en = _invert_flip ? !en : en;
+            _invert_flip = en;
 
             bool need_open = false;
             if (this->_opened) {
@@ -501,6 +542,9 @@ namespace maix::display
         bool _invert_flip;
         bool _invert_mirror;
         float _max_backlight;
+        int _pool_id;
+        int _pool_size;
+        int _pool_cnt;
         pwm::PWM *_bl_pwm;
     };
 }
