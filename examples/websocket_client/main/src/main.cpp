@@ -39,6 +39,17 @@ struct send_thread_args{
     websocketpp::connection_hdl hdl;
 };
 
+void on_connected(server *s, websocketpp::connection_hdl hdl)
+{
+    log::info("new client connected\n");
+}
+
+void on_disconnect(server *s, websocketpp::connection_hdl hdl)
+{
+    log::info("client disconnected\n");
+}
+
+
 int _main(int argc, char* argv[]) {
     // Create a client endpoint
     client c;
@@ -59,6 +70,10 @@ int _main(int argc, char* argv[]) {
 
         // Register our message handler
         c.set_message_handler(bind(&on_message,&c,::_1,::_2));
+        // disconnect handler
+        echo_server.set_close_handler(bind(&on_disconnect, &echo_server, ::_1));
+        // connect handler
+        echo_server.set_open_handler(bind(&on_connected, &echo_server, ::_1));
 
         websocketpp::lib::error_code ec;
         client::connection_ptr con = c.get_connection(uri, ec);

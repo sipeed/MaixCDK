@@ -47,6 +47,9 @@ int _main(int argc, char* argv[]) {
         // Initialize Asio
         echo_server.init_asio();
 
+        // reuse the port to allow quick restarts
+        echo_server.set_reuse_addr(true);
+
         // Register our message handler
         echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
 
@@ -69,7 +72,7 @@ int _main(int argc, char* argv[]) {
 int main(int argc, char* argv[])
 {
     // Catch signal and process
-    sys::register_default_signal_handle();
+    // sys::register_default_signal_handle();
 
     // Use CATCH_EXCEPTION_RUN_RETURN to catch exception,
     // if we don't catch exception, when program throw exception, the objects will not be destructed.
