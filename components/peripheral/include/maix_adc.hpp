@@ -42,7 +42,7 @@ namespace maix::peripheral::adc
     public:
         /**
          * @brief ADC constructor
-         * @param[in] pin adc pin, int type
+         * @param[in] id adc id, int type, before use this ADC, you should use pinmap to ensure the coresponding pin is ADC function.
          * @param[in] resolution adc resolution. default is -1, means use default resolution
          * option:
          * resolution = adc.RES_BIT_8, means 8-bit resolution
@@ -54,7 +54,7 @@ namespace maix::peripheral::adc
          * the default vref is determined by actual hardware. range: [0.0, 10.0]
          * @maixpy maix.peripheral.adc.ADC.__init__
          */
-        ADC(int pin, int resolution, float vref = -1);
+        ADC(int id, int resolution, float vref = -1);
         ~ADC();
 
         /**
@@ -77,7 +77,7 @@ namespace maix::peripheral::adc
 
     private:
         int _fd;
-        int _pin;
+        int _id;
         int _resolution;
         float _vref;
     };

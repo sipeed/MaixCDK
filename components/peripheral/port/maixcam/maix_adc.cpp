@@ -20,7 +20,7 @@
 
 namespace maix::peripheral::adc{
 
-    ADC::ADC(int pin, int resolution, float vref)
+    ADC::ADC(int id, int resolution, float vref)
     {
         if (resolution == -1) {
             resolution = adc::RES_BIT_12;
@@ -39,11 +39,11 @@ namespace maix::peripheral::adc{
         else
             log::error("error: ADC resolution error\r\n");
 
-        if (pin == -1) {
-            log::warn("warning: ADC only support pin 0, set to 0\r\n");
-            pin = 0;
+        if (id == -1) {
+            log::warn("warning: ADC only support id 0, set to 0\r\n");
+            id = 0;
         }
-        _pin = pin;
+        _id = id;
 
         if (vref < 0) {
             _vref = DEFAULT_VREF;
