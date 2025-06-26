@@ -224,6 +224,11 @@ def check_download_items(items):
             sys.exit(1)
         if not "urls" in item:
             item["urls"] = []
+        if type(item["url"]) in [list, tuple]:
+            urls = item["url"]
+            item["url"] = urls[0]
+            if len(urls) > 1:
+                item["urls"].extend(urls[1:])
         if not "sites" in item:
             item["sites"] = []
         if not "extract" in item:

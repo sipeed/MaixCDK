@@ -5,7 +5,7 @@ def add_file_downloads(confs : dict) -> list:
         @return list type, items is dict type
     '''
     version = f"v{confs['CONFIG_MAIXCAM2_MSP_VERSION_MAJOR']}.{confs['CONFIG_MAIXCAM2_MSP_VERSION_MINOR']}.{confs['CONFIG_MAIXCAM2_MSP_VERSION_PATCH']}_{confs['CONFIG_MAIXCAM2_MSP_COMPILED_VERSION']}"
-    url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/maixcam2_msp_arm64_glibc_{version}.tar.xz",
+    url = f"https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/maixcam2_msp_arm64_glibc_{version}.tar.xz"
     if version == "v3.0.0_20241120230136":
         sha256sum = "3315bde03839e8451a864f79e0f1b1252703af821dd5d2b0418b1535a5396c84"
     elif version == "v3.0.0_20250319114413":
