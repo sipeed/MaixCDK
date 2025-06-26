@@ -27,6 +27,7 @@ extern "C" {
 #include "ax_ao_api.h"
 #include "ax_aenc_api.h"
 #include "ax_adec_api.h"
+#include "ax_isp_3a_api.h"
 #include "ax_acodec_api.h"
 #include "common_sys.h"
 #include "common_venc.h"

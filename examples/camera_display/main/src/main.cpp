@@ -281,7 +281,6 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             uint32_t out = 0;
             out = cam->luma(value);
-            err::check_bool_raise(out == value, "set error");
             log::info("set luma: %ld\r\n", value);
             out = cam->luma();
             log::info("get luma: %d\r\n", out);
@@ -291,7 +290,6 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             uint32_t out = 0;
             out = cam->constrast(value);
-            err::check_bool_raise(out == value, "set error");
             log::info("set constrast: %ld\r\n", value);
             out = cam->constrast();
             log::info("get constrast: %d\r\n", out);
@@ -301,7 +299,6 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             uint32_t out = 0;
             out = cam->saturation(value);
-            err::check_bool_raise(out == value, "set error");
             log::info("set saturation: %ld\r\n", value);
             out = cam->saturation();
             log::info("get saturation: %d\r\n", out);
@@ -310,10 +307,9 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         case 5:
         {
             uint32_t out = 0;
-            out = cam->set_awb(value);
-            err::check_bool_raise(out == value, "set error");
+            out = cam->awb_mode(value);
             log::info("set white balance mode: %ld\r\n", value);
-            out = cam->set_awb();
+            out = cam->awb_mode();
             log::info("get white balance mode: %d\r\n", out);
         }
         break;

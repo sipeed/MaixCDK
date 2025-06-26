@@ -613,13 +613,8 @@ namespace maix::camera
 
     err::Err Camera::set_fps(double fps) {
         err::Err ret = err::ERR_NONE;
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
-        ret = vi->del_channel(priv->chn.id);
-        err::check_raise(ret, "del channel failed");
-        ret = vi->add_channel(priv->chn.id, priv->chn.w, priv->chn.h, get_ax_fmt_from_maix(priv->chn.fmt),
-                            fps ,priv->chn.depth, false, false, priv->chn.fit);
-        err::check_raise(ret, "del channel failed");
+        this->exposure(1000 / fps * 1000);
+        _fps = fps;
         return err::ERR_NONE;
     }
 
@@ -628,10 +623,35 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res = AX_SUCCESS;
+        AX_ISP_IQ_AE_PARAM_T tAeParam;
+        int current_exposure_time = 0;
 
-        return vi->set_and_get_exposure(value);
+        ax_res = AX_ISP_IQ_GetAeParam(_ch, &tAeParam);
+        if (ax_res != AX_SUCCESS) {
+            log::info("get ae param failed");
+            return err::ERR_RUNTIME;
+        }
+
+        if (value > 0) {
+            tAeParam.nEnable = false;
+            tAeParam.tExpManual.nShutter = value;
+            tAeParam.tExpManual.nShortShutter = value / 16;
+            tAeParam.tExpManual.nVsShutter = value;
+            ax_res = AX_ISP_IQ_SetAeParam(_ch, &tAeParam);
+            if (ax_res != AX_SUCCESS) {
+                log::info("set ae param failed");
+                return err::ERR_RUNTIME;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetAeParam(_ch, &tAeParam);
+        if (ax_res != AX_SUCCESS) {
+            log::info("get ae param failed");
+            return err::ERR_RUNTIME;
+        }
+        current_exposure_time = tAeParam.tExpManual.nShutter;
+        return current_exposure_time;
     }
 
     int Camera::gain(int value) {
@@ -639,10 +659,35 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res = AX_SUCCESS;
+        AX_ISP_IQ_AE_PARAM_T tAeParam;
+        int current_gain = 0;
 
-        return vi->set_and_get_gain(value);
+        ax_res = AX_ISP_IQ_GetAeParam(_ch, &tAeParam);
+        if (ax_res != AX_SUCCESS) {
+            log::info("get ae param failed");
+            return err::ERR_RUNTIME;
+        }
+
+        if (value > 0) {
+            tAeParam.nEnable = false;
+            // tAeParam.tExpManual.nSysTotalGain = value;
+            // tAeParam.tExpManual.nIspGain = value;
+            tAeParam.tExpManual.nAGain = value;
+            ax_res = AX_ISP_IQ_SetAeParam(_ch, &tAeParam);
+            if (ax_res != AX_SUCCESS) {
+                log::info("set ae param failed");
+                return err::ERR_RUNTIME;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetAeParam(_ch, &tAeParam);
+        if (ax_res != AX_SUCCESS) {
+            log::info("get ae param failed");
+            return err::ERR_RUNTIME;
+        }
+        current_gain = tAeParam.tExpManual.nSysTotalGain;
+        return current_gain;
     }
 
     int Camera::hmirror(int value) {
@@ -671,6 +716,31 @@ namespace maix::camera
                     reg_val = (reg_val & ~SC850SL_MIRROR_MASK) | SC850SL_MIRROR_MASK;
                 } else {
                     reg_val = (reg_val & ~SC850SL_MIRROR_MASK);
+                }
+                uint8_t temp[1] = {reg_val};
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
+            } else {
+
+            }
+        }
+        break;
+        case 0x36:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x3820;
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 16);
+            if (!data) {
+                return -1;
+            }
+            #define OS04A10_MIRROR_MASK (0x02)
+            reg_val = data->data[0];
+            mirror = (reg_val & OS04A10_MIRROR_MASK) ? true : false;
+            if (value >= 0) {
+                mirror = value > 0 ? true : false;
+                if (mirror) {
+                    reg_val = (reg_val & ~OS04A10_MIRROR_MASK) | OS04A10_MIRROR_MASK;
+                } else {
+                    reg_val = (reg_val & ~OS04A10_MIRROR_MASK);
                 }
                 uint8_t temp[1] = {reg_val};
                 i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
@@ -721,6 +791,31 @@ namespace maix::camera
             }
         }
         break;
+        case 0x36:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x3820;
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 16);
+            if (!data) {
+                return -1;
+            }
+            #define OS04A10_FLIP_MASK (0x04)
+            reg_val = data->data[0];
+            flip = (reg_val & OS04A10_FLIP_MASK) ? true : false;
+            if (value >= 0) {
+                flip = value > 0 ? true : false;
+                if (flip) {
+                    reg_val = (reg_val & ~OS04A10_FLIP_MASK) | OS04A10_FLIP_MASK;
+                } else {
+                    reg_val = (reg_val & ~OS04A10_FLIP_MASK);
+                }
+                uint8_t temp[1] = {reg_val};
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
+            } else {
+
+            }
+        }
+        break;
         default:
         break;
         }
@@ -734,10 +829,34 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res = AX_SUCCESS;
+        AX_ISP_IQ_YCPROC_PARAM_T param;
+        int current_value = 0;
+        if (value >= 0) {
+            ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
 
-        return vi->set_and_get_luma(value);
+            param.nBrightness = ((double)value / 100) * 4096;
+            param.nBrightness = param.nBrightness < 0 ? 0 : param.nBrightness;
+            param.nBrightness = param.nBrightness > 4095 ? 4095 : param.nBrightness;
+            ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+        if (ax_res != AX_SUCCESS) {
+            log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+            current_value;
+        }
+
+        current_value = (float)param.nBrightness / 4096 * 100;
+        return current_value;
     }
 
     int Camera::constrast(int value) {
@@ -745,10 +864,34 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res = AX_SUCCESS;
+        AX_ISP_IQ_YCPROC_PARAM_T param;
+        int current_value = 0;
+        if (value >= 0) {
+            ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
 
-        return vi->set_and_get_constrast(value);
+            param.nContrast = ((double)value / 100) * 8192 - 4096;
+            param.nContrast = param.nContrast < -4096 ? -4096 : param.nContrast;
+            param.nContrast = param.nContrast > 4095 ? 4095 : param.nContrast;
+            ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+        if (ax_res != AX_SUCCESS) {
+            log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+            current_value;
+        }
+
+        current_value = (float)(param.nContrast + 4096) / 8196 * 100;
+        return current_value;
     }
 
     int Camera::saturation(int value) {
@@ -756,10 +899,34 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res = AX_SUCCESS;
+        AX_ISP_IQ_YCPROC_PARAM_T param;
+        int current_value = 0;
+        if (value >= 0) {
+            ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
 
-        return vi->set_and_get_saturation(value);
+            param.nSaturation = ((double)value / 100) * 65535;
+            param.nSaturation = param.nSaturation < 0 ? 0 : param.nSaturation;
+            param.nSaturation = param.nSaturation > 65535 ? 65535 : param.nSaturation;
+            ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
+            if (ax_res != AX_SUCCESS) {
+                log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
+                current_value;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
+        if (ax_res != AX_SUCCESS) {
+            log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
+            current_value;
+        }
+
+        current_value = (float)param.nSaturation / 65536 * 100;log::info("2param.nSaturation: %d", param.nSaturation);
+        return current_value;
     }
 
     int Camera::awb_mode(int value) {
@@ -767,10 +934,34 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res;
+        AX_ISP_IQ_AWB_PARAM_T param;
+        int current_mode = 0;
 
-        return vi->set_and_get_awb_mode(value);
+        if (value >= 0) {
+            ax_res = AX_ISP_IQ_GetAwbParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_GetAwbParam failed: %d", ax_res);
+                return current_mode;
+            }
+
+            current_mode = value ? 0 : 1; // 0,auto; 1,manual
+            param.nEnable = current_mode;
+            ax_res = AX_ISP_IQ_SetAwbParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_SetAwbParam failed: %d", ax_res);
+                return current_mode;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetAwbParam(_ch, &param);
+        if (ax_res != 0) {
+            log::error("AX_ISP_IQ_GetAwbParam failed: %d", ax_res);
+            return current_mode;
+        }
+
+        current_mode = param.nEnable ? 0 : 1;
+        return current_mode;
     }
 
     int Camera::set_awb(int value) {
@@ -786,10 +977,34 @@ namespace maix::camera
             return err::ERR_NOT_OPEN;
         }
 
-        auto *priv = (camera_priv_t *)_param;
-        auto vi = priv->ax_vi;
+        AX_S32 ax_res;
+        AX_ISP_IQ_AE_PARAM_T param;
+        int current_mode = 0;
 
-        return vi->set_and_get_exp_mode(value);
+        if (value >= 0) {
+            ax_res = AX_ISP_IQ_GetAeParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_GetAeParam failed: %d", ax_res);
+                return current_mode;
+            }
+
+            current_mode = value ? 0 : 1; // 0,auto; 1,manual
+            param.nEnable = current_mode;
+            ax_res = AX_ISP_IQ_SetAeParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_GetAeParam failed: %d", ax_res);
+                return current_mode;
+            }
+        }
+
+        ax_res = AX_ISP_IQ_GetAeParam(_ch, &param);
+        if (ax_res != 0) {
+            log::error("AX_ISP_IQ_GetAeParam failed: %d", ax_res);
+            return current_mode;
+        }
+
+        current_mode = param.nEnable ? 0 : 1;
+        return current_mode;
     }
 
     err::Err Camera::set_windowing(std::vector<int> roi) {
