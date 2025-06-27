@@ -27,7 +27,7 @@ def select_multi_toolchain(board_name, toolchain_info, select_id):
         if not "id" in info:
             print("Error: id not found in toolchain info of board %s.yaml" % board_name)
             sys.exit(1)
-        if select_id and info['id'] == select_id:
+        if select_id and (info['id'] == select_id or (select_id == "default" and info.get("default", False))):
             return info
     print("This platform has multiple toolchains, please select one\n")
     default_idx = None

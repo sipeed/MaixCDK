@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(prog="release", description="release program as
 
 ############################### Add option here #############################
 parser.add_argument("-p", "--platform", help="Select platforms, use maixcdk build --help to see supported platforms", default="")
+parser.add_argument('--toolchain-id', default="", help="toolchain id, if platform has multiple toolchains, use this option to select one. Empty will let you select one interactively, 'default' means use the default toolchain defined in platform yaml file.")
 
 #############################################################################
 
@@ -46,6 +47,9 @@ def main(vars):
     if vars["project_args"].platform:
         cmd.append("--platform")
         cmd.append(vars["project_args"].platform)
+    if vars["project_args"].toolchain_id:
+        cmd.append("--toolchain-id")
+        cmd.append(vars["project_args"].toolchain_id)
     exit_code = subprocess.Popen(cmd).wait()
     print("--------- rebuild complete ------------\n")
     if exit_code != 0:

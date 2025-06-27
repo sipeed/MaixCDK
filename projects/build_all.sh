@@ -21,7 +21,7 @@ function build_start()
         maixtool release
     else
         maixcdk distclean
-        maixcdk release -p "$platform"
+        maixcdk release -p "$platform" --toolchain-id default
     fi
     mkdir -p ../apps
     cp -r dist/pack/* ../apps

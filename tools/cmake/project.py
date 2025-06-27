@@ -218,7 +218,7 @@ def parse_args(sdk_path, project_path, extra_tools):
         parser_.add_argument('--debug', action="store_true", default=False, help="debug mode, default is release mode")
         parser_.add_argument('--build-type', default=None, help="build type, [Debug, Release, MinRelSize, RelWithDebInfo], you can also set build type by CMAKE_BUILD_TYPE environment variable")
         parser_.add_argument('-p', "--platform", default="", help="device name, e.g. linux, maixcam, m2dock", choices=get_platforms(sdk_path))
-        parser_.add_argument('--toolchain-id', default="", help="toolchain id, if platform has multiple toolchains, use this option to select one")
+        parser_.add_argument('--toolchain-id', default="", help="toolchain id, if platform has multiple toolchains, use this option to select one. Empty will let you select one interactively, 'default' means use the default toolchain defined in platform yaml file.")
     add_build_args(parser_build)
     add_build_args(parser_build2)
 
