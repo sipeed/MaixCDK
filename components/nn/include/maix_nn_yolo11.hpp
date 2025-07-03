@@ -37,9 +37,8 @@ namespace maix::nn
         float stride;
     };
 
-    class _OutIdxes
+    struct _OutIdxes
     {
-    public:
         // mode 1
         int det0;     // 1x144x80x80
         int det1;     // 1x144x40x40
@@ -312,7 +311,10 @@ namespace maix::nn
                 for(size_t i = 0; i < outputs.size(); ++i)
                 {
                     nn::LayerInfo &item = outputs[i];
-                    if(item.shape.size() == 4)
+                    int shape_size = item.shape.size();
+                    if(shape_size == 4 && item.shape[3] == 1)
+                        shape_size = 3;
+                    if(shape_size == 4)
                     {
                         if(_type == YOLO11_Type::SEG &&
                             ((item.shape[1] == 32 && // 1 32 160 160
@@ -344,7 +346,7 @@ namespace maix::nn
                             return err::ERR_ARGS;
                         }
                     }
-                    else if(item.shape.size() == 3)
+                    else if(shape_size == 3)
                     {
                         if (_type == YOLO11_Type::SEG)
                             _out_idxes.seg_mask_weight = i;
@@ -376,12 +378,13 @@ namespace maix::nn
             else // mode 2
             {
                 _out_node_mode = 2;
+                memset(&_out_idxes, 999, sizeof(_out_idxes));
                 for(int i = 0; i < (int)outputs.size(); ++i)
                 {
                     nn::LayerInfo &item = outputs[i];
                     if(item.shape.size() == 4)
                     {
-                        if(item.shape[3] == 4 && item.shape[2] == _anchor_num && item.shape[1] == 1) // hwc
+                        if(item.shape[1] == 4 && item.shape[2] == _anchor_num && item.shape[3] == 1) // hwc
                         {
                             _out_chw = false;
                             _out_idxes.dfl = i;
@@ -395,37 +398,101 @@ namespace maix::nn
                     nn::LayerInfo &item = outputs[i];
                     if(i == _out_idxes.dfl)
                         continue;
-                    if(item.shape.size() == 4)
+                    if(_type == YOLO11_Type::DETECT)
                     {
+                        if(item.shape[_out_chw ? 1 : 2] == (int)labels.size() && item.shape[_out_chw ? 2 : 1] == _anchor_num)
+                            _out_idxes.sigmoid = i;
+                        else
+                            _out_idxes.dfl = i;
+                    }
+                    else if(_type == YOLO11_Type::SEG)
+                    {
+                        if(item.shape[_out_chw ? 1 : 3] == 1 && item.shape[_out_chw ? 2 : 1] == 4 && item.shape[_out_chw ? 3 : 2] == _anchor_num)
+                            _out_idxes.dfl = i;
+                        else if(item.shape[_out_chw ? 1 : 2] == 32 && item.shape[_out_chw ? 2 : 1] == _anchor_num && (item.shape.size() == 3 || item.shape[3] == 1))
+                        {
+                            if(item.name.find("Sigmoid") != std::string::npos)
+                                _out_idxes.sigmoid = i;
+                            else
+                                _out_idxes.seg_mask_weight = i;
+                        }
+                        else if (item.shape[_out_chw ? 1 : 2] == (int)labels.size() && item.shape[_out_chw ? 2 : 1] == _anchor_num && (item.shape.size() == 3 || item.shape[3] == 1))
+                            _out_idxes.sigmoid = i;
+                        else
                         _out_idxes.seg_mask = i;
-                        continue;
-                    }
-                    if(_type == YOLO11_Type::DETECT && item.shape[_out_chw ? 1 : 2] == (int)labels.size() && item.shape[_out_chw ? 2 : 1] == _anchor_num)
-                    {
-                        _out_idxes.sigmoid = i;
-                    }
-                    else if(_type == YOLO11_Type::SEG && item.shape[_out_chw ? 1 : 2] == 32)
-                    {
-                        _out_idxes.seg_mask_weight = i;
                     }
                     else if(_type == YOLO11_Type::OBB)
                     {
-                        if(item.name.find("Sigmoid") == std::string::npos)
-                            _obb_need_sigmoid = true;
+                        if(item.shape[_out_chw ? 1 : 3] == 1 && item.shape[_out_chw ? 2 : 1] == 4 && item.shape[_out_chw ? 3 : 2] == _anchor_num)
+                            _out_idxes.dfl = i;
+                        else if(item.shape[_out_chw ? 1 : 2] > 1)
+                            _out_idxes.sigmoid = i;
+                        else if(item.name.find("Sigmoid_1") != std::string::npos)
+                            _out_idxes.sigmoid = i;
                         else
-                            _obb_need_sigmoid = false;
-                        _out_idxes.obb_angle = i;
+                        {
+                            if(item.name.find("Sigmoid") == std::string::npos)
+                                _obb_need_sigmoid = true;
+                            else
+                                _obb_need_sigmoid = false;
+                            _out_idxes.obb_angle = i;
+                        }
                     }
-                    else if(_type == YOLO11_Type::POSE && (item.shape[_out_chw ? 1 : 2] % 3 == 0)&& item.shape[_out_chw ? 2 : 1] == _anchor_num)
+                    else if(_type == YOLO11_Type::POSE)
                     {
-                        _out_idxes.pose = i;
+                        if(item.shape[_out_chw ? 1 : 3] == 1 && item.shape[_out_chw ? 2 : 1] == 4 && item.shape[_out_chw ? 3 : 2] == _anchor_num)
+                            _out_idxes.dfl = i;
+                        else if((item.shape[_out_chw ? 1 : 2] % 3 == 0)&& item.shape[_out_chw ? 2 : 1] == _anchor_num)
+                            _out_idxes.pose = i;
+                        else
+                            _out_idxes.sigmoid = i;
                     }
                     else
                     {
-                        log::error("output node shape error, please check %d", 4);
+                        log::error("not implement yet");
                         print_outputs();
-                        return err::ERR_ARGS;
+                        return err::ERR_NOT_IMPL;
                     }
+                }
+                // check node
+                if (_out_idxes.dfl == 999 || _out_idxes.sigmoid == 999)
+                {
+                    print_outputs();
+                    log::error("can't find DFL or sigmoid output, now: %d, %d", _out_idxes.dfl, _out_idxes.sigmoid);
+                    return err::ERR_ARGS;
+                }
+                switch(_type)
+                {
+                    case YOLO11_Type::SEG:
+                        if (_out_idxes.seg_mask_weight == 999 || _out_idxes.seg_mask == 999)
+                        {
+                            print_outputs();
+                            log::error("can't find seg_mask_weight or seg_mask output, now: %d, %d", _out_idxes.seg_mask_weight, _out_idxes.seg_mask);
+                            return err::ERR_ARGS;
+                        }
+                        break;
+                    case YOLO11_Type::OBB:
+                        if (_out_idxes.obb_angle == 999)
+                        {
+                            print_outputs();
+                            log::error("can't find obb_angle, now: %d, %d", _out_idxes.obb_angle);
+                            return err::ERR_ARGS;
+                        }
+                        break;
+                    case YOLO11_Type::POSE:
+                        if (_out_idxes.pose == 999)
+                        {
+                            print_outputs();
+                            log::error("can't find pose, now: %d, %d", _out_idxes.pose);
+                            return err::ERR_ARGS;
+                        }
+                        break;
+                    case YOLO11_Type::DETECT:
+                    default:
+                    break;
+                        log::error("not implement yet");
+                        return err::ERR_NOT_IMPL;
+                        break;
                 }
             }
             return err::ERR_NONE;
@@ -759,7 +826,78 @@ namespace maix::nn
                 {
                     if(_out_chw)
                     {
-                        throw err::Exception(err::ERR_NOT_IMPL, "not support output chw layout");
+                        int class_num = (int)labels.size();
+                        int prob_offset = _reg_max * 4;
+                        float* angle_data = (float*)(*kp_out)->data(); // CHW, same layout
+
+                        #pragma omp parallel for
+                        for (int index = 0; index < _anchor_num; ++index)
+                        {
+                            int i = 1;
+                            int anchor_idx;
+                            if (index >= idx_start[2]) {
+                                i = 2;
+                                anchor_idx = index - idx_start[2];
+                            } else if (index < idx_start[1]) {
+                                i = 0;
+                                anchor_idx = index;
+                            } else {
+                                anchor_idx = index - idx_start[1];
+                            }
+
+                            int nh = dets[i]->shape()[2]; // H
+                            int nw = dets[i]->shape()[3]; // W
+                            int s = nh * nw;
+                            float* feature = (float*)dets[i]->data(); // shape: (1, C, H, W)
+
+                            int ax = anchor_idx % nw;
+                            int ay = anchor_idx / nw;
+                            int offset = idx_start[i] + anchor_idx;
+                            float* p = feature + anchor_idx;
+
+                            // class
+                            int class_id = _argmax(p + prob_offset * s, class_num, s);
+                            float score = _sigmoid(p[(prob_offset + class_id) * s]);
+                            if (score <= conf_thresh)
+                                continue;
+
+                            float dis[4];
+                            for(int k = 0; k < 4; ++k)
+                            {
+                                // float softmax_res[_reg_max];
+                                float* p_dis = p + k * _reg_max * s;
+                                // dis[k] = _softmax_step(p_dis, softmax_res, _reg_max, s);
+                                dis[k] = _softmax_expectation(p_dis, _reg_max, s);
+                            }
+
+
+                            float lt_x = dis[0];
+                            float lt_y = dis[1];
+                            float rb_x = dis[2];
+                            float rb_y = dis[3];
+
+                            // angle
+                            float angle_val = angle_data[offset];
+                            float angle = (_obb_need_sigmoid ? _sigmoid(angle_val) : angle_val) - 0.25f;
+                            float angle_rad = angle * M_PI;
+
+                            float stride = _stride[i];
+                            float cos_angle = cosf(angle_rad);
+                            float sin_angle = sinf(angle_rad);
+                            float xf = (rb_x - lt_x) / 2.f;
+                            float yf = (rb_y - lt_y) / 2.f;
+                            float bbox_w = (lt_x + rb_x) * stride;
+                            float bbox_h = (lt_y + rb_y) * stride;
+                            float bbox_x = ((xf * cos_angle - yf * sin_angle) + ax + 0.5f) * stride - bbox_w * 0.5f;
+                            float bbox_y = ((xf * sin_angle + yf * cos_angle) + ay + 0.5f) * stride - bbox_h * 0.5f;
+
+                            _KpInfoYolo11* kp_info = new _KpInfoYolo11(offset, ax, ay, stride);
+                            #pragma omp critical
+                            {
+                                Object& obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score, {}, angle);
+                                obj.temp = (void*)kp_info;
+                            }
+                        }
                     }
                     else
                     {
@@ -834,7 +972,75 @@ namespace maix::nn
                 {
                     if(_out_chw)
                     {
-                        throw err::Exception(err::ERR_NOT_IMPL, "not support output chw layout");
+                        int class_num = (int)labels.size();
+                        int prob_offset = _reg_max * 4;
+                        struct LayerInfo {
+                            int nh;
+                            int nw;
+                            float* feature;
+                        };
+
+                        LayerInfo layer_info[3];
+                        for (int i = 0; i < 3; ++i)
+                        {
+                            layer_info[i].nh = dets[i]->shape()[2];
+                            layer_info[i].nw = dets[i]->shape()[3];
+                            layer_info[i].feature = (float*)dets[i]->data();
+                        }
+
+
+                        #pragma omp parallel for
+                        for(int index = 0; index < _anchor_num; ++index)
+                        {
+                            int i = 1;
+                            int anchor_idx;
+                            if (index >= idx_start[2]) {
+                                i = 2;
+                                anchor_idx = index - idx_start[2];
+                            } else if (index < idx_start[1]) {
+                                i = 0;
+                                anchor_idx = index;
+                            } else {
+                                anchor_idx = index - idx_start[1];
+                            }
+
+                            int nh = layer_info[i].nh;
+                            int nw = layer_info[i].nw;
+                            float* feature = layer_info[i].feature;
+
+                            int ax = anchor_idx % nw;
+                            int ay = anchor_idx / nw;
+
+                            int s = nh * nw;
+                            float *p = feature + anchor_idx;
+
+                            int class_id = _argmax(p + prob_offset * s, class_num, s);
+                            float score = _sigmoid(p[prob_offset * s + class_id * s]);
+
+                            if (score <= conf_thresh)
+                                continue;
+
+                            float dis[4];
+                            for(int k = 0; k < 4; ++k)
+                            {
+                                // float softmax_res[_reg_max];
+                                float* p_dis = p + k * _reg_max * s;
+                                // dis[k] = _softmax_step(p_dis, softmax_res, _reg_max, s);
+                                dis[k] = _softmax_expectation(p_dis, _reg_max, s);
+                            }
+
+                            float bbox_x = (ax + 0.5 - dis[0]) * _stride[i];
+                            float bbox_y = (ay + 0.5 - dis[1]) * _stride[i];
+                            float bbox_w = (ax + 0.5 + dis[2]) * _stride[i] - bbox_x;
+                            float bbox_h = (ay + 0.5 + dis[3]) * _stride[i] - bbox_y;
+
+                            _KpInfoYolo11 *kp_info = new _KpInfoYolo11(idx_start[i] + anchor_idx, ax, ay, _stride[i]);
+                            #pragma omp critical
+                            {
+                                Object &obj = objs.add(bbox_x, bbox_y, bbox_w, bbox_h, class_id, score);
+                                obj.temp = (void *)kp_info;
+                            }
+                        }
                     }
                     else
                     {
@@ -873,9 +1079,8 @@ namespace maix::nn
                                 int class_id = _argmax(p + prob_offset, class_num, 1);
                                 float score = _sigmoid(p[prob_offset + class_id]);
                                 if (score <= conf_thresh)
-                                {
                                     continue;
-                                }
+
                                 float dis[4];
                                 for(int k = 0; k < 4; ++k)
                                 {
@@ -1517,6 +1722,60 @@ namespace maix::nn
             }
             return dis_sum;
         }
+
+        static float _softmax_step(const float* src, float* dst, int length, int step)
+        {
+            // 找最大值用于稳定性
+            float alpha = src[0];
+            for (int i = 1; i < length; ++i)
+            {
+                float val = src[i * step];
+                if (val > alpha)
+                    alpha = val;
+            }
+
+            // softmax 计算（先减最大值再归一化）
+            float denominator = 0.0f;
+            for (int i = 0; i < length; ++i)
+            {
+                dst[i] = std::exp(src[i * step] - alpha);
+                denominator += dst[i];
+            }
+
+            // 归一化并计算加权和
+            float dis_sum = 0.0f;
+            for (int i = 0; i < length; ++i)
+            {
+                dst[i] /= denominator;
+                dis_sum += i * dst[i];
+            }
+
+            return dis_sum;
+        }
+
+        static float _softmax_expectation(const float* src, int length, int step)
+        {
+            float alpha = src[0];
+            for (int i = 1; i < length; ++i)
+            {
+                float val = src[i * step];
+                if (val > alpha)
+                    alpha = val;
+            }
+
+            float denominator = 0.f;
+            float numerator = 0.f;
+
+            for (int i = 0; i < length; ++i)
+            {
+                float e = std::exp(src[i * step] - alpha);
+                denominator += e;
+                numerator += i * e;
+            }
+
+            return numerator / denominator;
+        }
+
     };
 
 } // namespace maix::nn
