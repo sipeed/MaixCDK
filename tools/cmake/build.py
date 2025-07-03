@@ -144,6 +144,15 @@ def get_components_find_dirs(configs):
 def get_all_components_dl_info(find_dirs, kconfigs):
     components = get_components_dirs(find_dirs)
     valid_components = find_valid_components(components, find_dirs, kconfigs["PLATFORM"])
+    print("\n-- Enabled components:")
+    msg = "   "
+    for i, c in enumerate(valid_components):
+        msg += c
+        if (i+1) % 8 == 0:
+            msg += ",\n   "
+        else:
+            msg += ", "
+    print(f"{msg[:-2]}\n\n")
     files_info = get_components_files(components, valid_components, kconfigs)
     return files_info
 
