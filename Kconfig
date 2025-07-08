@@ -13,6 +13,10 @@ menu "external device Components Configuration"
 	osource "${SDK_PATH}/components/ext_devs/*/Kconfig"
 endmenu
 
+menu "Algorithm Components Configuration"
+	osource "${SDK_PATH}/components/algo/*/Kconfig"
+endmenu
+
 menu "Extra Components Configuration"
 	osource "${MAIXCDK_EXTRA_COMPONENTS_PATH}/*/Kconfig"
 	# components released with python package format, installed by pip install maixcdk-xxxx

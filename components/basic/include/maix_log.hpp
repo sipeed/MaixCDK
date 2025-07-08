@@ -134,6 +134,13 @@ namespace maix::log
     */
     void print(log::LogLevel level, const char *fmt, ...);
 
+    /**
+      * flush log
+      * @param level log level, @see maix.log.LogLevel
+      * @maixcdk maix.log.flush
+     */
+    void flush(log::LogLevel level = log::LogLevel::LEVEL_NONE);
+
 } // namespace maix::log
 
 

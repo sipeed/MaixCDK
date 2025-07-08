@@ -1,33 +1,7 @@
 
 list(APPEND ADD_INCLUDE "include")
-list(APPEND ADD_PRIVATE_INCLUDE "src/bm8563")
-list(APPEND ADD_PRIVATE_INCLUDE "src/bm8563/tuupola_bm8563")
-list(APPEND ADD_PRIVATE_INCLUDE "src/qmi8658")
-list(APPEND ADD_PRIVATE_INCLUDE "src/qmi8658/ALICHOUCHENE_Qmi8658c")
-list(APPEND ADD_PRIVATE_INCLUDE "src/tmc2209")
-list(APPEND ADD_PRIVATE_INCLUDE "src/tmc2209/janelia-arduino_TMC2209")
-list(APPEND ADD_PRIVATE_INCLUDE "src/axp2101")
-list(APPEND ADD_PRIVATE_INCLUDE "src/cmap")
-
 append_srcs_dir(ADD_SRCS "src")
-append_srcs_dir(ADD_SRCS "src/bm8563")
-append_srcs_dir(ADD_SRCS "src/bm8563/tuupola_bm8563")
-append_srcs_dir(ADD_SRCS "src/qmi8658")
-append_srcs_dir(ADD_SRCS "src/qmi8658/ALICHOUCHENE_Qmi8658c")
-append_srcs_dir(ADD_SRCS "src/tmc2209")
-append_srcs_dir(ADD_SRCS "src/tmc2209/janelia-arduino_TMC2209")
-append_srcs_dir(ADD_SRCS "src/axp2101")
-append_srcs_dir(ADD_SRCS "src/fp5510")
-append_srcs_dir(ADD_SRCS "src/cmap")
-
-list(APPEND ADD_REQUIREMENTS basic peripheral json ahrs)
-
-# if (PLATFORM_LINUX)
-#     append_srcs_dir(ADD_SRCS "port/linux")
-# elseif (PLATFORM_MAIXCAM)
-#     list(APPEND ADD_INCLUDE "port/maixcam")
-#     append_srcs_dir(ADD_SRCS "port/maixcam")
-# endif()
+list(APPEND ADD_REQUIREMENTS basic)
 
 register_component()
 
@@ -76,8 +50,8 @@ register_component()
 ###############################################
 
 #### Add compile option for this component ####
-#### Just for this component, won't affect other
-#### modules, including component that depend
+#### Just for this component, won't affect other 
+#### modules, including component that depend 
 #### on this component
 # list(APPEND ADD_DEFINITIONS_PRIVATE -DAAAAA=1)
 

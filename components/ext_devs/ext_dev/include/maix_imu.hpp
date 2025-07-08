@@ -86,6 +86,38 @@ enum class GyroOdr {
 };
 
 /**
+  * IMU data type.
+  * @maixpy maix.ext_dev.imu.IMUData
+ */
+class IMUData
+{
+public:
+    /**
+      * accelerometer data
+      * @maixpy maix.ext_dev.imu.IMUData.acc
+     */
+    maix::Vector3f acc;
+
+    /**
+      * gyroscope data
+      * @maixpy maix.ext_dev.imu.IMUData.gyro
+     */
+    maix::Vector3f gyro;
+
+    /**
+      * magnetometer data
+      * @maixpy maix.ext_dev.imu.IMUData.mag
+     */
+    maix::Vector3f mag;
+
+    /**
+      * temperature data
+      * @maixpy maix.ext_dev.imu.IMUData.temp
+     */
+    float temp;
+};
+
+/**
  * QMI8656 driver class
  * @maixpy maix.ext_dev.imu.IMU
  */
@@ -110,8 +142,8 @@ public:
     IMU(std::string driver, int i2c_bus=-1, int addr=0x6B, int freq=400000,
             maix::ext_dev::imu::Mode mode=maix::ext_dev::imu::Mode::DUAL,
             maix::ext_dev::imu::AccScale acc_scale=maix::ext_dev::imu::AccScale::ACC_SCALE_2G,
-            maix::ext_dev::imu::AccOdr acc_odr=maix::ext_dev::imu::AccOdr::ACC_ODR_8000,
-            maix::ext_dev::imu::GyroScale gyro_scale=maix::ext_dev::imu::GyroScale::GYRO_SCALE_16DPS,
+            maix::ext_dev::imu::AccOdr acc_odr=maix::ext_dev::imu::AccOdr::ACC_ODR_1000,
+            maix::ext_dev::imu::GyroScale gyro_scale=maix::ext_dev::imu::GyroScale::GYRO_SCALE_256DPS,
             maix::ext_dev::imu::GyroOdr gyro_odr=maix::ext_dev::imu::GyroOdr::GYRO_ODR_8000,
             bool block=true);
     ~IMU();
@@ -122,17 +154,66 @@ public:
     IMU& operator=(IMU&&)       = delete;
 
     /**
-     * @brief Read data from IMU.
+     * @brief Read raw data from IMU, no calibration, recommend use read_all instead.
      *
      * @return list type. If only one of the outputs is initialized, only [x,y,z] of that output will be returned.
      *                    If all outputs are initialized, [acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z] is returned.
-     *
+     *                    And the last one is temperature
+     *         Unit acc: g/s
+     *         Unit gyro: degree/s
+     *         Unit temperate: degree
      * @maixpy maix.ext_dev.imu.IMU.read
      */
     std::vector<float> read();
 
     /**
-     * @brief Caculate calibration, save calibration data to /maixapp/shart/imu_calibration
+      * read imu data from IMU.
+      * @param calib_gryo calibrate gyro data based on calib_gyro_data, you should load_calib_gyro first to load calib_gyro_data.
+      * @param radian gyro unit use rad/s instead of degree/s, default false(use degree/s).
+      * @return maix.ext_dev.imu.IMUData type.
+      *         Unit acc: g/s
+      *         Unit gyro: degree/s
+      *         Unit temperate: degree
+      * @maixpy maix.ext_dev.imu.IMU.read_all
+     */
+    ext_dev::imu::IMUData read_all(bool calib_gryo = true, bool radian = false);
+
+    /**
+      * Calibrate gryo for time_ms long, get gryo bias.
+      * @param time_ms total time to collect data, unit is ms.
+      * @param interval_ms minimum read raw data interval, -1 means continues, 10ms mean >= 10ms.
+      * @param save_id Save calibration data to file or not, you can load by load_calib_gyro.
+      *                Empty string means not save. By default value is "default", means save calibration as id "default".
+      * @maixpy maix.ext_dev.imu.IMU.calib_gyro
+     */
+    Vector3f calib_gyro(uint64_t time_ms, int interval_ms = -1, const std::string &save_id = "default");
+
+    /**
+      * Load Gyro calibration from file, if not found all value will be 0.
+      * @param save_id saved id from valib_gyro, default is "default".
+      * @return If exist gyro calibration info return True else False.
+      * @maixpy maix.ext_dev.imu.IMU.calib_gyro_exists
+     */
+    bool calib_gyro_exists(const std::string &save_id = "default");
+
+    /**
+      * Load Gyro calibration from file, if not found all value will be 0.
+      * @param save_id saved id from valib_gyro, default is "default".
+      * @maixpy maix.ext_dev.imu.IMU.load_calib_gyro
+     */
+    Vector3f load_calib_gyro(const std::string &save_id = "default");
+
+    /**
+      * Save Gyro calibration to file.
+      * @param calib the calibration data you want to save.
+      * @param save_id saved id from valib_gyro, default is "default".
+      * @maixpy maix.ext_dev.imu.IMU.save_calib_gyro
+     */
+     err::Err save_calib_gyro(const Vector3f &calib, const std::string &save_id = "default");
+
+    /**
+     * @brief !!!Depracated!!!
+     *        Caculate calibration, save calibration data to /maixapp/share/misc/imu_calibration
      * @param time_ms caculate max time, unit:ms
      * @return err::Err
      *
@@ -141,15 +222,22 @@ public:
     err::Err calculate_calibration(uint64_t time_ms = 30 * 1000);
 
     /**
-     * @brief Get calibration data
+     * @brief !!!Depracated!!!
+     *        Get calibration data
      * @return return an array, format is [acc_x_bias, acc_y_bias, acc_z_bias, gyro_x_bias, gyro_y_bias, gyro_z_bias]
      * If the calibration file cannot be found, an empty array will be returned.
      * @maixpy maix.ext_dev.imu.IMU.get_calibration
     */
     std::vector<double> get_calibration();
+
+public:
+    Vector3f calib_gyro_data;
+
 private:
     void* _param;
     std::string _driver;
+    imu::Mode _mode;
+    bool _calib_gyro_loaded;
 };
 
 typedef struct {

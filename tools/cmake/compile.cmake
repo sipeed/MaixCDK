@@ -231,7 +231,7 @@ function(register_component)
 
     # Add requirements
     # get requirements from component.py
-    set(cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/build.py get_requirements ${PLATFORM} ${component_name} ${component_dir} ${SDK_PATH}/components ${SDK_PATH}/components/3rd_party ${SDK_PATH}/components/ext_devs ${MAIXCDK_EXTRA_COMPONENTS_PATH} ${PY_PKG_COMPONENTS_PATH} ${PY_USR_PKG_COMPONENTS_PATH} ${PROJECT_SOURCE_DIR}/../components ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/components)
+    set(cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/build.py get_requirements ${PLATFORM} ${component_name} ${component_dir} ${SDK_PATH}/components ${SDK_PATH}/components/3rd_party ${SDK_PATH}/components/ext_devs ${SDK_PATH}/components/algo ${MAIXCDK_EXTRA_COMPONENTS_PATH} ${PY_PKG_COMPONENTS_PATH} ${PY_USR_PKG_COMPONENTS_PATH} ${PROJECT_SOURCE_DIR}/../components ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/components)
     execute_process(${cmd} RESULT_VARIABLE cmd_res OUTPUT_VARIABLE component_requires)
     if(NOT cmd_res EQUAL 0)
         message(FATAL_ERROR "Get valid components failed")
@@ -359,6 +359,7 @@ macro(project name)
     find_components(components_dirs components_kconfig_files kconfig_defaults_files_args found_main ${SDK_PATH}/components/*)
     find_components(components_dirs components_kconfig_files kconfig_defaults_files_args found_main ${SDK_PATH}/components/3rd_party/*)
     find_components(components_dirs components_kconfig_files kconfig_defaults_files_args found_main ${SDK_PATH}/components/ext_devs/*)
+    find_components(components_dirs components_kconfig_files kconfig_defaults_files_args found_main ${SDK_PATH}/components/algo/*)
     # Find components in custom components folder, register components
     if(MAIXCDK_EXTRA_COMPONENTS_PATH)
         find_components(components_dirs components_kconfig_files kconfig_defaults_files_args found_main ${MAIXCDK_EXTRA_COMPONENTS_PATH}/*)
@@ -574,7 +575,7 @@ macro(project name)
     endif()
 
     # guess components used
-    set(cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/build.py get_valid_components ${PLATFORM} ${SDK_PATH}/components ${SDK_PATH}/components/3rd_party ${SDK_PATH}/components/ext_devs ${MAIXCDK_EXTRA_COMPONENTS_PATH} ${PY_PKG_COMPONENTS_PATH} ${PY_USR_PKG_COMPONENTS_PATH} ${PROJECT_SOURCE_DIR}/../components ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/components)
+    set(cmd COMMAND ${python} -u ${SDK_PATH}/tools/cmake/build.py get_valid_components ${PLATFORM} ${SDK_PATH}/components ${SDK_PATH}/components/3rd_party ${SDK_PATH}/components/ext_devs ${SDK_PATH}/components/algo ${MAIXCDK_EXTRA_COMPONENTS_PATH} ${PY_PKG_COMPONENTS_PATH} ${PY_USR_PKG_COMPONENTS_PATH} ${PROJECT_SOURCE_DIR}/../components ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/components)
     execute_process(${cmd} RESULT_VARIABLE cmd_res OUTPUT_VARIABLE component_valid)
     if(NOT cmd_res EQUAL 0)
         message(FATAL_ERROR "Get valid components failed")

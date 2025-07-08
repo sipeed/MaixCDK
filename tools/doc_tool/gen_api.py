@@ -351,7 +351,7 @@ def get_func_def_info(code):
     if func_name[0] in ["*", "&"]:
         func_name = func_name[1:]
         return_type += " " + func_name[0]
-    if return_type.startswith("static") or return_type.startswith("extern"):
+    if return_type.startswith("static") or return_type.startswith("extern") or return_type.startswith("inline"):
         return_type = return_type.split(" ", 1)[1].strip()
     params_code = code[idx_param + 1:-1].strip()
     except_pair = {

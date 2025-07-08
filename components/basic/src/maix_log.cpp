@@ -159,4 +159,9 @@ namespace maix::log
         va_end(args);
     }
 
+    void flush(log::LogLevel level)
+    {
+        fflush(stdout);
+    }
+
 } // namespace maix::log

@@ -131,6 +131,7 @@ def get_components_find_dirs(configs):
         os.path.join(configs["SDK_PATH"], "components"),
         os.path.join(configs["SDK_PATH"], "components", "3rd_party"),
         os.path.join(configs["SDK_PATH"], "components", "ext_devs"),
+        os.path.join(configs["SDK_PATH"], "components", "algo"),
         configs["PROJECT_PATH"],
         os.path.join(configs["PROJECT_PATH"], "components"),
         os.path.join(configs["PROJECT_PATH"], "..", "components"),

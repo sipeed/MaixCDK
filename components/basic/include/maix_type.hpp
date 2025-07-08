@@ -11,6 +11,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "maix_type_vector3.hpp"
+
 namespace maix
 {
     /**
