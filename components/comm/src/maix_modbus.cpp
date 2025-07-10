@@ -755,7 +755,7 @@ std::vector<uint8_t> MasterRTU::read_coils(const uint32_t slave_id, const uint32
     const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
-    return read_coils(dev, baud, slave_id, size, addr, timeout_ms);
+    return read_coils(dev, baud, slave_id, addr, size, timeout_ms);
 }
 
 int MasterRTU::write_coils(const uint32_t slave_id, const std::vector<uint8_t>& data,
@@ -769,21 +769,21 @@ std::vector<uint8_t> MasterRTU::read_discrete_input(const uint32_t slave_id, con
         const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
-    return read_discrete_input(dev, baud, slave_id, size, addr, timeout_ms);
+    return read_discrete_input(dev, baud, slave_id, addr, size, timeout_ms);
 }
 
 std::vector<uint16_t> MasterRTU::read_input_registers(const uint32_t slave_id, const uint32_t addr,
     const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
-    return read_input_registers(dev, baud, slave_id, size, addr, timeout_ms);
+    return read_input_registers(dev, baud, slave_id, addr, size, timeout_ms);
 }
 
 std::vector<uint16_t> MasterRTU::read_holding_registers(const uint32_t slave_id, const uint32_t addr,
     const uint32_t size, const int timeout_ms, const std::string& device, const int baudrate)
 {
     auto [dev, baud] = this->get_cfg(device, baudrate);
-    return read_holding_registers(dev, baud, slave_id, size, addr, timeout_ms);
+    return read_holding_registers(dev, baud, slave_id, addr, size, timeout_ms);
 }
 
 int MasterRTU::write_holding_registers(const uint32_t slave_id, const std::vector<uint16_t>& data,
@@ -852,7 +852,7 @@ std::vector<uint8_t> MasterTCP::read_coils(const std::string ip, const uint32_t 
     const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
-    return read_coils(ip, p, size, addr, timeout_ms);
+    return read_coils(ip, p, addr, size, timeout_ms);
 }
 
 int MasterTCP::write_coils(const std::string ip, const std::vector<uint8_t>& data,
@@ -866,21 +866,21 @@ std::vector<uint8_t> MasterTCP::read_discrete_input(const std::string ip, const 
     const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
-    return read_discrete_input(ip, p, size, addr, timeout_ms);
+    return read_discrete_input(ip, p, addr, size, timeout_ms);
 }
 
 std::vector<uint16_t> MasterTCP::read_input_registers(const std::string ip, const uint32_t addr,
     const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
-    return read_input_registers(ip, p, size, addr, timeout_ms);
+    return read_input_registers(ip, p, addr, size, timeout_ms);
 }
 
 std::vector<uint16_t> MasterTCP::read_holding_registers(const std::string ip, const uint32_t addr,
     const uint32_t size, const int timeout_ms, const int port)
 {
     auto p = this->get_cfg(port);
-    return read_holding_registers(ip, p, size, addr, timeout_ms);
+    return read_holding_registers(ip, p, addr, size, timeout_ms);
 }
 
 int MasterTCP::write_holding_registers(const std::string ip, const std::vector<uint16_t>& data,
