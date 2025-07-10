@@ -1246,6 +1246,23 @@ _exit:
             return frame;
     }
 
+    err::Err Encoder::push(pipeline::Frame *frame) {
+        VIDEO_FRAME_INFO_S *pframe = (VIDEO_FRAME_INFO_S *)frame->frame();
+        if (0 != mmf_venc_push2(MMF_VENC_CHN, pframe)) {
+            return err::ERR_RUNTIME;
+        }
+        return err::ERR_NONE;
+    }
+
+    pipeline::Stream *Encoder::pop(int block_ms) {
+        mmf_stream_t stream = {0};
+        if (0 != mmf_venc_pop(MMF_VENC_CHN, &stream)) {
+            return nullptr;
+        }
+        std::string from = "venc," + std::to_string(MMF_VENC_CHN);
+        return new pipeline::Stream(&stream, true, from);
+    }
+
     typedef enum {
         VIDEO_FORMAT_NONE,
         VIDEO_FORMAT_H264,
@@ -2178,6 +2195,14 @@ _retry:
         } else {
             return NULL;
         }
+    }
+
+    err::Err Decoder::push(pipeline::Stream *stream) {
+        return err::ERR_NOT_IMPL;
+    }
+
+    pipeline::Frame *Decoder::pop(int block_ms) {
+        return nullptr;
     }
 
     video::Context *Decoder::unpack() {

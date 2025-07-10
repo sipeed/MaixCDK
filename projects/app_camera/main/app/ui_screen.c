@@ -875,7 +875,19 @@ static void screen_resolution_init(void)
     int obj_w = lv_pct(100);
     int obj_h = lv_pct(25);
 
-    {
+    for (int i = 0; i < UI_CAMERA_RESOLUTION_MAX_NUM; i++) {
+        ui_camera_resolution_config_t *res = &priv.cam_cfg.resulution_configs[i];
+
+        if (!res->enable) {
+            continue;
+        }
+
+        int w = res->w;
+        int h = res->h;
+        char *name = res->name;
+        char resolution_str[30];
+        snprintf(resolution_str, sizeof(resolution_str), "%dx%d", w, h);
+
         obj = lv_obj_create(scr);
         lv_obj_set_size(obj, obj_w, obj_h);
         lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
@@ -891,99 +903,14 @@ static void screen_resolution_init(void)
         label = lv_label_create(obj);
         lv_obj_set_pos(label, 0, 0);
         lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "3.7MP(16:9)");    // 2560x1440
+        lv_label_set_text(label, name);
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
 
         label = lv_label_create(obj);
         lv_obj_set_pos(label, 0, 20);
         lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "2560x1440");    // 2560x1440
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
-    }
-
-    {
-        obj = lv_obj_create(scr);
-        lv_obj_set_size(obj, obj_w, obj_h);
-        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
-        lv_obj_set_style_radius(obj, 0, 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_CHECKED);
-        lv_obj_set_style_pad_all(obj, 0, 0);
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
-        lv_obj_set_flex_grow(obj, 1);
-        lv_obj_add_event_cb(obj, event_touch_select_resolution_cb, LV_EVENT_CLICKED, NULL);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 0);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "2MP(16:9)");      // 1920x1080
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 20);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "1920x1080");
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
-    }
-
-    {
-        obj = lv_obj_create(scr);
-        lv_obj_set_size(obj, obj_w, obj_h);
-        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
-        lv_obj_set_style_radius(obj, 0, 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_CHECKED);
-        lv_obj_set_style_pad_all(obj, 0, 0);
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
-        lv_obj_set_flex_grow(obj, 1);
-        lv_obj_add_event_cb(obj, event_touch_select_resolution_cb, LV_EVENT_CLICKED, NULL);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 0);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "0.9MP(16:9)");    // 1280x720
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 20);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "1280x720");
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
-    }
-
-    {
-        obj = lv_obj_create(scr);
-        lv_obj_set_size(obj, obj_w, obj_h);
-        lv_obj_set_style_border_side(obj, LV_BORDER_SIDE_NONE, 0);
-        lv_obj_set_style_radius(obj, 0, 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x2e2e2e), 0);
-        lv_obj_set_style_bg_color(obj, lv_color_hex(0x7e7e7e), LV_STATE_CHECKED);
-        lv_obj_set_style_pad_all(obj, 0, 0);
-        lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
-        lv_obj_set_flex_grow(obj, 1);
-        lv_obj_add_event_cb(obj, event_touch_select_resolution_cb, LV_EVENT_CLICKED, NULL);
-        lv_obj_add_state(obj, LV_STATE_CHECKED);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 0);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "0.3MP(4:3)");
-        lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
-
-        label = lv_label_create(obj);
-        lv_obj_set_pos(label, 0, 20);
-        lv_obj_set_align(label, LV_ALIGN_CENTER);
-        lv_label_set_text(label, "640x480");
+        lv_label_set_text(label, resolution_str);
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
     }

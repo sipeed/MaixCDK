@@ -265,6 +265,11 @@ namespace maix::display
         return e;
     }
 
+    err::Err Display::push(pipeline::Frame *frame, image::Fit fit)
+    {
+        return _impl->push(frame, fit);
+    }
+
     void Display::set_backlight(float value)
     {
         if (value < 0)

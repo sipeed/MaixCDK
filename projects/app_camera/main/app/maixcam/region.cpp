@@ -1,5 +1,5 @@
 #include "region.hpp"
-
+#include "sophgo_middleware.hpp"
 Region::Region(int x, int y, int width, int height, image::Format format, camera::Camera *camera)
 {
     if (format != image::Format::FMT_BGRA8888) {

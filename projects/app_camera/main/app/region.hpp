@@ -3,7 +3,6 @@
 
 #include "maix_image.hpp"
 #include "maix_vision.hpp"
-#include "sophgo_middleware.hpp"
 
 using namespace maix;
 
@@ -19,6 +18,7 @@ private:
     image::Format _format;
     image::Image *_image;
     camera::Camera *_camera;
+    void *_handle;
 public:
     Region(int x, int y, int width, int height, image::Format format, camera::Camera *camera);
     ~Region();

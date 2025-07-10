@@ -53,6 +53,18 @@ namespace maix::video
         return nullptr;
     }
 
+    err::Err Encoder::push(pipeline::Frame *frame) {
+        (void)frame;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return err::ERR_NONE;
+    }
+
+    pipeline::Stream *Encoder::pop(int block_ms) {
+        (void)block_ms;
+        throw err::Exception(err::ERR_NOT_IMPL);
+        return nullptr;
+    }
+
     Decoder::Decoder(std::string path, image::Format format) {
         throw err::Exception(err::ERR_NOT_IMPL);
     }
@@ -72,6 +84,14 @@ namespace maix::video
     video::Context *Decoder::decode(bool block) {
         (void)block;
         return NULL;
+    }
+
+    err::Err Decoder::push(pipeline::Stream *stream) {
+        return err::ERR_NOT_IMPL;
+    }
+
+    pipeline::Frame *Decoder::pop(int block_ms) {
+        return nullptr;
     }
 
     double Decoder::seek(double time) {

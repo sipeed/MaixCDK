@@ -224,6 +224,11 @@ namespace maix::display
             return err::ERR_NONE;
         }
 
+        err::Err push(pipeline::Frame *frame, image::Fit fit) {
+            err::check_raise(err::ERR_NOT_IMPL, "SDL display does not support push");
+            return err::ERR_NONE;
+        }
+
         void set_backlight(float value)
         {
             return;

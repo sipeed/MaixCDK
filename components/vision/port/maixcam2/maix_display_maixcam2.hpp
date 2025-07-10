@@ -24,7 +24,7 @@
 #include "ax_middleware.hpp"
 
 using namespace maix::peripheral;
-using namespace maix::middleware::maixcam2;
+using namespace maix::middleware;
 namespace maix::display
 {
     enum class PanelType {
@@ -85,11 +85,11 @@ namespace maix::display
 
     class DisplayAx final : public DisplayBase
     {
-        std::unique_ptr<SYS> __sys;
-        std::unique_ptr<VO> __vo;
+        std::unique_ptr<maixcam2::SYS> __sys;
+        std::unique_ptr<maixcam2::VO> __vo;
 
-        static void __config_vo_param(ax_vo_param_t *new_param, int width, int height, image::Format format, int rotate) {
-            memset(new_param, 0, sizeof(ax_vo_param_t));
+        static void __config_vo_param(maixcam2::ax_vo_param_t *new_param, int width, int height, image::Format format, int rotate) {
+            memset(new_param, 0, sizeof(maixcam2::ax_vo_param_t));
             AX_VO_SYNC_INFO_T sync_info = {.u16Vact = 640, .u16Vbb = 30, .u16Vfb = 30, .u16Hact = 480, .u16Hbb = 30, .u16Hfb = 30, .u16Hpw = 40, .u16Vpw = 11, .u32Pclk = 24750, .bIdv = AX_TRUE, .bIhs = AX_FALSE, .bIvs = AX_TRUE};
             SAMPLE_VO_CONFIG_S vo_cfg = {
                 .u32VDevNr = 1,
@@ -149,6 +149,7 @@ namespace maix::display
             this->_format = format;
             this->_invert_flip = false;
             this->_invert_mirror = false;
+            this->_pool_id = AX_INVALID_POOLID;
             this->_layer = 0;       // layer 0 means vedio layer
             err::check_bool_raise(_format == image::FMT_RGB888
                                 || _format == image::FMT_YVU420SP
@@ -157,14 +158,14 @@ namespace maix::display
 
             _get_disp_configs(this->_invert_flip, this->_invert_mirror, _max_backlight);
 
-            __sys = std::make_unique<SYS>();
+            __sys = std::make_unique<maixcam2::SYS>();
             err::check_bool_raise(__sys != nullptr, "display construct sys failed");
             err::check_bool_raise(__sys->init() == err::ERR_NONE, "display init sys failed");
 
-            __vo = std::make_unique<VO>();
+            __vo = std::make_unique<maixcam2::VO>();
             err::check_bool_raise(__vo != nullptr, "VO init failed");
 
-            ax_vo_param_t vo_param;
+            maixcam2::ax_vo_param_t vo_param;
             __config_vo_param(&vo_param, width, height, format, rotate);
             err::check_bool_raise(__vo->init(&vo_param) == err::ERR_NONE, "VO init failed");
             _bl_pwm = nullptr;
@@ -186,20 +187,21 @@ namespace maix::display
             this->_invert_flip = false;
             this->_invert_mirror = false;
             this->_max_backlight = 50.0;
+            this->_pool_id = AX_INVALID_POOLID;
             this->_layer = layer;       // layer 0 means vedio layer
                                         // layer 1 means osd layer
             err::check_bool_raise(_format == image::FMT_BGRA8888, "Format not support");
 
             _get_disp_configs(this->_invert_flip, this->_invert_mirror, _max_backlight);
 
-            __sys = std::make_unique<SYS>();
+            __sys = std::make_unique<maixcam2::SYS>();
             err::check_bool_raise(__sys != nullptr, "display construct sys failed");
             err::check_bool_raise(__sys->init() == err::ERR_NONE, "display init sys failed");
 
-            __vo = std::make_unique<VO>();
+            __vo = std::make_unique<maixcam2::VO>();
             err::check_bool_raise(__vo != nullptr, "VO init failed");
 
-            ax_vo_param_t vo_param;
+            maixcam2::ax_vo_param_t vo_param;
             __config_vo_param(&vo_param, width, height, format, rotate);
             err::check_bool_raise(__vo->init(&vo_param) == err::ERR_NONE, "VO init failed");
             _bl_pwm = nullptr;
@@ -213,6 +215,11 @@ namespace maix::display
             __vo->deinit();
             __vo = nullptr;
             __sys = nullptr;
+
+            if (this->_pool_id != (int)AX_INVALID_POOLID) {
+                AX_POOL_DestroyPool(this->_pool_id);
+                this->_pool_id = AX_INVALID_POOLID;
+            }
 
             if(_bl_pwm && this->_layer == 0)    // _layer = 0, means video layer
             {
@@ -256,11 +263,11 @@ namespace maix::display
                 return err::ERR_RUNTIME;
             }
 
-            ax_vo_channel_param_t param ={
+            maixcam2::ax_vo_channel_param_t param ={
                 .width = width,
                 .height = height,
-                .format_in = get_ax_fmt_from_maix(format),
-                .format_out = get_ax_fmt_from_maix(image::FMT_YVU420SP),
+                .format_in = maixcam2::get_ax_fmt_from_maix(format),
+                .format_out = maixcam2::get_ax_fmt_from_maix(image::FMT_YVU420SP),
                 .fps = 60,
                 .depth = 0,
                 .mirror = _invert_mirror,
@@ -278,7 +285,11 @@ namespace maix::display
             if (this->_layer == 0) {
                 AX_POOL_CONFIG_T stPoolCfg = {0};
                 stPoolCfg.MetaSize = 512;
-                stPoolCfg.BlkCnt = 2;
+                if (width * height * image::fmt_size[format] >= 2560 * 1440 * 3 / 2) {
+                    stPoolCfg.BlkCnt = 3;
+                } else {
+                    stPoolCfg.BlkCnt = 2;
+                }
                 stPoolCfg.BlkSize = width * height * image::fmt_size[format];
                 stPoolCfg.CacheMode = AX_POOL_CACHE_MODE_NONCACHE;
                 strcpy((char *)stPoolCfg.PartitionName, "anonymous");
@@ -348,13 +359,18 @@ namespace maix::display
             // }
 
             if (this->_layer == 0) {
-                if (img.data_size() < this->_pool_size) {
+                if (img.data_size() > this->_pool_size) {
                     AX_POOL_DestroyPool(this->_pool_id);
 
                     AX_POOL_CONFIG_T stPoolCfg = {0};
                     stPoolCfg.MetaSize = 512;
                     stPoolCfg.BlkCnt = this->_pool_cnt;
                     stPoolCfg.BlkSize = img.data_size();
+                    if (img.data_size() >= 2560 * 1440 * 3 / 2) {
+                        stPoolCfg.BlkCnt = 3;
+                    } else {
+                        stPoolCfg.BlkCnt = 2;
+                    }
                     stPoolCfg.CacheMode = AX_POOL_CACHE_MODE_NONCACHE;
                     strcpy((char *)stPoolCfg.PartitionName, "anonymous");
                     AX_POOL pool_id = AX_POOL_CreatePool(&stPoolCfg);
@@ -367,7 +383,7 @@ namespace maix::display
                     this->_pool_size = stPoolCfg.BlkSize;
                 }
 
-                Frame *frame = new Frame(_pool_id, img.width(), img.height(), img.data(), img.data_size(), get_ax_fmt_from_maix(img.format()));
+                maixcam2::Frame *frame = new maixcam2::Frame(_pool_id, img.width(), img.height(), img.data(), img.data_size(), maixcam2::get_ax_fmt_from_maix(img.format()));
                 if (!frame) {
                     log::error("Failed to create frame");
                     return err::Err(err::ERR_RUNTIME);
@@ -451,7 +467,7 @@ namespace maix::display
                     err::check_raise(err::ERR_RUNTIME, "image size not match");
                 }
 
-                Frame *frame = new Frame(img.width(), img.height(), img.data(), img.data_size(), get_ax_fmt_from_maix(img.format()));
+                maixcam2::Frame *frame = new  maixcam2::Frame(img.width(), img.height(), img.data(), img.data_size(), maixcam2::get_ax_fmt_from_maix(img.format()));
                 if (!frame) {
                     log::error("Failed to create frame");
                     return err::Err(err::ERR_RUNTIME);
@@ -476,6 +492,17 @@ namespace maix::display
                 return err::ERR_ARGS;
             }
 
+            return err::ERR_NONE;
+        }
+
+        err::Err push(pipeline::Frame *frame, image::Fit fit) {
+            if (!frame) return err::ERR_ARGS;
+            if (0 != __vo->push(this->_layer, this->_ch, (maixcam2::Frame *)frame->frame())) {
+                log::error("mmf_vo_frame_push failed\n");
+                delete frame;
+                frame = nullptr;
+                return err::ERR_RUNTIME;
+            }
             return err::ERR_NONE;
         }
 

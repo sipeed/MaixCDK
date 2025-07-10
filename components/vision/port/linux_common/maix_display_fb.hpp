@@ -404,6 +404,11 @@ namespace maix::display
             return err::ERR_NONE;
         }
 
+        virtual err::Err push(pipeline::Frame *frame, image::Fit fit)
+        {
+            return err::ERR_NOT_IMPL;
+        }
+
         void set_backlight(float value)
         {
 #ifdef PLATFORM_MAIXCAM

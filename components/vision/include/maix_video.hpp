@@ -11,6 +11,7 @@
 #include "maix_display.hpp"
 #include "maix_camera.hpp"
 #include "maix_audio.hpp"
+#include "maix_pipeline.hpp"
 #include <memory>
 
 /**
@@ -685,6 +686,23 @@ namespace maix::video
         video::Frame *encode(image::Image *img = maix::video::Encoder::NoneImage, Bytes *pcm = maix::video::Encoder::NoneBytes);
 
         /**
+         * @brief Push a pipeline frame to encoder.
+         * @param frame the frame will be push.
+         * @return push result
+         * @maixpy maix.video.Encoder.push
+        */
+        err::Err push(pipeline::Frame *frame);
+
+        /**
+         * @brief Pop a frame from encoder.
+         * @note If encoder buffer is empty, it will return null.
+         * @param block_ms block read, if block_ms = -1, block indefinitely until an image is read; if block_ms = 0, do not block and return immediately
+         * @return pop result. @see pipeline::Stream
+         * @maixpy maix.video.Encoder.pop
+         */
+        pipeline::Stream *pop(int block_ms = 1000);
+
+        /**
          * Capture image
          * @attention Each time encode is called, the last captured image will be released.
          * @return error code
@@ -874,6 +892,23 @@ namespace maix::video
          * @maixpy maix.video.Decoder.decode
         */
         video::Context * decode(bool block = true);
+
+        /**
+         * @brief Push a pipeline frame to encoder.
+         * @param stream the frame will be push.
+         * @return push result
+         * @maixpy maix.video.Decoder.push
+        */
+        err::Err push(pipeline::Stream *stream);
+
+        /**
+         * @brief Pop a frame from encoder.
+         * @note If encoder buffer is empty, it will return null.
+         * @param block_ms block read, if block_ms = -1, block indefinitely until an image is read; if block_ms = 0, do not block and return immediately
+         * @return pop result. @see pipeline::Frame
+         * @maixpy maix.video.Decoder.pop
+         */
+        pipeline::Frame *pop(int block_ms = 1000);
 
         /**
          * Unpacking the video and audio stream

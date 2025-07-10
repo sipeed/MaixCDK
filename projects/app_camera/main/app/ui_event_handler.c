@@ -1259,7 +1259,10 @@ int ui_get_resulution(int *w, int *h)
 {
     if (!w || !h) return -1;
     char *text = (char *)lv_obj_get_user_data(g_resolution_setting);
-    if (!strcmp(text, "3.7MP(16:9)")) {
+    if (!strcmp(text, "8.2MP(16:9)")) {
+        *w = 3840;
+        *h = 2160;
+    } else if (!strcmp(text, "3.7MP(16:9)")) {
         *w = 2560;
         *h = 1440;
     } else if (!strcmp(text, "2MP(16:9)")) {
@@ -1609,6 +1612,10 @@ void ui_anim_run_save_img(void)
     lv_anim_set_values(&a, lv_obj_get_y(obj), 105);
     lv_anim_set_completed_cb(&a, _save_img_anim_completed_cb);
     lv_anim_start(&a);
+
+    // 临时修复：保存图片时小图显示不完整
+    lv_obj_remove_flag(g_big_img, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(g_big_img, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void _anim_photo_delay_update_cb(void * var, int32_t v)

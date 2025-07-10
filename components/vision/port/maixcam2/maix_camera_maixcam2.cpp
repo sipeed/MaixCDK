@@ -7,6 +7,7 @@
 
 
 #include "maix_camera.hpp"
+#include "maix_pipeline.hpp"
 #include "maix_basic.hpp"
 #include "maix_i2c.hpp"
 #include <dirent.h>
@@ -14,6 +15,7 @@
 
 using namespace maix;
 using namespace maix::middleware::maixcam2;
+#define ALIGN_UP_2(value) ((value + 0x1) & (~0x1))
 #define ALIGN_UP_16(value) ((value + 0xF) & (~0xF))
 
 namespace maix::camera
@@ -28,7 +30,29 @@ namespace maix::camera
 
     std::string get_device_name()
     {
-        return "sc450ai";
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
+
+        std::vector<int> addr_list = i2c_obj.scan();
+        for (size_t i = 0; i < addr_list.size(); i++) {
+            switch (addr_list[i]) {
+                case 0x29:  // gcore_gc4653
+                    return "gcore_gc4653";
+                case 0x30:  // sc850sl
+                    return "smartsens_sc850sl";
+                case 0x2b:  // lt6911
+                    return "lt6911";
+                case 0x36:  // ov_os04a10
+                    return "ov_os04a10";
+                case 0x37:  // gcore_gc02m1
+                    return "gcore_gc02m1";
+                case 0x48:// fall through
+                case 0x3c:  // os04d10 ??ov_ov2685
+                    return "ov_os04d10";
+                default: break;
+            }
+        }
+        err::check_raise(err::ERR_RUNTIME, "Not found any sensor");
+        return "unknown";
     }
 
     void set_regs_enable(bool enable) {
@@ -317,6 +341,33 @@ namespace maix::camera
     //     return format;
     // }
 
+    std::vector<int> get_sensor_size()
+    {
+        peripheral::i2c::I2C i2c_obj(0, peripheral::i2c::Mode::MASTER);
+
+        std::vector<int> addr_list = i2c_obj.scan();
+        for (size_t i = 0; i < addr_list.size(); i++) {
+            switch (addr_list[i]) {
+                case 0x29:  // gcore_gc4653
+                    return {2560, 1440};
+                case 0x30:  // sc850sl
+                    return {3840, 2160};
+                case 0x2b:  // lt6911
+                    return {1920, 1080};
+                case 0x36:  // ov_os04a10
+                    return {2560, 1440};
+                case 0x37:  // gcore_gc02m1
+                    return {1600, 1200};
+                case 0x48:// fall through
+                case 0x3c:  // os04d10 ??ov_ov2685
+                    return {2560, 1440};
+                default: break;
+            }
+        }
+        err::check_raise(err::ERR_RUNTIME, "Not found any sensor");
+        return {0, 0};
+    }
+
     typedef struct {
         int i2c_addr;
         bool raw;
@@ -378,7 +429,7 @@ namespace maix::camera
         }
 
         if (_param) {
-            free(_param);
+            ::free(_param);
         }
     }
 
@@ -438,6 +489,16 @@ namespace maix::camera
             err::check_raise(err, "Init ax vi failed");
         }
 
+        if (priv->raw) {
+            AX_VIN_DUMP_ATTR_T stDumpAttr;
+            stDumpAttr.bEnable = AX_TRUE;
+            stDumpAttr.nDepth = 1;
+            AX_S32 axRet = AX_VIN_SetPipeDumpAttr(0, AX_VIN_PIPE_DUMP_NODE_IFE, AX_VIN_DUMP_QUEUE_TYPE_DEV, &stDumpAttr);
+            if (0 != axRet) {
+                log::error("AX_VIN_SetPipeDumpAttr failed, ret=0x%x\n", axRet);
+            }
+        }
+
         auto ch = ax_vi->get_unused_channel();
         if (ch == -1) {
             delete ax_vi;
@@ -446,7 +507,7 @@ namespace maix::camera
         }
 
         int fit = 2;
-        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_16(height_tmp), get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, false, false, fit);
+        err = ax_vi->add_channel(ch, ALIGN_UP_16(width_tmp), ALIGN_UP_2(height_tmp), get_ax_fmt_from_maix(format_tmp), (int)fps_tmp, buff_num_tmp, false, false, fit);
         if (err != err::ERR_NONE) {
             delete ax_vi;
             delete ax_sys;
@@ -523,11 +584,8 @@ namespace maix::camera
                 err::check_raise(err::ERR_BUFF_EMPTY, "read camera failed");
             }
 
-            auto img = new image::Image(frame->w, frame->h, get_maix_fmt_from_ax(frame->fmt));
-            auto data = (uint8_t *)img->data();
-            memcpy(data, (uint8_t *)frame->data, frame->len);
-
-            delete frame;
+            auto pipeline_frame = pipeline::Frame(frame, true);
+            auto img = pipeline_frame.to_image();
             return img;
         }
     }
@@ -549,30 +607,24 @@ namespace maix::camera
             err::check_raise(err::ERR_BUFF_EMPTY, "read camera failed");
         }
 
-        auto img = new image::Image(frame->w, frame->h, _format, (uint8_t *)frame->data, frame->len, false);
-        switch (priv->chn.fmt) {
-        case image::Format::FMT_GRAYSCALE:
-            break;
-        case image::Format::FMT_RGB565:
-        case image::Format::FMT_BGR565:
-            break;
-        case image::Format::FMT_RGB888:
-        case image::Format::FMT_BGR888:
-            break;
-        case image::Format::FMT_RGBA8888:
-        case image::Format::FMT_BGRA8888:
-                break;
-        case image::Format::FMT_YVU420SP:
-            break;
-        default:
-            delete img;
-            err::check_raise(err::ERR_NOT_IMPL, "read camera failed");
-        }
-
+        auto img = new image::Image(frame->w, frame->h, image::FMT_RGGB10, (uint8_t *)frame->data, frame->len, false);
         delete frame;
         return img;
+    }
 
-        return nullptr;
+    pipeline::Frame *Camera::pop(int block_ms) {
+        auto *priv = (camera_priv_t *)_param;
+        auto vi = priv->ax_vi;
+        if (!this->is_opened()) {
+            err::Err e = open(_width, _height, _format, _fps, _buff_num);
+            err::check_raise(e, "open camera failed");
+        }
+
+        auto frame = vi->pop(priv->chn.id, block_ms);
+        if (!frame)
+            return nullptr;
+
+        return new pipeline::Frame(frame, true);
     }
 
     err::Err Camera::show_colorbar(bool enable)
@@ -615,7 +667,7 @@ namespace maix::camera
         err::Err ret = err::ERR_NONE;
         this->exposure(1000 / fps * 1000);
         _fps = fps;
-        return err::ERR_NONE;
+        return ret;
     }
 
     int Camera::exposure(int value) {
@@ -690,6 +742,11 @@ namespace maix::camera
         return current_gain;
     }
 
+    int Camera::iso(int value) {
+        int gain_vale = (double)value / 100.0 * 1024;
+        return this->gain(gain_vale);
+    }
+
     int Camera::hmirror(int value) {
         if (!this->is_opened()) {
             return -1;
@@ -744,6 +801,33 @@ namespace maix::camera
                 }
                 uint8_t temp[1] = {reg_val};
                 i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 16);
+            } else {
+
+            }
+        }
+        break;
+        case 0x3c:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x32;
+            uint8_t temp[1] = {0x01};
+            i2c_obj.writeto_mem(priv->i2c_addr, 0xfd, temp, sizeof(temp), 8);   // set page 0
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 8);
+            if (!data) {
+                return -1;
+            }
+            #define OS04D10_MIRROR_MASK (0x01)
+            reg_val = data->data[0];
+            mirror = (reg_val & OS04D10_MIRROR_MASK) ? true : false;
+            if (value >= 0) {
+                mirror = value > 0 ? true : false;
+                if (mirror) {
+                    reg_val = (reg_val & ~OS04D10_MIRROR_MASK) | OS04D10_MIRROR_MASK;
+                } else {
+                    reg_val = (reg_val & ~OS04D10_MIRROR_MASK);
+                }
+                temp[0] = {reg_val};
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 8);
             } else {
 
             }
@@ -816,6 +900,32 @@ namespace maix::camera
             }
         }
         break;
+        case 0x3c:
+        {
+            uint8_t reg_val = 0;
+            uint16_t reg_addr = 0x32;
+            uint8_t temp[1] = {0x01};
+            i2c_obj.writeto_mem(priv->i2c_addr, 0xfd, temp, sizeof(temp), 8);   // set page 0
+            auto data = i2c_obj.readfrom_mem(priv->i2c_addr, reg_addr, 1, 8);
+            if (!data) {
+                return -1;
+            }
+            #define OS04D10_FLIP_MASK (0x02)
+            reg_val = data->data[0];
+            flip = (reg_val & OS04D10_FLIP_MASK) ? true : false;
+            if (value >= 0) {
+                flip = value > 0 ? true : false;
+                if (flip) {
+                    reg_val = (reg_val & ~OS04D10_FLIP_MASK) | OS04D10_FLIP_MASK;
+                } else {
+                    reg_val = (reg_val & ~OS04D10_FLIP_MASK);
+                }
+                temp[0] = reg_val;
+                i2c_obj.writeto_mem(priv->i2c_addr, reg_addr, temp, sizeof(temp), 8);
+            } else {
+
+            }
+        }
         default:
         break;
         }
@@ -836,7 +946,7 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
 
             param.nBrightness = ((double)value / 100) * 4096;
@@ -845,14 +955,14 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
         }
 
         ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
         if (ax_res != AX_SUCCESS) {
             log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-            current_value;
+            return current_value;
         }
 
         current_value = (float)param.nBrightness / 4096 * 100;
@@ -871,7 +981,7 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
 
             param.nContrast = ((double)value / 100) * 8192 - 4096;
@@ -880,14 +990,14 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
         }
 
         ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
         if (ax_res != AX_SUCCESS) {
             log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-            current_value;
+            return current_value;
         }
 
         current_value = (float)(param.nContrast + 4096) / 8196 * 100;
@@ -906,7 +1016,7 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
 
             param.nSaturation = ((double)value / 100) * 65535;
@@ -915,14 +1025,14 @@ namespace maix::camera
             ax_res = AX_ISP_IQ_SetYcprocParam(_ch, &param);
             if (ax_res != AX_SUCCESS) {
                 log::error("AX_ISP_IQ_SetYcprocParam failed: %d", ax_res);
-                current_value;
+                return current_value;
             }
         }
 
         ax_res = AX_ISP_IQ_GetYcprocParam(_ch, &param);
         if (ax_res != AX_SUCCESS) {
             log::error("AX_ISP_IQ_GetYcprocParam failed: %d", ax_res);
-            current_value;
+            return current_value;
         }
 
         current_value = (float)param.nSaturation / 65536 * 100;log::info("2param.nSaturation: %d", param.nSaturation);
@@ -1040,8 +1150,8 @@ namespace maix::camera
             err::check_raise(err::ERR_RUNTIME, "roi size must be 4 or 2");
         }
 
-        snprintf(log_msg, sizeof(log_msg), "Width must be a multiple of 64.");
-        err::check_bool_raise(w % 64 == 0, std::string(log_msg));
+        snprintf(log_msg, sizeof(log_msg), "Width must be a multiple of 2.");
+        err::check_bool_raise(w % 2 == 0, std::string(log_msg));
         snprintf(log_msg, sizeof(log_msg), "the coordinate x range needs to be [0,%d].", max_width - 1);
         err::check_bool_raise(x >= 0 || x < max_width, std::string(log_msg));
         snprintf(log_msg, sizeof(log_msg), "the coordinate y range needs to be [0,%d].", max_height - 1);

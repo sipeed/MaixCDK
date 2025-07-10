@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include "maix_pipeline.hpp"
 
 /**
  * @brief maix.display module, control display device and show image on it
@@ -146,6 +147,16 @@ namespace maix::display
          * @maixpy maix.display.Display.show
         */
         err::Err show(image::Image &img, image::Fit fit = image::FIT_CONTAIN);
+
+        /**
+         * @brief push pipeline frame to display
+         * @param frame pipeline frame
+         * @param fit image in screen fit mode, by default(value is image.FIT_CONTAIN), @see image.Fit for more details
+         *            e.g. image.FIT_CONTAIN means resize image to fit display size and keep ratio, fill blank with black color.
+         * @return error code
+         * @maixpy maix.display.Display.push
+        */
+        err::Err push(pipeline::Frame *frame, image::Fit fit = image::FIT_CONTAIN);
 
         /**
          * Get display device path

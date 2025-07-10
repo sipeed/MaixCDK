@@ -529,6 +529,27 @@ namespace maix::video
         return frame;
     }
 
+    err::Err Encoder::push(pipeline::Frame *frame) {
+        auto param = (encoder_param_t *)_param;
+        auto new_frame  =(maixcam2::Frame *)frame->frame();
+        auto ret = param->venc->push(new_frame, 1000);
+        if (ret != err::ERR_NONE) {
+            log::error("encode push failed! err:%d", ret);
+            return err::ERR_RUNTIME;
+        }
+        return err::ERR_NONE;
+    }
+
+    pipeline::Stream *Encoder::pop(int block_ms) {
+        auto param = (encoder_param_t *)_param;
+        auto new_frame = param->venc->pop(block_ms);
+        if (new_frame == nullptr) {
+            return nullptr;
+        }
+
+        return new pipeline::Stream(new_frame, true);
+    }
+
     void *Encoder::get_driver() {
         encoder_param_t *param = (encoder_param_t *)_param;
         return param->venc;
@@ -1406,6 +1427,28 @@ __vdec_exit:
         } else {
             return NULL;
         }
+    }
+
+    err::Err Decoder::push(pipeline::Stream *stream) {
+        err::Err ret = err::ERR_NONE;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        auto new_stream = (maixcam2::Frame *)stream->stream();
+        ret = param->vdec->push(new_stream, 1000);
+        if (ret != err::ERR_NONE) {
+            log::error("decoder push failed, ret:%d", ret);
+            return ret;
+        }
+        return ret;
+    }
+
+    pipeline::Frame *Decoder::pop(int block_ms) {
+        decoder_param_t *param = (decoder_param_t *)_param;
+        auto frame = param->vdec->pop(block_ms);
+        if (frame == nullptr) {
+            log::error("decoder pop failed");
+            return nullptr;
+        }
+        return new pipeline::Frame(frame);
     }
 
     video::Context *Decoder::unpack() {

@@ -355,6 +355,57 @@ _retry:
         return device_name;
     }
 
+    std::vector<int> get_sensor_size()
+    {
+        // TODO: supports dual sensor
+        int res = CVI_MIPI_SetSensorReset(0, 0);
+		if (res != CVI_SUCCESS) {
+			log::error("sensor 0 unreset failed!\n");
+			return {0, 0};
+		}
+        int retry_count = 0;
+        peripheral::i2c::I2C i2c_obj(4, peripheral::i2c::Mode::MASTER);
+
+_retry:
+        if (retry_count < 1) {
+            int mclk_id = _get_mclk_id();
+            if (mclk_id == 0) {
+                system("devmem 0x0300116C 32 0x5"); // MIPI RX 4N PINMUX MCLK0
+                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MIPI RX 0N
+            } else if (mclk_id == 1) {
+                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+                system("devmem 0x0300118C 32 0x5"); // MIPI RX 0N PINMUX MCLK1
+            } else {
+                system("devmem 0x0300116C 32 0x3"); // MIPI RX 4N PINMUX MIPI RX 4N
+                system("devmem 0x0300118C 32 0x3"); // MIPI RX 0N PINMUX MCLK1
+            }
+            retry_count ++;
+            goto _retry;
+        }
+
+        std::vector<int> addr_list = i2c_obj.scan();
+        for (size_t i = 0; i < addr_list.size(); i++) {
+            switch (addr_list[i]) {
+                case 0x29:  // gcore_gc4653
+                    return {2560, 1440};
+                case 0x30:  // sms_sc035gs
+                    return {640, 480};
+                case 0x2b:  // lt6911
+                    return {1920, 1080};
+                case 0x36:  // ov_os04a10
+                    return {2560, 1440};
+                case 0x37:  // gcore_gc02m1
+                    return {1600, 1200};
+                case 0x48:// fall through
+                case 0x3c:  // ov_ov2685
+                    return {1600, 1200};
+                default: break;
+            }
+        }
+        err::check_raise(err::ERR_RUNTIME, "Not found any sensor");
+        return {0, 0};
+    }
+
     static void _config_sensor_env(double fps)
     {
         char *env_value = getenv(MMF_SENSOR_NAME);
@@ -1099,6 +1150,25 @@ _error:
         }
     }
 
+    pipeline::Frame *Camera::pop(int block_ms) {
+        VIDEO_FRAME_INFO_S frame;
+        memset(&frame, 0, sizeof(VIDEO_FRAME_INFO_S));
+        if (0 != CVI_VPSS_GetChnFrame(0, _ch, &frame, (CVI_S32)block_ms)) {
+            return nullptr;
+        }
+
+        int image_size = frame.stVFrame.u32Length[0]
+                    + frame.stVFrame.u32Length[1]
+                    + frame.stVFrame.u32Length[2];
+        CVI_VOID *vir_addr;
+        vir_addr = CVI_SYS_MmapCache(frame.stVFrame.u64PhyAddr[0], image_size);
+        CVI_SYS_IonInvalidateCache(frame.stVFrame.u64PhyAddr[0], vir_addr, image_size);
+        frame.stVFrame.pu8VirAddr[0] = (CVI_U8 *)vir_addr;		// save virtual address for munmap
+
+        std::string from = "vpsschn,"+ std::to_string(0) + "," + std::to_string(_ch);
+        return new pipeline::Frame(&frame, true, from);
+    }
+
     static image::Format _get_raw_format_with_size(int w, int h, int total_size, BAYER_FORMAT_E bayer_format) {
         image::Format format = image::FMT_INVALID;
         int size = w * h;
@@ -1369,6 +1439,22 @@ _error:
         } else {
             int iso_num = value * 100 / 1024;
             mmf_set_iso_num(_ch, iso_num);
+            out = value;
+        }
+        return out;
+    }
+
+    int Camera::iso(int value) {
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        uint32_t out;
+        if (value == -1) {
+            mmf_get_iso_num(_ch, &out);
+        } else {
+            mmf_set_iso_num(_ch, value);
+            mmf_get_iso_num(_ch, &out);
             out = value;
         }
         return out;

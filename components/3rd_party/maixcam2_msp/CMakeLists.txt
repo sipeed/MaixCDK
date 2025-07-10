@@ -2,9 +2,10 @@ set(maixcam2_msp_version_str "${CONFIG_MAIXCAM2_MSP_VERSION_MAJOR}.${CONFIG_MAIX
 set(srcs_path "${DL_EXTRACTED_PATH}/maixcam2_msp_srcs/maixcam2_msp_arm64_glibc_v${maixcam2_msp_version_str}")
 ################# Add include #################
 set(msp_glibc_path "${srcs_path}/out/arm64_glibc")
-set(msp_common_path "${srcs_path}/sample/common")
-list(APPEND ADD_INCLUDE "${msp_glibc_path}/include"
-                        "${msp_common_path}"
+set(msp_local_path "msp")
+list(APPEND ADD_INCLUDE "${msp_local_path}/component/isp_proton/sensor/common/include"
+                        "${msp_local_path}/out/arm64_glibc/include"
+                        "${msp_local_path}/sample/common"
     )
 # list(APPEND ADD_PRIVATE_INCLUDE "${msp_app_path}/component/3rd/inc/appweb")
 ###############################################
@@ -13,7 +14,7 @@ list(APPEND ADD_INCLUDE "${msp_glibc_path}/include"
 # list(APPEND ADD_SRCS  "src/lib1.c"
 #     )
 # aux_source_directory("inifile2/src" ADD_SRCS)  # collect all source file in src dir, will set var ADD_SRCS
-append_srcs_dir(ADD_SRCS "${msp_common_path}")     # append source file in src dir to var ADD_SRCS
+append_srcs_dir(ADD_SRCS "${msp_local_path}/sample/common")     # append source file in src dir to var ADD_SRCS
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test.c")
 ###############################################
 

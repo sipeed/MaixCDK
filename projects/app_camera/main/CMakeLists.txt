@@ -15,6 +15,14 @@ append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD
 append_srcs_dir(ADD_SRCS "i18n")
 append_srcs_dir(ADD_SRCS "app")
 append_srcs_dir(ADD_SRCS "assets")
+
+if (PLATFORM_MAIXCAM)
+append_srcs_dir(ADD_SRCS "app/maixcam")
+elseif(PLATFORM_MAIXCAM2)
+append_srcs_dir(ADD_SRCS "app/maixcam2")
+else()
+append_srcs_dir(ADD_SRCS "app/linux")
+endif()
 # list(APPEND ADD_SRCS  "ui/app.c"
 #                       "ui/event_handler.c"
 #                       "ui/screen.c"

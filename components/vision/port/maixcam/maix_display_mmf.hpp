@@ -426,6 +426,23 @@ namespace maix::display
             return err::ERR_NONE;
         }
 
+        err::Err push(pipeline::Frame *frame, image::Fit fit) {
+            if (!frame) return err::ERR_ARGS;
+            int mmf_fit = 0;
+            switch (fit) {
+                case image::Fit::FIT_FILL: mmf_fit = 0; break;
+                case image::Fit::FIT_CONTAIN: mmf_fit = 1; break;
+                case image::Fit::FIT_COVER: mmf_fit = 2; break;
+                default: mmf_fit = 0; break;
+            }
+            int ret = mmf_vo_frame_push2(this->_layer,  this->_ch, mmf_fit, frame->frame());
+            if (ret != 0) {
+                log::error("display push failed");
+                return err::ERR_RUNTIME;
+            }
+            return err::ERR_NONE;
+        }
+
         void set_backlight(float value)
         {
             _bl_pwm->duty(value * _max_backlight / 100.0);

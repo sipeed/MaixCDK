@@ -195,15 +195,23 @@ namespace maix::touchscreen
                     if(event.code == ABS_MT_POSITION_X || event.code == ABS_X)
                     {
                         // _x = event.value;
-                        // anti-clockwise 90 degree
-                        _y = event.value;
+                        /* anti-clockwise 90 degree */
+                        // _y = event.value;
+
+                        /* clockwise 90 degrees */
+                        _y = _x_max - event.value - 1;
+
                         event_move = true;
                     }
                     else if(event.code == ABS_MT_POSITION_Y || event.code == ABS_Y)
                     {
                         // _y = event.value;
-                        // anti-clockwise 90 degree
-                        _x = _y_max - event.value - 1;
+                        /* anti-clockwise 90 degree */
+                        // _x = _y_max - event.value - 1;
+
+                        /* clockwise 90 degrees */
+                        _x = event.value;
+
                         event_move = true;
                     }
                 }

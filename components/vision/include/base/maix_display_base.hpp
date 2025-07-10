@@ -11,6 +11,7 @@
 #include <vector>
 #include "maix_image.hpp"
 #include "maix_err.hpp"
+#include "maix_pipeline.hpp"
 
 namespace maix::display
 {
@@ -89,6 +90,15 @@ namespace maix::display
          * @return error code
         */
         virtual err::Err show(image::Image &img, image::Fit fit = image::FIT_CONTAIN) = 0;
+
+        /**
+         * @brief push pipeline frame to display
+         * @param frame pipeline frame
+         * @param fit image in screen fit mode, by default(value is image.FIT_CONTAIN), @see image.Fit for more details
+         *            e.g. image.FIT_CONTAIN means resize image to fit display size and keep ratio, fill blank with black color.
+         * @return error code
+        */
+        virtual err::Err push(pipeline::Frame *frame, image::Fit fit = image::FIT_CONTAIN) = 0;
 
         /**
          * Set display backlight

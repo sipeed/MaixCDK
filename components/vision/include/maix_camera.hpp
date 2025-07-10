@@ -9,6 +9,7 @@
 
 #include "maix_tensor.hpp"
 #include "maix_log.hpp"
+#include "maix_pipeline.hpp"
 #include "maix_image.hpp"
 #include "maix_err.hpp"
 #include <stdlib.h>
@@ -42,6 +43,13 @@ namespace maix::camera
      * @maixpy maix.camera.get_device_name
     */
     std::string get_device_name();
+
+    /**
+     * Get sensor size
+     * @return Return a list of sensor sizes, the format is [w, h].
+     * @maixpy maix.camera.get_sensor_size
+    */
+    std::vector<int> get_sensor_size();
 
     /**
      * Camera class
@@ -305,6 +313,17 @@ namespace maix::camera
         int gain(int value = -1);
 
         /**
+         * Set/Get camera iso
+         * @attention This method will affect the isp and thus the image, so please be careful with it.
+         * @param value camera iso.
+         * If value == -1, returns camera iso.
+         * If value != 0, set and return camera iso.
+         * @return camera iso
+         * @maixpy maix.camera.Camera.iso
+        */
+        int iso(int value = -1);
+
+        /**
          * Set/Get camera luma
          * @attention This method will affect the isp and thus the image, so please be careful with it.
          * @param value luma value, range is [0, 100]
@@ -377,7 +396,7 @@ namespace maix::camera
 
         /**
          * Get sensor size
-         * @return sensor size
+         * @return Return a list of sensor sizes, the format is [w, h].
         */
         std::vector<int> get_sensor_size();
 
@@ -386,6 +405,17 @@ namespace maix::camera
          * @return camera driver
         */
         void *get_driver();
+
+        /**
+         * Retrieve camera data from the internal buffer without copying.
+         * @note You must use this interface very carefully. If it returns null, it means no image was captured.
+         * If it returns a frame, you must explicitly release the frame after use; otherwise, it may block the next image capture.
+         * For Python users, call `del frame` to release it; for C++ users, call `delete frame`.
+         * @param block_ms block read, if block_ms = -1, block indefinitely until an image is read; if block_ms = 0, do not block and return immediately
+         * @return Return image frame
+         * @maixcdk maix.camera.Camera.pop
+        */
+        pipeline::Frame *pop(int block_ms = 1000);
     private:
         std::string _device;
         int _ch;

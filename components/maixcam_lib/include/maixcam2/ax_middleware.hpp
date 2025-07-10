@@ -511,6 +511,7 @@ namespace maix::middleware::maixcam2 {
         SAMPLE_VIN_SINGLE_OS04A10 = 1,
         SAMPLE_VIN_SINGLE_SC450AI = 2,
         SAMPLE_VIN_SINGLE_SC850SL = 3,
+        SAMPLE_VIN_SINGLE_OS04D10 = 4,
         SAMPLE_VIN_BUTT
     } SAMPLE_VIN_CASE_E;
 
@@ -565,6 +566,18 @@ namespace maix::middleware::maixcam2 {
         {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 8, AX_COMPRESS_MODE_LOSSY, 4},      /* vin raw10 use */
     };
 
+    // OS04D10
+    static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleOs04d10Sdr[] = {
+        {2560, 1440, 2560, AX_FORMAT_YUV420_SEMIPLANAR, 6, AX_COMPRESS_MODE_LOSSY, 4},    /* vin nv21/nv21 use */
+        {2560, 1440, 2560, AX_FORMAT_YUV420_SEMIPLANAR, 5},    /* vin nv21/nv21 use */
+        {1920, 1080, 1920, AX_FORMAT_YUV420_SEMIPLANAR, 3},    /* vin nv21/nv21 use */
+        {720, 576, 720, AX_FORMAT_YUV420_SEMIPLANAR, 3},    /* vin nv21/nv21 use */
+    };
+
+    static COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleOs04d10Sdr[] = {
+        {2560, 1440, 2560, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 16, AX_COMPRESS_MODE_NONE, 4},      /* vin raw16 use */
+    };
+
     // SC850SL
     static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleSc850slSdr[] = {
         {3840, 2160, 3840, AX_FORMAT_YUV420_SEMIPLANAR, 4, AX_COMPRESS_MODE_LOSSY, 4},    /* vin nv21/nv21 use */
@@ -572,7 +585,7 @@ namespace maix::middleware::maixcam2 {
     };
 
     static COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleSc850slSdr[] = {
-        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 5, AX_COMPRESS_MODE_LOSSY, 4},      /* vin raw10 use */
+        {3840, 2160, 3840, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 5, AX_COMPRESS_MODE_NONE, 4},      /* vin raw10 use */
     };
     // static AX_CAMERA_T gCams[MAX_CAMERAS] = {0};
 
@@ -825,6 +838,36 @@ namespace maix::middleware::maixcam2 {
         return 0;
     }
 
+    static AX_U32 __sample_case_single_os04d10(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
+        SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
+    {
+        AX_CAMERA_T *pCam = NULL;
+        COMMON_VIN_MODE_E eSysMode = pVinParam->eSysMode;
+        AX_SNS_HDR_MODE_E eHdrMode = pVinParam->eHdrMode;
+        AX_S32 j = 0;
+        pCommonArgs->nCamCnt = 1;
+        pCam = &pCamList[0];
+        COMMON_VIN_GetSnsConfig(eSnsType, &pCam->tMipiAttr, &pCam->tSnsAttr,
+                                &pCam->tSnsClkAttr, &pCam->tDevAttr,
+                                &pCam->tPipeAttr[pCam->nPipeId], pCam->tChnAttr);
+        pCam->nDevId = 0;
+        pCam->nRxDev = 0;
+        pCam->nPipeId = 0;
+        pCam->nI2cAddr = 0x3c;
+        pCam->tSnsClkAttr.nSnsClkIdx = 0;
+        pCam->tDevBindPipe.nNum =  1;
+        pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+        pCam->ptSnsHdl[pCam->nPipeId] = COMMON_ISP_GetSnsObj(eSnsType);
+        pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
+        __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
+        __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, pVinParam->bAiispEnable);
+        for (j = 0; j < (AX_S32)pCam->tDevBindPipe.nNum; j++) {
+            pCam->tPipeInfo[j].ePipeMode = SAMPLE_PIPE_MODE_VIDEO;
+            pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
+            strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+        }
+        return 0;
+    }
 
     static AX_U32 __sample_case_single_sc850sl(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
         SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
@@ -858,12 +901,12 @@ namespace maix::middleware::maixcam2 {
             pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
             if (pCam->tPipeInfo[j].bAiispEnable) {
                 if (eHdrMode <= AX_SNS_LINEAR_MODE) {
-                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_sdr_dual3dnr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_20250520_20250520172759.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
                 } else {
                     strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_hdr_2x_ainr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
                 }
             } else {
-                strncpy(pCam->tPipeInfo[j].szBinPath, "null.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_20250520_20250520172759.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
             }
         }
         return 0;
@@ -913,6 +956,21 @@ namespace maix::middleware::maixcam2 {
             /* cams config */
             __sample_case_single_sc450ai(pCamList, eSnsType, pVinParam, pCommonArgs);
             break;
+        case SAMPLE_VIN_SINGLE_OS04D10:
+            eSnsType = OMNIVISION_OS04D10;
+            /* comm pool config */
+            __cal_dump_pool(gtSysCommPoolSingleOs04d10Sdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pCommonArgs->nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04d10Sdr) / sizeof(gtSysCommPoolSingleOs04d10Sdr[0]);
+            pCommonArgs->pPoolCfg = gtSysCommPoolSingleOs04d10Sdr;
+
+            /* private pool config */
+            __cal_dump_pool(gtPrivatePoolSingleOs04d10Sdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pPrivArgs->nPoolCfgCnt = sizeof(gtPrivatePoolSingleOs04d10Sdr) / sizeof(gtPrivatePoolSingleOs04d10Sdr[0]);
+            pPrivArgs->pPoolCfg = gtPrivatePoolSingleOs04d10Sdr;
+
+            /* cams config */
+            __sample_case_single_os04d10(pCamList, eSnsType, pVinParam, pCommonArgs);
+        break;
         case SAMPLE_VIN_SINGLE_SC850SL:
             eSnsType = SMARTSENS_SC850SL;
             /* comm pool config */
@@ -953,10 +1011,66 @@ namespace maix::middleware::maixcam2 {
             return SAMPLE_VIN_SINGLE_SC450AI;
         } else if (strcmp(sensor_name, "sc850sl") == 0) {
             return SAMPLE_VIN_SINGLE_SC850SL;
+        } else if (strcmp(sensor_name, "os04d10") == 0) {
+            return SAMPLE_VIN_SINGLE_OS04D10;
         } else {
             log::error("Can't find sensor %s", sensor_name);
             return SAMPLE_VIN_NONE;
         }
+    }
+
+    static AX_S32 COMMON_SYS_Init2(COMMON_SYS_ARGS_T *pCommonArgs)
+    {
+        AX_S32 axRet = 0;
+        AX_POOL_FLOORPLAN_T tPoolFloorPlan = {0};
+
+        axRet = AX_SYS_Init();
+        if (0 != axRet) {
+            COMM_SYS_PRT("AX_SYS_Init failed, ret=0x%x.\n", axRet);
+            return -1;
+        }
+
+        /* Release last Pool */
+        axRet = AX_POOL_Exit();
+        if (0 != axRet) {
+            COMM_SYS_PRT("AX_POOL_Exit fail!!Error Code:0x%X\n", axRet);
+        }
+
+        /* Calc Pool BlkSize/BlkCnt */
+        axRet = COMMON_SYS_CalcPool(pCommonArgs->pPoolCfg, pCommonArgs->nPoolCfgCnt, &tPoolFloorPlan);
+        if (0 != axRet) {
+            COMM_SYS_PRT("COMMON_SYS_CalcPool failed, ret=0x%x.\n", axRet);
+            return -1;
+        }
+
+        axRet = AX_POOL_SetConfig(&tPoolFloorPlan);
+        if (0 != axRet) {
+            COMM_SYS_PRT("AX_POOL_SetConfig fail!Error Code:0x%X\n", axRet);
+        }
+
+        axRet = AX_POOL_GetConfig(&tPoolFloorPlan);
+        if (0 != axRet) {
+            COMM_SYS_PRT("AX_POOL_GetConfig fail!Error Code:0x%X\n", axRet);
+        }
+        // for (int i = 0; i < AX_MAX_COMM_POOLS; i++) {
+        //     if (tPoolFloorPlan.CommPool[i].BlkCnt > 0) {
+        //         printf("CommPool[%d].MetaSize:%lld\r\n", i, tPoolFloorPlan.CommPool[i].MetaSize);
+        //         printf("CommPool[%d].BlkSize:%lld\r\n", i, tPoolFloorPlan.CommPool[i].BlkSize);
+        //         printf("CommPool[%d].BlkCnt:%d\r\n", i, tPoolFloorPlan.CommPool[i].BlkCnt);
+        //         printf("CommPool[%d].IsMergeMode:%d\r\n", i, tPoolFloorPlan.CommPool[i].IsMergeMode);
+        //         printf("CommPool[%d].CacheMode:%d\r\n", i, tPoolFloorPlan.CommPool[i].CacheMode);
+        //         printf("CommPool[%d].PartitionName:%s\r\n", i, tPoolFloorPlan.CommPool[i].PartitionName);
+        //         printf("CommPool[%d].PoolName:%s\r\n", i, tPoolFloorPlan.CommPool[i].PoolName);
+        //     }
+        // }
+
+        axRet = AX_POOL_Init();
+        if (0 != axRet) {
+            COMM_SYS_PRT("AX_POOL_Init fail!!Error Code:0x%X\n", axRet);
+            return -1;
+        }
+
+        return 0;
     }
 
     static std::vector<int> __scan_i2c_addr(int id)
@@ -1006,6 +1120,9 @@ namespace maix::middleware::maixcam2 {
                     return {true, name};
                 case 0x36:
                     name = "os04a10";
+                    return {true, name};
+                case 0x3c:
+                    name = "os04d10";
                     return {true, name};
                 default:
                     break;
@@ -1067,7 +1184,7 @@ namespace maix::middleware::maixcam2 {
                     .eSysCase = SAMPLE_VIN_SINGLE_SC450AI,
                     .eSysMode = COMMON_VIN_SENSOR,
                     .eHdrMode = AX_SNS_LINEAR_MODE,
-                    .eLoadRawNode = __raw ? LOAD_RAW_IFE : LOAD_RAW_NONE,
+                    .eLoadRawNode = LOAD_RAW_IFE,
                     .bAiispEnable = AX_FALSE,
                     .statDeltaPtsFrmNum = 0,
                 };
@@ -1086,7 +1203,7 @@ namespace maix::middleware::maixcam2 {
                 __sample_case_config(&tVinParam, &tCommonArgs, &tPrivArgs);
                 ::memcpy(&sys_param->tCommonArgs, &tCommonArgs, sizeof(COMMON_SYS_ARGS_T));
                 ::memcpy(&sys_param->tPrivArgs, &tPrivArgs, sizeof(COMMON_SYS_ARGS_T));
-                AX_S32 axRet = COMMON_SYS_Init(&sys_param->tCommonArgs);
+                AX_S32 axRet = COMMON_SYS_Init2(&sys_param->tCommonArgs);
                 if (axRet) {
                     mod_param.unlock(AX_MOD_SYS);
                     COMM_ISP_PRT("COMMON_SYS_Init fail, ret:0x%x", axRet);
@@ -1113,7 +1230,15 @@ namespace maix::middleware::maixcam2 {
                 log::info("sys deinit success, count:%d", sys_param->init_count);
             } else {
                 sys_param->init_count = 0;
-                COMMON_SYS_DeInit();
+                AX_S32 axRet = AX_POOL_Exit();
+                // if (axRet != AX_SUCCESS) {
+                //     log::error("AX_POOL_Exit failed, ret:%#x", axRet);
+                // }
+
+                axRet = AX_SYS_Deinit();
+                if (axRet != AX_SUCCESS) {
+                    log::error("AX_SYS_Deinit failed, ret:%#x", axRet);
+                }
                 printf("maix multi-media driver released.\r\n");
             }
             mod_param.unlock(AX_MOD_SYS);
@@ -1131,6 +1256,7 @@ namespace maix::middleware::maixcam2 {
         FRAME_FROM_AX_MALLOC,
         FRAME_FROM_AUDIO_GET_FRAME,
         FRAME_FROM_AUDIO_FRAME,
+        FRAME_FROM_GET_RAW_FRAME,
     } frame_from_e;
 
     class Frame {
@@ -1151,6 +1277,7 @@ namespace maix::middleware::maixcam2 {
         Frame(void *data, int data_size, frame_from_e from = FRAME_FROM_MALLOC);
         Frame(int card, int device, AX_AUDIO_FRAME_T *frame, frame_from_e from = FRAME_FROM_AUDIO_GET_FRAME);
         Frame(int card, int device, void *data, int data_size, AX_AUDIO_BIT_WIDTH_E bit_width, AX_AUDIO_SOUND_MODE_E sound_mode, frame_from_e from = FRAME_FROM_AUDIO_FRAME);
+        Frame(AX_U8 nPipeId, AX_VIN_PIPE_DUMP_NODE_E eRawId, AX_SNS_HDR_FRAME_E eSnsFrame, AX_IMG_INFO_T *pImgInfo, frame_from_e from = FRAME_FROM_GET_RAW_FRAME);
         ~Frame();
         frame_from_e from();
         err::Err get_video_frame(AX_VIDEO_FRAME_T * frame);
@@ -1220,6 +1347,9 @@ namespace maix::middleware::maixcam2 {
         err::Err push(maixcam2::Frame *frame, int32_t timeout_ms);
         maixcam2::Frame * pop(int32_t timeout_ms);
         err::Err get_config(ax_venc_param_t *cfg);
+        int get_channel() {
+            return _ch;
+        }
     private:
         int _ch;
     };
@@ -1231,6 +1361,9 @@ namespace maix::middleware::maixcam2 {
         err::Err push(maixcam2::Frame *frame, int32_t timeout_ms);
         maixcam2::Frame * pop(int32_t timeout_ms);
         err::Err get_config(ax_vdec_param_t *cfg);
+        int get_channel() {
+            return _ch;
+        }
     private:
         int _ch;
         void *param;

@@ -1340,6 +1340,11 @@ namespace maix::camera
         }
     }
 
+    pipeline::Frame *Camera::pop(int block_ms) {
+        err::check_raise(err::ERR_NOT_IMPL, "This function is not implemented");
+        return nullptr;
+    }
+
     void Camera::clear_buff()
     {
 
@@ -1364,6 +1369,10 @@ namespace maix::camera
     }
 
     int Camera::gain(int value) {
+        return -1;
+    }
+
+    int Camera::iso(int value) {
         return -1;
     }
 
