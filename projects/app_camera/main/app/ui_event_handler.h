@@ -110,6 +110,7 @@ int ui_get_timelapse_s();
 void ui_set_timelapse_s(int timelapse, bool need_update);
 
 #define UI_CAMERA_RESOLUTION_MAX_NUM 8
+#define UI_CAMERA_BITRATE_MAX_NUM 10
 typedef struct {
     bool enable;
     int w;
@@ -126,7 +127,8 @@ typedef struct {
     unsigned int iso_default;
     double exposure_time_table[31];
     double iso_table[19];
-    ui_camera_resolution_config_t resulution_configs[UI_CAMERA_RESOLUTION_MAX_NUM];
+    ui_camera_resolution_config_t resolution_configs[UI_CAMERA_RESOLUTION_MAX_NUM];
+    unsigned int bitrate_configs[UI_CAMERA_BITRATE_MAX_NUM];
 } ui_camera_config_t;
 void ui_camera_config_read(ui_camera_config_t *cfg);
 void ui_camera_config_update(ui_camera_config_t *cfg);

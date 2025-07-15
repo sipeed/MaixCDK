@@ -92,7 +92,7 @@ static struct {
     ui_camera_config_t ui_camera_cfg;
 } priv;
 
-static ui_camera_resolution_config_t default_resulution_configs[UI_CAMERA_RESOLUTION_MAX_NUM] = {
+static ui_camera_resolution_config_t default_resolution_configs[UI_CAMERA_RESOLUTION_MAX_NUM] = {
     {false, 3840, 2160, "8.2MP(16:9)"},
     {false, 2560, 1440, "3.7MP(16:9)"},
     {false, 1920, 1080, "2MP(16:9)"},
@@ -100,17 +100,22 @@ static ui_camera_resolution_config_t default_resulution_configs[UI_CAMERA_RESOLU
     {false, 640, 480, "0.3MP(4:3)"},
 };
 
+static void trim(std::string &str) {
+    str.erase(0, str.find_first_not_of(" \t\n\r"));
+    str.erase(str.find_last_not_of(" \t\n\r") + 1);
+}
+
 static void __config_camera_resolution_list(ui_camera_config_t *camera_config, int max_w, int max_h) {
-    memcpy(camera_config->resulution_configs, default_resulution_configs, sizeof(default_resulution_configs));
+    memcpy(camera_config->resolution_configs, default_resolution_configs, sizeof(default_resolution_configs));
     for (int i = 0; i < UI_CAMERA_RESOLUTION_MAX_NUM; i++) {
-        if (camera_config->resulution_configs[i].w == 0
-            || camera_config->resulution_configs[i].h == 0) {
+        if (camera_config->resolution_configs[i].w == 0
+            || camera_config->resolution_configs[i].h == 0) {
             continue;
         }
-        if (camera_config->resulution_configs[i].w <= max_w || camera_config->resulution_configs[i].h <= max_h) {
-            camera_config->resulution_configs[i].enable = true;
+        if (camera_config->resolution_configs[i].w <= max_w || camera_config->resolution_configs[i].h <= max_h) {
+            camera_config->resolution_configs[i].enable = true;
         } else {
-            camera_config->resulution_configs[i].enable = false;
+            camera_config->resolution_configs[i].enable = false;
         }
     }
 }
@@ -119,12 +124,12 @@ static int __get_camera_resolution_index(ui_camera_config_t *camera_config, int 
 {
     int index = -1;
     for (int i = 0; i < UI_CAMERA_RESOLUTION_MAX_NUM; i++) {
-        if (!camera_config->resulution_configs[i].enable) {
+        if (!camera_config->resolution_configs[i].enable) {
             continue;
         }
 
         index ++;
-        if (camera_config->resulution_configs[i].w == w && camera_config->resulution_configs[i].h == h) {
+        if (camera_config->resolution_configs[i].w == w && camera_config->resolution_configs[i].h == h) {
             break;
         }
     }
@@ -134,6 +139,47 @@ static int __get_camera_resolution_index(ui_camera_config_t *camera_config, int 
         err::check_raise(err::ERR_RUNTIME, "Camera resolution not supported");
     }
     return index;
+}
+
+static void __config_camera_bitrate_list(ui_camera_config_t *camera_config) {
+    unsigned int default_bitrate_configs[UI_CAMERA_BITRATE_MAX_NUM] = {1 * 1000 * 1000,
+                                                                    2 * 1000 * 1000,
+                                                                    3 * 1000 * 1000,
+                                                                    4 * 1000 * 1000,
+                                                                    5 * 1000 * 1000,
+                                                                    6 * 1000 * 1000,
+                                                                    7 * 1000 * 1000,
+                                                                    8 * 1000 * 1000,
+                                                                    9 * 1000 * 1000,
+                                                                    10 * 1000 * 1000};
+    auto device_configs = sys::device_configs();
+    auto it = device_configs.find("id");
+    if (it == device_configs.end()) {
+        log::warn("Device id not found, use default bitrate list");
+        memcpy(camera_config->bitrate_configs, default_bitrate_configs, sizeof(camera_config->bitrate_configs));
+    } else {
+        auto new_io = it->second;
+        trim(new_io);
+        if (new_io == "maixcam") {
+            memcpy(camera_config->bitrate_configs, default_bitrate_configs, sizeof(camera_config->bitrate_configs));
+        } else if (new_io == "maixcam2") {
+            unsigned int maixcam2_bitrate_configs[UI_CAMERA_BITRATE_MAX_NUM] = {
+                3 * 1000 * 1000,
+                5 * 1000 * 1000,
+                8 * 1000 * 1000,
+                10 * 1000 * 1000,
+                15 * 1000 * 1000,
+                25 * 1000 * 1000,
+                35 * 1000 * 1000,
+                50 * 1000 * 1000,
+                75 * 1000 * 1000,
+                100 * 1000 * 1000
+            };
+            memcpy(camera_config->bitrate_configs, maixcam2_bitrate_configs, sizeof(camera_config->bitrate_configs));
+        } else {
+            memcpy(camera_config->bitrate_configs, default_bitrate_configs, sizeof(camera_config->bitrate_configs));
+        }
+    }
 }
 
 static void set_audio_enable(bool en)
@@ -245,11 +291,6 @@ static int _get_encode_bitrate_by_camera_resolution(int w, int h) {
     } else {
         return 3 * 1000 * 1000;
     }
-}
-
-static void trim(std::string &str) {
-    str.erase(0, str.find_first_not_of(" \t\n\r"));
-    str.erase(str.find_last_not_of(" \t\n\r") + 1);
 }
 
 int app_base_init(void)
@@ -631,6 +672,7 @@ int app_init(camera::Camera &cam)
     ui_camera_config_read(&priv.ui_camera_cfg);
     auto sensor_size = cam.get_sensor_size();
     __config_camera_resolution_list(&priv.ui_camera_cfg, sensor_size[0], sensor_size[1]);
+    __config_camera_bitrate_list(&priv.ui_camera_cfg);
     ui_camera_config_update(&priv.ui_camera_cfg);
     ui_all_screen_init();
     _ui_update_new_image_from_maix_path();
@@ -638,7 +680,7 @@ int app_init(camera::Camera &cam)
     usleep(1000 * 1000); // wait sensor init
     uint32_t exposure_time = 0, iso_num = 0;
     exposure_time = priv.camera->exposure();
-    iso_num = priv.camera->iso(iso_num);;
+    iso_num = priv.camera->iso(iso_num);
     priv.sensor_shutter_value = exposure_time;
     priv.sensor_iso_value = iso_num;
     ui_set_shutter_value((double)exposure_time);

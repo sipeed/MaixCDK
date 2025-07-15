@@ -876,7 +876,7 @@ static void screen_resolution_init(void)
     int obj_h = lv_pct(25);
 
     for (int i = 0; i < UI_CAMERA_RESOLUTION_MAX_NUM; i++) {
-        ui_camera_resolution_config_t *res = &priv.cam_cfg.resulution_configs[i];
+        ui_camera_resolution_config_t *res = &priv.cam_cfg.resolution_configs[i];
 
         if (!res->enable) {
             continue;
@@ -939,17 +939,7 @@ static void screen_bitrate_init(void)
     int obj_w = lv_pct(100);
     int obj_h = lv_pct(15);
 
-    int bitrate_list[] = {1 * 1000 * 1000,
-                            2 * 1000 * 1000,
-                            3 * 1000 * 1000,
-                            4 * 1000 * 1000,
-                            5 * 1000 * 1000,
-                            6 * 1000 * 1000,
-                            7 * 1000 * 1000,
-                            8 * 1000 * 1000,
-                            9 * 1000 * 1000,
-                            10 * 1000 * 1000};
-    for (size_t i = 0; i < sizeof(bitrate_list) / sizeof(bitrate_list[0]); i ++) {
+    for (size_t i = 0; i < sizeof(priv.cam_cfg.bitrate_configs) / sizeof(priv.cam_cfg.bitrate_configs[0]); i ++) {
         {
             obj = lv_obj_create(scr);
             lv_obj_set_size(obj, obj_w, obj_h);
@@ -965,7 +955,7 @@ static void screen_bitrate_init(void)
             label = lv_label_create(obj);
             lv_obj_set_pos(label, 0, 0);
             lv_obj_set_align(label, LV_ALIGN_CENTER);
-            lv_label_set_text_fmt(label, "%d kbps", bitrate_list[i] / 1000);
+            lv_label_set_text_fmt(label, "%d kbps", priv.cam_cfg.bitrate_configs[i] / 1000);
             lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
             lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
         }
