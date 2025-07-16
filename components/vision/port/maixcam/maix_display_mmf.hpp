@@ -21,6 +21,7 @@
 #include <linux/fb.h>
 #include <sys/mman.h>
 #include "maix_fs.hpp"
+#include "maix_pinmap.hpp"
 
 using namespace maix::peripheral;
 
@@ -190,6 +191,7 @@ namespace maix::display
                 err::check_raise(err::ERR_RUNTIME, "mmf init failed");
             }
             int pwm_id = 10;
+            peripheral::pinmap::set_pin_function("BL", "PWM10");
             _bl_pwm = new pwm::PWM(pwm_id, 100000, 20);
         }
 

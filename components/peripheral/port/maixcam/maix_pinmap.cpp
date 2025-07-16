@@ -15,6 +15,138 @@
 
 namespace maix::peripheral::pinmap
 {
+
+
+    static const std::map<std::string, std::vector<std::string>> pins_info = {
+        {"A14",{
+            "GPIOA14"
+        }},
+        {"A15",{
+            "GPIOA15",
+            "I2C5_SCL"
+        }},
+        {"A16",{
+            "GPIOA16",
+            "PWM4",
+            "UART0_TX"
+        }},
+        {"A17",{
+            "GPIOA17",
+            "PWM5",
+            "UART0_RX"
+        }},
+        {"A18",{
+            "GPIOA18",
+            "PWM6",
+            "UART1_RX",
+            "JTAG_TCK"
+        }},
+        {"A19",{
+            "GPIOA19",
+            "PWM7",
+            "UART1_TX",
+            "JTAG_TMS"
+        }},
+        {"A22",{
+            "GPIOA22",
+            "SPI4_SCK"
+        }},
+        {"A23",{
+            "GPIOA23",
+            "SPI4_MISO"
+        }},
+        {"A24",{
+            "GPIOA24",
+            "SPI4_CS"
+        }},
+        {"A25",{
+            "GPIOA25",
+            "SPI4_MOSI"
+        }},
+        {"A26",{
+            "GPIOA26"
+        }},
+        {"A27",{
+            "GPIOA27",
+            "I2C5_SDA"
+        }},
+        {"A28",{
+            "GPIOA28",
+            "UART2_TX",
+            "JTAG_TDI"
+        }},
+        {"A29",{
+            "GPIOA29",
+            "UART2_RX",
+            "JTAG_TDO"
+        }},
+        {"B3",{
+            "GPIOB3",
+            "ADC"
+        }},
+        {"B26",{
+            "GPIOB26",
+            "PWM14"
+        }},
+        {"B27",{
+            "GPIOB27",
+            "PWM15"
+        }},
+        {"C2",{
+            "GPIOC2",
+            "CAM_MCLK0"
+        }},
+        {"P18",{
+            "GPIOP18",
+            "UART3_CTS",
+            "I2C1_SCL",
+            "PWM4",
+            "SPI2_CS",
+            "SDIO1_D3"
+        }},
+        {"P19",{
+            "GPIOP19",
+            "UART3_TX",
+            "PWM5",
+            "SDIO1_D2"
+        }},
+        {"P20",{
+            "GPIOP20",
+            "UART3_RX",
+            "PWM6",
+            "SDIO1_D1"
+        }},
+        {"P21",{
+            "GPIOP21",
+            "UART3_RTS",
+            "I2C1_SDA",
+            "PWM7",
+            "SPI2_MISO",
+            "SDIO1_D0"
+        }},
+        {"P22",{
+            "GPIOP22",
+            "I2C3_SCL",
+            "PWM8",
+            "SPI2_MOSI",
+            "SDIO1_CMD"
+        }},
+        {"P23",{
+            "GPIOP23",
+            "I2C3_SDA",
+            "PWM9",
+            "SPI2_SCK",
+            "SDIO1_CLK"
+        }},
+        {"P24",{
+            "GPIOP24",
+            "PWM2",
+        }},
+        {"BL",{
+            "PWM10"
+        }}
+    };
+
     /**
      * @brief ismod module.ko or rmmod module.ko
      *
@@ -105,33 +237,29 @@ namespace maix::peripheral::pinmap
 
     std::vector<std::string> get_pins()
     {
-        std::vector<std::string> pins = {
-            "A14",
-            "A15",
-            "A16",
-            "A17",
-            "A18",
-            "A19",
-            "A22",
-            "A23",
-            "A24",
-            "A25",
-            "A26",
-            "A27",
-            "A28",
-            "A29",
-            "B3",
-            "B26",
-            "B27",
-            "C2",
-            "P18",
-            "P19",
-            "P20",
-            "P21",
-            "P22",
-            "P23",
-        };
-        return pins;
+        std::vector<std::string> keys;
+        for (const auto& pair : pins_info) {
+            keys.push_back(pair.first);
+        }
+        return keys;
+    }
+
+    std::vector<std::string> get_pin_functions(const std::string &pin)
+    {
+        std::vector<std::string> result;
+
+        for (const auto& pair : pins_info) {
+            const std::string& func = pair.first;
+            const std::vector<std::string>& pins = pair.second;
+            if (std::find(pins.begin(), pins.end(), pin) != pins.end()) {
+                result.push_back(func);
+            }
+        }
+        if (!result.empty()) {
+            return result;
+        } else {
+            throw err::Exception(err::ERR_ARGS);
+        }
     }
 
     static void _config_eth_pin(bool en) {
@@ -153,214 +281,6 @@ namespace maix::peripheral::pinmap
             set_pinmux(0x03009078, 0x0000BF00); // [11:0] = 0xF00
             set_pinmux(0x03009074, 0x00000606); // 0x606
             set_pinmux(0x03009070, 0x00000606); // 0x606
-        }
-    }
-
-    std::vector<std::string> get_pin_functions(const std::string &pin)
-    {
-        if (pin == "A14")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA14"};
-            return funcs;
-        }
-        else if (pin == "A15")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA15",
-                "I2C5_SCL"};
-            return funcs;
-        }
-        else if (pin == "A16")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA16",
-                "PWM4",
-                "UART0_TX"};
-            return funcs;
-        }
-        else if (pin == "A17")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA17",
-                "PWM5",
-                "UART0_RX"};
-            return funcs;
-        }
-        else if (pin == "A18")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA18",
-                "PWM6",
-                "UART1_RX",
-                "JTAG_TCK"};
-            return funcs;
-        }
-        else if (pin == "A19")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA19",
-                "PWM7",
-                "UART1_TX",
-                "JTAG_TMS"};
-            return funcs;
-        }
-        else if (pin == "A22")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA22",
-                "SPI4_SCK"};
-            return funcs;
-        }
-        else if (pin == "A23")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA23",
-                "SPI4_MISO"};
-            return funcs;
-        }
-        else if (pin == "A24")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA24",
-                "SPI4_CS"};
-            return funcs;
-        }
-        else if (pin == "A25")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA25",
-                "SPI4_MOSI"};
-            return funcs;
-        }
-        else if (pin == "A26")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA26",
-            };
-            return funcs;
-        }
-        else if (pin == "A27")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA27",
-                "I2C5_SDA"};
-            return funcs;
-        }
-        else if (pin == "A28")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA28",
-                "UART2_TX",
-                "JTAG_TDI"};
-            return funcs;
-        }
-        else if (pin == "A29")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOA29",
-                "UART2_RX",
-                "JTAG_TDO"};
-            return funcs;
-        }
-        else if (pin == "B3")
-        {
-            return std::vector<std::string>{
-                "GPIOB3",
-                "ADC"
-            };
-        }
-        else if (pin == "B26")
-        {
-            return std::vector<std::string>{
-                "GPIOB26",
-                "PWM14"
-            };
-        }
-        else if (pin == "B27")
-        {
-            return std::vector<std::string>{
-                "GPIOB27",
-                "PWM15"
-            };
-        }
-        else if (pin == "C2")
-        {
-            return std::vector<std::string>{
-                "GPIOC2",
-                "CAM_MCLK0"
-            };
-        }
-        else if (pin == "P18")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP18",
-                "UART3_CTS",
-                "I2C1_SCL",
-                "PWM4",
-                "SPI2_CS",
-                "SDIO1_D3"};
-            return funcs;
-        }
-        else if (pin == "P19")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP19",
-                "UART3_TX",
-                "PWM5",
-                "SDIO1_D2"};
-            return funcs;
-        }
-        else if (pin == "P20")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP20",
-                "UART3_RX",
-                "PWM6",
-                "SDIO1_D1"};
-            return funcs;
-        }
-        else if (pin == "P21")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP21",
-                "UART3_RTS",
-                "I2C1_SDA",
-                "PWM7",
-                "SPI2_MISO",
-                "SDIO1_D0"};
-            return funcs;
-        }
-        else if (pin == "P22")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP22",
-                "I2C3_SCL",
-                "PWM8",
-                "SPI2_MOSI",
-                "SDIO1_CMD"};
-            return funcs;
-        }
-        else if (pin == "P23")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP23",
-                "I2C3_SDA",
-                "PWM9",
-                "SPI2_SCK",
-                "SDIO1_CLK"};
-            return funcs;
-        }
-        else if (pin == "P24")
-        {
-            std::vector<std::string> funcs = {
-                "GPIOP24",
-                "PWM2",};
-            return funcs;
-        }
-        else
-        {
-            throw err::Exception(err::ERR_ARGS);
         }
     }
 
@@ -801,6 +721,16 @@ namespace maix::peripheral::pinmap
             } else if (func == "PWM2") {
                 set_pinmux(0x030011D0, 4);
                 set_pinmux(0x050270E0, 0x44);
+            }else {
+                return err::ERR_ARGS;
+            }
+
+            return err::ERR_NONE;
+        }
+        else if (pin == "BL")
+        {
+            if (func == "PWM10") {
+                set_pinmux(0x030010AC, 4);
             }else {
                 return err::ERR_ARGS;
             }
