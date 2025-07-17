@@ -246,20 +246,12 @@ namespace maix::peripheral::pinmap
 
     std::vector<std::string> get_pin_functions(const std::string &pin)
     {
-        std::vector<std::string> result;
-
         for (const auto& pair : pins_info) {
-            const std::string& func = pair.first;
-            const std::vector<std::string>& pins = pair.second;
-            if (std::find(pins.begin(), pins.end(), pin) != pins.end()) {
-                result.push_back(func);
-            }
+            if (pair.first == pin)
+                return pair.second;
         }
-        if (!result.empty()) {
-            return result;
-        } else {
-            throw err::Exception(err::ERR_ARGS);
-        }
+        log::error("pin %s not valid", pin.c_str());
+        throw err::Exception(err::ERR_ARGS);
     }
 
     static void _config_eth_pin(bool en) {
