@@ -245,11 +245,7 @@ enum class SpeechDecoder {
         nn::SpeechDevice dev_type() { return _dev_type; }
 
     private:
-        nn::NN *_model;
         std::string _model_path = "";
-        std::map<string, string> _extra_info;
-        image::Size _input_size;
-        std::vector<nn::LayerInfo> _inputs;
         nn::SpeechDevice _dev_type = SpeechDevice::DEVICE_NONE;
         bool _decoder_raw = false;
         bool _decoder_dig = false;
