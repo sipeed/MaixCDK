@@ -13,7 +13,6 @@
 
 #if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
     #include "maix_nn_maixcam.hpp"
-    #include "speech/dr_wav.h"
 #endif
 
 

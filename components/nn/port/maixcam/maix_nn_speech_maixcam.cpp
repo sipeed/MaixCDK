@@ -60,7 +60,6 @@ namespace maix::nn
 
     Speech::Speech(const string &model)
     {
-		_model = nullptr;
         if (!model.empty())
         {
             err::Err e = load(model);
@@ -77,86 +76,10 @@ namespace maix::nn
         if (_dev_type != SpeechDevice::DEVICE_NONE) {
             this->deinit();
         }
-
-        if (_model)
-        {
-            delete _model;
-            _model = nullptr;
-        }
     }
 
     err::Err Speech::load(const string &model)
     {
-        if (_model)
-        {
-            delete _model;
-            _model = nullptr;
-        }
-        _model = new nn::NN(model);
-        if (!_model)
-        {
-            return err::ERR_NO_MEM;
-        }
-        _extra_info = _model->extra_info();
-        if (_extra_info.find("model_type") != _extra_info.end())
-        {
-            if (_extra_info["model_type"] != "speech")
-            {
-                log::error("model_type not match, expect 'speech', but got '%s'.", _extra_info["model_type"].c_str());
-                return err::ERR_ARGS;
-            }
-        }
-        else
-        {
-            log::error("model_type key not found.");
-            return err::ERR_ARGS;
-        }
-        if (_extra_info.find("mean") != _extra_info.end())
-        {
-            std::string mean_str = _extra_info["mean"];
-            std::vector<std::string> mean_strs = split(mean_str, ",");
-            for (auto &it : mean_strs)
-            {
-                try
-                {
-                    this->mean.push_back(std::stof(it));
-                }
-                catch (std::exception &e)
-                {
-                    log::error("mean value error, should float.");
-                    return err::ERR_ARGS;
-                }
-            }
-        }
-        else
-        {
-            log::error("mean key not found.");
-            return err::ERR_ARGS;
-        }
-        if (_extra_info.find("scale") != _extra_info.end())
-        {
-            std::string scale_str = _extra_info["scale"];
-            std::vector<std::string> scale_strs = split(scale_str, ",");
-            for (auto &it : scale_strs)
-            {
-                try
-                {
-                    this->scale.push_back(std::stof(it));
-                }
-                catch (std::exception &e)
-                {
-                    log::error("scale value error, should float.");
-                    return err::ERR_ARGS;
-                }
-            }
-        }
-        else
-        {
-            log::error("scale key not found.");
-            return err::ERR_ARGS;
-        }
-        _inputs = _model->inputs_info();
-        _input_size = image::Size(_inputs[0].shape[2], _inputs[0].shape[1]);
         _model_path = model;
         return err::ERR_NONE;
     }
