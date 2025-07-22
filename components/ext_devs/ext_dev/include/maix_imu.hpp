@@ -118,6 +118,52 @@ public:
 };
 
 /**
+  * @brief IMU info
+  * @maixpy maix.ext_dev.imu.IMUInfo
+  */
+class IMUInfo
+{
+public:
+    /**
+      * IMU name
+      * @maixpy maix.ext_dev.imu.IMUInfo.name
+     */
+    std::string name;
+
+    /**
+      * IMU driver name
+      * @maixpy maix.ext_dev.imu.IMUInfo.driver
+     */
+    std::string driver;
+
+    /**
+      * IMU i2c bus number
+      * @maixpy maix.ext_dev.imu.IMUInfo.i2c_bus
+     */
+    int i2c_bus;
+
+    /**
+      * IMU i2c address
+      * @maixpy maix.ext_dev.imu.IMUInfo.addr
+     */
+    int addr;
+
+    /**
+      * IMU have magnetometer or not
+      * @maixpy maix.ext_dev.imu.IMUInfo.have_mag
+     */
+    bool have_mag;
+};
+
+
+/**
+ * @brief Get all IMU info on board(not include external IMU).
+ * @return std::vector<imu::IMUInfo> type, all IMU info.
+ * @maixpy maix.ext_dev.imu.get_imu_info
+ */
+std::vector<imu::IMUInfo> get_imu_info();
+
+/**
  * QMI8656 driver class
  * @maixpy maix.ext_dev.imu.IMU
  */

@@ -5,6 +5,7 @@
 #include "maix_ahrs_type.hpp"
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include "maix_i2c.hpp"
 
 using json = nlohmann::json;
 
@@ -25,6 +26,32 @@ typedef struct {
     double bias[6];
     driver_type type;
 } imu_param_t;
+
+
+std::vector<imu::IMUInfo> get_imu_info()
+{
+    std::vector<imu::IMUInfo> info;
+#if PLATFORM_MAIXCAM
+    int default_i2c = 4;
+    auto bus = peripheral::i2c::I2C(default_i2c, peripheral::i2c::Mode::MASTER, 200000, peripheral::i2c::AddrSize::SEVEN_BIT);
+    auto res = bus.scan();
+    for(auto r : res)
+    {
+        if(r == 0x6B) // QMI8658 default i2c addr
+        {
+            imu::IMUInfo qmi8658_info;
+            qmi8658_info.name = "QMI8658";
+            qmi8658_info.driver = "qmi8658";
+            qmi8658_info.i2c_bus = default_i2c;
+            qmi8658_info.addr = 0x6B;
+            qmi8658_info.have_mag = false; // QMI8658 does not have mag
+            info.push_back(qmi8658_info);
+        }
+    }
+#elif PLATFORM_MAIXCAM2
+#endif
+    return info;
+}
 
 
 
