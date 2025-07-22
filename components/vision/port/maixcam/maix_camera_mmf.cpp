@@ -1590,6 +1590,72 @@ _error:
         return this->awb_mode(value) == 0 ? 1 : 0;
     }
 
+    static uint16_t get_gain_float2u16(float gain) {
+        uint16_t new_gain = 0;
+        gain = gain > 1 ? 1 : gain;
+        gain = gain < 0 ? 0 : gain;
+        new_gain = (0x3fff - 1) * gain + 1;
+        return new_gain;
+    }
+
+    static float get_gain_u162float(uint16_t gain) {
+        float new_gain = 0;
+        new_gain = (gain - 1) / (0x3fff - 1);
+        return new_gain;
+    }
+
+    std::vector<float> Camera::set_wb_gain(std::vector<float> gains) {
+        if (!this->is_opened()) {
+            log::warn("Camera is not opened");
+            return std::vector<float>();
+        }
+
+        CVI_U32 ret;
+        ISP_WB_ATTR_S stWbAttr;
+        std::vector<float> new_gains;
+        memset(&stWbAttr, 0, sizeof(ISP_WB_ATTR_S));
+
+        if (gains.size() >= 4) {
+            ret = CVI_ISP_GetWBAttr(_ch, &stWbAttr);
+            if (ret != 0) {
+                printf("CVI_ISP_GetWBAttr failed, ret: %#x.\r\n", ret);
+                return new_gains;
+            }
+
+            stWbAttr.enOpType = OP_TYPE_MANUAL;
+
+            stWbAttr.stManual.u16Rgain = get_gain_float2u16(gains[0]);
+            stWbAttr.stManual.u16Grgain = get_gain_float2u16(gains[1]);
+            stWbAttr.stManual.u16Gbgain = get_gain_float2u16(gains[2]);
+            stWbAttr.stManual.u16Bgain = get_gain_float2u16(gains[3]);
+            ret = CVI_ISP_SetWBAttr(_ch, &stWbAttr);
+            if (ret != 0) {
+                printf("CVI_ISP_GetWBAttr failed, ret: %#x.\r\n", ret);
+                return new_gains;
+            }
+        }
+
+        ret = CVI_ISP_GetWBAttr(_ch, &stWbAttr);
+        if (ret != 0) {
+            printf("CVI_ISP_GetWBAttr failed, ret: %#x.\r\n", ret);
+            return new_gains;
+        }
+
+        new_gains.push_back(get_gain_u162float(stWbAttr.stManual.u16Rgain));
+        new_gains.push_back(get_gain_u162float(stWbAttr.stManual.u16Grgain));
+        new_gains.push_back(get_gain_u162float(stWbAttr.stManual.u16Gbgain));
+        new_gains.push_back(get_gain_u162float(stWbAttr.stManual.u16Bgain));
+
+        // ISP_WB_INFO_S stWbInfo;
+        // ret = CVI_ISP_QueryWBInfo(_ch, &stWbInfo);
+        // if (ret != 0) {
+        //     printf("CVI_ISP_QueryWBInfo failed, ret: %#x.\r\n", ret);
+        // }
+        // log::info("gains: %#x %#x %#x %#x  color temp: %d", stWbInfo.u16Rgain, stWbInfo.u16Grgain, stWbInfo.u16Gbgain, stWbInfo.u16Bgain, stWbInfo.u16ColorTemp);
+
+        return new_gains;
+    }
+
     static int _mmf_set_exp_mode(int ch, int mode)
     {
         CVI_U32 ret;

@@ -225,6 +225,7 @@ static int cmd_init(void)
             "19 <addr>: get reg\r\n"
             "20 <pos>: set fp5510e pos\r\n"
             "21 : save camera img to file\r\n"
+            "22 : set white balance gain\r\n"
             "========================\r\n");
     fflush(stdin);
     return 0;
@@ -436,6 +437,19 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         {
             log::info("ready to save image..");
             save_image_flag = true;
+            break;
+        }
+        case 22:
+        {
+            log::info("Set white balance gain to [%f, %f, %f, %f]", value_f, value_f2, value_f3, value_f4);
+            std::vector<float> gains = std::vector<float>{(float)value_f, (float)value_f2, (float)value_f3, (float)value_f4};
+            std::vector<float> new_gains;
+            if (value_f < 0) {
+                new_gains = cam->set_wb_gain();
+            } else {
+                new_gains = cam->set_wb_gain(gains);
+            }
+            log::info("Get white balance gain to [%f, %f, %f, %f]", new_gains[0], new_gains[1], new_gains[2], new_gains[3]);
             break;
         }
         default:printf("Find not cmd!\r\n"); break;

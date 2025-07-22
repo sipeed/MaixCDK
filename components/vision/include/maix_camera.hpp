@@ -367,13 +367,25 @@ namespace maix::camera
         int awb_mode(int value = -1);
 
         /**
-         * Set/Get white balance mode
+         * Set/Get white balance mode (deprecated interface)
          * @attention This method will affect the isp and thus the image, so please be careful with it.
          * @param value value = 0, means set white balance to manual mode, value = 1, means set white balance to auto mode, default is auto mode.
          * @return returns awb mode
          * @maixpy maix.camera.Camera.set_awb
         */
         int set_awb(int mode = -1);
+
+        /**
+         * @brief This interface is used to manually set the white balance gains and disable auto white balance, you can re-enable auto white balance using awb_mode().
+         * @note MaixCam can only manually set white balance by adjusting the gain.
+         * @param gains This is a float array representing the gains for r, gr, gb, and b respectively, with a value range of 0 to 1.0.
+         * For MaixCam, the recommended initial values are [0.134, 0.0625, 0.0625, 0.1239]
+         * For MaixCam2, the recommended initial values are[0.0682, 0, 0, 0.04897]
+         * If no parameters are passed, the current gain values will be returned.
+         * @return Returns the current gain values.
+         * @maixpy maix.camera.Camera.set_wb_gain
+        */
+        std::vector<float> set_wb_gain(std::vector<float> gains = std::vector<float>());
 
         /**
          * Set/Get exposure mode (deprecated interface)

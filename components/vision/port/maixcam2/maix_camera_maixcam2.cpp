@@ -1055,7 +1055,7 @@ namespace maix::camera
                 return current_mode;
             }
 
-            current_mode = value ? 0 : 1; // 0,auto; 1,manual
+            current_mode = value ? 0 : 1; // 0,manual; 1,auto
             param.nEnable = current_mode;
             ax_res = AX_ISP_IQ_SetAwbParam(_ch, &param);
             if (ax_res != 0) {
@@ -1080,6 +1080,71 @@ namespace maix::camera
         }
         err::check_raise(err::ERR_NOT_IMPL, "set awb failed");
         return -1;
+    }
+
+    static uint16_t get_gain_float2u16(float gain) {
+        uint16_t new_gain = 0;
+        gain = gain > 1 ? 1 : gain;
+        gain = gain < 0 ? 0 : gain;
+        new_gain = (4095 - 256) * gain + 256;
+        return new_gain;
+    }
+
+    static float get_gain_u162float(uint16_t gain) {
+        float new_gain = 0;
+        new_gain = (gain - 256) / (4095 - 256);
+        return new_gain;
+    }
+
+    std::vector<float> Camera::set_wb_gain(std::vector<float> gains) {
+        std::vector<float> new_gains;
+        if (!this->is_opened()) {
+            log::warn("Camera is not opened");
+            return new_gains;
+        }
+
+        AX_S32 ax_res;
+        AX_ISP_IQ_AWB_PARAM_T param;
+        if (gains.size() >= 4) {
+            ax_res = AX_ISP_IQ_GetAwbParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_GetAwbParam failed: %d", ax_res);
+                return new_gains;
+            }
+
+            param.nEnable = 0;  // 0,manual; 1,auto
+            param.tManualParam.tGain.nGainR = get_gain_float2u16(gains[0]);
+            param.tManualParam.tGain.nGainGr = get_gain_float2u16(gains[1]);
+            param.tManualParam.tGain.nGainGb = get_gain_float2u16(gains[2]);
+            param.tManualParam.tGain.nGainB = get_gain_float2u16(gains[3]);
+            ax_res = AX_ISP_IQ_SetAwbParam(_ch, &param);
+            if (ax_res != 0) {
+                log::error("AX_ISP_IQ_SetAwbParam failed: %d", ax_res);
+                return new_gains;
+            }
+        }
+
+        // ax_res = AX_ISP_IQ_GetAwbParam(_ch, &param);
+        // if (ax_res != 0) {
+        //     log::error("AX_ISP_IQ_GetAwbParam failed: %d", ax_res);
+        //     return new_gains;
+        // }
+        // log::info("get awb gains %d %d %d %d", param.tManualParam.tGain.nGainR, param.tManualParam.tGain.nGainGr, param.tManualParam.tGain.nGainGb, param.tManualParam.tGain.nGainB);
+
+
+        AX_ISP_IQ_AWB_STATUS_T status;
+        ax_res = AX_ISP_IQ_GetAwbStatus(_ch, &status);
+        if (ax_res != 0) {
+            log::error("AX_ISP_IQ_GetAwbStatus failed: %d", ax_res);
+            return new_gains;
+        }
+        new_gains.push_back(get_gain_u162float(status.tGainStatus.nGainR));
+        new_gains.push_back(get_gain_u162float(status.tGainStatus.nGainGr));
+        new_gains.push_back(get_gain_u162float(status.tGainStatus.nGainGb));
+        new_gains.push_back(get_gain_u162float(status.tGainStatus.nGainB));
+        // log::info("awb gains:[%d, %d, %d, %d] colot temperature: %d", status.tGainStatus.nGainR, status.tGainStatus.nGainGr, status.tGainStatus.nGainGb, status.tGainStatus.nGainB, status.tAlgoStatus.nCct);
+
+        return new_gains;
     }
 
     int Camera::exp_mode(int value) {
