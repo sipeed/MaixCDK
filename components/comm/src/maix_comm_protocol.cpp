@@ -11,6 +11,7 @@
 #include "maix_basic.hpp"
 #include "maix_uart.hpp"
 #include "maix_comm.hpp"
+#include "maix_pinmap.hpp"
 
 using namespace maix::peripheral;
 
@@ -48,25 +49,104 @@ namespace maix::comm
         }
     }
 
+    static void _set_pinmap_uart(const std::string &port_name)
+    {
+        #if PLATFORM_MAIXCAM
+        std::map<std::string, std::map<std::string, std::string>> pins_map = {
+            {"uart0", {
+                {"A16", "UART0_TX"},
+                {"A17", "UART0_RX"}
+            }},
+            {"uart1", {
+                {"A18", "UART1_RX"},
+                {"A19", "UART1_TX"}
+            }},
+            {"uart2", {
+                {"A28", "UART2_TX"},
+                {"A29", "UART2_RX"}
+            }},
+            // {"uart3", "/dev/ttyS3"},// default used by WiFi, to avoid error, we not use it.
+        };
+#elif PLATFORM_MAIXCAM2
+        std::map<std::string, std::map<std::string, std::string>> pins_map = {
+            {"uart1", {
+                {"IO0_A30", "UART1_TX"},
+                {"IO1_A3", "UART1_RX"},
+            }},
+            {"uart2", {
+                {"IO1_A0", "UART2_TX"},
+                {"IO1_A1", "UART2_RX"},
+            }},
+            {"uart3", {
+                {"IO1_A2", "UART3_TX"},
+                {"IO1_A3", "UART3_RX"},
+            }},
+            {"uart4", {
+                {"IO0_A21", "UART4_TX"},
+                {"IO0_A22", "UART4_RX"},
+            }},
+        };
+#else
+        log::warn("not set pinmap for this platform");
+#endif
+        auto it = pins_map.find(port_name);
+        if (it != pins_map.end())
+        {
+            for (const auto &pair : it->second)
+            {
+                log::info("[Maix Comm Protocol] auto set pinmap %s to %s for %s", pair.first.c_str(), pair.second.c_str(), port_name.c_str());
+                peripheral::pinmap::set_pin_function(pair.first, pair.second);
+            }
+        }
+        else
+        {
+            log::warn("[Maix Comm Protocol] no pinmap for port %s", port_name.c_str());
+        }
+    }
+
+    std::vector<std::vector<std::string>> CommProtocol::get_uart_ports()
+    {
+#if PLATFORM_MAIXCAM
+        std::vector<std::vector<std::string>> ports = {
+            {"uart0", "/dev/ttyS0"},
+            {"uart1", "/dev/ttyS1"},
+            {"uart2", "/dev/ttyS2"},
+            // {"uart3", "/dev/ttyS3"},// default used by WiFi, to avoid error, we not use it.
+        };
+#elif PLATFORM_MAIXCAM2
+        std::vector<std::vector<std::string>> ports = {
+            // {"uart0", "/dev/ttyS0"}, // debug serial, not used by default.
+            {"uart1", "/dev/ttyS1"},
+            {"uart2", "/dev/ttyS2"},
+            {"uart3", "/dev/ttyS3"},
+            {"uart4", "/dev/ttyS4"}, // 6pin 1.25mm, default use this one.
+        };
+#else
+        log::warn("this platform no valid uart yet");
+        return {};
+#endif
+        return ports;
+    }
+
+
     CommBase *CommProtocol::_get_comm_obj(const std::string &method, err::Err &error)
     {
         error = err::Err::ERR_NONE;
         if (method == "uart")
         {
-            std::vector<std::string> ports = uart::list_devices();
-            if (ports.size() == 0)
+            auto port = get_uart_port();
+            if(port.size() == 0)
             {
-                // log::warn("not found uart port, will use /dev/ttyS0");
-                // std::string uart_port("/dev/ttyS0");
-                // listener_priv::CommFileHandle::write_comm_info(uart_port);
-                // return new uart::UART(uart_port, 115200);
-                log::error("No uart port found");
+                log::error("[Maix Comm Protocol] no invalid uart port set");
                 return nullptr;
             }
             uart::UART *obj = nullptr;
             try
             {
-                obj = new uart::UART(ports[ports.size() - 1], 115200);
+                // log::info("[Maix Comm Protocol] use port %s(%s)", port[0].c_str(), port[1].c_str());
+                // pin mapping
+                _set_pinmap_uart(port[0]);
+                obj = new uart::UART(port[1], 115200);
                 if (!obj)
                 {
                     log::error("[Maix Comm Protocol] No Memory");
@@ -87,7 +167,7 @@ namespace maix::comm
                 delete obj;
                 return nullptr;
             }
-            log::info("[Maix Comm Protocol] listening on uart port: %s", ports[ports.size() - 1].c_str());
+            log::info("[Maix Comm Protocol] listening on uart port: %s(%s)", port[0].c_str(), port[1].c_str());
             return obj;
         }
         else if (method == "none")
@@ -120,7 +200,7 @@ namespace maix::comm
                 log::error(msg.c_str());
                 throw err::Exception(err::ERR_RUNTIME, msg);
             }
-            log::info("comm protocol disabled");
+            log::info("[Maix Comm Protocol] comm protocol disabled");
             if (method_none_raise)
                 throw err::Exception(err::ERR_ARGS, "comm protocol disabled");
             return;
@@ -160,6 +240,62 @@ namespace maix::comm
     std::string CommProtocol::get_method()
     {
         return app::get_sys_config_kv("comm", "method", "uart");
+    }
+
+    static std::string _get_uart_device_by_name(const std::string &name, std::vector<std::vector<std::string>> &ports)
+    {
+        for (const auto &port : ports)
+        {
+            if (port[0] == name)
+            {
+                return port[1];
+            }
+        }
+        log::warn("uart port %s not found", name.c_str());
+        return "";
+    }
+
+    std::vector<std::string> CommProtocol::get_uart_port()
+    {
+        auto ports = get_uart_ports();
+#if PLATFORM_MAIXCAM
+        std::string default_port = "uart0";
+        auto default_device = _get_uart_device_by_name(default_port, ports);
+#elif PLATFORM_MAIXCAM2
+        std::string default_port = "uart4";
+        auto default_device = _get_uart_device_by_name(default_port, ports);
+#else
+        log::warn("this platform no default uart yet");
+        std::string default_port = "";
+        auto default_device = "";
+#endif
+
+        auto name = app::get_sys_config_kv("comm", "uart_port", "default");
+        if(name == "default")
+        {
+            if(default_port.empty())
+                return {};
+            return {default_port, default_device};
+        }
+        for (const auto &port : ports)
+        {
+            if (port[0] == name)
+            {
+                return {port[0], port[1]};
+            }
+        }
+        log::warn("uart port %s invalid, available ports: ", name.c_str());
+        for (const auto &p : ports)
+        {
+            log::print(log::LogLevel::LEVEL_WARN, "  %s: %s\n", p[0].c_str(), p[1].c_str());
+        }
+        if (default_port.empty())
+        {
+            return {};
+        }
+        log::warn("use default port: %s, %s", default_port.c_str(), default_device.c_str());
+        app::set_sys_config_kv("comm", "uart_port", default_port);
+        return {default_port, default_device};
     }
 
     static std::vector<std::string> find_string(char *data, uint32_t data_len, uint32_t try_find_cnt = 0)

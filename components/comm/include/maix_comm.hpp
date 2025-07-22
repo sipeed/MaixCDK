@@ -171,18 +171,33 @@ namespace maix
             bool valid() { return _valid; }
 
             /**
-             * Set CommProtocol method
+             * Set CommProtocol method. Static method, can be called directly without instance.
              * @param method Can be "uart" or "none", "none" means not use CommProtocol.
              * @maixpy maix.comm.CommProtocol.set_method
              */
             static err::Err set_method(const std::string &method);
 
             /**
-             * Get CommProtocol method
+             * Get CommProtocol method. Static method, can be called directly without instance.
              * @return method Can be "uart" or "none", "none" means not use CommProtocol.
              * @maixpy maix.comm.CommProtocol.get_method
              */
             static std::string get_method();
+
+            /**
+             * Get CommProtocol method uart's port name. Static method, can be called directly without instance.
+             * @return uart [port name, device path], e.g. ["uart0", "/dev/ttyS0"].
+             *         If no valid uart port, return empty list !!
+             * @maixpy maix.comm.CommProtocol.get_uart_port
+             */
+             static std::vector<std::string> get_uart_port();
+
+            /**
+             * Get all CommProtocol method uart supported ports. Static method, can be called directly without instance.
+             * @return uart [[port name, device path]], e.g. [["uart0", "/dev/ttyS0"], ...].
+             * @maixpy maix.comm.CommProtocol.get_uart_ports
+             */
+             static std::vector<std::vector<std::string>> get_uart_ports();
 
         private:
             void execute_cmd(protocol::MSG* msg);
