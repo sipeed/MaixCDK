@@ -223,7 +223,8 @@ namespace maix::fs
         err::Err open(const std::string &path, const std::string &mode);
 
         /**
-         * Close a file
+         * Close a file.
+         * @attention not ensure data is written to disk, you can use sync() before close to ensure data is written to disk.
          * @maixpy maix.fs.File.close
         */
         void close();
@@ -271,6 +272,8 @@ namespace maix::fs
          * Write data to file
          * @param buf buffer to write
          * @param size buffer size
+         * @attention will not ensure data is flush to kernel or written to disk, you can use flush() to flush data to kernel,
+         *            and sync() to ensure data is written to disk.
          * @return write size if success, -err::Err code if failed
          * @maixcdk maix.fs.File.write
         */
@@ -279,6 +282,8 @@ namespace maix::fs
         /**
          * Write data to file API2
          * @param buf buffer to write
+         * @attention will not ensure data is flush to kernel or written to disk, you can use flush() to flush data to kernel,
+         *            and sync() to ensure data is written to disk.
          * @return write size if success, -err::Err code if failed
          * @maixpy maix.fs.File.write
         */
@@ -309,11 +314,20 @@ namespace maix::fs
         int size();
 
         /**
-         * Flush file
+         * Flush file, ensure data is written to kernel buffer.
+         * @attention not ensure data is written to disk, use sync() to ensure data is written to disk.
          * @return err::ERR_NONE(err.Err.ERR_NONE in MaixPy) if success, other error code if failed
          * @maixpy maix.fs.File.flush
         */
         err::Err flush();
+
+        /**
+         * Sync file, ensure data is written to disk.
+         * @return err::ERR_NONE(err.Err.ERR_NONE in MaixPy) if success, other error code if failed
+         * @maixpy maix.fs.File.sync
+        */
+        err::Err sync();
+
     private:
         void *_fp;
     };

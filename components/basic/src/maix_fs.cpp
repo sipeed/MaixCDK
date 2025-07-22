@@ -446,4 +446,16 @@ namespace maix::fs
         return err::ERR_NONE;
     }
 
+    err::Err File::sync()
+    {
+        // sync file use fs_sys::sync_file
+        if (_fp == nullptr)
+        {
+            return err::ERR_NOT_READY;
+        }
+        this->flush();
+        ::fsync(fileno((FILE *)_fp));
+        return err::ERR_NONE;
+    }
+
 } // namespace maix::fs

@@ -478,6 +478,7 @@ namespace maix::app
                 f->write(("maix_" + section_name + "_" + key_name + "=" + value + "\n").c_str(), (int)(section_name.size() + key_name.size() + value.size() + 8));
             }
         }
+        f->sync();
         f->close();
         delete f;
         return err::ERR_NONE;
@@ -534,6 +535,8 @@ namespace maix::app
                     log::error("save sys config failed: %d\n", ret);
                     return err::ERR_RUNTIME;
                 }
+                // ensure data is written to disk
+                fs::sync();
             }
             else
             {
@@ -598,6 +601,8 @@ namespace maix::app
                 log::error("save app config failed: %d\n", ret);
                 return err::ERR_RUNTIME;
             }
+            // ensure data is written to disk
+            fs::sync();
         }
         return err::ERR_NONE;
     }
