@@ -8,7 +8,6 @@
 #include "maix_audio.hpp"
 #include <list>
 #include <sys/stat.h>
-#include "sophgo_middleware.hpp"
 
 using namespace maix;
 
@@ -281,7 +280,11 @@ public:
 
         auto video_dirs = fs::listdir(_video_path);
         if (video_dirs) {
-            date_dirs.insert(date_dirs.end(), video_dirs->begin(), video_dirs->end());
+            for (auto &dir : *video_dirs) {
+                if (fs::isdir(_video_path + "/" + dir)) {
+                    date_dirs.push_back(dir);
+                }
+            }
             delete video_dirs;
         }
         // log::info("[%d] use %lld ms", __LINE__, time::ticks_ms() - t);
@@ -316,11 +319,7 @@ public:
                         std::string picture_full_path = picture_path + "/" + picture;
                         if (_picture_path_is_valid(picture_full_path)) {
                             std::string thumbnail_path = picture_path + "/.thumbnail/" + picture;
-                            PhotoVideoInfo new_info = {
-                                .type = 0,
-                                .date = date,
-                                .path = picture_full_path,
-                                .thumbnail_path = thumbnail_path};
+                            PhotoVideoInfo new_info(0, date, picture_full_path, thumbnail_path);
                             push_video_photo_info(date, new_info);
                             // _print_video_photo_info(&new_info);
                         }
@@ -340,11 +339,7 @@ public:
                             size_t pos = thumbnail_path.rfind(".mp4");
                             if (pos != std::string::npos) {
                                 thumbnail_path.replace(pos, 4, ".jpg");
-                                PhotoVideoInfo new_info = {
-                                    .type = 1,
-                                    .date = date,
-                                    .path = video_full_path,
-                                    .thumbnail_path = thumbnail_path};
+                                PhotoVideoInfo new_info(1, date, video_full_path, thumbnail_path);
                                 push_video_photo_info(date, new_info);
                                 // _print_video_photo_info(&new_info);
                             }
@@ -433,7 +428,7 @@ typedef struct {
     bool next_is_default_image;
     image::Image *default_next_image;
     image::Image *next_image;
-    VIDEO_FRAME_INFO_S *next_frame;
+    pipeline::Frame *next_frame;
     uint64_t next_keep_ms;
 
     bool find_first_pts;
@@ -502,13 +497,12 @@ static void config_default_display_image(image::Image *image)
 static void release_last_show_frame(void)
 {
     if (priv.next_frame) {
-        free(priv.next_frame);
+        delete priv.next_frame;
         priv.next_frame = nullptr;
-        err::check_bool_raise(!mmf_vdec_free(0));
     }
 }
 
-static void try_show_frame(VIDEO_FRAME_INFO_S *frame, uint64_t next_keep_ms = 30)
+static void try_show_frame(pipeline::Frame *frame, uint64_t next_keep_ms = 30)
 {
     priv.next_is_frame = true;
     priv.next_is_default_image = false;
@@ -553,7 +547,7 @@ static image::Image *get_next_show_image()
     return priv.next_image;
 }
 
-static VIDEO_FRAME_INFO_S *get_next_show_frame()
+static pipeline::Frame *get_next_show_frame()
 {
     return priv.next_frame;
 }
@@ -867,7 +861,7 @@ int app_init(display::Display *disp)
     priv.photo_video = new PhotoVideo("/maixapp/share/picture", "/maixapp/share/video");
     priv.photo_video->collect_video_photo();
     // priv.photo_video->print_video_photo_list();
-
+    auto ignore_file_hander = IgnoreFileHandler("/maixapp/share/video/.ignore");
     _audio_video_list_init();
     // log::info("========= PUSH TO UI ==========");
     auto list = priv.photo_video->get_video_photo_list();
@@ -882,12 +876,19 @@ int app_init(display::Display *disp)
         for (; list_iter != info_list.rend();) {
             auto list_item = *list_iter;
             log::info("\tpath:%s", list_item.path.c_str());
-            lv_image_dsc_t *dsc = load_thumbnail_image((char *)list_item.path.c_str(), (char *)list_item.thumbnail_path.c_str());
-            if (dsc) {
-                ui_photo_add_photo((char *)date.c_str(), (char *)list_item.path.c_str(), dsc, list_item.is_video());
-                free_thumbnail_image(dsc);
-                list_iter ++;
+            if (!ignore_file_hander.checkLines(list_item.path)) {
+                lv_image_dsc_t *dsc = load_thumbnail_image((char *)list_item.path.c_str(), (char *)list_item.thumbnail_path.c_str());
+                if (dsc) {
+                    ui_photo_add_photo((char *)date.c_str(), (char *)list_item.path.c_str(), dsc, list_item.is_video());
+                    free_thumbnail_image(dsc);
+                    list_iter ++;
+                } else {
+                    list_iter = std::make_reverse_iterator(info_list.erase(std::next(list_iter).base()));
+                    ignore_file_hander.appendLine(list_item.path);
+                    log::info("append %s to ignore file", list_item.path.c_str());
+                }
             } else {
+                log::info("ignore file: %s", list_item.path.c_str());
                 list_iter = std::make_reverse_iterator(info_list.erase(std::next(list_iter).base()));
             }
         }
@@ -1056,21 +1057,32 @@ static void play_video(void)
 
         video::Decoder *decoder = priv.decoder;
         if (decoder) {
-            uint64_t t = time::ticks_ms();
+            // uint64_t t = time::ticks_ms();
             video::Context *ctx = NULL;
-            do {
-                while ((ctx = decoder->unpack()) != nullptr) {
-                    if (ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
-                        priv.video_list->push_back(ctx);
-                        break;
-                    } else if (ctx->media_type() == video::MEDIA_TYPE_AUDIO) {
-                        priv.audio_list->push_back(ctx);
+            if (priv.decoder->has_audio()) {
+                do {
+                    while ((ctx = decoder->unpack()) != nullptr) {
+                        if (ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
+                            priv.video_list->push_back(ctx);
+                            break;
+                        } else if (ctx->media_type() == video::MEDIA_TYPE_AUDIO) {
+                            priv.audio_list->push_back(ctx);
+                        }
                     }
-                }
-            } while (priv.audio_list->size() < 1 && ctx);
+                } while (priv.audio_list->size() < 1 && ctx);
+            } else {
+                do {
+                    while ((ctx = decoder->unpack()) != nullptr) {
+                        if (ctx->media_type() == video::MEDIA_TYPE_VIDEO) {
+                            priv.video_list->push_back(ctx);
+                            break;
+                        }
+                    }
+                } while (priv.video_list->size() < 1 && ctx);
+            }
             // log::info("unpack video/audio use %lld ms, video list size:%d, audio list size:%d", time::ticks_ms() - t, priv.video_list->size(), priv.audio_list->size());
 
-            t = time::ticks_ms();
+            // t = time::ticks_ms();
             std::list<video::Context *>::iterator iter;
             for(iter=priv.video_list->begin();iter!=priv.video_list->end();iter++) {
                 video::Context *video_ctx = *iter;
@@ -1092,33 +1104,11 @@ static void play_video(void)
                     void *data = video_ctx->get_raw_data();
                     if (data) {
                         size_t data_size = video_ctx->get_raw_data_size();
-                        VDEC_STREAM_S stStream = {0};
-                        stStream.pu8Addr = (CVI_U8 *)data;
-                        stStream.u32Len = data_size;
-                        stStream.u64PTS = video_ctx->pts();
-                        stStream.bEndOfFrame = CVI_TRUE;
-                        stStream.bEndOfStream = CVI_FALSE;
-                        stStream.bDisplay = 1;
-                        VIDEO_FRAME_INFO_S *frame = (VIDEO_FRAME_INFO_S *)malloc(sizeof(VIDEO_FRAME_INFO_S));
-                        err::check_null_raise(frame, "video frame is null!");
-                        memset(frame, 0, sizeof(VIDEO_FRAME_INFO_S));
-
                         release_last_show_frame();
-                        err::check_bool_raise(!mmf_vdec_push_v2(0, &stStream));
-                        err::check_bool_raise(!mmf_vdec_pop_v2(0, frame));
-    #if 0
-                        image::Image *new_img = new image::Image(priv.disp->width(), priv.disp->height(), image::Format::FMT_YVU420SP);
-                        nv21_resize_frame(  (uint8_t *)frame->stVFrame.pu8VirAddr[0],
-                                            (uint8_t *)frame->stVFrame.pu8VirAddr[1],
-                                            frame->stVFrame.u32Width, frame->stVFrame.u32Height,
-                                            (uint8_t *)new_img->data(),new_img->width(), new_img->height());
-                        try_show_image(new_img, ctx->duration_us() / 1000);
-                        // delete new_img;     // delete in next call config_next_display_image
-                        err::check_bool_raise(!mmf_vdec_free(0));
-                        free(frame);
-    #else
+                        pipeline::Stream stream((uint8_t *)data, data_size, video_ctx->pts());
+                        err::check_raise(priv.decoder->push(&stream), "decoder push stream error!");
+                        auto frame = priv.decoder->pop();
                         try_show_frame(frame, video_ctx->duration_us() / 1000);
-    #endif
                         ui_set_video_bar_s(priv.decoder->seek(), priv.decoder->duration());
                         priv.next_play_ms = priv.first_play_ms + video::timebase_to_ms(video_ctx->timebase(), video_ctx->pts());
                         free(data);
@@ -1363,10 +1353,10 @@ int app_loop(void)
             }
             last_show_ms = time::ticks_ms();
         } else {
-            VIDEO_FRAME_INFO_S *frame = get_next_show_frame();
+            pipeline::Frame *frame = get_next_show_frame();
             uint64_t try_keep_ms = get_next_keep_ms();
             if (frame) {
-                mmf_vo_frame_push2(0, 0, 2, frame);
+                priv.disp->push(frame, image::FIT_CONTAIN);
             }
 
             while (time::ticks_ms() - last_show_ms <= (try_keep_ms > 0 ? try_keep_ms : 10)) {

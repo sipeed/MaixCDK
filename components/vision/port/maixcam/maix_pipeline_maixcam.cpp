@@ -6,7 +6,9 @@ using namespace maix;
 namespace maix::pipeline {
     typedef struct {
         bool is_venc;
+        bool is_user_alloc;;
         int channel;
+        size_t pts;
         mmf_stream_t stream;
     } stream_param_t;
 
@@ -19,10 +21,11 @@ namespace maix::pipeline {
                 return -1;
             }
             param.channel = std::stoi(from.substr(pos + 1, 1));
-        }
-
-        if (param.channel < 0) {
-            return -1;
+            if (param.channel < 0) {
+                return -1;
+            }
+        } else if (std::string::npos != (pos = from.find("user_alloc"))) {
+            param.is_user_alloc = true;
         }
 
         return 0;
@@ -43,6 +46,8 @@ namespace maix::pipeline {
 
         if (param->is_venc) {
             memcpy(&param->stream, stream, sizeof(mmf_stream_t));
+        } else if (param->is_user_alloc) {
+            memcpy(&param->stream, stream, sizeof(mmf_stream_t));
         } else {
             err::check_raise(err::ERR_RUNTIME, "Construct stream is not supported");
         }
@@ -52,12 +57,50 @@ namespace maix::pipeline {
         // }
     }
 
+    Stream::Stream(uint8_t *data, size_t data_size, size_t pts, bool copy) {
+        stream_param_t *param = (stream_param_t *)malloc(sizeof(stream_param_t));
+        err::check_null_raise(param, "Malloc failed");
+        memset(param, 0, sizeof(stream_param_t));
+
+        __stream = param;
+        __auto_delete = false;
+        __from = "user_alloc";
+
+        if (0 != __parse_from(__from, *param)) {
+            err::check_raise(err::ERR_RUNTIME, "Invalid stream from string: " + __from);
+        }
+
+        mmf_stream_t stream = {0};
+        stream.data[0] = data;
+        stream.data_size[0] = data_size;
+        stream.count = 1;
+
+        if (copy) {
+            uint8_t *new_data = (uint8_t *)malloc(data_size);
+            err::check_null_raise(new_data, "Failed to alloc memory");
+            memcpy(new_data, data, data_size);
+            stream.data[0] = new_data;
+            __auto_delete = true;
+        }
+        if (param->is_user_alloc) {
+            memcpy(&param->stream, &stream, sizeof(mmf_stream_t));
+        } else {
+            err::check_raise(err::ERR_RUNTIME, "Construct stream is not supported");
+        }
+        param->pts = pts;
+    }
+
     Stream::~Stream() {
         stream_param_t *param = (stream_param_t *)__stream;
         if (__stream) {
             if (__auto_delete) {
                 if (param->is_venc) {
                     mmf_venc_free(param->channel);
+                } else if (param->is_user_alloc) {
+                    if (param->stream.data[0]) {
+                        free(param->stream.data[0]);
+                        param->stream.data[0] = nullptr;
+                    }
                 }
             }
 
@@ -160,8 +203,9 @@ namespace maix::pipeline {
         return false;
     }
 
-    int Stream::pts() {
-        return 0;
+    size_t Stream::pts() {
+        stream_param_t *param = (stream_param_t *)__stream;
+        return param->pts;
     }
 
     void *Stream::stream() {
@@ -195,7 +239,7 @@ namespace maix::pipeline {
             }
             param.channel = std::stoi(from.substr(pos + 1, 1));
         } else if (std::string::npos != (pos = from.find("vdec"))) {        // from="vdec,0"
-            param.is_vpss_chn = true;
+            param.is_vdec = true;
 
             if (std::string::npos == (pos = from.find(","))) {
                 return -1;

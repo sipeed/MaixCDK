@@ -6,6 +6,10 @@ namespace maix::pipeline {
         err::check_raise(err::ERR_NOT_IMPL, "Construct stream failed");
     }
 
+    Stream::Stream(uint8_t *data, size_t data_size, size_t pts, bool copy) {
+        err::check_raise(err::ERR_NOT_IMPL, "Construct stream failed");
+    }
+
     Stream::~Stream() {
     }
 
@@ -53,7 +57,7 @@ namespace maix::pipeline {
         return false;
     }
 
-    int Stream::pts() {
+    size_t Stream::pts() {
         return 0;
     }
 

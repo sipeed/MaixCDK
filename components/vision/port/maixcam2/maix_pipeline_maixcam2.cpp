@@ -26,6 +26,14 @@ namespace maix::pipeline {
         // }
     }
 
+    Stream::Stream(uint8_t *data, size_t data_size, size_t pts, bool copy) {
+        (void)copy;
+        auto *frame = new maixcam2::Frame(data, data_size, maixcam2::FRAME_FROM_AX_MALLOC);
+        __stream = frame;
+        __auto_delete = true;
+        __from = "ax_malloc";
+    }
+
     Stream::~Stream() {
         if (__auto_delete && __stream) {
             delete (maixcam2::Frame *)__stream;
@@ -249,7 +257,7 @@ namespace maix::pipeline {
         return false;
     }
 
-    int Stream::pts() {
+    size_t Stream::pts() {
         maixcam2::Frame *frame = (maixcam2::Frame *)__stream;
         AX_VENC_STREAM_T video_stream;
         err::check_raise(frame->get_venc_stream(&video_stream), "get video stream failed");

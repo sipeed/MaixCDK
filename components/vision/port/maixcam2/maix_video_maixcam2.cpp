@@ -819,8 +819,13 @@ namespace maix::video
             cfg.w = _width;
             cfg.h = _height;
             cfg.type = maixcam2::AX_VDEC_TYPE_H264;
-            vdec = new maixcam2::VDEC(&cfg);
-            err::check_null_raise(vdec, "vdec init failed");
+            try {
+                vdec = new maixcam2::VDEC(&cfg);
+            } catch (...) {
+                sys->deinit();
+                delete sys;
+                err::check_raise(err::ERR_RUNTIME, "vdec init failed");
+            }
 
             switch (video_format) {
                 case VIDEO_FORMAT_H264:
@@ -1448,7 +1453,7 @@ __vdec_exit:
             log::error("decoder pop failed");
             return nullptr;
         }
-        return new pipeline::Frame(frame);
+        return new pipeline::Frame(frame, true);
     }
 
     video::Context *Decoder::unpack() {

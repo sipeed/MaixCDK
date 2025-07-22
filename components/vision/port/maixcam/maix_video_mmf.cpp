@@ -2198,11 +2198,31 @@ _retry:
     }
 
     err::Err Decoder::push(pipeline::Stream *stream) {
-        return err::ERR_NOT_IMPL;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        mmf_stream_t *mmf_stream = (mmf_stream_t *)stream->stream();
+        VDEC_STREAM_S stStream = {0};
+        stStream.pu8Addr = (CVI_U8 *)mmf_stream->data[0];
+        stStream.u32Len = mmf_stream->data_size[0];
+        stStream.u64PTS = stream->pts();
+        stStream.bEndOfFrame = CVI_TRUE;
+        stStream.bEndOfStream = CVI_FALSE;
+        stStream.bDisplay = 1;
+
+        if (0 != mmf_vdec_push_v2(param->vdec_ch, &stStream)) {
+            log::error("mmf_vdec_push_v2 failed");
+            return err::ERR_RUNTIME;
+        }
+        return err::ERR_NONE;
     }
 
     pipeline::Frame *Decoder::pop(int block_ms) {
-        return nullptr;
+        decoder_param_t *param = (decoder_param_t *)_param;
+        VIDEO_FRAME_INFO_S frame;
+        if (0 != mmf_vdec_pop_v2(param->vdec_ch, &frame)) {
+            return nullptr;
+        }
+        std::string from = "vdec," + std::to_string(param->vdec_ch);
+        return new pipeline::Frame(&frame, true, from);
     }
 
     video::Context *Decoder::unpack() {

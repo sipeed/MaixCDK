@@ -34,6 +34,16 @@ namespace maix::pipeline
          * @maixcdk maix.pipeline.Stream.Stream
         */
         Stream(void *stream, bool auto_delete = false, std::string from = "");
+
+        /**
+         * @brief Create a stream object
+         * @param data data pointer
+         * @param data_size data size
+         * @param pts presentation timestamp
+         * @param copy if copy is true, the data will be copied
+         * @maixcdk maix.pipeline.Stream.Stream
+        */
+        Stream(uint8_t *data, size_t data_size, size_t pts, bool copy = true);
         ~Stream();
 
         /**
@@ -119,7 +129,7 @@ namespace maix::pipeline
          * @return Returns the pts of the stream.
          * @maixpy maix.pipeline.Stream.pts
         */
-        int pts();
+        size_t pts();
 
         /**
          * @brief Get frame
