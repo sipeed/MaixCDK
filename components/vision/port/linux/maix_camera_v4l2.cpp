@@ -940,6 +940,7 @@ namespace maix::camera
                 free(buff);
                 buff = NULL;
             }
+            _is_opened = false;
         }
 
         camera::CameraV4L2 *add_channel(int width, int height, image::Format forma, int buff_num)
@@ -1171,6 +1172,8 @@ namespace maix::camera
         if (format == image::Format::FMT_RGB888 && width * height * 3 > 640 * 640 * 3) {
             log::warn("Note that we do not recommend using large resolution RGB888 images, which can take up a lot of memory!\r\n");
         }
+        _is_opened = false;
+        _last_read_us = 0;
 
         _width = (width == -1) ? 640 : width;
         _height = (height == -1) ? 480 : height;
@@ -1275,7 +1278,12 @@ namespace maix::camera
                 return err::ERR_ARGS;
         }
 
-        return _impl->open(_width, _height, _format_impl, _buff_num);;
+        auto ret =  _impl->open(_width, _height, _format_impl, _buff_num);;
+        if(ret == err::ERR_NONE)
+        {
+            _is_opened = true;
+        }
+        return ret;
     }
 
     void Camera::close()
