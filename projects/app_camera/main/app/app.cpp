@@ -680,7 +680,7 @@ int app_init(camera::Camera &cam)
     usleep(1000 * 1000); // wait sensor init
     uint32_t exposure_time = 0, iso_num = 0;
     exposure_time = priv.camera->exposure();
-    iso_num = priv.camera->iso(iso_num);
+    iso_num = priv.camera->iso();
     priv.sensor_shutter_value = exposure_time;
     priv.sensor_iso_value = iso_num;
     ui_set_shutter_value((double)exposure_time);
@@ -762,7 +762,7 @@ static int app_config_param(void)
     if (ui_get_shutter_setting_flag()) {
         if (ui_get_shutter_auto_flag()) {
             printf("Shutter setting: Auto\n");
-            if (priv.sensor_ae_mode != 0) {
+            if (priv.sensor_ae_mode != 0) {printf("===\r\n");
                 priv.camera->exp_mode(camera::AeMode::Auto);
                 priv.sensor_ae_mode = 0;
             }
@@ -789,7 +789,7 @@ static int app_config_param(void)
         if (ui_get_iso_auto_flag()) {
             printf("ISO setting: Auto\n");
             if (priv.sensor_ae_mode != 0) {
-                priv.sensor_ae_mode = 0;
+                priv.sensor_ae_mode = 0;log::info(" ========================== [%s][%d]", __func__, __LINE__);
                 priv.camera->exp_mode(camera::AeMode::Auto);
             }
         } else {
