@@ -1031,9 +1031,9 @@ namespace maix::camera
             return -1;
         }
 
-        int awb_mode(int value)
+        AwbMode awb_mode(AwbMode value)
         {
-            return -1;
+            return AwbMode::Invalid;
         }
 
         int set_awb(int value)
@@ -1041,9 +1041,13 @@ namespace maix::camera
             return -1;
         }
 
-        int exp_mode(int value)
+        std::vector<float> set_wb_gain(std::vector<float> gains) {
+            return std::vector<float>();
+        }
+
+        AeMode exp_mode(AeMode value)
         {
-            return -1;
+            return AeMode::Invalid;
         }
 
         int set_windowing(std::vector<int> roi)
@@ -1404,16 +1408,20 @@ namespace maix::camera
         return -1;
     }
 
-    int Camera::awb_mode(int value) {
-        return -1;
+    AwbMode Camera::awb_mode(AwbMode value) {
+        return AwbMode::Invalid;
     }
 
     int Camera::set_awb(int value) {
         return -1;
     }
 
-    int Camera::exp_mode(int value) {
-        return -1;
+    std::vector<float> Camera::set_wb_gain(std::vector<float> gains) {
+        return std::vector<float>();
+    }
+
+    AeMode Camera::exp_mode(AeMode value) {
+        return AeMode::Invalid;
     }
 
     err::Err Camera::set_windowing(std::vector<int> roi) {

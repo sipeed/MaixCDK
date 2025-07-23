@@ -52,6 +52,26 @@ namespace maix::camera
     std::vector<int> get_sensor_size();
 
     /**
+     * Auto exposure mode
+     * @maixpy maix.camera.AeMode
+    */
+    enum class AeMode {
+        Invalid = -1,
+        Auto = 0,
+        Manual = 1
+    };
+
+    /**
+     * Auto white balance mode
+     * @maixpy maix.camera.AwbMode
+    */
+    enum class AwbMode {
+        Invalid = -1,
+        Auto = 0,
+        Manual = 1
+    };
+
+    /**
      * Camera class
      * @maixpy maix.camera.Camera
      */
@@ -364,7 +384,7 @@ namespace maix::camera
          * @return returns awb mode
          * @maixpy maix.camera.Camera.awb_mode
         */
-        int awb_mode(int value = -1);
+        camera::AwbMode awb_mode(camera::AwbMode value = camera::AwbMode::Invalid);
 
         /**
          * Set/Get white balance mode (deprecated interface)
@@ -395,7 +415,7 @@ namespace maix::camera
          * @return returns exposure mode
          * @maixpy maix.camera.Camera.exp_mode
         */
-        int exp_mode(int value = -1);
+        camera::AeMode exp_mode(camera::AeMode value = camera::AeMode::Invalid);
 
         /**
          * Set window size of camera

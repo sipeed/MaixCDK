@@ -307,8 +307,7 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         break;
         case 5:
         {
-            uint32_t out = 0;
-            out = cam->awb_mode(value);
+            auto out = cam->awb_mode((camera::AwbMode)value);
             log::info("set white balance mode: %ld\r\n", value);
             out = cam->awb_mode();
             log::info("get white balance mode: %d\r\n", out);
@@ -316,9 +315,8 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         break;
         case 6:
         {
-            uint32_t out = 0;
-            out = cam->exp_mode(value);
-            err::check_bool_raise(out == value, "set error");
+            auto out = cam->exp_mode((camera::AeMode)value);
+            err::check_bool_raise(out == (camera::AeMode)value, "set error");
             log::info("set exposure mode: %ld\r\n", value);
             out = cam->exp_mode();
             log::info("get exposure mode: %d\r\n", out);

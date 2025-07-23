@@ -1559,20 +1559,19 @@ _error:
         return out;
     }
 
-    int Camera::awb_mode(int value) {
+    AwbMode Camera::awb_mode(AwbMode value) {
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return AwbMode::Invalid;
         }
 
-        uint32_t out;
-        if (value == -1) {
-            out = mmf_get_wb_mode(_ch);
+        AwbMode out;
+        if (value == AwbMode::Invalid) {
+            out = mmf_get_wb_mode(_ch) > 0 ? AwbMode::Manual : AwbMode::Auto;
         } else {
-            mmf_set_wb_mode(_ch, value);
+            mmf_set_wb_mode(_ch, value == AwbMode::Manual ? 1 : 0);
             out = value;
         }
 
-        err::check_bool_raise(out >= 0, "set white balance failed");
         return out;
     }
 
@@ -1587,7 +1586,7 @@ _error:
             value = 0;
         }
 
-        return this->awb_mode(value) == 0 ? 1 : 0;
+        return this->awb_mode((AwbMode)value) == AwbMode::Manual ? 1 : 0;
     }
 
     static uint16_t get_gain_float2u16(float gain) {
@@ -1702,34 +1701,33 @@ _error:
         return 0;
     }
 
-    int Camera::exp_mode(int value) {
+    AeMode Camera::exp_mode(AeMode value) {
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return AeMode::Invalid;
         }
         camera_priv_t *priv = (camera_priv_t *)this->_param;
-        uint32_t out;
-        if (value == -1) {
-            out = mmf_get_exp_mode(_ch);
+        AeMode out;
+        if (value == AeMode::Invalid) {
+            out = mmf_get_exp_mode(_ch) > 0 ? AeMode::Manual : AeMode::Auto;
         } else {
             switch (priv->sns_type) {
             case OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT:
-                if (value == 0) {
+                if (value == AeMode::Auto) {
                     _config_extern_register_of_os04a10(0);  // revert exposure time register of os04a10
                 }
             break;
             case OV_OS04A10_MIPI_4M_720P90_12BIT:
-                if (value == 0) {
+                if (value == AeMode::Auto) {
                     _config_extern_register_of_720p90_os04a10(0);  // revert exposure time register of os04a10
                 }
             break;
             default:
             break;
             }
-            _mmf_set_exp_mode(_ch, value);
+            _mmf_set_exp_mode(_ch, value == AeMode::Auto ? 0 : 1);
             out = value;
         }
 
-        err::check_bool_raise(out >= 0, "set exposure failed");
         return out;
     }
 

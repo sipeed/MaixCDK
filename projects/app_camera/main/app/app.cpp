@@ -763,13 +763,13 @@ static int app_config_param(void)
         if (ui_get_shutter_auto_flag()) {
             printf("Shutter setting: Auto\n");
             if (priv.sensor_ae_mode != 0) {
-                priv.camera->exp_mode(0);
+                priv.camera->exp_mode(camera::AeMode::Auto);
                 priv.sensor_ae_mode = 0;
             }
         } else {
             if (priv.sensor_ae_mode == 0) {
                 uint32_t exposure_time = 0, iso_num = 0;
-                priv.camera->exp_mode(1);
+                priv.camera->exp_mode(camera::AeMode::Manual);
                 priv.sensor_shutter_value = exposure_time;
                 priv.sensor_iso_value = iso_num;
                 priv.sensor_ae_mode = 1;
@@ -790,7 +790,7 @@ static int app_config_param(void)
             printf("ISO setting: Auto\n");
             if (priv.sensor_ae_mode != 0) {
                 priv.sensor_ae_mode = 0;
-                priv.camera->exp_mode(0);
+                priv.camera->exp_mode(camera::AeMode::Auto);
             }
         } else {
             if (priv.sensor_ae_mode == 0) {
@@ -798,7 +798,7 @@ static int app_config_param(void)
                 priv.sensor_shutter_value = exposure_time;
                 priv.sensor_iso_value = iso_num;
                 priv.sensor_ae_mode = 1;
-                priv.camera->exp_mode(1);
+                priv.camera->exp_mode(camera::AeMode::Manual);
             }
             int iso_value;
             ui_get_iso_value(&iso_value);

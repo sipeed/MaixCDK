@@ -1039,24 +1039,23 @@ namespace maix::camera
         return current_value;
     }
 
-    int Camera::awb_mode(int value) {
+    AwbMode Camera::awb_mode(AwbMode value) {
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return AwbMode::Invalid;
         }
 
         AX_S32 ax_res;
         AX_ISP_IQ_AWB_PARAM_T param;
-        int current_mode = 0;
+        AwbMode current_mode = AwbMode::Invalid;
 
-        if (value >= 0) {
+        if (value != AwbMode::Invalid) {
             ax_res = AX_ISP_IQ_GetAwbParam(_ch, &param);
             if (ax_res != 0) {
                 log::error("AX_ISP_IQ_GetAwbParam failed: %d", ax_res);
                 return current_mode;
             }
 
-            current_mode = value ? 0 : 1; // 0,manual; 1,auto
-            param.nEnable = current_mode;
+            param.nEnable = (value == AwbMode::Manual ? 0 : 1);
             ax_res = AX_ISP_IQ_SetAwbParam(_ch, &param);
             if (ax_res != 0) {
                 log::error("AX_ISP_IQ_SetAwbParam failed: %d", ax_res);
@@ -1070,7 +1069,7 @@ namespace maix::camera
             return current_mode;
         }
 
-        current_mode = param.nEnable ? 0 : 1;
+        current_mode = param.nEnable > 0 ? AwbMode::Auto : AwbMode::Manual;
         return current_mode;
     }
 
@@ -1147,24 +1146,23 @@ namespace maix::camera
         return new_gains;
     }
 
-    int Camera::exp_mode(int value) {
+    AeMode Camera::exp_mode(AeMode value) {
         if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
+            return AeMode::Invalid;
         }
 
         AX_S32 ax_res;
         AX_ISP_IQ_AE_PARAM_T param;
-        int current_mode = 0;
-
-        if (value >= 0) {
+        AeMode current_mode;
+        if (value != AeMode::Invalid) {
             ax_res = AX_ISP_IQ_GetAeParam(_ch, &param);
             if (ax_res != 0) {
                 log::error("AX_ISP_IQ_GetAeParam failed: %d", ax_res);
                 return current_mode;
             }
 
-            current_mode = value ? 0 : 1; // 0,auto; 1,manual
-            param.nEnable = current_mode;
+            current_mode = value;
+            param.nEnable = (value == AeMode::Manual ? 0 : 1);
             ax_res = AX_ISP_IQ_SetAeParam(_ch, &param);
             if (ax_res != 0) {
                 log::error("AX_ISP_IQ_GetAeParam failed: %d", ax_res);
@@ -1178,7 +1176,7 @@ namespace maix::camera
             return current_mode;
         }
 
-        current_mode = param.nEnable ? 0 : 1;
+        current_mode = param.nEnable > 0 ? AeMode::Auto : AeMode::Manual;
         return current_mode;
     }
 
