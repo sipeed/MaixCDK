@@ -1,10 +1,10 @@
 /* clang-format off */
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_VERSION "0.22.4"
+#define PACKAGE_VERSION "2.6.0"
 
 /* Define to the version of this package. */
-#define PACKAGE_STRING "libdatachannel 0.22.4"
+#define PACKAGE_STRING "libsrtp 2.6.0"
 
 /* Define to enabled debug logging for all mudules. */
 /* #undef ENABLE_DEBUG_LOGGING */
