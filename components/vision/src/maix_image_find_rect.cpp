@@ -13,6 +13,18 @@ namespace maix::image
 {
     std::vector<image::Rect> Image::find_rects(std::vector<int> roi, int threshold)
     {
+        std::vector<image::Rect> rects;
+        rectangle_t roi_rect;
+        std::vector<int> avail_roi = _get_available_roi(roi);
+        roi_rect.x = avail_roi[0];
+        roi_rect.y = avail_roi[1];
+        roi_rect.w = avail_roi[2];
+        roi_rect.h = avail_roi[3];
+        if (roi_rect.w < 4 || roi_rect.h < 4) {
+            log::warn("roi width or height is too small, must be larger than 4");
+            return rects;
+        }
+
         image_t src_img;
         Image *gray_img = NULL;
         if (_format == image::FMT_GRAYSCALE) {
@@ -21,13 +33,6 @@ namespace maix::image
             gray_img = to_format(image::FMT_GRAYSCALE);
             convert_to_imlib_image(gray_img, &src_img);
         }
-
-        rectangle_t roi_rect;
-        std::vector<int> avail_roi = _get_available_roi(roi);
-        roi_rect.x = avail_roi[0];
-        roi_rect.y = avail_roi[1];
-        roi_rect.w = avail_roi[2];
-        roi_rect.h = avail_roi[3];
 
         // This code is used to fix crash bug, but this is a terrible fix
         if (roi_rect.x == 0 && roi_rect.y == 0 && roi_rect.w == src_img.w && roi_rect.h == src_img.h) {
@@ -38,7 +43,6 @@ namespace maix::image
         }
 
         list_t out;
-        std::vector<image::Rect> rects;
         imlib_find_rects(&out, &src_img, &roi_rect, threshold);
         for (size_t i = 0; list_size(&out); i ++) {
             find_rects_list_lnk_data_t lnk_data;

@@ -32,6 +32,18 @@ namespace maix::image
 
     std::vector<image::AprilTag> Image::find_apriltags(std::vector<int> roi, ApriltagFamilies families, float fx, float fy, int cx, int cy)
     {
+        std::vector<image::AprilTag> apriltags;
+        rectangle_t roi_rect;
+        std::vector<int> avail_roi = _get_available_roi(roi);
+        roi_rect.x = avail_roi[0];
+        roi_rect.y = avail_roi[1];
+        roi_rect.w = avail_roi[2];
+        roi_rect.h = avail_roi[3];
+        if (roi_rect.w < 4 || roi_rect.h < 4) {
+            log::warn("roi width or height is too small, must be larger than 4");
+            return apriltags;
+        }
+
         image_t src_img;
         Image *gray_img = NULL;
         if (_format == image::FMT_GRAYSCALE) {
@@ -40,13 +52,6 @@ namespace maix::image
             gray_img = to_format(image::FMT_GRAYSCALE);
             convert_to_imlib_image(gray_img, &src_img);
         }
-
-        rectangle_t roi_rect;
-        std::vector<int> avail_roi = _get_available_roi(roi);
-        roi_rect.x = avail_roi[0];
-        roi_rect.y = avail_roi[1];
-        roi_rect.w = avail_roi[2];
-        roi_rect.h = avail_roi[3];
 
         // This code is used to fix imlib_find_apriltags crash bug, but this is a terrible fix
         if (roi_rect.x == 0 && roi_rect.y == 0 && roi_rect.w == src_img.w && roi_rect.h == src_img.h) {
@@ -76,7 +81,6 @@ namespace maix::image
         apriltag_families_t families_enum = convert_to_imlib_apriltag_families(families);
 
         list_t out;
-        std::vector<image::AprilTag> apriltags;
         imlib_find_apriltags(&out, &src_img, &roi_rect, families_enum, fx, fy, cx, cy);
         for (size_t i = 0; list_size(&out); i ++) {
             find_apriltags_list_lnk_data_t lnk_data;
