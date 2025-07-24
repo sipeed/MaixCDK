@@ -901,12 +901,12 @@ namespace maix::middleware::maixcam2 {
             pCam->tPipeInfo[j].bAiispEnable = pVinParam->bAiispEnable;
             if (pCam->tPipeInfo[j].bAiispEnable) {
                 if (eHdrMode <= AX_SNS_LINEAR_MODE) {
-                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_20250520_20250520172759.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                    strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_hdr_4lane_sipeed_0716.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
                 } else {
                     strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_hdr_2x_ainr.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
                 }
             } else {
-                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_20250520_20250520172759.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
+                strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/sc850sl_hdr_4lane_sipeed_0716.bin", sizeof(pCam->tPipeInfo[j].szBinPath));
             }
         }
         return 0;
