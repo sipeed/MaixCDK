@@ -46,7 +46,7 @@ jobs:
           echo "--------------------------------"
           python -m pip install -r requirements.txt
           sudo apt update -y
-          sudo apt install -y cmake
+          sudo apt install -y cmake autoconf automake libtool git build-essential
           echo "--------------------------------"
           echo "-- Build Test for MaixCAM now --"
           echo "--------------------------------"
