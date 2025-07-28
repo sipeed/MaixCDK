@@ -4,6 +4,7 @@ if(PLATFORM_MAIXCAM2)
     set(src_path "${ffmpeg_unzip_path}/ffmpeg_maixcam2_libs_n${ffmpeg_version_str}")
 else()
     set(src_path "${ffmpeg_unzip_path}/ffmpeg")
+    # FIXME: for linux platform
 endif()
 ############### Add include ###################
 set(ffmpeg_include_dir          "${src_path}/include"
@@ -90,17 +91,18 @@ elseif(PLATFORM_MAIXCAM2)
     set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
     list(APPEND ADD_DIST_LIB_IGNORE ${ffmpeg_dynamic_lib_file})
 else()
-    set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
-                                ${src_path}/lib/libavdevice.so
-                                ${src_path}/lib/libavfilter.so
-                                ${src_path}/lib/libavformat.so
-                                ${src_path}/lib/libavresample.so
-                                ${src_path}/lib/libavutil.so
-                                ${src_path}/lib/libpostproc.so
-                                ${src_path}/lib/libswresample.so
-                                ${src_path}/lib/libswscale.so)
-    list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
-    set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
+    # FIXME: for linux platform, should depend on source code or package installed in system.
+    # set(ffmpeg_dynamic_lib_file ${src_path}/lib/libavcodec.so
+    #                             ${src_path}/lib/libavdevice.so
+    #                             ${src_path}/lib/libavfilter.so
+    #                             ${src_path}/lib/libavformat.so
+    #                             ${src_path}/lib/libavresample.so
+    #                             ${src_path}/lib/libavutil.so
+    #                             ${src_path}/lib/libpostproc.so
+    #                             ${src_path}/lib/libswresample.so
+    #                             ${src_path}/lib/libswscale.so)
+    # list(APPEND ADD_DYNAMIC_LIB ${ffmpeg_dynamic_lib_file})
+    # set_property(SOURCE ${ffmpeg_dynamic_lib_file} PROPERTY GENERATED 1)
 endif()
 ###############################################
 
