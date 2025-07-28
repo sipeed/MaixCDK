@@ -11,21 +11,17 @@
 #include <vector>
 #include <stdio.h>
 
-#undef SEEK_SET
-#undef SEEK_CUR
-#undef SEEK_END
-
 namespace maix::fs
 {
     /**
      * SEEK enums
      * @maixpy maix.fs.SEEK
     */
-    enum SEEK
+    enum class SEEK
     {
-        SEEK_SET = 0,  // Seek from beginning of file.
-        SEEK_CUR = 1,  // Seek from current position.
-        SEEK_END = 2,  // Seek from end of file.
+        FS_SEEK_SET = 0,  // Seek from beginning of file.
+        FS_SEEK_CUR = 1,  // Seek from current position.
+        FS_SEEK_END = 2,  // Seek from end of file.
     };
 
     /**
