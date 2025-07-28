@@ -7,7 +7,7 @@ def add_file_downloads(confs : dict) -> list:
     version = "3.11.3"
     url = f"https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz"
     if version == "3.11.3":
-        sha256sum = "d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d."
+        sha256sum = "d6c65aca6b1ed68e7a182f4757257b107ae403032760ed6ef121c9d55e81757d"
     else:
         raise Exception(f"version {version} not support")
     sites = ["https://github.com/nlohmann/json"]

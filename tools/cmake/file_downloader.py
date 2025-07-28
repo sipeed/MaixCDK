@@ -288,7 +288,7 @@ def download_extract_files(items):
             if "sha256sum" in item and item["sha256sum"]:
                 ok, sha256sum = check_sha256sum(pkg_path, item["sha256sum"])
                 if not ok:
-                    print("-- Error: sha256sum check failed, should be {}, but files's sha256sum is {}.\n   Please download this file manually".format(item["sha256sum"], sha256sum))
+                    print("-- Error: sha256sum check failed, should be '{}', but files's sha256sum is '{}'.\n   Please download this file manually".format(item["sha256sum"], sha256sum))
                     sys.exit(1)
         # extract_dir not empty means already extracted, continue
         need_extract = False
