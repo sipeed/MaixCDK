@@ -11,9 +11,9 @@
 
 namespace maix::image
 {
-    using RGB = std::array<uint8_t, 3>;
+    using _RGB_ARRAY = std::array<uint8_t, 3>;
 
-    static const std::vector<RGB> _palette_turbo = {
+    static const std::vector<_RGB_ARRAY> _palette_turbo = {
         {48, 18, 59},
         {49, 21, 66},
         {50, 24, 74},
@@ -272,7 +272,7 @@ namespace maix::image
         {122, 4, 2},
     };
 
-    static const std::vector<RGB> _palette_viridis = {
+    static const std::vector<_RGB_ARRAY> _palette_viridis = {
         {68, 1, 84},
         {68, 2, 85},
         {68, 3, 87},
@@ -530,7 +530,7 @@ namespace maix::image
         {250, 230, 34},
         {253, 231, 36},
     };
-    static const std::vector<RGB> _palette_inferno = {
+    static const std::vector<_RGB_ARRAY> _palette_inferno = {
         {0, 0, 3},
         {0, 0, 4},
         {0, 0, 6},
@@ -788,7 +788,7 @@ namespace maix::image
         {250, 253, 160},
         {252, 254, 164},
     };
-    static const std::vector<RGB> _palette_plasma = {
+    static const std::vector<_RGB_ARRAY> _palette_plasma = {
         {12, 7, 134},
         {16, 7, 135},
         {19, 6, 137},
@@ -1046,7 +1046,7 @@ namespace maix::image
         {240, 246, 35},
         {239, 248, 33},
     };
-    static const std::vector<RGB> _palette_cividis = {
+    static const std::vector<_RGB_ARRAY> _palette_cividis = {
         {0, 32, 76},
         {0, 32, 78},
         {0, 33, 80},
@@ -1304,7 +1304,7 @@ namespace maix::image
         {255, 232, 68},
         {255, 233, 69},
     };
-    static const std::vector<RGB> _palette_cubehelix = {
+    static const std::vector<_RGB_ARRAY> _palette_cubehelix = {
         {0, 0, 0},
         {1, 0, 1},
         {3, 1, 3},
@@ -1562,7 +1562,7 @@ namespace maix::image
         {253, 254, 253},
         {255, 255, 255},
     };
-    static const std::vector<RGB> _palette_magma = {
+    static const std::vector<_RGB_ARRAY> _palette_magma = {
         {0, 0, 4},
         {1, 0, 5},
         {1, 1, 6},
@@ -1820,7 +1820,7 @@ namespace maix::image
         {252, 251, 189},
         {252, 253, 191}
     };
-    static const std::vector<RGB> _palette_twilight = {
+    static const std::vector<_RGB_ARRAY> _palette_twilight = {
         {226, 217, 226},
         {225, 217, 226},
         {224, 217, 226},
@@ -2079,7 +2079,7 @@ namespace maix::image
         {226, 217, 226}
 
     };
-    static const std::vector<RGB> _palette_twilight_shifted = {
+    static const std::vector<_RGB_ARRAY> _palette_twilight_shifted = {
         {48, 20, 55},
         {49, 19, 57},
         {50, 18, 58},
@@ -2337,7 +2337,7 @@ namespace maix::image
         {48, 20, 55},
         {47, 20, 54}
     };
-    static const std::vector<RGB> _palette_greys = {
+    static const std::vector<_RGB_ARRAY> _palette_greys = {
         {255, 255, 255},
         {254, 254, 254},
         {254, 254, 254},
@@ -2596,7 +2596,7 @@ namespace maix::image
         {37, 37, 37},
     };
 
-    static const std::vector<RGB> _palette_jet = {
+    static const std::vector<_RGB_ARRAY> _palette_jet = {
         {0, 0, 128},
         {0, 0, 132},
         {0, 0, 137},
@@ -2855,7 +2855,7 @@ namespace maix::image
         {128, 0, 0}
     };
 
-    static const std::vector<RGB> _palette_coolwarm = {
+    static const std::vector<_RGB_ARRAY> _palette_coolwarm = {
         {59, 76, 192},
         {60, 78, 194},
         {61, 80, 195},
@@ -3114,7 +3114,7 @@ namespace maix::image
         {180, 4, 38}
     };
 
-    static const std::vector<RGB> _palette_rdylbu = {
+    static const std::vector<_RGB_ARRAY> _palette_rdylbu = {
         {165, 0, 38},
         {167, 2, 38},
         {169, 4, 38},
@@ -3373,7 +3373,7 @@ namespace maix::image
         {49, 54, 149},
     };
 
-    static const std::vector<RGB> _palette_set1 = {
+    static const std::vector<_RGB_ARRAY> _palette_set1 = {
         {228, 26, 28},
         {55, 126, 184},
         {77, 175, 74},
@@ -3385,7 +3385,7 @@ namespace maix::image
         {153, 153, 153},
     };
 
-    static const std::vector<RGB> _palette_tab10 = {
+    static const std::vector<_RGB_ARRAY> _palette_tab10 = {
         {31, 119, 180},
         {255, 127, 14},
         {44, 160, 44},
@@ -3398,7 +3398,7 @@ namespace maix::image
         {23, 190, 207},
     };
 
-    static const std::vector<RGB> _palette_tab20 = {
+    static const std::vector<_RGB_ARRAY> _palette_tab20 = {
         {31, 119, 180},
         {174, 199, 232},
         {255, 127, 14},
@@ -3421,7 +3421,7 @@ namespace maix::image
         {158, 218, 229},
     };
 
-    static const std::vector<RGB> _palette_thermal_white_hot = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_white_hot = {
         {0, 2, 5},
         {0, 3, 6},
         {1, 4, 7},
@@ -3679,7 +3679,7 @@ namespace maix::image
         {252, 255, 255},
         {253, 255, 255},
     };
-    static const std::vector<RGB> _palette_thermal_black_hot = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_black_hot = {
         {235, 235, 235},
         {234, 234, 234},
         {234, 234, 234},
@@ -3937,7 +3937,7 @@ namespace maix::image
         {1, 1, 1},
         {0, 0, 0},
      };
-    static const std::vector<RGB> _palette_thermal_red_hot = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_red_hot = {
         {0, 0, 0},
         {1, 1, 1},
         {3, 3, 3},
@@ -4195,7 +4195,7 @@ namespace maix::image
         {255, 3, 0},
         {255, 0, 0},
     };
-    static const std::vector<RGB> _palette_thermal_white_hot_sd = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_white_hot_sd = {
         {0, 128, 128},
         {1, 128, 128},
         {2, 128, 128},
@@ -4453,7 +4453,7 @@ namespace maix::image
         {254, 128, 128},
         {255, 128, 128}
     };
-    static const std::vector<RGB> _palette_thermal_black_hot_sd = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_black_hot_sd = {
         {230, 238, 243},
         {230, 238, 242},
         {229, 237, 242},
@@ -4711,7 +4711,7 @@ namespace maix::image
         {0, 4, 9},
         {0, 3, 8},
     };
-    static const std::vector<RGB> _palette_thermal_red_hot_sd = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_red_hot_sd = {
         {0, 2, 5},
         {1, 3, 6},
         {2, 5, 8},
@@ -4969,7 +4969,7 @@ namespace maix::image
         {255, 3, 0},
         {255, 0, 0},
     };
-    static const std::vector<RGB> _palette_thermal_ironbow = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_ironbow = {
         {1, 1, 1},
         {1, 1, 9},
         {2, 1, 19},
@@ -5227,7 +5227,7 @@ namespace maix::image
         {255, 254, 239},
         {255, 255, 245},
     };
-    static const std::vector<RGB> _palette_thermal_night = {
+    static const std::vector<_RGB_ARRAY> _palette_thermal_night = {
         {0, 0, 0},
         {0, 0, 0},
         {0, 0, 0},
@@ -5486,7 +5486,7 @@ namespace maix::image
         {0, 229, 160},
     };
 
-    static const std::vector<RGB> _palette_github_green = {
+    static const std::vector<_RGB_ARRAY> _palette_github_green = {
         {237, 237, 237},
         {237, 237, 236},
         {236, 237, 234},
@@ -5781,7 +5781,7 @@ namespace maix::image
         "max_count"
     };
 
-    std::vector<const std::vector<RGB>*> _cmap_data = {
+    std::vector<const std::vector<_RGB_ARRAY>*> _cmap_data = {
         &_palette_turbo,
         &_palette_viridis,
         &_palette_inferno,
