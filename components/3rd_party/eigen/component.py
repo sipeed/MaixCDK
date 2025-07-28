@@ -5,7 +5,7 @@ def add_file_downloads(confs : dict) -> list:
         @return list type, items is dict type
     '''
     url = "https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.zip"
-    sha256sum = "1ccaabbfe870f60af3d6a519c53e09f3dcf630207321dffa553564a8e75c4fc8"
+    sha256sum = "eba3f3d414d2f8cba2919c78ec6daab08fc71ba2ba4ae502b7e5d4d99fc02cda"
     filename = "eigen-3.4.0.zip"
 
     return [
