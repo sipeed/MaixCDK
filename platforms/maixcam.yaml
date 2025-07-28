@@ -2,12 +2,13 @@ toolchain:
   - name: MUSL toolchain optimize by t-head
     id: musl_t-head
     default: true
-    url: https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/03/07/16/host-tools.tar.gz
+    url: https://github.com/sipeed/MaixCDK/releases/download/v0.0.0/host-tools-2025.7.28.tar.xz
     urls:
+      - https://sophon-file.sophon.cn/sophon-prod-s3/drive/23/03/07/16/host-tools.tar.gz # old version
     sites:
       - https://github.com/sophgo/cvi_mmf_sdk
-    sha256sum: ff9a58e8e192b20ea42e1d729c42d2219523209706cb3f0cf134582f6c70f805
-    filename: host-tools.tar.gz
+    sha256sum: 968b179a7faebfe8914e5163b2d85038b71824780fccde0b4b3ee9f67472d007
+    filename: host-tools-2025.7.28.tar.xz
     path: toolchains/maixcam
     bin_path: toolchains/maixcam/host-tools/gcc/riscv64-linux-musl-x86_64/bin
     prefix: riscv64-unknown-linux-musl-
