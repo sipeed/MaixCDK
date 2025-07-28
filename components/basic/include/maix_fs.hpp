@@ -9,6 +9,7 @@
 #include "maix_err.hpp"
 #include <stdint.h>
 #include <vector>
+#include <stdio.h>
 
 #undef SEEK_SET
 #undef SEEK_CUR

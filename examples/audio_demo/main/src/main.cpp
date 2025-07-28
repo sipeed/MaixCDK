@@ -4,6 +4,7 @@
 #include "maix_basic.hpp"
 #include "maix_audio.hpp"
 #include "maix_image.hpp"
+#include <stdio.h>
 
 using namespace maix;
 extern "C" {
