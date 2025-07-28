@@ -72,6 +72,7 @@ namespace maix::camera
         double fps;
         int exptime_max;    // unit:us
         int exptime_min;
+        int vi_pool_num;
     } camera_priv_t;
 
     Camera::Camera(int width, int height, image::Format format, const char *device, double fps, int buff_num, bool open, bool raw)
@@ -717,7 +718,7 @@ _retry:
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
 
-        if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, 3, &stViConfig)) {
+        if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, priv->vi_pool_num, &stViConfig)) {
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
         }
@@ -817,8 +818,15 @@ _retry:
         }
 
         int pool_num = 3;
-        if (priv->sns_type == SMS_SC035GS_MIPI_480P_120FPS_12BIT) {
-            pool_num = 4;
+        if (buff_num_tmp == 3) {
+            pool_num = 3;
+            if (priv->sns_type == SMS_SC035GS_MIPI_480P_120FPS_12BIT) {
+                pool_num = 4;
+            }
+            priv->vi_pool_num = 3;
+        } else {
+            pool_num = buff_num_tmp;
+            priv->vi_pool_num = buff_num_tmp;
         }
 
         if (is_opened()) {
@@ -1141,9 +1149,11 @@ _error:
             image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, read_block_ms);
             err::check_null_raise(img, "camera read failed");
             // FIXME: delete me and fix driver bug
-            uint64_t wait_us = 1000000 / _fps;
-            while (time::ticks_us() - _last_read_us < wait_us) {
-                time::sleep_us(50);
+            if (_buff_num != 1) {
+                uint64_t wait_us = 1000000 / _fps;
+                while (time::ticks_us() - _last_read_us < wait_us) {
+                    time::sleep_us(50);
+                }
             }
             _last_read_us = time::ticks_us();
             return img;
