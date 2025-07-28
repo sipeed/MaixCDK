@@ -161,7 +161,7 @@ public:
  * @return std::vector<imu::IMUInfo> type, all IMU info.
  * @maixpy maix.ext_dev.imu.get_imu_info
  */
-std::vector<imu::IMUInfo> get_imu_info();
+std::vector<ext_dev::imu::IMUInfo> get_imu_info();
 
 /**
  * QMI8656 driver class
