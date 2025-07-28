@@ -11,6 +11,9 @@ def add_requirements(platform : str, find_dirs : list):
         return [
             "maixcam2_msp"
         ]
+    elif platform == "linux":
+        return [
+        ]
     else:
         raise Exception("maixcam_lib component.py not add this platform support yet")
 
