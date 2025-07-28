@@ -21,8 +21,10 @@ def add_requirements(platform : str, find_dirs : list):
             "OpenCC",
             "onnxruntime"
         ])
+    elif platform == "linux":
+        pass
     else:
-        raise Exception("maixcam_lib component.py not add this platform support yet")
+        raise Exception("nn component.py not add this platform support yet")
     return reqs
 
 

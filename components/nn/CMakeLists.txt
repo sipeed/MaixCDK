@@ -13,6 +13,7 @@ elseif(PLATFORM_MAIXCAM2)
     append_srcs_dir(ADD_SRCS "port/maixcam2")
     list(APPEND ADD_REQUIREMENTS eigen librosa_simple OpenCC onnxruntime)
 else()
+    list(APPEND ADD_PRIVATE_INCLUDE "port/linux")
     append_srcs_dir(ADD_SRCS "port/linux")
 endif()
 

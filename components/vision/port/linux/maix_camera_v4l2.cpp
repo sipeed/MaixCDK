@@ -1067,6 +1067,7 @@ namespace maix::camera
         int height;
         void *buff;
         bool buff_alloc;
+        bool _is_opened;
     };
 
     std::vector<std::string> list_devices()
@@ -1428,6 +1429,11 @@ namespace maix::camera
         return err::ERR_NOT_IMPL;
     }
 
+
+    std::vector<int> get_sensor_size()
+    {
+        return {0, 0};
+    }
 
     std::vector<int> Camera::get_sensor_size() {
         return {0, 0};

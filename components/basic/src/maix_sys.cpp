@@ -50,16 +50,9 @@ namespace maix::sys
         return "Unkonwn";
     }
 
-    std::string maixpy_version()
+    std::string _get_maixpy_version_from_file(const std::string &version_path)
     {
-#if PLATFORM_MAIXCAM
-    std::ifstream version_file("/usr/lib/python3.11/site-packages/maix/version.py");
-#elif PLATFORM_MAIXCAM2
-    std::ifstream version_file("/usr/local/lib/python3.13/site-packages/maix/version.py");
-#else
-        log::warn("maixpy_version() not implemented for this platform");
-        return "";
-#endif
+        std::ifstream version_file(version_path);
         // fast way, read /usr/lib/python3.11/site-packages/maix/version.py
         // find key value:
         //      version_major = 4
@@ -107,6 +100,19 @@ namespace maix::sys
         std::ostringstream version_stream;
         version_stream << version_major << "." << version_minor << "." << version_patch;
         return version_stream.str();
+    }
+
+    std::string maixpy_version()
+    {
+#if PLATFORM_MAIXCAM
+        return _get_maixpy_version_from_file("/usr/lib/python3.11/site-packages/maix/version.py");
+#elif PLATFORM_MAIXCAM2
+        return _get_maixpy_version_from_file("/usr/local/lib/python3.13/site-packages/maix/version.pyy");
+#else
+        log::warn("maixpy_version() not implemented for this platform");
+        return "";
+#endif
+
     }
 
     std::string runtime_version()

@@ -1,5 +1,4 @@
 #include "maix_pipeline.hpp"
-#include "ax_middleware.hpp"
 
 namespace maix::pipeline {
     Stream::Stream(void *stream, bool auto_delete, std::string from) {

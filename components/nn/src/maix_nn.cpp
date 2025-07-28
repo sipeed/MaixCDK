@@ -13,6 +13,8 @@
 
 #if PLATFORM_MAIXCAM || PLATFORM_MAIXCAM2
     #include "maix_nn_maixcam.hpp"
+#else
+    #include "maix_nn_linux.hpp"
 #endif
 
 

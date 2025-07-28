@@ -10,6 +10,8 @@ def add_requirements(platform : str, find_dirs : list):
             "nn",
             "json"
         ]
+    elif platform == "linux":
+        return []
     else:
-        raise Exception("maixcam_lib component.py not add this platform support yet")
+        raise Exception("llm component.py not add this platform support yet")
 

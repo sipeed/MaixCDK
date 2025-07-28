@@ -87,6 +87,8 @@ namespace maix::comm
             }},
         };
 #else
+        std::map<std::string, std::map<std::string, std::string>> pins_map = {
+        };
         log::warn("not set pinmap for this platform");
 #endif
         auto it = pins_map.find(port_name);
@@ -113,6 +115,7 @@ namespace maix::comm
             {"uart2", "/dev/ttyS2"},
             // {"uart3", "/dev/ttyS3"},// default used by WiFi, to avoid error, we not use it.
         };
+        return ports;
 #elif PLATFORM_MAIXCAM2
         std::vector<std::vector<std::string>> ports = {
             // {"uart0", "/dev/ttyS0"}, // debug serial, not used by default.
@@ -121,11 +124,11 @@ namespace maix::comm
             {"uart3", "/dev/ttyS3"},
             {"uart4", "/dev/ttyS4"}, // 6pin 1.25mm, default use this one.
         };
+        return ports;
 #else
         log::warn("this platform no valid uart yet");
         return {};
 #endif
-        return ports;
     }
 
 
@@ -260,14 +263,14 @@ namespace maix::comm
         auto ports = get_uart_ports();
 #if PLATFORM_MAIXCAM
         std::string default_port = "uart0";
-        auto default_device = _get_uart_device_by_name(default_port, ports);
+        std::string default_device = _get_uart_device_by_name(default_port, ports);
 #elif PLATFORM_MAIXCAM2
         std::string default_port = "uart4";
-        auto default_device = _get_uart_device_by_name(default_port, ports);
+        std::string default_device = _get_uart_device_by_name(default_port, ports);
 #else
         log::warn("this platform no default uart yet");
         std::string default_port = "";
-        auto default_device = "";
+        std::string default_device = "";
 #endif
 
         auto name = app::get_sys_config_kv("comm", "uart_port", "default");

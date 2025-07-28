@@ -10,6 +10,8 @@
 #             "nn",
 #             "json"
 #         ]
+#     elif platform == "linux":
+#         return []
 #     else:
-#         raise Exception("maixcam_lib component.py not add this platform support yet")
+#         raise Exception("ahrs component.py not add this platform support yet")
 
