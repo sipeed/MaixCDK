@@ -45,6 +45,8 @@ jobs:
           echo "-- Install requirements first --"
           echo "--------------------------------"
           python -m pip install -r requirements.txt
+          sudo apt update -y
+          sudo apt install -y cmake
           echo "--------------------------------"
           echo "-- Build API DOC for MaixCAM now --"
           echo "--------------------------------"

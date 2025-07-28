@@ -45,6 +45,8 @@ jobs:
           echo "-- Install requirements first --"
           echo "--------------------------------"
           python -m pip install -r requirements.txt
+          sudo apt update -y
+          sudo apt install -y libopencv-dev libopencv-contrib-dev libsdl2-dev cmake
           echo "--------------------------------"
           echo "-- Build Test for Linux now --"
           echo "--------------------------------"
