@@ -57,7 +57,7 @@ For more information, refer to the [MaixPy](https://github.com/sipeed/MaixPy) in
 | ------ | -------------- |
 | [Sipeed MaixCAM](https://wiki.sipeed.com/maixcam) | Full |
 | [Sipeed MaixCAM-Pro](https://wiki.sipeed.com/maixcam-pro) | Full |
-| Commen Linux | Partial |
+| Common Linux | Partial |
 
 ## Quick Start
 
