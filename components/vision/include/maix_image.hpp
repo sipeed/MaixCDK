@@ -506,7 +506,7 @@ namespace maix::image
          * Draw edges on image
          * @param corners edges, [[x0, y0], [x1, y1], [x2, y2], [x3, y3]]
          * @param color edges color @see image::Color
-         * @param size the circle of radius size. TODO: support in the feature
+         * @param size the circle of radius size. TODO: support in the future
          * @param thickness edges thickness(line width), by default(value is 1)
          * @param fill if true, will fill edges, by default(value is false)
          * @return this image object self
@@ -516,7 +516,7 @@ namespace maix::image
 
         /**
          * Draw keypoints on image
-         * @param keypoints keypoints, [x1, y1, x2, y2...] or [x, y, rotation_andle_in_degrees, x2, y2, rotation_andle_in_degrees2](TODO: rotation_andle_in_degrees support in the feature)
+         * @param keypoints keypoints, [x1, y1, x2, y2...] or [x, y, rotation_andle_in_degrees, x2, y2, rotation_andle_in_degrees2](TODO: rotation_andle_in_degrees support in the future)
          * @param color keypoints color @see image::Color
          * @param size size of keypoints(radius)
          * @param thickness keypoints thickness(line width), by default(value is -1 means fill circle)
@@ -691,7 +691,7 @@ namespace maix::image
          * @param zero If zero is true, the image will be set the pixels within the threshold to 0, other pixels remain unchanged. If zero is false, the image will be set to black or white. default is false.
          * @param mask Mask is another image to use as a pixel level mask for the operation. The mask should be an image with just black or white pixels and should be the same size as the image being operated on.
          * Only pixels set in the mask are modified. default is None.
-         * @param to_bitmap If true, the image will be converted to a bitmap image before thresholding. default is false. TODO: support in the feature
+         * @param to_bitmap If true, the image will be converted to a bitmap image before thresholding. default is false. TODO: support in the future
          * @param copy Select whether to return a new image or modify the original image. default is false.
          * @return Returns the image after the operation is completed.
          * @maixpy maix.image.Image.binary
@@ -766,7 +766,7 @@ namespace maix::image
         image::Image *b_xnor(image::Image *other, image::Image *mask = nullptr);
 
         /**
-         * @brief Performs an auto white balance operation on the image. TODO: support in the feature
+         * @brief Performs an auto white balance operation on the image. TODO: support in the future
          * @param max  if True uses the white-patch algorithm instead. default is false.
          * @return Returns the image after the operation is completed.
          * @maixpy maix.image.Image.awb
@@ -1108,7 +1108,7 @@ namespace maix::image
         image::Image *logpolar(bool reverse = false);
 
         /**
-         * @brief Performs a lens correction operation on the image. TODO: support in the feature
+         * @brief Performs a lens correction operation on the image. TODO: support in the future
          * @param strength The strength of the lens correction. default is 1.8.
          * @param zoom The zoom of the lens correction. default is 1.0.
          * @param x_corr The x correction of the lens correction. default is 0.0.
@@ -1119,7 +1119,7 @@ namespace maix::image
         image::Image *lens_corr(double strength = 1.8, double zoom = 1.0, double x_corr = 0.0, double y_corr = 0.0);
 
         /**
-         * @brief Performs a rotation correction operation on the image. TODO: support in the feature
+         * @brief Performs a rotation correction operation on the image. TODO: support in the future
          * @param x_rotation The x rotation of the rotation correction. default is 0.0.
          * @param y_rotation The y rotation of the rotation correction. default is 0.0.
          * @param z_rotation The z rotation of the rotation correction. default is 0.0.
@@ -1160,7 +1160,7 @@ namespace maix::image
         image::Histogram get_histogram(std::vector<std::vector<int>> thresholds = std::vector<std::vector<int>>(), bool invert = false, std::vector<int> roi = std::vector<int>(), int bins = -1, int l_bins = 100, int a_bins = 256, int b_bins = 256, image::Image *difference = nullptr);
 
         /**
-         * @brief Gets the statistics of the image. TODO: support in the feature
+         * @brief Gets the statistics of the image. TODO: support in the future
          * @note For GRAYSCALE format, Lmin and Lmax range is [0, 255]. For RGB888 format, Lmin and Lmax range is [0, 100].
          * @param thresholds You can define multiple thresholds.
          * For GRAYSCALE format, you can use {{Lmin, Lmax}, ...} to define one or more thresholds.
@@ -1435,7 +1435,7 @@ namespace maix::image
         std::vector<image::BarCode> find_barcodes(std::vector<int> roi = std::vector<int>());
 
         /**
-         * @brief Finds the displacement between the image and the template.    TODO: support in the feature
+         * @brief Finds the displacement between the image and the template.    TODO: support in the future
          * note: this method must be used on power-of-2 image sizes
          * @param template_image The template image.
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.
@@ -1461,7 +1461,7 @@ namespace maix::image
         std::vector<int> find_template(image::Image &template_image, float threshold, std::vector<int> roi = std::vector<int>(), int step = 2, image::TemplateMatch search = image::TemplateMatch::SEARCH_EX);
 
         /**
-         * @brief Finds the features in the image.  TODO: support in the feature
+         * @brief Finds the features in the image.  TODO: support in the future
          * @param cascade The cascade to use for the features. default is CASCADE_FRONTALFACE_ALT.
          * @param threshold The threshold to use for the features. default is 0.5.
          * @param scale The scale to use for the features. default is 1.5.
@@ -1473,7 +1473,7 @@ namespace maix::image
         std::vector<int> find_features(int cascade, float threshold = 0.5, float scale = 1.5, std::vector<int> roi = std::vector<int>());
 
         /**
-         * @brief Finds the lbp in the image. TODO: support in the feature.
+         * @brief Finds the lbp in the image. TODO: support in the future.
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.
          * default is None, means whole image.
          * @return Returns the lbp of the image
@@ -1482,7 +1482,7 @@ namespace maix::image
         image::LBPKeyPoint find_lbp(std::vector<int> roi = std::vector<int>());
 
         /**
-         * @brief Finds the keypoints in the image. TODO: support in the feature.
+         * @brief Finds the keypoints in the image. TODO: support in the future.
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.
          * default is None, means whole image.
          * @param threshold The threshold to use for the keypoints. default is 20.
@@ -1507,7 +1507,7 @@ namespace maix::image
         image::Image* find_edges(image::EdgeDetector edge_type, std::vector<int> roi = std::vector<int>(), std::vector<int> threshold = std::vector<int>({100, 200}));
 
         /**
-         * @brief Finds the hog in the image.   TODO: support in the feature
+         * @brief Finds the hog in the image.   TODO: support in the future
          * @param roi The region of interest, input in the format of (x, y, w, h), x and y are the coordinates of the upper left corner, w and h are the width and height of roi.
          * default is None, means whole image.
          * @param size The size to use for the hog. default is 8.
@@ -1517,7 +1517,7 @@ namespace maix::image
         image::Image* find_hog(std::vector<int> roi = std::vector<int>(), int size = 8);
 
         /**
-         * @brief Matches the lbp descriptor of the image.  TODO: support in the feature
+         * @brief Matches the lbp descriptor of the image.  TODO: support in the future
          * @param desc1 The descriptor to use for the match.
          * @param desc2 The descriptor to use for the match.
          * @return Returns the match of the image
@@ -1526,7 +1526,7 @@ namespace maix::image
         int match_lbp_descriptor(image::LBPKeyPoint &desc1, image::LBPKeyPoint &desc2);
 
         /**
-         * @brief Matches the orb descriptor of the image. TODO: support in the feature
+         * @brief Matches the orb descriptor of the image. TODO: support in the future
          * @param desc1 The descriptor to use for the match.
          * @param desc2 The descriptor to use for the match.
          * @param threshold The threshold to use for the match. default is 95.

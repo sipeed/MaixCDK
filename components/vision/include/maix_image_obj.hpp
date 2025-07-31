@@ -282,7 +282,7 @@ namespace maix::image
         }
 
         /**
-         * @brief get magnitude of the straight line after Hough transformation
+         * @brief get the rectangle’s magnitude.
          * @return return magnitude, type is int
          * @maixpy maix.image.Rect.magnitude
         */
