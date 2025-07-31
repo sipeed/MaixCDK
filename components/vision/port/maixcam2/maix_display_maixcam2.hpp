@@ -149,6 +149,7 @@ namespace maix::display
             this->_format = format;
             this->_invert_flip = false;
             this->_invert_mirror = false;
+            this->_max_backlight = 50.0;
             this->_pool_id = AX_INVALID_POOLID;
             this->_layer = 0;       // layer 0 means vedio layer
             err::check_bool_raise(_format == image::FMT_RGB888
