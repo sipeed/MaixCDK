@@ -107,7 +107,7 @@ namespace maix::sys
 #if PLATFORM_MAIXCAM
         return _get_maixpy_version_from_file("/usr/lib/python3.11/site-packages/maix/version.py");
 #elif PLATFORM_MAIXCAM2
-        return _get_maixpy_version_from_file("/usr/local/lib/python3.13/site-packages/maix/version.pyy");
+        return _get_maixpy_version_from_file("/usr/local/lib/python3.13/site-packages/maix/version.py");
 #else
         log::warn("maixpy_version() not implemented for this platform");
         return "";
@@ -593,6 +593,18 @@ namespace maix::sys
                 }
             }
         }
+#elif PLATFORM_MAIXCAM2
+        int count = 0;
+        while (!app::need_exit()) {
+            std::string freq;
+            auto path = "/sys/devices/system/cpu/cpu" + std::to_string(count) + "/cpufreq/cpuinfo_cur_freq";
+            if (std::getline(std::ifstream(path), freq)) {
+                res["cpu" + std::to_string(count)] = atoi(freq.c_str()) * 1000;
+            } else {
+                break;
+            }
+            ++count;
+        }
 #else
         std::ifstream cpuinfo("/proc/cpuinfo");
         std::string line;
@@ -695,6 +707,13 @@ namespace maix::sys
                     return res;
                 }
             }
+        }
+#elif PLATFORM_MAIXCAM2
+        std::string freq;
+        auto path = "/proc/ax_proc/npu/clk";
+        if (std::getline(std::ifstream(path), freq)) {
+            freq.pop_back(); // remove 'M'
+            res["npu0"] = atoi(freq.c_str()) * 1000000;
         }
 #endif
         return res;

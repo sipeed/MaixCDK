@@ -532,12 +532,19 @@ namespace maix::camera
 
     void Camera::close()
     {
+        err::Err ret = err::ERR_NONE;
         camera_priv_t *priv = (camera_priv_t *)_param;
         if (this->is_closed())
             return;
 
-        priv->ax_vi->del_channel(priv->chn.id);
-        priv->ax_vi->deinit();
+        ret = priv->ax_vi->del_channel(priv->chn.id);
+        if (ret != err::ERR_NONE) {
+            log::error("vi del_channel failed, ret:%d", ret);
+        }
+        ret = priv->ax_vi->deinit();
+        if (ret != err::ERR_NONE) {
+            log::error("vi deinit failed, ret:%d", ret);
+        }
         delete priv->ax_vi;
         delete priv->ax_sys;
 
@@ -1153,7 +1160,7 @@ namespace maix::camera
 
         AX_S32 ax_res;
         AX_ISP_IQ_AE_PARAM_T param;
-        AeMode current_mode;
+        AeMode current_mode = AeMode::Invalid;
         if (value != AeMode::Invalid) {
             ax_res = AX_ISP_IQ_GetAeParam(_ch, &param);
             if (ax_res != 0) {

@@ -49,6 +49,37 @@ std::vector<ext_dev::imu::IMUInfo> get_imu_info()
         }
     }
 #elif PLATFORM_MAIXCAM2
+    int default_i2c = 1;
+    auto iio_device_base_path = "/sys/bus/iio/devices/iio:device";
+    auto collect_iio_device_names = std::vector<std::string>();
+    int idx = 0;
+    while (!app::need_exit()) {
+        auto path = iio_device_base_path + std::to_string(idx) + "/name";
+        FILE *f = fopen(path.c_str(), "r");
+        if (f) {
+            char name[256];
+            if (fgets(name, sizeof(name), f) != NULL) {
+                name[strcspn(name, "\r\n")] = 0;
+                collect_iio_device_names.push_back(name);
+            }
+            fclose(f);
+            idx ++;
+        } else {
+            break;
+        }
+    }
+
+    if ((std::find(collect_iio_device_names.begin(), collect_iio_device_names.end(), "lsm6dsox_gyro") != collect_iio_device_names.end())) {
+        ext_dev::imu::IMUInfo imu_info;
+        imu_info.name = "LSM6DSOWTR";
+        imu_info.driver = "lsm6dsowtr";
+        imu_info.i2c_bus = default_i2c;
+        imu_info.addr = 0x6B;
+        imu_info.have_mag = false;
+        info.push_back(imu_info);
+    } else {
+        return info;
+    }
 #endif
     return info;
 }

@@ -495,6 +495,45 @@ bssid / frequency / signal level / flags / ssid
             log::error("restart wifi failed: %d", ret);
             return err::Err::ERR_RUNTIME;
         }
+#elif PLATFORM_MAIXCAM2
+        // ensure wifi.sta
+        if (fs::exists("/boot/wifi.ap"))
+        {
+            fs::remove("/boot/wifi.ap");
+        }
+        fs::File *f = fs::open("/boot/wifi.sta", "w");
+        f->close();
+        delete f;
+
+        // write ssid to /boot/wifi.ssid
+        FILE *fp = fopen("/boot/wifi.ssid", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.ssid failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(ssid.c_str(), 1, ssid.size(), fp);
+        fclose(fp);
+
+        // write password to /boot/wifi.pass
+        fp = fopen("/boot/wifi.pass", "w");
+        if (fp == NULL)
+        {
+            log::error("open /boot/wifi.pass failed");
+            return err::Err::ERR_IO;
+        }
+        fwrite(password.c_str(), 1, password.size(), fp);
+        fclose(fp);
+
+        sync();
+
+        // restart wifi
+        int ret = system("systemctl restart wifi");
+        if (ret != 0)
+        {
+            log::error("restart wifi failed: %d", ret);
+            return err::Err::ERR_RUNTIME;
+        }
 #else
         throw err::Exception(err::ERR_NOT_IMPL, "connect wifi not implemented in this platform");
 #endif
