@@ -123,6 +123,11 @@ namespace maix::sys
             return "";
         }
         std::string *version = file->readline();
+        if(!version)
+        {
+            delete file;
+            return "";
+        }
         std::string curr_version = *version;
 
         // 去掉头尾的空字符

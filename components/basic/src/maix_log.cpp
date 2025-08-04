@@ -14,7 +14,11 @@ namespace maix::log
 {
 
     static char log_buf[512];
+#if DEBUG
+    static volatile LogLevel log_level = LogLevel::LEVEL_DEBUG;
+#else
     static volatile LogLevel log_level = LogLevel::LEVEL_INFO;
+#endif
     static volatile bool log_color = false;
 
     void set_log_level(LogLevel level, bool color)
