@@ -189,6 +189,7 @@ namespace maix::network::wifi
                 }
             }
             waitpid(pid, NULL, 0);
+            close(pipefd[0]);   // close reading end in the child
 
             // parse the result
             if (result.find("OK") != std::string::npos)
