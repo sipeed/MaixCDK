@@ -935,10 +935,8 @@ namespace maix::image
 
         cv::Mat src(_height, _width, CV_8UC((int)image::fmt_size[_format]), _data);
 #if defined(PLATFORM_MAIXCAM)
-        if (quality <= 50)
-        {
-            quality = 51;
-        }
+        quality = quality < 51 ? 51 : quality;
+        quality = quality > 99 ? 99 : quality;
         image::Image *p_img = nullptr;
         image::Image *img = nullptr;
         bool src_alloc = false;
@@ -949,7 +947,7 @@ namespace maix::image
             src_alloc = true;
         }
 
-        if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(p_img->format()), 80))
+        if (!mmf_enc_jpg_push_with_quality(0, (uint8_t *)p_img->data(), _width, _height, mmf_invert_format_to_mmf(p_img->format()), quality))
         {
             uint8_t *data;
             int data_size;
@@ -1031,7 +1029,7 @@ __EXIT:
         std::vector<uchar> jpeg_buff;
         std::vector<int> params;
         params.push_back(cv::IMWRITE_JPEG_QUALITY);
-        params.push_back(95);
+        params.push_back(quality);
         cv::imencode(".jpg", input, jpeg_buff, params);
         image::Image *img;
         if (buff)
