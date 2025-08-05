@@ -1863,6 +1863,7 @@ __EXIT:
         // if cont is not empty, use it as font path
         if (!font.empty())
         {
+            add_default_fonts(fonts_info);
             // if name in fonts_info
             if (fonts_info.find(font) == fonts_info.end())
             {
