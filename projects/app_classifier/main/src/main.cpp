@@ -44,7 +44,7 @@ int _main(int argc, char *argv[])
     while (!app::need_exit())
     {
         ts.read(ts_x, ts_y, ts_pressed);
-        if (ts_pressed && ts_x < 40 + 60 && ts_y < 40)
+        if (ts_pressed && ts_x < 40 + 60 && ts_y < 40 + 60)
         {
             break;
         }

@@ -39,6 +39,8 @@ void event_touch_amax_cb(lv_event_t * e);
 void event_touch_bmin_cb(lv_event_t * e);
 void event_touch_bmax_cb(lv_event_t * e);
 void event_touch_color_btn_cb(lv_event_t * e);
+void event_increase_button_cb(lv_event_t * e);
+void event_decrease_button_cb(lv_event_t * e);
 
 void ui_set_bar_range(int min, int max);
 void ui_set_bar_value(char *txt, int value);

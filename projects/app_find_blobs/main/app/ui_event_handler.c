@@ -46,6 +46,7 @@ extern lv_obj_t *ui_green_btn;
 extern lv_obj_t *ui_blue_btn;
 extern lv_obj_t *ui_user_btn;
 extern lv_obj_t *ui_bar_screen;
+extern lv_obj_t *ui_bar_screen2;
 extern lv_obj_t *ui_lmax_btn;
 extern lv_obj_t *ui_lmin_btn;
 extern lv_obj_t *ui_amax_btn;
@@ -112,6 +113,7 @@ void event_touch_lab_options_cb(lv_event_t * e)
             lv_obj_add_flag(ui_lab_options_screen, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(ui_color_box_screen, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             DEBUG_PRT("lab options is not focused!\n");
             priv.lab_options_is_pressed_flag = 0;
         }
@@ -147,6 +149,7 @@ void event_touch_red_cb(lv_event_t * e)
             lv_obj_remove_state(ui_bmax_btn, LV_STATE_CHECKED);
             lv_obj_remove_state(ui_bmin_btn, LV_STATE_CHECKED);
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_state(ui_red_btn, LV_STATE_CHECKED);
         }
@@ -182,6 +185,7 @@ void event_touch_green_cb(lv_event_t * e)
             lv_obj_remove_state(ui_bmax_btn, LV_STATE_CHECKED);
             lv_obj_remove_state(ui_bmin_btn, LV_STATE_CHECKED);
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_state(ui_green_btn, LV_STATE_CHECKED);
         }
@@ -217,6 +221,7 @@ void event_touch_blue_cb(lv_event_t * e)
             lv_obj_remove_state(ui_bmax_btn, LV_STATE_CHECKED);
             lv_obj_remove_state(ui_bmin_btn, LV_STATE_CHECKED);
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_state(ui_blue_btn, LV_STATE_CHECKED);
         }
@@ -253,6 +258,7 @@ void event_touch_user_cb(lv_event_t * e)
             lv_obj_remove_state(ui_bmax_btn, LV_STATE_CHECKED);
             lv_obj_remove_state(ui_bmin_btn, LV_STATE_CHECKED);
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         } else {
             lv_obj_add_state(ui_user_btn, LV_STATE_CHECKED);
         }
@@ -280,12 +286,14 @@ void event_touch_lmin_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(0, 100);
             ui_set_bar_value("L Min", *user_data);
 
             DEBUG_PRT("touch lmin btn! (%d)\n", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -312,10 +320,12 @@ void event_touch_lmax_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(0, 100);
             ui_set_bar_value("L Max", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -342,10 +352,12 @@ void event_touch_amin_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(-128, 127);
             ui_set_bar_value("A Min", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -372,10 +384,12 @@ void event_touch_amax_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(-128, 127);
             ui_set_bar_value("A Max", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -402,10 +416,12 @@ void event_touch_bmin_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(-128, 127);
             ui_set_bar_value("B Min", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -432,10 +448,12 @@ void event_touch_bmax_cb(lv_event_t * e)
 
             int *user_data = lv_obj_get_user_data(obj);
             lv_obj_remove_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_remove_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
             ui_set_bar_range(-128, 127);
             ui_set_bar_value("B Max", *user_data);
         } else {
             lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
         }
     }
 }
@@ -462,26 +480,130 @@ void event_lab_bar_update_cb(lv_event_t * e)
         DEBUG_PRT("value updating: %d\n", val);
 
         if (priv.lmin_btn_is_touch_flag) {
+            int val2 = ui_get_lmax_value();
+            val = val >= val2 ? val2 - 1 : val;
             ui_set_lmin_value(val);
             ui_set_bar_value("L Min", val);
             priv.lmin_value_is_update_flag = 1;
         } else if (priv.lmax_btn_is_touch_flag) {
+            int val2 = ui_get_lmin_value();
+            val = val <= val2 ? val2 + 1 : val;
             ui_set_lmax_value(val);
             ui_set_bar_value("L Max", val);
             priv.lmax_value_is_update_flag = 1;
         } else if (priv.amin_btn_is_touch_flag) {
+            int val2 = ui_get_amax_value();
+            val = val >= val2 ? val2 - 1 : val;
             ui_set_amin_value(val);
             ui_set_bar_value("A Min", val);
             priv.amin_value_is_update_flag = 1;
         } else if (priv.amax_btn_is_touch_flag) {
+            int val2 = ui_get_amin_value();
+            val = val <= val2 ? val2 + 1 : val;
             ui_set_amax_value(val);
             ui_set_bar_value("A Max", val);
             priv.amax_value_is_update_flag = 1;
         } else if (priv.bmin_btn_is_touch_flag) {
+            int val2 = ui_get_bmax_value();
+            val = val >= val2 ? val2 - 1 : val;
             ui_set_bmin_value(val);
             ui_set_bar_value("B Min", val);
             priv.bmin_value_is_update_flag = 1;
         } else if (priv.bmax_btn_is_touch_flag) {
+            int val2 = ui_get_bmin_value();
+            val = val <= val2 ? val2 + 1 : val;
+            ui_set_bmax_value(val);
+            ui_set_bar_value("B Max", val);
+            priv.bmax_value_is_update_flag = 1;
+        }
+    }
+}
+
+void event_increase_button_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    // lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+
+    if (code == LV_EVENT_PRESSING) {
+        if (priv.lmin_btn_is_touch_flag) {
+            int val = ui_get_lmin_value() + 1;
+            int val2 = ui_get_lmax_value();
+            val = val >= val2 ? val2 - 1 : val;
+            ui_set_lmin_value(val);
+            ui_set_bar_value("L Min", val);
+            priv.lmin_value_is_update_flag = 1;
+        } else if (priv.lmax_btn_is_touch_flag) {
+            int val = ui_get_lmax_value() + 1;
+            ui_set_lmax_value(val);
+            ui_set_bar_value("L Max", val);
+            priv.lmax_value_is_update_flag = 1;
+        } else if (priv.amin_btn_is_touch_flag) {
+            int val = ui_get_amin_value() + 1;
+            int val2 = ui_get_amax_value();
+            val = val >= val2 ? val2 - 1 : val;
+            ui_set_amin_value(val);
+            ui_set_bar_value("A Min", val);
+            priv.amin_value_is_update_flag = 1;
+        } else if (priv.amax_btn_is_touch_flag) {
+            int val = ui_get_amax_value() + 1;
+            ui_set_amax_value(val);
+            ui_set_bar_value("A Max", val);
+            priv.amax_value_is_update_flag = 1;
+        } else if (priv.bmin_btn_is_touch_flag) {
+            int val = ui_get_bmin_value() + 1;
+            int val2 = ui_get_bmax_value();
+            val = val >= val2 ? val2 - 1 : val;
+            ui_set_bmin_value(val);
+            ui_set_bar_value("B Min", val);
+            priv.bmin_value_is_update_flag = 1;
+        } else if (priv.bmax_btn_is_touch_flag) {
+            int val = ui_get_bmax_value() + 1;
+            ui_set_bmax_value(val);
+            ui_set_bar_value("B Max", val);
+            priv.bmax_value_is_update_flag = 1;
+        }
+    }
+}
+
+void event_decrease_button_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    // lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+
+    if (code == LV_EVENT_PRESSING) {
+        if (priv.lmin_btn_is_touch_flag) {
+            int val = ui_get_lmin_value() - 1;
+            ui_set_lmin_value(val);
+            ui_set_bar_value("L Min", val);
+            priv.lmin_value_is_update_flag = 1;
+        } else if (priv.lmax_btn_is_touch_flag) {
+            int val = ui_get_lmax_value() - 1;
+            int val2 = ui_get_lmin_value();
+            val = val <= val2 ? val2 + 1 : val;
+            ui_set_lmax_value(val);
+            ui_set_bar_value("L Max", val);
+            priv.lmax_value_is_update_flag = 1;
+        } else if (priv.amin_btn_is_touch_flag) {
+            int val = ui_get_amin_value() - 1;
+            ui_set_amin_value(val);
+            ui_set_bar_value("A Min", val);
+            priv.amin_value_is_update_flag = 1;
+        } else if (priv.amax_btn_is_touch_flag) {
+            int val = ui_get_amax_value() - 1;
+            int val2 = ui_get_amin_value();
+            val = val <= val2 ? val2 + 1 : val;
+            ui_set_amax_value(val);
+            ui_set_bar_value("A Max", val);
+            priv.amax_value_is_update_flag = 1;
+        } else if (priv.bmin_btn_is_touch_flag) {
+            int val = ui_get_bmin_value() - 1;
+            ui_set_bmin_value(val);
+            ui_set_bar_value("B Min", val);
+            priv.bmin_value_is_update_flag = 1;
+        } else if (priv.bmax_btn_is_touch_flag) {
+            int val = ui_get_bmax_value() - 1;
+            int val2 = ui_get_bmin_value();
+            val = val <= val2 ? val2 + 1 : val;
             ui_set_bmax_value(val);
             ui_set_bar_value("B Max", val);
             priv.bmax_value_is_update_flag = 1;
@@ -515,6 +637,7 @@ void event_touch_color_btn_cb(lv_event_t * e)
         lv_obj_remove_state(ui_bmax_btn, LV_STATE_CHECKED);
         lv_obj_remove_state(ui_bmin_btn, LV_STATE_CHECKED);
         lv_obj_add_flag(ui_bar_screen, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(ui_bar_screen2, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -527,6 +650,13 @@ void ui_set_bar_range(int min, int max)
 
 void ui_set_bar_value(char *txt, int value)
 {
+    if (!strcmp(txt, "L Min") || !strcmp(txt, "L Max")) {
+        value = value < 0 ? 0 : value;
+        value = value > 100 ? 100 : value;
+    } else {
+        value = value < -128 ? -128 : value;
+        value = value > 127 ? 127 : value;
+    }
     lv_obj_t *obj = ui_bar;
     lv_bar_set_value(obj, value, LV_ANIM_OFF);
 

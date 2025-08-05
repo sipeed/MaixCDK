@@ -9,6 +9,7 @@ LV_IMG_DECLARE(img_eye_close);
 LV_IMG_DECLARE(img_option);
 
 lv_obj_t *ui_lab_options_screen;
+lv_obj_t *ui_bar_screen2;
 lv_obj_t *ui_bar_screen;
 lv_obj_t *ui_bar;
 lv_obj_t *ui_red_btn;
@@ -367,6 +368,7 @@ static void _ui_bar_screen_init(void)
 {
     lv_obj_t *scr = lv_obj_create(lv_screen_active());
     lv_obj_set_align(scr, LV_ALIGN_TOP_RIGHT);
+    lv_obj_set_x(scr, lv_pct(-10));
     lv_obj_set_y(scr, lv_pct(12));
     lv_obj_set_size(scr, lv_pct(15), lv_pct(58));
     lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
@@ -382,8 +384,8 @@ static void _ui_bar_screen_init(void)
     static lv_style_t style_bg;
     static lv_style_t style_indic;
     lv_style_init(&style_bg);
-    lv_style_set_border_color(&style_bg, lv_color_make(91, 209, 215));
-    lv_style_set_border_width(&style_bg, 2);
+    // lv_style_set_border_color(&style_bg, lv_color_make(91, 209, 215));
+    lv_style_set_border_width(&style_bg, 0);
     lv_style_set_pad_all(&style_bg, 6); /*To make the indicator smaller*/
     lv_style_set_radius(&style_bg, 6);
     lv_style_set_bg_color(&style_bg, lv_color_hex(0x0));
@@ -424,6 +426,54 @@ static void _ui_bar_screen_init(void)
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
     }
+}
+
+static void _ui_bar_increase_decrease_init(void)
+{
+    lv_obj_t *scr = lv_obj_create(lv_screen_active());
+    lv_obj_set_align(scr, LV_ALIGN_TOP_RIGHT);
+    lv_obj_set_y(scr, lv_pct(12));
+    lv_obj_set_size(scr, lv_pct(10), lv_pct(58));
+    lv_obj_set_style_border_side(scr, LV_BORDER_SIDE_NONE, 0);
+    lv_obj_set_style_radius(scr, 0, 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x0), 0);
+    lv_obj_set_style_pad_hor(scr, 0, 0);
+    lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(scr, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_0, 0);
+    lv_obj_set_flex_flow(scr, LV_FLEX_FLOW_COLUMN);
+    ui_bar_screen2 = scr;
+
+    static lv_style_t style_bg;
+    lv_style_init(&style_bg);
+    lv_style_set_bg_color(&style_bg, lv_color_make(91, 209, 215));
+    lv_style_set_border_width(&style_bg, 0);
+    lv_style_set_pad_all(&style_bg, 6); /*To make the indicator smaller*/
+    lv_style_set_radius(&style_bg, 6);
+
+    lv_obj_t *increase_btn = lv_btn_create(scr);
+    lv_obj_set_flex_grow(increase_btn, 1);
+    lv_obj_set_align(increase_btn, LV_ALIGN_TOP_MID);
+    lv_obj_set_size(increase_btn, lv_pct(100), lv_obj_get_width(scr));
+    lv_obj_add_style(increase_btn, &style_bg, 0);
+    lv_obj_add_event_cb(increase_btn, event_increase_button_cb, LV_EVENT_PRESSING, NULL);
+    lv_obj_t *increase_btn_label = lv_label_create(increase_btn);
+    lv_label_set_text(increase_btn_label, "+");
+    lv_obj_set_style_text_font(increase_btn_label, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(increase_btn_label, lv_color_hex(0xffffff), 0);
+    lv_obj_center(increase_btn_label);
+
+    lv_obj_t *decrease_btn = lv_btn_create(scr);
+    lv_obj_set_flex_grow(decrease_btn, 1);
+    lv_obj_set_align(decrease_btn, LV_ALIGN_BOTTOM_MID);
+    lv_obj_add_style(decrease_btn, &style_bg, 0);
+    lv_obj_set_size(decrease_btn, lv_pct(100), lv_obj_get_width(scr));
+    lv_obj_add_event_cb(decrease_btn, event_decrease_button_cb, LV_EVENT_PRESSING, NULL);
+    lv_obj_t *decrease_btn_label = lv_label_create(decrease_btn);
+    lv_label_set_text(decrease_btn_label, "-");
+    lv_obj_set_style_text_font(decrease_btn_label, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(decrease_btn_label, lv_color_hex(0xffffff), 0);
+    lv_obj_center(decrease_btn_label);
 }
 
 static void _ui_color_box_screen_init(void)
@@ -574,6 +624,7 @@ void ui_all_screen_init(void)
     _ui_lower_screen_init();
     _ui_lab_option_screen_init();
     _ui_bar_screen_init();
+    _ui_bar_increase_decrease_init();
     _ui_color_box_screen_init();
     _ui_draw_pointer_init();
 }
