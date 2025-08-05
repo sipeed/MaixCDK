@@ -29,6 +29,8 @@ using websocketpp::lib::placeholders::_2;
 #define MSG_ID_IMG      6
 #define MSG_ID_SET_FMT  14
 #define MSG_ID_SET_FMT_ACK 15
+#define MSG_ID_SET_QUALITY  21
+#define MSG_ID_SET_QUALITY_ACK 22
 #define P_VERSION       0
 #define IMG_ENCODE_NONE 0
 #define IMG_ENCODE_JPEG 1
@@ -139,6 +141,28 @@ namespace maix
         return image::Format::FMT_JPEG;;
     }
 
+    int maixvision_image_quality()
+    {
+        char *env = getenv("MAIXVISION_IMG_QUALITY");
+        if (env)
+        {
+            try
+            {
+                int value = atoi(env);
+                if(value > 100)
+                    value = 100;
+                else if (value < 0)
+                    value = 0;
+                return value;
+            }catch(...)
+            {
+                log::warn("MAIXVISION_IMG_QUALITY not valid: %s", env);
+                return 80;
+            }
+        }
+        return 80;
+    }
+
     void on_open(client *c, websocketpp::connection_hdl hdl, ClientHandle *handle)
     {
         log::debug("send image connection open\n");
@@ -165,7 +189,7 @@ namespace maix
     // prints the message and then sends a copy of the message back to the server.
     void on_message(client *c, websocketpp::connection_hdl hdl, message_ptr msg, ClientHandle *handle)
     {
-        uint8_t frame[] = {0xAC, 0xBE, 0xCB, 0xCA, 0x04, 0x00, 0x00, 0x00, P_VERSION, MSG_ID_CONN_ACK, 0x01, 0x00, 0x00};
+        uint8_t frame[] = {0xAC, 0xBE, 0xCB, 0xCA, 0x04, 0x00, 0x00, 0x00, P_VERSION, MSG_ID_CONN_ACK, 0x01, 0x00, 0x00, 0x00};
         uint8_t *data = (uint8_t *)msg->get_payload().c_str();
         uint32_t len = msg->get_payload().length();
         uint8_t *data_to_send = nullptr;
@@ -214,6 +238,25 @@ namespace maix
                 }
                 frame[9] = MSG_ID_SET_FMT_ACK;
                 frame[11] = new_fmt;
+                frame[12] = sum_uint8(frame, 12);
+                data_to_send = frame;
+                data_send_len = 13;
+            }
+        }
+        else if(len >= 12 && data[9] == MSG_ID_SET_QUALITY)
+        {
+            uint8_t sum = sum_uint8(data, 11);
+            if(sum != data[11])
+            {
+                log::error("recv set quality msg sum error\n");
+            }
+            else
+            {
+                uint8_t new_quality = data[10];
+                ((uint32_t*)frame)[1] = 5;
+                frame[9] = MSG_ID_SET_QUALITY_ACK;
+                frame[10] = 1;
+                frame[11] = handle->img_trans->set_quality(new_quality);
                 frame[12] = sum_uint8(frame, 12);
                 data_to_send = frame;
                 data_send_len = 13;
@@ -350,7 +393,8 @@ namespace maix
 
     ImageTrans::ImageTrans(image::Format fmt, int quality)
     {
-        this->set_format(fmt, quality);
+        this->set_format(fmt);
+        this->set_quality(quality);
         this->_handle = new ClientHandle();
         ClientHandle *handle = (ClientHandle*)this->_handle;
         handle->img_trans = this;
@@ -422,14 +466,13 @@ namespace maix
         delete handle;
     }
 
-    err::Err ImageTrans::set_format(image::Format fmt, int quality)
+    err::Err ImageTrans::set_format(image::Format fmt)
     {
         if(fmt != image::FMT_JPEG && fmt != image::FMT_PNG && fmt != image::FMT_INVALID)
         {
             return err::ERR_ARGS;
         }
         this->_fmt = fmt;
-        this->_quality = quality;
         return err::ERR_NONE;
     }
 

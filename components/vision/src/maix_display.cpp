@@ -129,7 +129,7 @@ namespace maix::display
 
         if(!img_trans && maixvision_mode())
         {
-            img_trans = new ImageTrans(maixvision_image_fmt());
+            img_trans = new ImageTrans(maixvision_image_fmt(), maixvision_image_quality());
         }
         return _impl->open(width_tmp, height_tmp, format_tmp);
     }
@@ -304,7 +304,7 @@ namespace maix::display
             img_trans->send_image(img);
         else if(maixvision_mode())
         {
-            img_trans = new ImageTrans(maixvision_image_fmt());
+            img_trans = new ImageTrans(maixvision_image_fmt(), maixvision_image_quality());
             img_trans->send_image(img);
         }
 
