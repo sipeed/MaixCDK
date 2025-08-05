@@ -93,11 +93,23 @@ IMU::IMU(std::string driver, int i2c_bus, int addr, int freq, imu::Mode mode, im
     imu_param_t *param = (imu_param_t *)malloc(sizeof(imu_param_t));
     err::check_null_raise(param, "Failed to malloc param");
 
-    if(driver == "qmi8658")
+    bool found = false;
+
+    if(driver == "default")
+    {
+        if(sys::device_id() == "maixcam_pro")
+        {
+            param->type = driver_type::qmi8658;
+            found = true;
+        }
+    }
+    else if(driver == "qmi8658")
     {
         param->type = driver_type::qmi8658;
+        found = true;
     }
-    else
+
+    if (!found)
     {
         free(param);
         throw err::Exception(err::ERR_ARGS, "not support " + driver);

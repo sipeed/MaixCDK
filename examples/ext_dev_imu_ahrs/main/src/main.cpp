@@ -151,21 +151,30 @@ int _main(int argc, char* argv[])
     std::vector<int> ret_btn_disp_pos = {0, disp.height() - 50, 100, 50};
     std::vector<int> dir_btn_disp_pos = {disp.width() / 2 - dir_font_size.width() / 2 - 10, disp.height() - 50, dir_font_size.width() + 20 , 50};
 
-    imu::IMU imu("qmi8658");
+    imu::IMU *imu = nullptr;
+    try
+    {
+        imu = new imu::IMU("default");
+    }
+    catch(...)
+    {
+        log::error("init IMU failed");
+        return 1;
+    }
     ahrs::MahonyAHRS ahrs(kp, ki);
     if(calibrate == 1)
     {
         log::info("now calibrate, please don't move device");
-        imu.calib_gyro(10000);
+        imu->calib_gyro(10000);
     }
     else
     {
-        imu.load_calib_gyro();
+        imu->load_calib_gyro();
     }
     char temp_char[64];
     double last_time = time::ticks_s();
     while (!app::need_exit()) {
-        auto data = imu.read_all(true, true); // use calibrate value and unit rad/s.
+        auto data = imu->read_all(true, true); // use calibrate value and unit rad/s.
         double t = time::ticks_s();
         float dt = t - last_time;
         auto angle = ahrs.get_angle(data.acc, data.gyro, data.mag, dt);
@@ -224,7 +233,7 @@ int _main(int argc, char* argv[])
             log::info("now calibrate, please don't move device");
             std::string msg = "Calibrating, don't move, keep 10s";
             show_msg(disp, msg);
-            imu.calib_gyro(10000);
+            imu->calib_gyro(10000);
             ahrs.reset();
             last_time = time::ticks_s();
         }
@@ -236,6 +245,7 @@ int _main(int argc, char* argv[])
         while(time::ticks_s() - last_time < 0.001)
             time::sleep_us(100);
     }
+    delete imu;
     return 0;
 }
 

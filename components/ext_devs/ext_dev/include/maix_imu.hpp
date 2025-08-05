@@ -172,7 +172,7 @@ public:
     /**
      * @brief Construct a new IMU object, will open IMU
      *
-     * @param driver driver name, only support "qmi8656"
+     * @param driver driver name, "default" means use onboard IMU according to board id, other values: ["qmi8656"]
      * @param i2c_bus i2c bus number. Automatically selects the on-board imu when -1 is passed in.
      * @param addr IMU i2c addr.
      * @param freq IMU freq
@@ -182,6 +182,7 @@ public:
      * @param gyro_scale gyro scale, see @imu::GyroScale
      * @param gyro_odr gyro output data rate, see @imu::GyroOdr
      * @param block block or non-block, defalut is true
+     * @throw if arg error or not find valid IMU, will throw err::Exception
      *
      * @maixpy maix.ext_dev.imu.IMU.__init__
      */
