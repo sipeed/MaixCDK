@@ -75,7 +75,7 @@ std::vector<cv::Point2f> render_pose(float pitch, float roll, float yaw, bool ra
     return projections;
 }
 
-void draw_image(image::Image &img, Vector3f &angle, bool dir_cam)
+void draw_image(image::Image &img, tensor::Vector3f &angle, bool dir_cam)
 {
     float len = 0.35;
     int min_edge = std::min(img.width(), img.height());

@@ -96,19 +96,19 @@ public:
       * accelerometer data
       * @maixpy maix.ext_dev.imu.IMUData.acc
      */
-    maix::Vector3f acc;
+    maix::tensor::Vector3f acc;
 
     /**
       * gyroscope data
       * @maixpy maix.ext_dev.imu.IMUData.gyro
      */
-    maix::Vector3f gyro;
+    maix::tensor::Vector3f gyro;
 
     /**
       * magnetometer data
       * @maixpy maix.ext_dev.imu.IMUData.mag
      */
-    maix::Vector3f mag;
+    maix::tensor::Vector3f mag;
 
     /**
       * temperature data
@@ -233,7 +233,7 @@ public:
       *                Empty string means not save. By default value is "default", means save calibration as id "default".
       * @maixpy maix.ext_dev.imu.IMU.calib_gyro
      */
-    Vector3f calib_gyro(uint64_t time_ms, int interval_ms = -1, const std::string &save_id = "default");
+    tensor::Vector3f calib_gyro(uint64_t time_ms, int interval_ms = -1, const std::string &save_id = "default");
 
     /**
       * Load Gyro calibration from file, if not found all value will be 0.
@@ -248,7 +248,7 @@ public:
       * @param save_id saved id from valib_gyro, default is "default".
       * @maixpy maix.ext_dev.imu.IMU.load_calib_gyro
      */
-    Vector3f load_calib_gyro(const std::string &save_id = "default");
+     tensor::Vector3f load_calib_gyro(const std::string &save_id = "default");
 
     /**
       * Save Gyro calibration to file.
@@ -256,7 +256,7 @@ public:
       * @param save_id saved id from valib_gyro, default is "default".
       * @maixpy maix.ext_dev.imu.IMU.save_calib_gyro
      */
-     err::Err save_calib_gyro(const Vector3f &calib, const std::string &save_id = "default");
+     err::Err save_calib_gyro(const tensor::Vector3f &calib, const std::string &save_id = "default");
 
     /**
      * @brief !!!Depracated!!!
@@ -278,7 +278,7 @@ public:
     std::vector<double> get_calibration();
 
 public:
-    Vector3f calib_gyro_data;
+    tensor::Vector3f calib_gyro_data;
 
 private:
     void* _param;

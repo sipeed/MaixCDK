@@ -89,7 +89,6 @@ std::vector<ext_dev::imu::IMUInfo> get_imu_info()
 IMU::IMU(std::string driver, int i2c_bus, int addr, int freq, imu::Mode mode, imu::AccScale acc_scale,
                 imu::AccOdr acc_odr, imu::GyroScale gyro_scale, imu::GyroOdr gyro_odr, bool block)
 {
-    err::check_bool_raise(driver == "qmi8658", "Only support qmi8658 now");
     imu_param_t *param = (imu_param_t *)malloc(sizeof(imu_param_t));
     err::check_null_raise(param, "Failed to malloc param");
 
@@ -198,7 +197,7 @@ ext_dev::imu::IMUData IMU::read_all(bool calib_gryo, bool radian)
     return res;
 }
 
-Vector3f IMU::calib_gyro(uint64_t time_ms, int interval_ms, const std::string &save_id)
+tensor::Vector3f IMU::calib_gyro(uint64_t time_ms, int interval_ms, const std::string &save_id)
 {
     uint64_t start_ms = time::ticks_ms();
     uint64_t last_ms = 0;
@@ -277,10 +276,10 @@ bool IMU::calib_gyro_exists(const std::string &save_id)
     return false;
 }
 
-Vector3f IMU::load_calib_gyro(const std::string &save_id)
+tensor::Vector3f IMU::load_calib_gyro(const std::string &save_id)
 {
     // load CALIBRATION_DATA_PATH2 with json
-    Vector3f calib;
+    tensor::Vector3f calib;
     calib.x = 0;
     calib.y = 0;
     calib.z = 0;
@@ -313,7 +312,7 @@ Vector3f IMU::load_calib_gyro(const std::string &save_id)
     return calib;
 }
 
-err::Err IMU::save_calib_gyro(const Vector3f &calib, const std::string &save_id)
+err::Err IMU::save_calib_gyro(const tensor::Vector3f &calib, const std::string &save_id)
 {
     json data;
 

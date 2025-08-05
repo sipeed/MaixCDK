@@ -2,7 +2,7 @@
 
 #include "math.h"
 
-namespace maix
+namespace maix::tensor
 {
     template <typename T>
     class Vector3
@@ -63,21 +63,21 @@ namespace maix
 
     /**
     * Vector3 float type.
-    * @maixpy maix.Vector3f
+    * @maixpy maix.tensor.Vector3f
     */
     class Vector3f : public Vector3<float> // we use class for we want to generate maixpy API, and the tool not suppoort using yet.
     {
     public:
         /**
           * default constructor
-          * @maixcdk maix.Vector3f.Vector3f
+          * @maixcdk maix.tensor.Vector3f.Vector3f
          */
         Vector3f() : Vector3<float>() {}
 
         /**
           * Construct Vector3f with 3 variables.
-          * @maixpy maix.Vector3f.__init__
-          * @maixcdk maix.Vector3f.Vector3f
+          * @maixpy maix.tensor.Vector3f.__init__
+          * @maixcdk maix.tensor.Vector3f.Vector3f
          */
         Vector3f(float x0, float y0, float z0)
         : Vector3<float>(x0, y0, z0)
@@ -85,40 +85,40 @@ namespace maix
 
         /**
           * member x.
-          * @maixpy maix.Vector3f.x
+          * @maixpy maix.tensor.Vector3f.x
          */
         // float x;
 
         /**
           * member y.
-          * @maixpy maix.Vector3f.y
+          * @maixpy maix.tensor.Vector3f.y
          */
         // float y;
 
         /**
           * member z.
-          * @maixpy maix.Vector3f.z
+          * @maixpy maix.tensor.Vector3f.z
          */
         // float z;
     };
 
     /**
       * Vector3 int32_t type.
-      * @maixpy maix.Vector3i32
+      * @maixpy maix.tensor.Vector3i32
      */
     class Vector3i32 : public Vector3<int32_t> // we use class for we want to generate maixpy API, and the tool not suppoort using yet.
     {
     public:
         /**
           * default constructor
-          * @maixcdk maix.Vector3i32.Vector3i32
+          * @maixcdk maix.tensor.Vector3i32.Vector3i32
          */
          Vector3i32() : Vector3<int32_t>() {}
 
         /**
           * Construct Vector3i32 with 3 variables.
-          * @maixpy maix.Vector3i32.__init__
-          * @maixcdk maix.Vector3i32.Vector3i32
+          * @maixpy maix.tensor.Vector3i32.__init__
+          * @maixcdk maix.tensor.Vector3i32.Vector3i32
          */
          Vector3i32(int32_t x0, int32_t y0, int32_t z0)
         : Vector3<int32_t>(x0, y0, z0)
@@ -126,40 +126,40 @@ namespace maix
 
         /**
           * member x.
-          * @maixpy maix.Vector3i32.x
+          * @maixpy maix.tensor.Vector3i32.x
          */
         // int32_t x;
 
         /**
           * member y.
-          * @maixpy maix.Vector3i32.y
+          * @maixpy maix.tensor.Vector3i32.y
          */
         // int32_t y;
 
         /**
           * member z.
-          * @maixpy maix.Vector3i32.z
+          * @maixpy maix.tensor.Vector3i32.z
          */
         // int32_t z;
     };
 
     /**
       * Vector3 uint32_t type.
-      * @maixpy maix.Vector3u32
+      * @maixpy maix.tensor.Vector3u32
      */
      class Vector3u32 : public Vector3<uint32_t> // we use class for we want to generate maixpy API, and the tool not suppoort using yet.
      {
      public:
          /**
            * default constructor
-           * @maixcdk maix.Vector3u32.Vector3u32
+           * @maixcdk maix.tensor.Vector3u32.Vector3u32
           */
           Vector3u32() : Vector3<uint32_t>() {}
 
          /**
            * Construct Vector3u32 with 3 variables.
-           * @maixpy maix.Vector3u32.__init__
-           * @maixcdk maix.Vector3u32.Vector3u32
+           * @maixpy maix.tensor.Vector3u32.__init__
+           * @maixcdk maix.tensor.Vector3u32.Vector3u32
           */
           Vector3u32(uint32_t x0, uint32_t y0, uint32_t z0)
          : Vector3<uint32_t>(x0, y0, z0)
@@ -167,40 +167,40 @@ namespace maix
 
         /**
           * member x.
-          * @maixpy maix.Vector3u32.x
+          * @maixpy maix.tensor.Vector3u32.x
          */
         // uint32_t x;
 
         /**
           * member y.
-          * @maixpy maix.Vector3u32.y
+          * @maixpy maix.tensor.Vector3u32.y
          */
         // uint32_t y;
 
         /**
           * member z.
-          * @maixpy maix.Vector3u32.z
+          * @maixpy maix.tensor.Vector3u32.z
          */
         // uint32_t z;
      };
 
     /**
       * Vector3 int16 type.
-      * @maixpy maix.Vector3i16
+      * @maixpy maix.tensor.Vector3i16
      */
      class Vector3i16 : public Vector3<int16_t> // we use class for we want to generate maixpy API, and the tool not suppoort using yet.
      {
      public:
          /**
            * default constructor
-           * @maixcdk maix.Vector3i16.Vector3i16
+           * @maixcdk maix.tensor.Vector3i16.Vector3i16
           */
           Vector3i16() : Vector3<int16_t>() {}
 
          /**
            * Construct Vector3i16 with 3 variables.
-           * @maixpy maix.Vector3i16.__init__
-           * @maixcdk maix.Vector3i16.Vector3i16
+           * @maixpy maix.tensor.Vector3i16.__init__
+           * @maixcdk maix.tensor.Vector3i16.Vector3i16
           */
           Vector3i16(int16_t x0, int16_t y0, int16_t z0)
          : Vector3<int16_t>(x0, y0, z0)
@@ -208,40 +208,40 @@ namespace maix
 
         /**
           * member x.
-          * @maixpy maix.Vector3i16.x
+          * @maixpy maix.tensor.Vector3i16.x
          */
         // int16_t x;
 
         /**
           * member y.
-          * @maixpy maix.Vector3i16.y
+          * @maixpy maix.tensor.Vector3i16.y
          */
         // int16_t y;
 
         /**
           * member z.
-          * @maixpy maix.Vector3i16.z
+          * @maixpy maix.tensor.Vector3i16.z
          */
         // int16_t z;
      };
 
     /**
       * Vector3 uint16 type.
-      * @maixpy maix.Vector3u16
+      * @maixpy maix.tensor.Vector3u16
      */
      class Vector3u16 : public Vector3<uint16_t> // we use class for we want to generate maixpy API, and the tool not suppoort using yet.
      {
      public:
          /**
            * default constructor
-           * @maixcdk maix.Vector3u16.Vector3u16
+           * @maixcdk maix.tensor.Vector3u16.Vector3u16
           */
           Vector3u16() : Vector3<uint16_t>() {}
 
          /**
            * Construct Vector3u16 with 3 variables.
-           * @maixpy maix.Vector3u16.__init__
-           * @maixcdk maix.Vector3u16.Vector3u16
+           * @maixpy maix.tensor.Vector3u16.__init__
+           * @maixcdk maix.tensor.Vector3u16.Vector3u16
           */
           Vector3u16(uint16_t x0, uint16_t y0, uint16_t z0)
          : Vector3<uint16_t>(x0, y0, z0)
@@ -249,19 +249,19 @@ namespace maix
 
         /**
           * member x.
-          * @maixpy maix.Vector3u16.x
+          * @maixpy maix.tensor.Vector3u16.x
          */
         // uint16_t x;
 
         /**
           * member y.
-          * @maixpy maix.Vector3u16.y
+          * @maixpy maix.tensor.Vector3u16.y
          */
         // uint16_t y;
 
         /**
           * member z.
-          * @maixpy maix.Vector3u16.z
+          * @maixpy maix.tensor.Vector3u16.z
          */
         // uint16_t z;
      };

@@ -273,17 +273,17 @@ namespace maix::ahrs
         /**
           * Get angle by mahony complementary filter, will automatically call update method,
           * and automatically call init in first time.
-          * @param acc accelerometer data, unit is g or raw data. maix.Vector3f type.
-          * @param gyro gyroscope data, unit can be rad/s or degree/s, if rad/s, arg radian should be true. maix.Vector3f type.
-          * @param mag magnetometer data, optional, if no magnetometer, set all value to 0. maix.Vector3f type.
+          * @param acc accelerometer data, unit is g or raw data. maix.vector.Vector3f type.
+          * @param gyro gyroscope data, unit can be rad/s or degree/s, if rad/s, arg radian should be true. maix.vector.Vector3f type.
+          * @param mag magnetometer data, optional, if no magnetometer, set all value to 0. maix.vector.Vector3f type.
           * @param dt delta T of two time call get_anle, unit is second, float type.
           * @param radian if gyro's unit is rad/s, set this arg to true, degree/s set to false.
-          * @return rotation angle data, maix.Vector3f type.
+          * @return rotation angle data, maix.vector.Vector3f type.
           * @maixpy maix.ahrs.MahonyAHRS.get_angle
           */
-        Vector3f get_angle(Vector3f acc, Vector3f gyro,Vector3f mag, float dt, bool radian = false)
+        tensor::Vector3f get_angle(tensor::Vector3f acc, tensor::Vector3f gyro, tensor::Vector3f mag, float dt, bool radian = false)
         {
-            Vector3f angle;
+            tensor::Vector3f angle;
 
             update(acc.x, acc.y, acc.z, gyro.x, gyro.y, gyro.z, mag.x, mag.y, mag.z, dt);
 
