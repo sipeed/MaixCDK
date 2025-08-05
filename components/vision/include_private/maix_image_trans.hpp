@@ -18,8 +18,13 @@ namespace maix
         err::Err set_format(image::Format fmt);
         image::Format get_format() { return _fmt; }
         int set_quality(const int quality) {
+#if PLATFORM_MAIXCAM // limit in [51, 99]
+            _quality = quality > 99 ? 99 : quality;
+            _quality = quality < 51 ? 51 : quality;
+#else
             _quality = quality > 100 ? 100 : quality;
             _quality = quality < 0 ? 0 : quality;
+#endif
             return _quality;
         }
 
