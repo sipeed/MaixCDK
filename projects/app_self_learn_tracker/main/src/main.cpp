@@ -4,7 +4,9 @@
 #include "maix_touchscreen.hpp"
 #include "maix_nn_nanotrack.hpp"
 #include "maix_comm.hpp"
+#include "maix_key.hpp"
 #include "main.h"
+
 
 using namespace maix;
 
@@ -137,6 +139,9 @@ int main(int argc, char *argv[])
 
     // support default maix communication protol commands
     comm::add_default_comm_listener();
+
+    // default key action
+    key::add_default_listener();
 
     // Use CATCH_EXCEPTION_RUN_RETURN to catch exception,
     // if we don't catch exception, when program throw exception, the objects will not be destructed.
