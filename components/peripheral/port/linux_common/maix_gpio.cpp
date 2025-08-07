@@ -167,13 +167,13 @@ namespace maix::peripheral::gpio
 		}
 
 #if HAVE_GPIO_STATE_LED
-		// special for A14
+		// special for GPIO LED
 		if (chip_id == GPIO_STATE_LED_CHIP_ID && _offset == GPIO_STATE_LED_OFFSET)
 		{
 			this->_fd = led_init(pull == gpio::Pull::PULL_UP ? 1 : 0);
 			if (this->_fd <= 0)
 			{
-				throw err::Exception(err::Err::ERR_IO, "open A14 failed");
+				throw err::Exception(err::Err::ERR_IO, "open LED GPIO failed");
 			}
 			_special = true;
 			return;
