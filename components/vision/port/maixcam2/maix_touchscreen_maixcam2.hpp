@@ -22,7 +22,7 @@ namespace maix::touchscreen
     class TouchScreen_MaixCam2 final : public TouchScreen_Base
     {
     public:
-        TouchScreen_MaixCam2(const std::string &device = "/dev/input/event0")
+        TouchScreen_MaixCam2(const std::string &device = "/dev/input/event1")
         {
             _opened = false;
             _fd = -1;

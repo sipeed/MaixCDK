@@ -4,9 +4,33 @@ set -e
 
 platform="maixcam"
 
-if [ -n "$1" ]; then
-    platform="$1"
-fi
+function platform_setting()
+{
+    echo "----------------------------------"
+    echo "          Platform Setting:        "
+    echo "----------------------------------"
+    echo "Current platform: ${platform}"
+    echo "1. linux"
+    echo "2. maixcam"
+    echo "3. maixcam2"
+    echo "----------------------------------"
+	read -p "Select your platform [1-3]: " choice
+	case "$choice" in
+		1)
+			platform="linux"
+	    ;;
+		2)
+			platform="maixcam"
+	    ;;
+		3)
+			platform="maixcam2"
+	    ;;
+		*)
+			echo "Select platform failed"
+			exit 1
+	    ;;
+	esac
+}
 
 function build_start()
 {
@@ -27,6 +51,12 @@ function build_start()
     cp -r dist/pack/* ../apps
     cd ..
 }
+
+if [ -n "$1" ]; then
+    platform="$1"
+else
+    platform_setting
+fi
 
 rm -rf apps/
 
