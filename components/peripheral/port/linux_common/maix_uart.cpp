@@ -20,6 +20,7 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/mman.h>
+#include "maix_uart_port.hpp"
 
 namespace maix::peripheral::uart
 {
@@ -317,11 +318,6 @@ namespace maix::peripheral::uart
 		{
 			log::error("open uart %s failed\r\n", _uart_port.c_str());
 			return err::ERR_IO;
-		}
-
-		// FIXME: Check the pins of tx
-		if (_uart_port == "/dev/ttyS0" || _uart_port == "/dev/serial0") {
-			set_pinmux(0x0300190c, 0x84);		// set A16 drive capability
 		}
 
 		// self.oneByteTime = 1 / (self.com.baudrate / (self.com.bytesize + 2 + self.com.stopbits)) # 1 byte use time
@@ -667,7 +663,7 @@ namespace maix::peripheral::uart
 
 	std::vector<std::string> list_devices()
 	{
-		std::vector<std::string> ports;
+		std::vector<std::string> ports = maix_uart_port_get_ports();
 		// find /dev/ttyS* /dev/ttyUSB* /dev/ttyACM* /dev/ttyAMA* /dev/rfcomm* /dev/ttyAP*
 		const std::string names[] = {"ttyS", "ttyUSB", "ttyACM", "ttyAMA*", "rfcomm", "ttyAP"};
 		std::vector<std::string> *devs = fs::listdir("/dev");
@@ -676,7 +672,9 @@ namespace maix::peripheral::uart
 			// /dev/serial* is device
 			if (dev.find("serial") != std::string::npos)
 			{
-				ports.push_back("/dev/" + dev);
+				std::string dev_path = "/dev/" + dev;
+				if (std::find(ports.begin(), ports.end(), dev_path) == ports.end())
+					ports.push_back(dev_path);
 				continue;
 			}
 			for (const std::string &name : names)
@@ -692,7 +690,11 @@ namespace maix::peripheral::uart
 						subsystem = fs::basename(fs::realpath(device_path + "/subsystem"));
 					}
 					if (subsystem != "platform")
-						ports.push_back("/dev/" + dev);
+					{
+						std::string dev_path = "/dev/" + dev;
+						if (std::find(ports.begin(), ports.end(), dev_path) == ports.end())
+							ports.push_back(dev_path);
+					}
 				}
 			}
 		}

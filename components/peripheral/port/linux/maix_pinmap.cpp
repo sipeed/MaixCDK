@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include "maix_err.hpp"
 
 namespace maix::peripheral::pinmap
 {
@@ -29,6 +30,11 @@ namespace maix::peripheral::pinmap
     err::Err set_pin_function(const std::string &pin, const std::string &func)
     {
         return err::ERR_NOT_IMPL;
+    }
+
+    std::string get_pin_function(const std::string &pin)
+    {
+        throw err::Exception(err::ERR_NOT_IMPL);
     }
 
 }

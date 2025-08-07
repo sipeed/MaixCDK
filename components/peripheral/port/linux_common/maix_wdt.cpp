@@ -92,7 +92,7 @@ namespace maix::peripheral::wdt
         if (res < 0)
         {
             log::error("close %s failed\n", DEV_PATH);
-            return -1;   
+            return -1;
         }
         return 0;
     }

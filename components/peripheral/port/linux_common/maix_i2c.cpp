@@ -14,6 +14,7 @@
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
 #include <sys/ioctl.h>
+#include <algorithm>
 
 #define DEV_PATH "/dev/i2c-%d"
 
@@ -40,6 +41,7 @@ namespace maix::peripheral::i2c
             }
         }
         delete files;
+        std::sort(data.begin(), data.end());
         return data;
     }
 

@@ -37,6 +37,16 @@ namespace maix::peripheral::pinmap
     */
     err::Err set_pin_function(const std::string &pin, const std::string &func);
 
+    /**
+     * Get pin's current function
+     * @param pin pin name, string type.
+     * @return pin's current funtion name.
+     * @throw If pin name error will throwout err.Err.ERR_ARGS error,
+     * if not implement for this pin, or read/write register failed, will throwout err.Err.Exception.
+     * @maixpy maix.peripheral.pinmap.get_pin_function
+     */
+    std::string get_pin_function(const std::string &pin);
+
 } // namespace maix::peripheral::pinmap
 
 

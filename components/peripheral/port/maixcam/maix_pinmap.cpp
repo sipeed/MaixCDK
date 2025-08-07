@@ -45,7 +45,8 @@ namespace maix::peripheral::pinmap
             "GPIOA19",
             "PWM7",
             "UART1_TX",
-            "JTAG_TMS"
+            "JTAG_TMS",
+            "UART1_RTS"
         }},
         {"A22",{
             "GPIOA22",
@@ -73,12 +74,14 @@ namespace maix::peripheral::pinmap
         {"A28",{
             "GPIOA28",
             "UART2_TX",
-            "JTAG_TDI"
+            "JTAG_TDI",
+            "UART1_TX",
         }},
         {"A29",{
             "GPIOA29",
             "UART2_RX",
-            "JTAG_TDO"
+            "JTAG_TDO",
+            "UART1_RX"
         }},
         {"B3",{
             "GPIOB3",
@@ -145,6 +148,35 @@ namespace maix::peripheral::pinmap
         {"BL",{
             "PWM10"
         }}
+    };
+
+    static std::map<std::string, std::string> curr_pin_func = {
+        {"A14", "GPIOA14"},
+        {"A15", "I2C5_SCL"},
+        {"A16", "UART0_TX"},
+        {"A17", "UART0_RX"},
+        {"A18", "GPIOA18"},
+        {"A19", "UART1_RTS"},
+        {"A22", "SPI4_SCK"},
+        {"A23", "SPI4_MISO"},
+        {"A24", "SPI4_CS"},
+        {"A25", "SPI4_MOSI"},
+        {"A26", "GPIOA26"},
+        {"A27", "I2C5_SDA"},
+        {"A28", "UART1_TX",},
+        {"A29", "UART1_RX"},
+        {"B3",  "GPIOB3"},
+        {"B26", "GPIOB26"},
+        {"B27", "GPIOB27"},
+        {"C2",  "CAM_MCLK0"},
+        {"P18", "SDIO1_D3"},
+        {"P19", "SDIO1_D2"},
+        {"P20", "SDIO1_D1"},
+        {"P21", "SDIO1_D0"},
+        {"P22", "SDIO1_CMD"},
+        {"P23", "SDIO1_CLK"},
+        {"P24", "GPIOP24"},
+        {"BL",  "PWM10"}
     };
 
     /**
@@ -254,6 +286,17 @@ namespace maix::peripheral::pinmap
         throw err::Exception(err::ERR_ARGS);
     }
 
+    std::string get_pin_function(const std::string &pin)
+    {
+        // check pin
+        auto it = pins_info.find(pin);
+        if (it == pins_info.end()) {
+            log::error("pin %s not valid", pin.c_str());
+            throw err::Exception(err::ERR_ARGS);
+        }
+        return curr_pin_func[pin];
+    }
+
     static void _config_eth_pin(bool en) {
         if (en) {
             set_pinmux(0x03009070, 0x0000BABE);
@@ -278,11 +321,23 @@ namespace maix::peripheral::pinmap
 
     err::Err set_pin_function(const std::string &pin, const std::string &func)
     {
-        if (pin == "A14")
-        {
-            return err::ERR_NONE;
+        // check pin
+        auto it = pins_info.find(pin);
+        if (it == pins_info.end()) {
+            log::error("pin %s not valid", pin.c_str());
+            return err::ERR_ARGS;
         }
-        else if (pin == "A15")
+
+        // check func
+        const auto &valid_funcs = it->second;
+        if(std::find(valid_funcs.begin(), valid_funcs.end(), func) == valid_funcs.end())
+        {
+            log::error("func %s for pin %s not valid", func.c_str(), pin.c_str());
+            return err::ERR_ARGS;
+        }
+
+        // set pin function
+        if (pin == "A15")
         {
             if (func == "GPIOA15")
             {
@@ -323,42 +378,37 @@ namespace maix::peripheral::pinmap
                 }
             }
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A16")
         {
             if (func == "GPIOA16") {
                 set_pinmux(0x03001040, 3);
-                set_pinmux(0x0300190c, 0x44);
+                set_pinmux(0x0300190c, 0x40);
             } else if (func == "UART0_TX") {
                 set_pinmux(0x03001040, 0);
-                set_pinmux(0x0300190c, 0x84);
+                set_pinmux(0x0300190c, 0x80);
             } else if (func == "PWM4") {
                 set_pinmux(0x03001040, 2);
-                set_pinmux(0x0300190c, 0x84);
+                set_pinmux(0x0300190c, 0x80);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "A17")
         {
             if (func == "GPIOA17") {
                 set_pinmux(0x03001044, 3);
-                set_pinmux(0x03001910, 0x44);
+                set_pinmux(0x03001910, 0x40);
             } else if (func == "UART0_RX") {
                 set_pinmux(0x03001044, 0);
-                set_pinmux(0x03001910, 0x44);
+                set_pinmux(0x03001910, 0x84);
             } else if (func == "PWM5") {
                 set_pinmux(0x03001044, 2);
-                set_pinmux(0x03001910, 0x84);
+                set_pinmux(0x03001910, 0x80);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "A18")
         {
@@ -375,10 +425,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001068, 0);
                 set_pinmux(0x03001934, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "A19")
         {
@@ -395,10 +443,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001064, 0);
                 set_pinmux(0x03001930, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "A22")
         {
@@ -409,8 +455,7 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001050, 3);
                 return __insmod_spi4(true);
             } else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A23")
         {
@@ -421,8 +466,7 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x0300105C, 3);
                 return __insmod_spi4(true);
             } else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A24")
         {
@@ -433,8 +477,7 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001060, 3);
                 return __insmod_spi4(true);
             } else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A25")
         {
@@ -445,16 +488,14 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001054, 3);
                 return __insmod_spi4(true);
             } else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A26")
         {
             if (func == "GPIOA26")
                 set_pinmux(0x0300104C, 3);
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A27")
         {
@@ -499,8 +540,7 @@ namespace maix::peripheral::pinmap
                 }
             }
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A28")
         {
@@ -508,11 +548,12 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001070, 3);
             else if (func == "UART2_TX")
                 set_pinmux(0x03001070, 2);
+            else if (func == "UART1_TX")
+                set_pinmux(0x03001070, 1);
             else if (func == "JTAG_TDI")
                 set_pinmux(0x03001070, 0);
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "A29")
         {
@@ -520,16 +561,16 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x03001074, 3);
             else if (func == "UART2_RX")
                 set_pinmux(0x03001074, 2);
+            else if (func == "UART1_RX")
+                set_pinmux(0x03001074, 1);
             else if (func == "JTAG_TDO")
                 set_pinmux(0x03001074, 0);
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "B3")
         {
             set_pinmux(0x030010F8, 3);
-            return err::ERR_NONE;
         }
         else if (pin == "B26")
         {
@@ -540,9 +581,8 @@ namespace maix::peripheral::pinmap
                 _config_eth_pin(false);
                 set_pinmux(0x03001130, 4);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-            return err::ERR_NONE;
         }
         else if (pin == "B27")
         {
@@ -553,9 +593,8 @@ namespace maix::peripheral::pinmap
                 _config_eth_pin(false);
                 set_pinmux(0x0300112C, 4);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-            return err::ERR_NONE;
         }
         else if (pin == "C2")
         {
@@ -564,8 +603,7 @@ namespace maix::peripheral::pinmap
             else if (func == "CAM_MCLK0")
                 set_pinmux(0x0300116C, 5);
             else
-                return err::ERR_ARGS;
-            return err::ERR_NONE;
+                return err::ERR_NOT_IMPL;
         }
         else if (pin == "P18")
         {
@@ -588,10 +626,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010D0, 0);
                 set_pinmux(0x05027058, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P19")
         {
@@ -608,10 +644,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010D4, 0);
                 set_pinmux(0x0502705c, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P20")
         {
@@ -628,10 +662,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010D8, 0);
                 set_pinmux(0x05027060, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P21")
         {
@@ -654,10 +686,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010DC, 0);
                 set_pinmux(0x05027064, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P22")
         {
@@ -677,10 +707,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010E0, 0);
                 set_pinmux(0x05027068, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P23")
         {
@@ -700,10 +728,8 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030010E4, 0);
                 set_pinmux(0x0502706c, 0x44);
             } else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "P24")
         {
@@ -714,25 +740,18 @@ namespace maix::peripheral::pinmap
                 set_pinmux(0x030011D0, 4);
                 set_pinmux(0x050270E0, 0x44);
             }else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
         else if (pin == "BL")
         {
             if (func == "PWM10") {
                 set_pinmux(0x030010AC, 4);
             }else {
-                return err::ERR_ARGS;
+                return err::ERR_NOT_IMPL;
             }
-
-            return err::ERR_NONE;
         }
-        else
-        {
-            throw err::Exception(err::ERR_ARGS);
-        }
-        return err::ERR_NOT_IMPL;
+        curr_pin_func[pin] = func;
+        return err::ERR_NONE;
     }
 }

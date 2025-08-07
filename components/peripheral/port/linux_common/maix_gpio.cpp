@@ -3,6 +3,7 @@
  * @copyright Sipeed Ltd 2024-
  * @license Apache 2.0
  * @update 2024.5.13: update this file.
+ *         2025.8.7: add HAVE_GPIO_STATE_LED definition.
  */
 
 #include "maix_gpio.hpp"
@@ -13,16 +14,18 @@
 #include <algorithm>
 #include <sys/ioctl.h>
 #include <errno.h>
-
+#include "maix_gpio_port.hpp"
 
 
 namespace maix::peripheral::gpio
 {
+
+#if HAVE_GPIO_STATE_LED
 	static int led_init(int default_value)
 	{
 		int fd;
-		const char *brightness_path = "/sys/class/leds/led-user/brightness";
-		const char *trigger_path = "/sys/class/leds/led-user/trigger";
+		const char *brightness_path = GPIO_STATE_LED_PATH "/brightness";
+		const char *trigger_path = GPIO_STATE_LED_PATH "/trigger";
 		char value_str[2] = {default_value == 0 ? '0' : '1', '\0'};
 		char none_str[] = "none";
 
@@ -79,7 +82,7 @@ namespace maix::peripheral::gpio
 	}
 	static int led_get(int fd)
 	{
-		const char *brightness_path = "/sys/class/leds/led-user/brightness";
+		const char *brightness_path = GPIO_STATE_LED_PATH "/brightness";
 		char value_str[2] = {0};
 
 		// Open the brightness file for reading
@@ -116,7 +119,7 @@ namespace maix::peripheral::gpio
 
 	static int led_deinit(int fd)
 	{
-		const char *trigger_path = "/sys/class/leds/led-user/trigger";
+		const char *trigger_path = GPIO_STATE_LED_PATH "/trigger";
 		const char activity_str[] = "activity";
 		int trigger_fd;
 
@@ -141,6 +144,7 @@ namespace maix::peripheral::gpio
 		close(trigger_fd);
 		return 0;
 	}
+#endif // HAVE_GPIO_STATE_LED
 
 	GPIO::GPIO(std::string pin, gpio::Mode mode, gpio::Pull pull)
 	{
@@ -155,30 +159,16 @@ namespace maix::peripheral::gpio
 		int chip_id = 0;
 		_offset = 0;
 		std::transform(pin.begin(), pin.end(), pin.begin(), ::toupper);
-		if (pin.find("GPIO") != std::string::npos)
+
+		// parse gpio or pin name to chip id and offset
+		if(!maix_gpio_port_parse_pin(pin, chip_id, _offset))
 		{
-			pin = pin.substr(4);
+			throw err::Exception(err::ERR_ARGS, "Invalid pin format: " + pin);
 		}
-		if (pin[0] >= 'A' && pin[0] <= 'Z')
-		{
-			chip_id = pin[0] - 'A';
-			try
-			{
-				_offset = std::stoi(pin.substr(1));
-			}
-			catch (const std::exception &e)
-			{
-				throw err::Exception(err::Err::ERR_NOT_IMPL, "pin format error");
-			}
-		}
-		else
-		{
-			throw err::Exception(err::Err::ERR_NOT_IMPL, "GPIO pin only number not implemented in this platform");
-		}
-		if (chip_id == 'P' - 'A') // GPIOP is /dev/gpiochip4
-			chip_id = 4;
+
+#if HAVE_GPIO_STATE_LED
 		// special for A14
-		if (pin == "A14")
+		if (chip_id == GPIO_STATE_LED_CHIP_ID && _offset == GPIO_STATE_LED_OFFSET)
 		{
 			this->_fd = led_init(pull == gpio::Pull::PULL_UP ? 1 : 0);
 			if (this->_fd <= 0)
@@ -188,6 +178,7 @@ namespace maix::peripheral::gpio
 			_special = true;
 			return;
 		}
+#endif
 		_special = false;
 		// open gpiochip
 		std::string chip_path = "/dev/gpiochip" + std::to_string(chip_id);
@@ -221,11 +212,13 @@ namespace maix::peripheral::gpio
 
 	GPIO::~GPIO()
 	{
+#if HAVE_GPIO_STATE_LED
 		if (_special)
 		{
 			led_deinit(_fd);
 			return;
 		}
+#endif
 		if (this->_line > 0)
 			close(this->_line);
 		if (this->_fd > 0)
@@ -234,6 +227,7 @@ namespace maix::peripheral::gpio
 
 	int GPIO::value(int value)
 	{
+#if HAVE_GPIO_STATE_LED
 		if (_special)
 		{
 			if (value >= 0)
@@ -242,7 +236,7 @@ namespace maix::peripheral::gpio
 				return led_get(_fd);
 			return value;
 		}
-
+#endif
 		struct gpiohandle_data data;
 		memset(&data, 0, sizeof(data));
 		if (value >= 0)

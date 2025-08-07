@@ -12,7 +12,7 @@ namespace maix::peripheral::timer
 {
     TIMER::TIMER()
     {
-        throw err::Exception(err::Err::ERR_NOT_IMPL, "Not implemented");
+        throw err::Exception(err::Err::ERR_NOT_IMPL, "Not implemented, please use Linux standard timer utils");
     }
 
     TIMER::~TIMER()
