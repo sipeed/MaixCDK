@@ -31,7 +31,7 @@ list(REMOVE_ITEM ADD_SRCS "focus-stack/src/main.cc"
 ###############################################
 
 ###### Add required/dependent components ######
-# list(APPEND ADD_REQUIREMENTS basic vision)
+list(APPEND ADD_REQUIREMENTS basic opencv)
 ###############################################
 
 ###### Add link search path for requirements/libs ######
