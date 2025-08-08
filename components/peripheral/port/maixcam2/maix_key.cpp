@@ -22,7 +22,7 @@
 #include "maix_i2c.hpp"
 
 #define KEY_DEVICE "/dev/input/event_keys"
-#define KEY_DEVICE0 "/dev/input/event1"
+#define KEY_DEVICE0 "/dev/input/event0"
 #define KEY_DEVICE1 "/dev/input/powerkey"
 
 static bool _key_defult_listener = false;
