@@ -45,7 +45,7 @@ endif()
 
 ###### Add required/dependent components ######
 list(APPEND ADD_REQUIREMENTS basic opencv opencv_freetype websocket peripheral)
-list(APPEND ADD_REQUIREMENTS zbar omv)
+list(APPEND ADD_REQUIREMENTS zbar omv qrcode)
 if(PLATFORM_LINUX)
     list(APPEND ADD_REQUIREMENTS sdl)
 elseif(PLATFORM_MAIXCAM)

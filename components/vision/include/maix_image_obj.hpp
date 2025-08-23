@@ -999,7 +999,8 @@ namespace maix::image
     */
     enum class QRCodeDecoderType {
         QRCODE_DECODER_TYPE_ZBAR,
-        QRCODE_DECODER_TYPE_QUIRC
+        QRCODE_DECODER_TYPE_QUIRC,
+        QRCODE_DECODER_TYPE_ZXING
     };
 
     /**

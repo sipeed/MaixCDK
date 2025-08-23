@@ -1396,6 +1396,7 @@ namespace maix::image
          * @param decoder_type Select the QR code decoding method. Choosing QRCODE_DECODER_TYPE_QUIRC allows for retrieving QR code version, ECC level, mask, data type, and other details,
          * though it may decode slower at lower resolutions. Opting for QRCODE_DECODER_TYPE_ZBAR enables faster decoding at lower resolutions but may slow down at higher resolutions,
          * providing only the QR code content and position information. default is QRCODE_DECODER_TYPE_ZBAR.
+         * Choosing the QRCODE_DECODER_TYPE_ZXING option will use the ZXing library for decoding.
          * @return Returns the qrcodes of the image
          * @maixpy maix.image.Image.find_qrcodes
         */
