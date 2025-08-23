@@ -1396,8 +1396,11 @@ namespace maix::image
          * @param decoder_type Select the QR code decoding method. Choosing QRCODE_DECODER_TYPE_QUIRC allows for retrieving QR code version, ECC level, mask, data type, and other details,
          * though it may decode slower at lower resolutions. Opting for QRCODE_DECODER_TYPE_ZBAR enables faster decoding at lower resolutions but may slow down at higher resolutions,
          * providing only the QR code content and position information. default is QRCODE_DECODER_TYPE_ZBAR.
-         * Choosing the QRCODE_DECODER_TYPE_ZXING option will use the ZXing library for decoding.
-         * @return Returns the qrcodes of the image
+         * Choosing the QRCODE_DECODER_TYPE_ZXING option will use the ZXing library for decoding. Supports both QRCode and Datamatrix.
+         * Can be used as an alternative to function find_datamatrices to decode Datamatrix codes.
+         * If you find that find_datamatrices is not working well for your Datamatrix codes, you can try using this option instead.
+         * Provides only the QR code/ datamatrix content and position information. default is QRCODE_DECODER_TYPE_ZXING.
+         * @return Returns the qrcodes / (and/or datamatrix for option ZXing) of the image
          * @maixpy maix.image.Image.find_qrcodes
         */
         std::vector<image::QRCode> find_qrcodes(std::vector<int> roi = std::vector<int>(), image::QRCodeDecoderType decoder_type = image::QRCodeDecoderType::QRCODE_DECODER_TYPE_ZBAR);
