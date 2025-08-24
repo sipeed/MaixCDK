@@ -1,8 +1,29 @@
 
-set(version_str "2.1.0")
+set(version_str "2.3.0")
 set(unzip_path "${DL_EXTRACTED_PATH}/zxing-cpp")
 set(src_path "${unzip_path}/zxing-cpp-${version_str}")
-set(file_sha256sum "6d54e403592ec7a143791c6526c1baafddf4c0897bb49b1af72b70a0f0c4a3fe")
+set(file_sha256sum "64e4139103fdbc57752698ee15b5f0b0f7af9a0331ecbdc492047e0772c417ba")
+
+# Ensure ZXing is built with barcode reading support
+set(ZXING_READERS ON CACHE BOOL "Enable barcode reading in ZXing")
+set(ZXING_WRITERS ON CACHE STRING "ON" FORCE)
+set(ZXING_USE_BUNDLED_ZINT ON CACHE BOOL "Use bundled Zint for barcode writing")
+set(ZXING_EXAMPLES OFF CACHE BOOL "Disable ZXing examples")
+set(ZXING_UNIT_TESTS OFF CACHE BOOL "Disable ZXing unit tests")
+set(ZXING_BLACKBOX_TESTS OFF CACHE BOOL "Disable ZXing blackbox tests")
+set(ZXING_PYTHON_MODULE OFF CACHE BOOL "Disable ZXing Python module")
+set(ZXING_C_API OFF CACHE BOOL "Disable ZXing C API")
+set(ZXING_DEPENDENCIES AUTO CACHE STRING "Fetch from github or use locally installed (AUTO/GITHUB/LOCAL)")
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static library")
+
+# Generate Version.h from Version.h.in for ZXing
+configure_file(
+    "${src_path}/core/Version.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/Version.h"
+)
+
+# Add build directory to include path for generated Version.h
+list(APPEND ADD_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}")
 
 ################# Add include #################
 list(APPEND ADD_INCLUDE "${src_path}/core/src"

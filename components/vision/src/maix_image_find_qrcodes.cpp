@@ -177,7 +177,7 @@ namespace maix::image
             }
             case QRCodeDecoderType::QRCODE_DECODER_TYPE_ZXING:
             {
-                // ZXing QR code detection using ZXing-C++ 2.1.0
+                // ZXing QR code detection using ZXing-C++ 2.3.0
                 bool need_delete_gray_img = false;
                 bool need_delete_new_img = false;
                 Image *gray_img = NULL;
