@@ -24,7 +24,7 @@ list(APPEND ADD_INCLUDE         "."
 ###############################################
 
 ############ Add dynamic libs ##################
-# list(APPEND ADD_DYNAMIC_LIB "lib/arch/v831/libmaix_nn.so"
+# list(APPEND ADD_DYNAMIC_LIB "lib/arch/v831/libmaix_nn.so"s
 #                             "lib/arch/v831/libmaix_cam.so"
 # )
 ###############################################

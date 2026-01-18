@@ -1,7 +1,5 @@
 ############### Add include ###################
 list(APPEND ADD_INCLUDE "include"
-                        "asr_lib/include"
-                        "utils/include"
     )
 list(APPEND ADD_PRIVATE_INCLUDE "")
 ###############################################
@@ -10,7 +8,7 @@ list(APPEND ADD_PRIVATE_INCLUDE "")
 # list(APPEND ADD_SRCS  "src/main.c"
 #                       "src/test.c"
 #     )
-append_srcs_dir(ADD_SRCS "src" "asr_lib/src" "utils/src")       # append source file in src dir to var ADD_SRCS
+append_srcs_dir(ADD_SRCS "src")       # append source file in src dir to var ADD_SRCS
 # list(REMOVE_ITEM COMPONENT_SRCS "src/test2.c")
 # FILE(GLOB_RECURSE EXTRA_SRC  "src/*.c")
 # FILE(GLOB EXTRA_SRC  "src/*.c")
@@ -25,11 +23,7 @@ append_srcs_dir(ADD_SRCS "src" "asr_lib/src" "utils/src")       # append source 
 ###############################################
 
 ###### Add required/dependent components ######
-list(APPEND ADD_REQUIREMENTS basic comm nn vision)
-
-if(PLATFORM_MAIXCAM2)
-    list(APPEND ADD_REQUIREMENTS alsa_lib voice)
-endif()
+list(APPEND ADD_REQUIREMENTS basic voice)
 ###############################################
 
 ###### Add link search path for requirements/libs ######

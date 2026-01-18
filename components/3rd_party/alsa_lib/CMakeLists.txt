@@ -30,9 +30,15 @@ list(APPEND ADD_INCLUDE ${alsa_lib_include_dir})
 set_property(SOURCE ${alsa_lib_include_dir} PROPERTY GENERATED 1)
 
 # lib
-set(alsa_lib_dynamic_lib_file   ${alsa_lib_dir}/libasound.so
-                                ${alsa_lib_dir}/libatopology.so)
-list(APPEND ADD_DYNAMIC_LIB ${alsa_lib_dynamic_lib_file})
-set_property(SOURCE ${alsa_lib_dynamic_lib_file} PROPERTY GENERATED 1)
-
+if(PLATFORM_MAIXCAM)
+    set(alsa_lib_dynamic_lib_file   ${alsa_lib_dir}/maixcam/libasound.so
+                                    ${alsa_lib_dir}/maixcam/libatopology.so)
+    list(APPEND ADD_DYNAMIC_LIB ${alsa_lib_dynamic_lib_file})
+    set_property(SOURCE ${alsa_lib_dynamic_lib_file} PROPERTY GENERATED 1)
+elseif(PLATFORM_MAIXCAM2)
+    set(alsa_lib_dynamic_lib_file   ${alsa_lib_dir}/maixcam2/libasound.so
+                                    ${alsa_lib_dir}/maixcam2/libatopology.so)
+    list(APPEND ADD_DYNAMIC_LIB ${alsa_lib_dynamic_lib_file})
+    set_property(SOURCE ${alsa_lib_dynamic_lib_file} PROPERTY GENERATED 1)
+endif()
 register_component()
