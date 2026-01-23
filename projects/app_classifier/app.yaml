@@ -6,7 +6,7 @@ icon: assets/classifier.png
 author: Sipeed Ltd
 desc: AI object classification
 desc[zh]: AI 物体分类识别
-files:
+include:
   app.yaml: app.yaml
   assets: assets
   README.md: README.md

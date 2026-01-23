@@ -9,4 +9,6 @@ desc[zh]: UVC照相机应用，在你的电脑上显示画面
 files:
   app.yaml: app.yaml
   assets: assets
+  README.md: README.md
+  README_EN.md: README_EN.md
 

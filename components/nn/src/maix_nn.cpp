@@ -334,7 +334,9 @@ namespace maix::nn
             img_p = img.resize(input_w, input_h, fit);
             img_need_free = true;
         }
+
         tensor::Tensors *res = _impl->forward_image(*img_p, mean, scale, fit, copy_result, dual_buff_wait, chw);
+        
         if (img_need_free)
             delete img_p;
         return res;

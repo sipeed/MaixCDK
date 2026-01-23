@@ -11,7 +11,7 @@ using namespace maix;
 
 int main(int argc, char *argv[])
 {
-    std::string model_path = "/root/models/yolo26n.mud";
+    std::string model_path = "/root/yolo26s.mud";
     if (argc > 1)
         model_path = argv[1];
 
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
         disp.show(*img);
 
         // Log
-        log::info("检测耗时: %lu ms | 检测FPS: %.1f | 检测数: %zu",
-                  detect_time, detect_fps, objs->size());
+        // log::info("检测耗时: %lu ms | 检测FPS: %.1f | 检测数: %zu",
+        //           detect_time, detect_fps, objs->size());
 
         // Clean up
         delete objs;

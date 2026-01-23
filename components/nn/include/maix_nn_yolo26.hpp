@@ -14,7 +14,6 @@
 #include "maix_nn_object.hpp"
 #include <algorithm>
 
-// Platform-specific optimization
 #if PLATFORM_MAIXCAM2
     #include <arm_neon.h>
     #define USE_NEON_OPTIMIZATION 1
@@ -177,6 +176,7 @@ namespace maix::nn
                                   "image format not match");
             
             tensor::Tensors *outputs = _model->forward_image(img, mean, scale, fit, false);
+
             if (!outputs)
                 return new std::vector<nn::Object>();
             
