@@ -1,8 +1,64 @@
-# README
-Displaying Images and Playing Videos
+## 1. 简介
+本应用是基于MaixCam平台开发的相册视频一体化管理与播放工具，支持按日期分类管理图片和视频文件，提供图片查看、视频播放、文件删除等核心功能，适配Maix系列硬件的显示与交互逻辑，可直观地浏览和操作本地存储的多媒体文件。
 
-## Displaying Images
-When the program starts, it will read and display images from the `/maixapp/share/picture/` directory. The program supports `jpg` and `png` image formats. It is recommended that the image resolution does not exceed `2560x1440`, and the width must be a multiple of `32`.
+## 2. 主要功能
+### 2.1 文件管理
+- 自动扫描指定路径（`/maixapp/share/picture` 图片、`/maixapp/share/video` 视频）下的多媒体文件，按日期目录分类整理；
+- 自动生成图片/视频缩略图（128x128尺寸），提升浏览效率；
+- 支持批量删除、单文件删除，删除后自动更新界面并清理本地文件。
 
-## Displaying Videos
-When the program starts, it will read videos from the `/maixapp/share/video/` directory. The program supports playing, pausing, and setting the playback position. Only `mp4` videos encoded in the `H.264` format are supported. It is recommended that the video resolution does not exceed `2560x1440`, and the width must be a multiple of `32`.
+### 2.2 媒体浏览与播放
+- 缩略图模式快速浏览所有图片/视频，点击缩略图可切换至全屏查看/播放模式；
+- 图片全屏查看：支持左右滑动切换上一张/下一张图片；
+- 视频全屏播放：支持播放/暂停控制、进度条拖动调整播放进度，自动适配显示分辨率。
+
+### 2.3 异常处理
+- 自动忽略无法加载的文件，并记录至忽略列表，避免重复加载失败；
+- 视频解码失败时自动重试（最多3次），重试失败则显示默认空白界面。
+
+## 3. 使用说明
+### 3.1 启动应用
+应用启动后会自动扫描指定目录下的图片（.jpg/.jpeg/.png）和视频（.mp4）文件，按日期分类生成缩略图列表，默认进入缩略图浏览界面。
+
+### 3.2 缩略图浏览
+- 界面显示所有可识别的图片/视频缩略图，按日期分组展示；
+- 点击图片缩略图：进入图片全屏查看模式；
+- 点击视频缩略图：进入视频播放准备界面，自动加载视频首帧。
+
+### 3.3 图片全屏操作
+- 查看：全屏显示图片，自动适配屏幕分辨率；
+- 切换：点击屏幕左侧/右侧，切换上一张/下一张图片；
+- 删除：触发删除操作（界面指定删除按钮），可删除当前图片及对应缩略图，返回缩略图列表。
+
+### 3.4 视频全屏操作
+- 播放/暂停：点击视频区域，切换播放（标识4）/暂停（标识5）状态；
+- 进度调整：拖动进度条可快速跳转视频播放位置，释放进度条后自动定位至对应时间点；
+- 退出播放：播放结束后自动停留在最后一帧，可返回缩略图列表。
+
+### 3.5 文件删除
+- 单文件删除：全屏查看/播放模式下触发删除，删除当前文件；
+- 批量删除：缩略图模式下启用批量删除功能，选择多个文件后执行删除，自动清理本地文件和界面列表。
+
+## 4. 注意事项
+### 4.1 文件路径要求
+- 图片/视频需存放至指定目录：图片放 `/maixapp/share/picture`、视频放 `/maixapp/share/video`，且需按日期命名子目录（如 `2024-01-01`），否则可能无法被扫描识别；
+- 仅支持 `.jpg/.jpeg/.png` 格式图片、H.264编码的 `.mp4` 格式视频，其他格式文件会被自动忽略。
+
+### 4.2 分辨率与格式限制
+- 图片：建议分辨率不超过2560x1440，且宽度必须为32的倍数；
+- 视频：建议分辨率不超过2560x1440，且宽度必须为32的倍数，仅支持H.264编码的MP4格式；
+- 视频播放依赖硬件解码能力，高分辨率/高码率视频可能出现卡顿，建议使用适配屏幕分辨率（如552x368）的视频文件。
+
+### 4.3 性能与兼容性
+- 缩略图生成需要一定时间，首次加载大量文件时界面响应可能延迟，属于正常现象。
+
+### 4.4 存储与权限
+- 删除操作会直接删除本地文件（包括原文件和缩略图），不可恢复，操作前请确认；
+- 确保应用对 `/maixapp/share/picture`、`/maixapp/share/video` 目录有读写权限，否则无法创建缩略图、删除文件。
+
+### 4.5 异常处理
+- 若视频无法播放，检查文件是否损坏或是否为H.264编码的标准MP4格式；
+- 若图片无法加载，确认文件路径和格式无误，损坏文件会被自动加入忽略列表，需手动删除后重新扫描。
+
+## 5. 更多介绍
+[源码](https://github.com/sipeed/MaixCDK/tree/main/projects/app_photos)
