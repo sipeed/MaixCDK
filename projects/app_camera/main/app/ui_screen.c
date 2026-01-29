@@ -296,7 +296,7 @@ static void left_screen_init(void)
         lv_image_set_src(img, &img_focus);
         lv_obj_center(img);
     }
-#ifndef PLATFORM_MAIXCAM2
+
     {
         y_pct += 25;
         lv_obj_t *obj = lv_obj_create(scr);
@@ -324,7 +324,7 @@ static void left_screen_init(void)
         lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
         lv_obj_center(label);
     }
-#endif
+
     {
         y_pct += 25;
         lv_obj_t *obj = lv_obj_create(scr);

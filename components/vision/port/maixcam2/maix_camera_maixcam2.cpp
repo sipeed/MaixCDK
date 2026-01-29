@@ -701,7 +701,7 @@ namespace maix::camera
             err::check_raise(err::ERR_BUFF_EMPTY, "read camera failed");
         }
 
-        auto img = new image::Image(frame->w, frame->h, image::FMT_RGGB10, (uint8_t *)frame->data, frame->len, false);
+        auto img = new image::Image(frame->w, frame->h, image::FMT_RGGB10, (uint8_t *)frame->data, frame->len, true);
         delete frame;
         return img;
     }
