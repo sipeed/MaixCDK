@@ -1,0 +1,15 @@
+#ifndef VERSION_HEADER
+#define VERSION_HEADER
+
+
+
+#define DAEMON_MAJOR_VERSION  2
+#define DAEMON_MINOR_VERSION  0
+#define DAEMON_PATCH_VERSION  29
+
+#define COMMIT_HASH    "df09d0ac77b1"
+#define COMMIT_ISDIRTY 0
+
+
+
+#endif //VERSION_HEADER

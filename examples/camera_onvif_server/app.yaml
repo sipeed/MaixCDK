@@ -1,0 +1,10 @@
+id: camera_onvif_server
+name: ONVIF Camera Server
+name[zh]: ONVIF 摄像头服务
+version: 1.0.0
+author: Sipeed Ltd
+desc: Adapted for ONVIF protocol camera
+desc[zh]: 适用于ONVIF协议的摄像头服务
+files:
+  # assets: assets
+

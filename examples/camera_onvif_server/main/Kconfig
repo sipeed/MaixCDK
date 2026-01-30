@@ -1,0 +1,13 @@
+menu "gsoap component configuration"
+    menu "GSOAP version"
+        config GSOAP_VERSION_MAJOR
+            int "GSOAP version major"
+            default 2
+        config GSOAP_VERSION_MINOR
+            int "GSOAP version minor"
+            default 8
+        config GSOAP_VERSION_PATCH
+            int "GSOAP version patch"
+            default 92
+    endmenu
+endmenu
