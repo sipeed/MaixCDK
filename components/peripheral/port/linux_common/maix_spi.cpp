@@ -56,7 +56,7 @@ namespace maix::peripheral::spi
         transfer.bits_per_word = bits;
         transfer.cs_change = used_soft_cs;
         // log::info("[__spi_transfer] cs_change = %d", transfer.cs_change);
-
+#if PLATFORM_MAIXCAM2
         if (txbuf) {
             auto data_size = len;
             auto p_data = (uint8_t *)txbuf;
@@ -106,7 +106,10 @@ namespace maix::peripheral::spi
                 }
             }
         }
-
+#else
+        if (::ioctl(fd, SPI_IOC_MESSAGE(1), &transfer) < 1)
+            return -1;
+#endif
         return 0;
     }
 
