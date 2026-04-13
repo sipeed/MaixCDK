@@ -13,6 +13,7 @@
 #include "maix_nn_F.hpp"
 #include "maix_nn_object.hpp"
 #include <algorithm>
+#include <cctype>
 
 // Platform-specific optimization
 #if PLATFORM_MAIXCAM2
@@ -261,16 +262,30 @@ namespace maix::nn
             std::vector<nn::LayerInfo> outputs = _model->outputs_info();
             err::check_bool_raise(outputs.size() >= 6, "need at least 6 outputs");
             
-            struct OutputInfo { std::string name; int h, w, c; };
-            std::vector<OutputInfo> bbox_outputs, cls_outputs;
+            struct OutputInfo { std::string name; int h, w, c; int idx; };
+            std::vector<OutputInfo> parsed_outputs, bbox_outputs, cls_outputs;
+
+            auto has_token = [](const std::string &name, std::initializer_list<const char *> tokens) {
+                std::string lower = name;
+                std::transform(lower.begin(), lower.end(), lower.begin(),
+                               [](unsigned char ch) { return std::tolower(ch); });
+                for (const char *token : tokens)
+                {
+                    if (lower.find(token) != std::string::npos)
+                        return true;
+                }
+                return false;
+            };
             
             // Classify outputs by channel count
-            for (const auto &output : outputs)
+            for (size_t output_idx = 0; output_idx < outputs.size(); ++output_idx)
             {
+                const auto &output = outputs[output_idx];
                 if (output.shape.size() != 4) continue;
                 
                 OutputInfo info;
                 info.name = output.name;
+                info.idx = output_idx;
                 
 #if PLATFORM_MAIXCAM2
                 // MaixCAM2: Always NHWC format
@@ -315,10 +330,64 @@ namespace maix::nn
                 }
 #endif
                 
-                if (info.c == 4)
-                    bbox_outputs.push_back(info);
-                else if (info.c == (int)labels.size() || info.c == 80)
-                    cls_outputs.push_back(info);
+                if (info.c == 4 || info.c == (int)labels.size() || info.c == 80)
+                    parsed_outputs.push_back(info);
+            }
+
+            std::sort(parsed_outputs.begin(), parsed_outputs.end(), [](const OutputInfo &a, const OutputInfo &b) {
+                if (a.h != b.h) return a.h > b.h;
+                if (a.w != b.w) return a.w > b.w;
+                return a.idx < b.idx;
+            });
+
+            for (size_t i = 0; i < parsed_outputs.size();)
+            {
+                std::vector<OutputInfo> group;
+                const int h = parsed_outputs[i].h;
+                const int w = parsed_outputs[i].w;
+                while (i < parsed_outputs.size() && parsed_outputs[i].h == h && parsed_outputs[i].w == w)
+                {
+                    group.push_back(parsed_outputs[i]);
+                    ++i;
+                }
+
+                if (group.size() != 2)
+                    continue;
+
+                int bbox_idx = -1;
+                int cls_idx = -1;
+
+                for (size_t j = 0; j < group.size(); ++j)
+                {
+                    if (has_token(group[j].name, {"bbox", "box", "reg", "loc"}))
+                        bbox_idx = j;
+                    if (has_token(group[j].name, {"cls", "class", "score"}))
+                        cls_idx = j;
+                }
+
+                if (bbox_idx < 0 || cls_idx < 0 || bbox_idx == cls_idx)
+                {
+                    if (group[0].c == 4 && group[1].c != 4)
+                    {
+                        bbox_idx = 0;
+                        cls_idx = 1;
+                    }
+                    else if (group[1].c == 4 && group[0].c != 4)
+                    {
+                        bbox_idx = 1;
+                        cls_idx = 0;
+                    }
+                    else
+                    {
+                        // When num_classes == 4, bbox/cls both have 4 channels.
+                        // Fall back to stable output order within the same grid.
+                        bbox_idx = 0;
+                        cls_idx = 1;
+                    }
+                }
+
+                bbox_outputs.push_back(group[bbox_idx]);
+                cls_outputs.push_back(group[cls_idx]);
             }
             
             err::check_bool_raise(bbox_outputs.size() == 3 && cls_outputs.size() == 3,
@@ -550,7 +619,7 @@ namespace maix::nn
                 int ay = i / fw;
                 
                 // Get class scores (handle NCHW vs NHWC)
-                float class_scores[80];
+                std::vector<float> class_scores(num_class);
                 const float *c;
                 
                 if (_is_nchw)
@@ -559,7 +628,7 @@ namespace maix::nn
                     {
                         class_scores[j] = cls[j * fh * fw + ay * fw + ax];
                     }
-                    c = class_scores;
+                    c = class_scores.data();
                 }
                 else
                 {
