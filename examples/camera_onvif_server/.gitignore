@@ -1,0 +1,9 @@
+build
+dist
+.config.mk
+.flash.conf.json
+data
+
+/CMakeLists.txt
+
+__pycache__
