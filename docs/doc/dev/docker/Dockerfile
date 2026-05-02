@@ -18,35 +18,39 @@ RUN apt-get update \
         ca-certificates file g++-multilib libc6:i386 locales \
         python3 python3-pip rsync shellcheck \
         libopencv-dev libopencv-contrib-dev \
-        libsdl2-dev \
-        python3.11 python3.11-venv python3.11-dev \
-        unzip wget sudo -y \
-    && rm /usr/bin/python3 \
-    && ln -s /usr/bin/python3.11 /usr/bin/python3 \
-    && python3 -m ensurepip --upgrade \
-    && apt-get purge -yq \
-    && apt-get autoremove -yq --purge \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /tmp/*
+        libsdl2-dev wget sudo -y \
+        && wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh \
+        && bash miniconda.sh -b -p /opt/miniconda \
+        && rm miniconda.sh \
+        && /opt/miniconda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+        && /opt/miniconda/bin/conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r \
+        && apt-get purge -yq software-properties-common \
+        && apt-get autoremove -yq --purge \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/* \
+        && rm -rf /tmp/* 
 
+
+ENV PATH="/opt/miniconda/bin:$PATH"
+RUN conda init bash \
+    && conda init zsh
 COPY requirements.txt /tmp/requirements.txt
 COPY teedoc_requirements.txt /tmp/teedoc_requirements.txt
 
-# RUN python3 -m pip install --upgrade pip
-# RUN python3 -m pip install cmake teedoc
-# RUN python3 -m pip install -r /tmp/requirements.txt
-# RUN python3 -m pip install -r /tmp/teedoc_requirements.txt
+RUN conda create -n maixcam2 python=3.13 -y
+RUN conda run -n maixcam2 pip install -r /tmp/requirements.txt && \
+    conda run -n maixcam2 pip install -r /tmp/teedoc_requirements.txt
 
-RUN python3 -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
-RUN python3 -m pip install cmake teedoc -i https://pypi.tuna.tsinghua.edu.cn/simple
-RUN python3 -m pip install -r /tmp/requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-RUN python3 -m pip install -r /tmp/teedoc_requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN conda create -n maixcam python=3.11 -y
+
+RUN conda run -n maixcam2 pip install -r /tmp/requirements.txt && \
+    conda run -n maixcam2 pip install -r /tmp/teedoc_requirements.txt
 
 COPY switch_user.sh /usr/local/bin/switch_user.sh
-RUN chmod +x /usr/local/bin/switch_user.sh
-ENTRYPOINT ["/usr/local/bin/switch_user.sh"]
 
+RUN echo "conda activate maixcam2" >> ~/.bashrc
+RUN chmod +x /usr/local/bin/switch_user.sh
+WORKDIR /maix
+ENTRYPOINT ["/usr/local/bin/switch_user.sh"]
 
