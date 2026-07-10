@@ -102,6 +102,47 @@ static const OS04A10_MODE_S g_astOs04a10_mode[OS04A10_MODE_NUM] = {
 			.u32Step = 1,
 		},
 	},
+	[OS04A10_MODE_1080P60_12BIT] = {
+		.name = "1080p60_12bit",
+		.astImg[0] = {
+			.stSnsSize = {
+				.u32Width = 1920,
+				.u32Height = 1080,
+			},
+			.stWndRect = {
+				.s32X = 0,
+				.s32Y = 0,
+				.u32Width = 1920,
+				.u32Height = 1080,
+			},
+			.stMaxSize = {
+				.u32Width = 1920,
+				.u32Height = 1080,
+			},
+		},
+		.f32MaxFps = 60,
+		.f32MinFps = 1.48,
+		.u32HtsDef = 1484,
+		.u32VtsDef = 1216,
+		.stExp[0] = {
+			.u16Min = 1,
+			.u16Max = 1216 - 8,
+			.u16Def = 500,
+			.u16Step = 1,
+		},
+		.stAgain[0] = {
+			.u32Min = 1024,
+			.u32Max = 68200,
+			.u32Def = 1024,
+			.u32Step = 1,
+		},
+		.stDgain[0] = {
+			.u32Min = 1024,
+			.u32Max = 16373,
+			.u32Def = 1024,
+			.u32Step = 1,
+		},
+	},
 	[OS04A10_MODE_1440P30_WDR] = {
 		.name = "1440p30wdr",
 		.astImg[0] = {

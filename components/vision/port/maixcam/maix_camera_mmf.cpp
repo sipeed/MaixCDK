@@ -108,15 +108,20 @@ namespace maix::camera
         // config fps
         if (fps == -1 && _width <= 1280 && _height <= 720) {
             _fps = 60;
+        } else if (fps == -1 && _width <= 1920 && _height <= 1080) {
+            _fps = 60;
         } else if (fps == -1) {
             _fps = 30;
         } else {
             _fps = fps;
         }
 
-        if ((_width > 1280 || _height > 720) && _fps > 30) {
-            log::warn("Current fps is too high, will be be updated to 30fps! Currently only supported up to 720p 60fps or 1440p 30fps.\r\n");
+        if ((_width > 1920 || _height > 1080) && _fps > 30) {
+            log::warn("Current fps is too high, will be be updated to 30fps! Currently only supported up to 720p 90fps, 1080p 60fps, or 1440p 30fps.\r\n");
             _fps = 30;
+        } else if (_width > 1280 && _width <= 1920 && _fps > 60) {
+            log::warn("Current fps is too high, will be updated to 60fps! Currently only 1080p supports up to 60fps.\r\n");
+            _fps = 60;
         } else if (_width <= 1280 && _height <= 720 && _fps > 60 && _fps != 80)  {
             log::warn("Currently only supports fixed 30,60 and 80fps in 720p configuration, current configuration will be updated to 80fps.\r\n");
             _fps = 80;
@@ -573,6 +578,9 @@ _retry:
                 if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
                     err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin_90fps.os04a10"), "set config path failed!");
+                } else if (width <= 1920 && height <= 1080 && fps >= 55) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1080P60_12BIT;
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
                 } else {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
                     err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -657,6 +665,8 @@ _retry:
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
                 if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
+                } else if (width <= 1920 && height <= 1080 && fps >= 55) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1080P60_12BIT;
                 } else {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_12BIT;
                 }
@@ -842,6 +852,9 @@ _retry:
             if (_width <= 1280 && _height <= 720 && priv->fps >= 80) {
                 priv->fps = 90;
                 _fps = 90;
+            } else if (_width <= 1920 && _height <= 1080 && priv->fps >= 55) {
+                priv->fps = 60;
+                _fps = 60;
             }
         }
 

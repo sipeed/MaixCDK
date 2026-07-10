@@ -5,6 +5,9 @@
 #include <syslog.h>
 #include <errno.h>
 #include <math.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #ifdef ARCH_CV182X
 #include "cvi_type.h"
 #include "cvi_comm_video.h"
@@ -90,6 +93,7 @@ static CVI_BOOL HCG_EN;
 
 #define OS04A10_RES_IS_1520P(w, h)      ((w) == 2688 && (h) == 1520)
 #define OS04A10_RES_IS_1440P(w, h)      ((w) == 2560 && (h) == 1440)
+#define OS04A10_RES_IS_1080P(w, h)      ((w) == 1920 && (h) == 1080)
 
 static CVI_S32 cmos_get_ae_default(VI_PIPE ViPipe, AE_SENSOR_DEFAULT_S *pstAeSnsDft)
 {
@@ -1177,6 +1181,10 @@ static CVI_S32 cmos_set_image_mode(VI_PIPE ViPipe, ISP_CMOS_SENSOR_IMAGE_MODE_S 
 
 	u8SensorImageMode = pstSnsState->u8ImgMode;
 	pstSnsState->bSyncInit = CVI_FALSE;
+	if (access("/tmp/force_1080p60", F_OK) == 0) {
+		u8SensorImageMode = OS04A10_MODE_1080P60_12BIT;
+		goto mode_set;
+	}
 	if (pstSensorImageMode->f32Fps <= 30) {
 		if (pstSnsState->enWDRMode == WDR_MODE_NONE) {
 			if (OS04A10_RES_IS_1440P(pstSensorImageMode->u16Width, pstSensorImageMode->u16Height)) {
@@ -1208,12 +1216,29 @@ static CVI_S32 cmos_set_image_mode(VI_PIPE ViPipe, ISP_CMOS_SENSOR_IMAGE_MODE_S 
 			       pstSnsState->enWDRMode);
 			return CVI_FAILURE;
 		}
-	} else {
-		if (pstSensorImageMode->u16Width <= 1280 && pstSensorImageMode->u16Height <= 720) {
+	} else if (pstSensorImageMode->f32Fps <= 60) {
+		if (OS04A10_RES_IS_1080P(pstSensorImageMode->u16Width, pstSensorImageMode->u16Height)) {
+			u8SensorImageMode = OS04A10_MODE_1080P60_12BIT;
+		} else if (pstSensorImageMode->u16Width <= 1280 && pstSensorImageMode->u16Height <= 720) {
 			u8SensorImageMode = OS04A10_MODE_720P90_12BIT;
+		} else {
+			CVI_TRACE_SNS(CVI_DBG_ERR, "Not support! Width:%d, Height:%d, Fps:%f, WDRMode:%d\n",
+			       pstSensorImageMode->u16Width,
+			       pstSensorImageMode->u16Height,
+			       pstSensorImageMode->f32Fps,
+			       pstSnsState->enWDRMode);
+			return CVI_FAILURE;
 		}
+	} else {
+		CVI_TRACE_SNS(CVI_DBG_ERR, "Not support! Width:%d, Height:%d, Fps:%f, WDRMode:%d\n",
+		       pstSensorImageMode->u16Width,
+		       pstSensorImageMode->u16Height,
+		       pstSensorImageMode->f32Fps,
+		       pstSnsState->enWDRMode);
+		return CVI_FAILURE;
 	}
 
+mode_set:
 	if ((pstSnsState->bInit == CVI_TRUE) && (u8SensorImageMode == pstSnsState->u8ImgMode)) {
 		/* Don't need to switch SensorImageMode */
 		return CVI_FAILURE;
@@ -1244,7 +1269,12 @@ static CVI_VOID sensor_global_init(VI_PIPE ViPipe)
 
 	pstSnsState->bInit = CVI_FALSE;
 	pstSnsState->bSyncInit = CVI_FALSE;
+	/* Allow file-based override for testing new modes */
 	pstSnsState->u8ImgMode = OS04A10_MODE_1440P30_12BIT;
+	if (access("/tmp/force_1080p60", F_OK) == 0) {
+		pstSnsState->u8ImgMode = OS04A10_MODE_1080P60_12BIT;
+		printf("OS04A10: FORCED 1080p60 mode (from /tmp/force_1080p60)\n");
+	}
 	pstSnsState->enWDRMode = WDR_MODE_NONE;
 	pstSnsState->u32FLStd  = g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef;
 	pstSnsState->au32FL[0] = g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef;
