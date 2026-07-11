@@ -809,9 +809,7 @@ _retry:
         // is expected and harmless — skip the SetChnAttr retry since it can race.
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
             CVI_S32 vi_ret = CVI_VI_EnableChn(0, 0);
-            if (vi_ret != CVI_SUCCESS && vi_ret != 0xc00e8041) {
-                SAMPLE_PRT("wdr: CVI_VI_EnableChn=0x%x\n", vi_ret);
-            }
+            SAMPLE_PRT("wdr: CVI_VI_EnableChn=0x%x\n", vi_ret);
         }
 
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_720P90_12BIT) {

@@ -1094,7 +1094,11 @@ static CVI_S32 cmos_get_sns_regs_info(VI_PIPE ViPipe, ISP_SNS_SYNC_INFO_S *pstSn
 			pstI2c_data[WDR2_DGAIN2_0].u32RegAddr = OS04A10_DGAIN2_ADDR;
 			pstI2c_data[WDR2_DGAIN2_1].u32RegAddr = OS04A10_DGAIN2_ADDR + 1;
 			pstI2c_data[WDR2_VTS_0].u32RegAddr = OS04A10_VTS_ADDR;
+			pstI2c_data[WDR2_VTS_0].u32Data =
+				(g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef >> 8) & 0xFF;
 			pstI2c_data[WDR2_VTS_1].u32RegAddr = OS04A10_VTS_ADDR + 1;
+			pstI2c_data[WDR2_VTS_1].u32Data =
+				g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef & 0xFF;
 			pstI2c_data[WDR2_HOLD_END].u32RegAddr = OS04A10_HOLD_3208;
 			pstI2c_data[WDR2_HOLD_END].u32Data = 0x10;
 			pstI2c_data[WDR2_LAUNCH_0].u32RegAddr = OS04A10_HOLD_320D;
