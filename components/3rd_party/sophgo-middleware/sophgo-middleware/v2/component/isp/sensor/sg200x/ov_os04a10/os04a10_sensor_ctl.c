@@ -1113,8 +1113,8 @@ static void os04a10_wdr_1520p30_2to1_init(VI_PIPE ViPipe)
 	os04a10_write_register(ViPipe, 0x3809, 0x80);
 	os04a10_write_register(ViPipe, 0x380a, 0x05);
 	os04a10_write_register(ViPipe, 0x380b, 0xf0);
-	os04a10_write_register(ViPipe, 0x380c, 0x02);
-	os04a10_write_register(ViPipe, 0x380d, 0xdc);
+	os04a10_write_register(ViPipe, 0x380c, 0x0b);
+	os04a10_write_register(ViPipe, 0x380d, 0x9c);
 	os04a10_write_register(ViPipe, 0x380e, 0x06);
 	os04a10_write_register(ViPipe, 0x380f, 0x58);
 	os04a10_write_register(ViPipe, 0x3811, 0x08);
@@ -1131,8 +1131,8 @@ static void os04a10_wdr_1520p30_2to1_init(VI_PIPE ViPipe)
 	os04a10_write_register(ViPipe, 0x3826, 0x00);
 	os04a10_write_register(ViPipe, 0x3827, 0x00);
 	os04a10_write_register(ViPipe, 0x3833, 0x41);
-	os04a10_write_register(ViPipe, 0x384c, 0x02);
-	os04a10_write_register(ViPipe, 0x384d, 0xdc);
+	os04a10_write_register(ViPipe, 0x384c, 0x0b);
+	os04a10_write_register(ViPipe, 0x384d, 0x9c);
 	os04a10_write_register(ViPipe, 0x3858, 0x3c);
 	os04a10_write_register(ViPipe, 0x3865, 0x02);
 	os04a10_write_register(ViPipe, 0x3866, 0x00);
@@ -1205,7 +1205,7 @@ static void os04a10_wdr_1520p30_2to1_init(VI_PIPE ViPipe)
 	os04a10_write_register(ViPipe, 0x480e, 0x04);
 	os04a10_write_register(ViPipe, 0x4810, 0xff);
 	os04a10_write_register(ViPipe, 0x4811, 0xff);
-	os04a10_write_register(ViPipe, 0x4813, 0x84);
+	os04a10_write_register(ViPipe, 0x4813, 0x84);	// dual VC for VC WDR mode: DCG=VC0, VS=VC2
 	os04a10_write_register(ViPipe, 0x481f, 0x30);
 	os04a10_write_register(ViPipe, 0x4837, 0x0e);
 	os04a10_write_register(ViPipe, 0x484b, 0x67);

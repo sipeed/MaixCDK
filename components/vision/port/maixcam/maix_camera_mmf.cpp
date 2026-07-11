@@ -10,6 +10,7 @@
 #include "maix_basic.hpp"
 #include "maix_i2c.hpp"
 #include <dirent.h>
+#include <unistd.h>
 #include "sophgo_middleware.hpp"
 
 #define MMF_SENSOR_NAME "MMF_SENSOR_NAME"                           // Setting the sensor name will be used to select which driver to use
@@ -575,7 +576,11 @@ _retry:
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
-                if (width <= 1280 && height <= 720 && fps >= 80) {
+                if (getenv("MAIX_WDR_MODE") && !strcmp(getenv("MAIX_WDR_MODE"), "2to1_line")) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1;
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_wdr_bin.os04a10"), "set config path failed!");
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_2To1_LINE, "/mnt/cfg/param/cvi_wdr_bin.os04a10"), "set config path failed!");
+                } else if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
                     err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin_90fps.os04a10"), "set config path failed!");
                 } else if (width <= 1920 && height <= 1080 && fps >= 55) {
@@ -663,7 +668,9 @@ _retry:
                 vi_format = PIXEL_FORMAT_UYVY;
                 vi_vpss_format = PIXEL_FORMAT_UYVY;
             } else if (!strcmp(sensor_name, "ov_os04a10")) {
-                if (width <= 1280 && height <= 720 && fps >= 80) {
+                if (getenv("MAIX_WDR_MODE") && !strcmp(getenv("MAIX_WDR_MODE"), "2to1_line")) {
+                    sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1;
+                } else if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
                 } else if (width <= 1920 && height <= 1080 && fps >= 55) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1080P60_12BIT;
@@ -679,6 +686,9 @@ _retry:
                 vi_format = PIXEL_FORMAT_NV21;
                 vi_vpss_format = PIXEL_FORMAT_NV21;
                 err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
+                if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_2To1_LINE, "/mnt/cfg/param/cvi_wdr_bin.os04a10"), "set config path failed!");
+                }
             } else if (!strcmp(sensor_name, "gcore_gc02m1")) {
                 sensor_cfg.sns_type = GCORE_GC02M1_MIPI_2M_30FPS_10BIT;
                 sensor_cfg.lane_id = {4, 3, -1, -1, -1};
@@ -730,6 +740,8 @@ _retry:
         }
 
         stIniCfg.enSnsType[0] = sensor_cfg.sns_type;
+        stIniCfg.enWDRMode[0] = (sensor_cfg.sns_type >= SAMPLE_SNS_TYPE_LINEAR_BUTT) ?
+            WDR_MODE_2To1_LINE : WDR_MODE_NONE;
         stIniCfg.stMclkAttr[0].bMclkEn = sensor_cfg.mclk_en;
         stIniCfg.stMclkAttr[0].u8Mclk = sensor_cfg.mclk;
         for (int i = 0; i < 5; i++) {
@@ -748,6 +760,7 @@ _retry:
         priv->exptime_max = sensor_cfg.exptime_max;
         priv->exptime_min = sensor_cfg.exptime_min;
 
+        bool wdr_mode = (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1);
         err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
         if (priv->raw) {
@@ -765,6 +778,18 @@ _retry:
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
             CVI_VI_DisableChn(0, 0);
         }
+
+    // WDR mode: disable ALL VI channels then destroy pipe so second init
+    // can allocate correct-sized DMA buffer for dual-frame WDR.
+    if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+        for (int ch = 0; ch < 4; ch++) {
+            CVI_VI_DisableChn(0, ch);
+        }
+        CVI_VI_StopPipe(0);
+        CVI_VI_DestroyPipe(0);
+        usleep(20000);
+        priv->vi_pool_num = 6;
+    }
 
         if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, priv->vi_pool_num, &stViConfig)) {
             mmf_deinit_v2(false);
@@ -794,6 +819,42 @@ _retry:
             nanosleep(&ts, NULL);
             system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0e 0x04");
             system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0f 0xc0");
+        }
+
+        // WDR mode: dump live registers, then apply CSI fixes
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+            FILE *fp;
+            char buf[128];
+            log::info("=== WDR REGS ===");
+            fp = popen("devmem 0x0A0C2404 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_004: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2440 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_040: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2460 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_060: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2470 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_070: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2418 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_018: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2040 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("MAC_040: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0C2044 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("MAC_044: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0D0390 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_CK: %s", buf); pclose(fp); }
+            fp = popen("devmem 0x0A0D0394 32", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_DT: %s", buf); pclose(fp); }
+            // Sensor I2C
+            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x01 0x00 r1 2>/dev/null", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_STRM: %s", buf); pclose(fp); }
+            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x38 0x0c r2 2>/dev/null", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_HTS: %s", buf); pclose(fp); }
+            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x38 0x0e r2 2>/dev/null", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_VTS: %s", buf); pclose(fp); }
+            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x48 0x13 r1 2>/dev/null", "r");
+            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_VC:  %s", buf); pclose(fp); }
+            fp = popen("cat /proc/cvitek/vi_dbg 2>/dev/null | head -30", "r");
+            if (fp) { while(fgets(buf, sizeof(buf), fp)) log::info("VI: %s", buf); pclose(fp); }
         }
         return  0;
     }
@@ -880,6 +941,11 @@ _retry:
             } else if (_width <= 1920 && _height <= 1080 && priv->fps >= 55) {
                 priv->fps = 60;
                 _fps = 60;
+            } else if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+                if (priv->fps > 30) {
+                    priv->fps = 30;
+                    _fps = 30;
+                }
             }
         }
 
@@ -889,7 +955,10 @@ _retry:
             if (priv->sns_type == SMS_SC035GS_MIPI_480P_120FPS_12BIT) {
                 pool_num = 4;
             }
-            priv->vi_pool_num = 3;
+            if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+                pool_num = 6;
+            }
+            priv->vi_pool_num = pool_num;
         } else {
             pool_num = buff_num_tmp;
             priv->vi_pool_num = buff_num_tmp;
