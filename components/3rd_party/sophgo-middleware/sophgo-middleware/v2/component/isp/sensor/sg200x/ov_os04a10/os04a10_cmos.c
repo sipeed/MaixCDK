@@ -227,6 +227,8 @@ static CVI_S32 cmos_fps_set(VI_PIPE ViPipe, CVI_FLOAT f32Fps, AE_SENSOR_DEFAULT_
 	pstSnsRegsInfo = &pstSnsState->astSyncInfo[0].snsCfg;
 	f32MaxFps = g_astOs04a10_mode[pstSnsState->u8ImgMode].f32MaxFps;
 	f32MinFps = g_astOs04a10_mode[pstSnsState->u8ImgMode].f32MinFps;
+	printf("OS04A10_DBG: cmos_fps_set mode=%d f32Fps=%.0f maxFps=%.0f u32Vts=%d\n",
+		pstSnsState->u8ImgMode, f32Fps, f32MaxFps, u32Vts);
 
 	if (pstSnsState->enWDRMode == WDR_MODE_NONE) {
 		if ((f32Fps <= f32MaxFps) && (f32Fps >= f32MinFps)) {
@@ -1110,7 +1112,11 @@ static CVI_S32 cmos_get_sns_regs_info(VI_PIPE ViPipe, ISP_SNS_SYNC_INFO_S *pstSn
 			pstI2c_data[LINEAR_DGAIN_1].u32RegAddr = OS04A10_DGAIN1_ADDR + 1;
 			pstI2c_data[LINEAR_DGAIN_2].u32RegAddr = OS04A10_DGAIN1_ADDR + 2;
 			pstI2c_data[LINEAR_VTS_0].u32RegAddr = OS04A10_VTS_ADDR;
+			pstI2c_data[LINEAR_VTS_0].u32Data =
+				(g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef >> 8) & 0xFF;
 			pstI2c_data[LINEAR_VTS_1].u32RegAddr = OS04A10_VTS_ADDR + 1;
+			pstI2c_data[LINEAR_VTS_1].u32Data =
+				g_astOs04a10_mode[pstSnsState->u8ImgMode].u32VtsDef & 0xFF;
 			pstI2c_data[LINEAR_HOLD_END].u32RegAddr = OS04A10_HOLD_3208;
 			pstI2c_data[LINEAR_HOLD_END].u32Data = 0x10;
 			pstI2c_data[LINEAR_LAUNCH_0].u32RegAddr = OS04A10_HOLD_320D;
@@ -1244,6 +1250,9 @@ mode_set:
 		return CVI_FAILURE;
 	}
 	pstSnsState->u8ImgMode = u8SensorImageMode;
+	pstSnsState->u32FLStd = g_astOs04a10_mode[u8SensorImageMode].u32VtsDef;
+	pstSnsState->au32FL[0] = g_astOs04a10_mode[u8SensorImageMode].u32VtsDef;
+	pstSnsState->au32FL[1] = g_astOs04a10_mode[u8SensorImageMode].u32VtsDef;
 
 	return CVI_SUCCESS;
 }
