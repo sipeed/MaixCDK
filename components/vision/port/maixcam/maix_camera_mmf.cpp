@@ -779,21 +779,39 @@ _retry:
             CVI_VI_DisableChn(0, 0);
         }
 
-    // WDR mode: disable ALL VI channels then destroy pipe so second init
-    // can allocate correct-sized DMA buffer for dual-frame WDR.
-    if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-        for (int ch = 0; ch < 4; ch++) {
-            CVI_VI_DisableChn(0, ch);
+    // WDR mode: disable CHN, destroy old pipe (linear config from sensor_cfg.ini),
+        // reconfigure VI dev for WDR, recreate pipe + enable CHN.
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+            for (int c = 0; c < 4; c++) CVI_VI_DisableChn(0, c);
+            CVI_VI_StopPipe(0);
+            CVI_VI_DestroyPipe(0);
+            usleep(20000);
+            priv->vi_pool_num = 6;
+
+            // Reconfigure VI device for WDR mode (first init used linear)
+            VI_DEV_ATTR_S stWdrDevAttr;
+            SAMPLE_COMM_VI_GetDevAttrBySns(sensor_cfg.sns_type, &stWdrDevAttr);
+            stWdrDevAttr.stWDRAttr.enWDRMode = WDR_MODE_2To1_LINE;
+            CVI_S32 s32SetDevRet = CVI_VI_SetDevAttr(0, &stWdrDevAttr);
+            if (s32SetDevRet != CVI_SUCCESS) {
+                SAMPLE_PRT("wdr: CVI_VI_SetDevAttr=0x%x\n", s32SetDevRet);
+            }
         }
-        CVI_VI_StopPipe(0);
-        CVI_VI_DestroyPipe(0);
-        usleep(20000);
-        priv->vi_pool_num = 6;
-    }
 
         if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, priv->vi_pool_num, &stViConfig)) {
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
+        }
+
+        // WDR: re-enable VI channel (teardown above disabled it, mmf_vi_init_v2
+        // does not re-enable).  Without this the ISP FSWDR output never reaches
+        // the VPSS-bound DMA channel.  The "already enabled" (0xc00e8041) retry
+        // is expected and harmless — skip the SetChnAttr retry since it can race.
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+            CVI_S32 vi_ret = CVI_VI_EnableChn(0, 0);
+            if (vi_ret != CVI_SUCCESS && vi_ret != 0xc00e8041) {
+                SAMPLE_PRT("wdr: CVI_VI_EnableChn=0x%x\n", vi_ret);
+            }
         }
 
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_720P90_12BIT) {
@@ -821,7 +839,8 @@ _retry:
             system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0f 0xc0");
         }
 
-        // WDR mode: dump live registers, then apply CSI fixes
+        // WDR mode: dump live registers, then apply CSI & VPSS mode fixes,
+        // and lock VTS to 1624 (30 fps) after AE's first write.
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
             FILE *fp;
             char buf[128];
@@ -844,7 +863,6 @@ _retry:
             if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_CK: %s", buf); pclose(fp); }
             fp = popen("devmem 0x0A0D0394 32", "r");
             if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_DT: %s", buf); pclose(fp); }
-            // Sensor I2C
             fp = popen("i2ctransfer -y -f 4 w2@0x36 0x01 0x00 r1 2>/dev/null", "r");
             if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_STRM: %s", buf); pclose(fp); }
             fp = popen("i2ctransfer -y -f 4 w2@0x36 0x38 0x0c r2 2>/dev/null", "r");
@@ -855,6 +873,15 @@ _retry:
             if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_VC:  %s", buf); pclose(fp); }
             fp = popen("cat /proc/cvitek/vi_dbg 2>/dev/null | head -30", "r");
             if (fp) { while(fgets(buf, sizeof(buf), fp)) log::info("VI: %s", buf); pclose(fp); }
+
+            // Workaround: WDR ISP bin AE parameters may boost VTS on bright scenes.
+            // Force VTS back to default (1624=0x0658) for 30 fps.
+            ISP_EXPOSURE_ATTR_S exp;
+            memset(&exp, 0, sizeof(exp));
+            if (CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &exp)) {
+                exp.stAuto.stExpTimeRange.u32Max = (CVI_U32)(1000000.0 / 30.0 * 0.9);
+                CVI_ISP_SetExposureAttr(0, &exp);
+            }
         }
         return  0;
     }
@@ -983,6 +1010,15 @@ _retry:
             mmf_set_vi_vflip(_ch, _invert_flip);
             mmf_set_vi_hmirror(_ch, _invert_mirror);
 
+            // WDR mode: ensure VI→VPSS uses standard offline-bind path
+            if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+                VI_VPSS_MODE_S stVIVPSSMode;
+                memset(&stVIVPSSMode, 0, sizeof(stVIVPSSMode));
+                stVIVPSSMode.aenMode[0] = VI_OFFLINE_VPSS_OFFLINE;
+                CVI_SYS_SetVIVPSSMode(&stVIVPSSMode);
+                SAMPLE_PRT("wdr: VI_VPSS_MODE set to OFFLINE\n");
+            }
+
             if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
                 mmf_vi_deinit();
                 mmf_deinit_v2(false);
@@ -993,9 +1029,12 @@ _retry:
         // wait camera is ready
         VIDEO_FRAME_INFO_S frame;
         CVI_U32 s32Ret;
-        // WDR mode: skip VPSS frame wait (FSWDR output may not route to VPSS here)
         if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-            SAMPLE_PRT("wdr mode: skip first frame wait, using read path fallback\n");
+            s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 2000);
+            if (s32Ret == CVI_SUCCESS) {
+                CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
+                SAMPLE_PRT("wdr: first frame OK\n");
+            }
         } else {
             if ((s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3))) != CVI_SUCCESS) {
                 SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
@@ -1285,7 +1324,11 @@ _error:
             generate_colorbar(*img);
             return img;
         } else {
+            camera_priv_t *priv = (camera_priv_t *)_param;
             int read_block_ms = block_ms < 0 ? (1000.0 / _fps * 3) : block_ms;
+            if (read_block_ms < 1000 && priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+                read_block_ms = 3000;  // WDR first frame may take ~3s
+            }
             read_block_ms = block ? read_block_ms : 0;
             image::Image *img = _mmf_read(_ch, _width, _height, _format, buff, buff_size, read_block_ms);
             if (!block && img == nullptr) {
