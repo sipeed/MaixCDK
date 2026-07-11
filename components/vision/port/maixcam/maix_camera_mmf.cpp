@@ -775,11 +775,26 @@ _retry:
             system("i2ctransfer -fy 4 w4@0x36 0x38 0x0c 0x06 0x90");    // config os04a10 720p90fps to 80fps
         }
 
-        ISP_EXPOSURE_ATTR_S stExpAttr;
-        memset(&stExpAttr, 0, sizeof(ISP_EXPOSURE_ATTR_S));
-        err::check_bool_raise(CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &stExpAttr), "GetExposureAttr failed!");
-        stExpAttr.stAuto.stExpTimeRange.u32Max = 1 * 1000 * 1000;
-        err::check_bool_raise(CVI_SUCCESS == CVI_ISP_SetExposureAttr(0, &stExpAttr), "SetExposureAttr failed!");
+        // Workaround: OS04A10 ISP bin was calibrated for 1440p30 and its AE
+        // parameters hardcode 30 fps.  Even in bright outdoor light with
+        // <16 ms exposure the AE silently changes VTS to 2432 (=30 fps).
+        // The image quality at 60 fps is identical (verified by capture).
+        // After init wait for AE to apply its stale 30 fps setting, then
+        // force VTS back to 1216 via direct I2C so the sensor runs at 60 fps.
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
+            // 1) restrict exposure range so AE does not need >16 ms
+            ISP_EXPOSURE_ATTR_S exp;
+            memset(&exp, 0, sizeof(exp));
+            if (CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &exp)) {
+                exp.stAuto.stExpTimeRange.u32Max = (CVI_U32)(1000000.0 / fps * 0.9);
+                CVI_ISP_SetExposureAttr(0, &exp);
+            }
+            // 2) Wait for AE's first VTS write, then override
+            struct timespec ts = {1, 500 * 1000 * 1000};
+            nanosleep(&ts, NULL);
+            system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0e 0x04");
+            system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0f 0xc0");
+        }
         return  0;
     }
 
