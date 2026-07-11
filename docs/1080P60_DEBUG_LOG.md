@@ -812,24 +812,56 @@ VICsiCh0HeightLSCnt: 0
 VICsiCh0WidthLSCnt:  0
 ```
 
-**传感器运行在 60fps，但管线输出 ~29fps。**
+**之前：传感器运行在 ~29fps（VTS被AE改为2432）。现在：传感器运行在 ~58fps（VTS=1216用我们的override保持）。**
 
-### VPSS 帧率限制——v1 API 修正 + VPSS_FPS 环境变量覆盖（第五轮修复）
+### AE 降帧率根因——真正的瓶颈！（第六轮修复，关键突破）
 
-**v1 API 修正** (`sophgo_middleware.c:457`): `mmf_add_vi_channel` 新增 `int fps` 参数，移除硬编码 `fps=30`。该 API 仅被 `sample_vio.c` 使用（非运行时路径）。
+**前期分析**将 VIFPS=29 误判为 ISP 硬件吞吐瓶颈（~110M px/s）。经过深入研究 VL6180X 驱动代码、ISP 时钟树、VIP_SYS 寄存器、以及用 devmem 通过寄存器确认实际时钟后的精确测量，发现：
 
-**运行时路径分析**：
-- `maix_camera_mmf.cpp` → `mmf_add_vi_channel_v2(_fps=60, ...)` → `mmf_add_vi_channel0`（预编译 `libmaixcam_lib.so`）
-- 预编译 lib 通过 `SAMPLE_COMM_VPSS_Init`（动态链接，来自开源 `libsophgo-middleware.so`）初始化 VPSS
-- 预编译 lib 内部构建 VPSS attr，fps 来源未知（无法修改预编译库）
+**根因：ISP AE（自动曝光）算法在 streaming 期间调用 `cmos_fps_set(30)`，将传感器 VTS 从 1216 改为 2432，帧率从 60fps 降至 30fps。**
 
-**VPSS_FPS 环境变量覆盖**（`sample_common_vpss.c:26-39`）：
+#### 排查过程
+
+1. **时钟分析**：`clk_src_vip_sys_0` (ISP FE 时钟) = 198 MHz（`0x030020D0 = 0x00060209` → DISPPLL/6）。在线提升到 300 MHz（写入 `0x00030009`）后 VIFPS 无变化 → 确认时钟不是瓶颈。
+
+2. **DMA 错误分析**：`VIWdma0ErrStatus=0x3000000` 在 1440p30 和 1080p60 下都存在 → 是常态而非错误。
+
+3. **VTS 实测**：I2C 回读 VTS 在 streaming 期间为 2432（而非 1216），`cmos_fps_set(30)` 被 AE 在 streaming 期间调用。
+
+4. **修复**：在 `cmos_fps_set()` 中插入 f32Fps clamp — 当 AE 尝试降低 fps 到 `f32MaxFps` 以下时，强制保持为 `f32MaxFps`。
+
 ```c
-const char *env_fps = getenv("VPSS_FPS");
-if (env_fps) { int force = atoi(env_fps);
-    if (force > 0) // 强制覆盖所有 VPSS 通道 fps }
+if (f32Fps < f32MaxFps) {
+    f32Fps = f32MaxFps;  // 阻止 AE 降帧率
+}
 ```
-运行时执行 `VPSS_FPS=60 python app.py` 即可生效，覆盖预编译 lib 传入的任意帧率。
+
+#### 最终验证结果
+
+| 层级 | 帧率 | 说明 |
+|------|------|------|
+| 传感器 VTS=1216 | 58 fps | I2C 回读确认 VTS=1216 |
+| VI/ISP (VIFPS) | 58 fps | `/proc/cvitek/vi_dbg` 确认 |
+| Python NV21 捕获 | **51.3 fps** | 257 帧/5s |
+| Python RGB888 捕获 | 26.5 fps | RGB 转换是瓶颈 |
+
+**1080p60 目标已实现！**（传感器和 VI/ISP 跑在 ~58fps，Python 层 NV21 格式达到 51.3fps）
+
+### 发现的工程架构问题
+
+1. **AE 可擅自降帧率**：ISP AE 可调用 `cmos_fps_set()` 降低传感器帧率，而用户请求的 fps 被忽略。这是原厂框架的设计缺陷 — AE 以曝光优先而非用户配置优先。
+
+2. **snsr_type_name[] 数组无边界检查**：枚举和字符串数组不同步时，`strcmp(NULL)` 导致 SIGSEGV。缺少编译期断言或运行时边界检查。
+
+3. **双初始化导致 VB 耗尽**：`mmf_init_v2` + `mmf_vi_init_v2` 模式没有正确处理 VI 通道的重置和 VB 块的释放。
+
+4. **预编译库不可调试**：`libmaixcam_lib.so`（无源码）包含核心初始化逻辑（`mmf_init0`, `mmf_vi_init0`, `mmf_add_vi_channel0`），限制了 VPSS 帧率等参数的修改能力。
+
+5. **ISP 时钟树不透明**：ISP FE 时钟 `clk_src_vip_sys_0` 在 FSBL 中固定为 198 MHz（ND 模式），无运行时调整机制。VIP_SYS 内部 CK_COEF 进一步分频，导致 ISP TOP 控制逻辑运行在 37.5 MHz。
+
+6. **初始化流程不幂等**：`_mmf_vi_init()` 先通过 `mmf_init_v2` + `SAMPLE_PLAT_VI_INIT` 完成完整初始化，再通过 `mmf_vi_init_v2` 重新初始化 VI，造成资源泄漏和状态不一致。
+
+7. **无 fps 回传机制**：用户请求 `fps=60` 但实际获得 ~30fps 时，没有任何 API 可查询实际运行帧率。
 
 ### 修复总结
 
@@ -838,6 +870,7 @@ if (env_fps) { int force = atoi(env_fps);
 | `decode: unknown` | `snsr_type_name[]` 数组断裂 | 添加缺失逗号+OV2685条目+NULL防护 | `sample_common_sensor.c` |
 | `No buffer space available` | VB Pool双重初始化耗尽 | 在`mmf_vi_init_v2`前`DisableChn` | `maix_camera_mmf.cpp:758` |
 | `HeightLSCnt`帧高度不足 | crop=output，传感器内部裁剪16行 | crop区域扩大16行 | `os04a10_sensor_ctl.c:1419-1422` |
-| `VIFPS=29`（60目标） | AE从 `au32FL[0]`(=2432) 计算VTS | `cmos_set_image_mode` 中更新 FL | `os04a10_cmos.c:1250-1254` |
-| `VIFPS=29`（硬件限制） | ISP 吞吐约110M px/s < 124M px/s (1080p60) | 增加 `VPSS_FPS` 环境变量调试 | `sample_common_vpss.c:26-39` |
+| VTS 被覆盖为 2432 | AE 在 streaming 中调 `cmos_fps_set(30)` | `cmos_set_image_mode` 中更新 FL | `os04a10_cmos.c:1253-1255` |
+| **VTS 再次被覆盖（真正根因）** | **AE 算法主动降帧率到 30fps** | **cmos_fps_set 中 clamp f32Fps ≤ f32MaxFps** | **`os04a10_cmos.c:233-240`** |
 | v1 API fps 硬编码 | `mmf_add_vi_channel` 中固定 fps=30 | 新增 `int fps` 参数 | `sophgo_middleware.c:457` |
+| VPSS_FPS 调试 | 预编译 lib 不调用 `SAMPLE_COMM_VPSS_Init` | 添加 env 变量覆盖（不起作用） | `sample_common_vpss.c:26-39` |
