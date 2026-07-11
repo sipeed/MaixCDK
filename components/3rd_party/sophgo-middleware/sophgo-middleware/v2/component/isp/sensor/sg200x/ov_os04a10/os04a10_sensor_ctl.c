@@ -1416,10 +1416,10 @@ static void os04a10_linear_1080p60_12BIT_init(VI_PIPE ViPipe)
 	os04a10_write_register(ViPipe, 0x3801, 0x80);	// crop x start LSB = 384 = 0x180
 	os04a10_write_register(ViPipe, 0x3802, 0x00);	// crop y start MSB
 	os04a10_write_register(ViPipe, 0x3803, 0xDC);	// crop y start LSB = 220 = 0x0DC
-	os04a10_write_register(ViPipe, 0x3804, 0x08);	// crop x end MSB
-	os04a10_write_register(ViPipe, 0x3805, 0xFF);	// crop x end LSB = 2303 = 0x8FF
+	os04a10_write_register(ViPipe, 0x3804, 0x09);	// crop x end MSB
+	os04a10_write_register(ViPipe, 0x3805, 0x0F);	// crop x end LSB = 2319 = 0x90F (+16)
 	os04a10_write_register(ViPipe, 0x3806, 0x05);	// crop y end MSB
-	os04a10_write_register(ViPipe, 0x3807, 0x13);	// crop y end LSB = 1299 = 0x513
+	os04a10_write_register(ViPipe, 0x3807, 0x23);	// crop y end LSB = 1315 = 0x523 (+16)
 	os04a10_write_register(ViPipe, 0x3808, 0x07);	// output width MSB
 	os04a10_write_register(ViPipe, 0x3809, 0x80);	// output width LSB = 1920 = 0x780
 	os04a10_write_register(ViPipe, 0x380a, 0x04);	// output height MSB

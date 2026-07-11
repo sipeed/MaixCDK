@@ -1284,6 +1284,16 @@ static CVI_VOID sensor_global_init(VI_PIPE ViPipe)
 	memset(&pstSnsState->astSyncInfo[1], 0, sizeof(ISP_SNS_SYNC_INFO_S));
 }
 
+static int read_force_int(const char *path, int def)
+{
+	FILE *fp = fopen(path, "r");
+	if (!fp) return def;
+	int val = def;
+	fscanf(fp, "%d", &val);
+	fclose(fp);
+	return val;
+}
+
 static CVI_S32 sensor_rx_attr(VI_PIPE ViPipe, SNS_COMBO_DEV_ATTR_S *pstRxAttr)
 {
 	ISP_SNS_STATE_S *pstSnsState = CVI_NULL;
@@ -1298,6 +1308,15 @@ static CVI_S32 sensor_rx_attr(VI_PIPE ViPipe, SNS_COMBO_DEV_ATTR_S *pstRxAttr)
 	pstRxAttr->img_size.height = g_astOs04a10_mode[pstSnsState->u8ImgMode].astImg[0].stSnsSize.u32Height;
 	if (pstSnsState->enWDRMode == WDR_MODE_NONE) {
 		pstRxAttr->mipi_attr.wdr_mode = CVI_MIPI_WDR_MODE_NONE;
+		if (pstSnsState->u8ImgMode == OS04A10_MODE_1080P60_12BIT) {
+			pstRxAttr->mipi_attr.dphy.hs_settle = read_force_int("/tmp/phy_hs_settle", 8);
+			int mc = read_force_int("/tmp/phy_mac_clk", 1);
+			if (mc == 0) pstRxAttr->mac_clk = RX_MAC_CLK_200M;
+			else if (mc == 2) pstRxAttr->mac_clk = RX_MAC_CLK_500M;
+			else if (mc == 3) pstRxAttr->mac_clk = RX_MAC_CLK_600M;
+			int rt = read_force_int("/tmp/phy_raw_type", 1);
+			if (rt == 0) pstRxAttr->mipi_attr.raw_data_type = RAW_DATA_10BIT;
+		}
 	} else {
 		pstRxAttr->mac_clk = RX_MAC_CLK_400M;
 		pstRxAttr->mipi_attr.raw_data_type = RAW_DATA_10BIT;

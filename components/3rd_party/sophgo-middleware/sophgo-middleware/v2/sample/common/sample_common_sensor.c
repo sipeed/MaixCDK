@@ -221,8 +221,9 @@ static const char *snsr_type_name[SAMPLE_SNS_TYPE_BUTT] = {
 	"VIVO_MM308M2_2M_25FPS_8BIT",
 	"LONTIUM_LT6911_2M_60FPS_8BIT",
 	"GCORE_GC4653_MIPI_720P_60FPS_10BIT",
+	"GCORE_OV2685_MIPI_1600x1200_30FPS_10BIT",
 	"OV_OS04A10_MIPI_4M_720P90_12BIT",
-	"OV_OS04A10_MIPI_4M_1080P60_12BIT"
+	"OV_OS04A10_MIPI_4M_1080P60_12BIT",
 	/* ------ LINEAR END ------*/
 
 	/* ------ WDR 2TO1 BEGIN ------*/
@@ -1878,24 +1879,31 @@ static void parse_sensor_name(SAMPLE_INI_CFG_S *cfg, const char *value,
 #define NAME_SIZE 20
 	CVI_U32 index = param0;
 	CVI_U32 i;
+	char sensorNameEnv[NAME_SIZE];
 
 	(CVI_VOID) param1;
 	(CVI_VOID) param2;
 	SAMPLE_PRT("sensor =  %s\n", value);
-	char sensorNameEnv[NAME_SIZE];
+	SAMPLE_PRT("parse_sensor_name: step A\n");
 
 	snprintf(sensorNameEnv, NAME_SIZE, "SENSORNAME%d", index);
+	SAMPLE_PRT("parse_sensor_name: step B\n");
 	setenv(sensorNameEnv, value, 1);
+	SAMPLE_PRT("parse_sensor_name: step C\n");
 
-	for (i = 0; i < SAMPLE_SNS_TYPE_BUTT; i++) {
+	for (i = 0; i < SAMPLE_SNS_TYPE_BUTT && snsr_type_name[i] != NULL; i++) {
+		SAMPLE_PRT("parse_sensor_name: cmp i=%d\n", i);
 		if (strcmp(value, snsr_type_name[i]) == 0) {
+			SAMPLE_PRT("parse_sensor_name: found at %d\n", i);
 			cfg->enSnsType[index] = i;
 			cfg->enWDRMode[index] = (i < SAMPLE_SNS_TYPE_LINEAR_BUTT) ?
 				WDR_MODE_NONE : WDR_MODE_2To1_LINE;
 			break;
 		}
 	}
-	if (i == SAMPLE_SNS_TYPE_BUTT) {
+	SAMPLE_PRT("parse_sensor_name: loop exit i=%d reason=%s\n", i,
+		i == SAMPLE_SNS_TYPE_BUTT ? "BUTT" : "NULL");
+	if (i == SAMPLE_SNS_TYPE_BUTT || snsr_type_name[i] == NULL) {
 		cfg->enSnsType[index] = SAMPLE_SNS_TYPE_BUTT;
 		cfg->enWDRMode[index] = WDR_MODE_NONE;
 		cfg->u8UseMultiSns = index;
@@ -2178,14 +2186,17 @@ static int parse_handler(void *user, const char *section, const char *name, cons
 		/* unknown section/name */
 		return 1;
 	}
+	SAMPLE_PRT("parse_handler: section=%s name=%s\n", section, name);
 	for (i = 0; i < size; i++) {
 		if (strcmp(name, hdler[i].name) == 0) {
+			SAMPLE_PRT("parse_handler: calling %s\n", hdler[i].name);
 			hdler[i].pfnJob(cfg, value, hdler[i].param0,
 					hdler[i].param1, hdler[i].param2);
+			SAMPLE_PRT("parse_handler: done %s\n", hdler[i].name);
 			break;
 		}
 	}
-
+	SAMPLE_PRT("parse_handler: return\n");
 	return 1;
 }
 

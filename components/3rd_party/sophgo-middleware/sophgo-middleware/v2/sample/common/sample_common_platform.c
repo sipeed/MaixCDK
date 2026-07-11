@@ -96,7 +96,9 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 	CVI_S32 i = 0, j = 0;
 	CVI_S32 s32DevNum;
 
+	SAMPLE_PRT("PLAT_INIT: sns_type=%d\n", pstViConfig->astViInfo[ViDev].stSnsInfo.enSnsType);
 	memcpy((void *)&stViConfigSys, (void *)pstViConfig, sizeof(SAMPLE_VI_CONFIG_S));
+	SAMPLE_PRT("PLAT_INIT: memcpy OK\n");
 
 	/************************************************
 	 * step1:  Get input size
@@ -106,26 +108,33 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 		CVI_TRACE_LOG(CVI_DBG_ERR, "SAMPLE_COMM_VI_GetSizeBySensor failed with %#x\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: GetSizeBySensor OK\n");
 
 	s32Ret = SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "SAMPLE_COMM_SYS_GetPicSize failed with %#x\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: GetPicSize OK w=%d h=%d\n", stSize.u32Width, stSize.u32Height);
 
 
 	/************************************************
 	 * step2:  Init VI ISP
 	 ************************************************/
 #if USE_USER_SEN_DRIVER
+	SAMPLE_PRT("PLAT_INIT: USER_SEN_DRIVER defined\n");
 	s32Ret = SAMPLE_COMM_VI_StartSensor(pstViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "system start sensor failed with %#x\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: StartSensor OK\n");
+#else
+	SAMPLE_PRT("PLAT_INIT: USER_SEN_DRIVER NOT defined\n");
 #endif
 	for (i = 0; i < pstViConfig->s32WorkingViNum; i++) {
 		ViDev = i;
+		SAMPLE_PRT("PLAT_INIT: StartDev[%d]\n", i);
 
 		s32Ret = SAMPLE_COMM_VI_StartDev(&pstViConfig->astViInfo[ViDev]);
 		if (s32Ret != CVI_SUCCESS) {
@@ -133,19 +142,24 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 			goto error;
 		}
 	}
+	SAMPLE_PRT("PLAT_INIT: StartDev done\n");
 
 #if USE_USER_SEN_DRIVER
+	SAMPLE_PRT("PLAT_INIT: USER_SEN StartMIPI\n");
 	s32Ret = SAMPLE_COMM_VI_StartMIPI(pstViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "system start MIPI failed with %#x\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: StartMIPI OK\n");
 
+	SAMPLE_PRT("PLAT_INIT: SensorProbe\n");
 	s32Ret = SAMPLE_COMM_VI_SensorProbe(pstViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "system sensor probe failed with %#x\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: SensorProbe OK\n");
 #endif
 
 	stPipeAttr.bYuvSkip = CVI_FALSE;
@@ -159,6 +173,7 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 	stPipeAttr.bYuvBypassPath = CVI_FALSE;
 	stPipeAttr.enCompressMode = pstViConfig->astViInfo[0].stChnInfo.enCompressMode;
 
+	SAMPLE_PRT("PLAT_INIT: CreatePipe loop\n");
 	for (i = 0; i < pstViConfig->s32WorkingViNum; i++) {
 		SAMPLE_VI_INFO_S *pstViInfo = NULL;
 		SAMPLE_SNS_TYPE_E sns_type;
@@ -171,6 +186,7 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 		for (j = 0; j < WDR_MAX_PIPE_NUM; j++) {
 			if (pstViInfo->stPipeInfo.aPipe[j] >= 0 && pstViInfo->stPipeInfo.aPipe[j] < VI_MAX_PIPE_NUM) {
 				ViPipe = pstViInfo->stPipeInfo.aPipe[j];
+				SAMPLE_PRT("PLAT_INIT: CreatePipe[%d][%d]\n", i, j);
 				s32Ret = CVI_VI_CreatePipe(ViPipe, &stPipeAttr);
 				if (s32Ret != CVI_SUCCESS) {
 					CVI_TRACE_LOG(CVI_DBG_ERR, "CVI_VI_CreatePipe failed with %#x!\n", s32Ret);
@@ -191,18 +207,23 @@ CVI_S32 SAMPLE_PLAT_VI_INIT(SAMPLE_VI_CONFIG_S *pstViConfig)
 			}
 		}
 	}
+	SAMPLE_PRT("PLAT_INIT: CreatePipe done\n");
 
+	SAMPLE_PRT("PLAT_INIT: CreateIsp\n");
 	s32Ret = SAMPLE_COMM_VI_CreateIsp(pstViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "VI_CreateIsp failed with %#x!\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: CreateIsp OK\n");
 
+	SAMPLE_PRT("PLAT_INIT: StartViChn\n");
 	s32Ret = SAMPLE_COMM_VI_StartViChn(pstViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		CVI_TRACE_LOG(CVI_DBG_ERR, "VI_StartViChn failed with %#x!\n", s32Ret);
 		goto error;
 	}
+	SAMPLE_PRT("PLAT_INIT: all OK\n");
 
 	return s32Ret;
 error:

@@ -315,9 +315,11 @@ static CVI_S32 _mmf_init(void)
 	if (SAMPLE_COMM_VI_ParseIni(&stIniCfg)) {
 		SAMPLE_PRT("Parse complete\n");
 	}
+	SAMPLE_PRT("_mmf_init: sns_type=%d\n", stIniCfg.enSnsType[0]);
 
 	//Set sensor number
 	CVI_VI_SetDevNum(stIniCfg.devNum);
+	SAMPLE_PRT("_mmf_init: SetDevNum OK\n");
 
 	/************************************************
 	 * step1:  Config VI
@@ -325,9 +327,11 @@ static CVI_S32 _mmf_init(void)
 	s32Ret = SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig);
 	if (s32Ret != CVI_SUCCESS)
 		return s32Ret;
+	SAMPLE_PRT("_mmf_init: IniToViCfg OK\n");
 
 	memcpy(&g_stViConfig, &stViConfig, sizeof(SAMPLE_VI_CONFIG_S));
 	memcpy(&g_stIniCfg, &stIniCfg, sizeof(SAMPLE_INI_CFG_S));
+	SAMPLE_PRT("_mmf_init: memcpy OK\n");
 
 	/************************************************
 	 * step2:  Get input size
@@ -337,12 +341,14 @@ static CVI_S32 _mmf_init(void)
 		SAMPLE_PRT("SAMPLE_COMM_VI_GetSizeBySensor failed with %#x\n", s32Ret);
 		return s32Ret;
 	}
+	SAMPLE_PRT("_mmf_init: GetSizeBySensor OK\n");
 
 	s32Ret = SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize);
 	if (s32Ret != CVI_SUCCESS) {
 		SAMPLE_PRT("SAMPLE_COMM_SYS_GetPicSize failed with %#x\n", s32Ret);
 		return s32Ret;
 	}
+	SAMPLE_PRT("_mmf_init: GetPicSize OK, w=%d h=%d\n", stSize.u32Width, stSize.u32Height);
 
 	/************************************************
 	 * step3:  Init modules
@@ -352,12 +358,14 @@ static CVI_S32 _mmf_init(void)
 		SAMPLE_PRT("sys init failed. s32Ret: 0x%x !\n", s32Ret);
 		goto _need_exit_sys_and_deinit_vi;
 	}
+	SAMPLE_PRT("_mmf_init: sys_init OK\n");
 
 	s32Ret = SAMPLE_PLAT_VI_INIT(&stViConfig);
 	if (s32Ret != CVI_SUCCESS) {
 		SAMPLE_PRT("vi init failed. s32Ret: 0x%x !\n", s32Ret);
 		goto _need_exit_sys_and_deinit_vi;
 	}
+	SAMPLE_PRT("_mmf_init: PLAT_VI_INIT OK\n");
 
 	priv.vi_size.u32Width = stSize.u32Width;
 	priv.vi_size.u32Height = stSize.u32Height;

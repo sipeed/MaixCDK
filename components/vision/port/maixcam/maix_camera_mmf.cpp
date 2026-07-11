@@ -756,6 +756,16 @@ _retry:
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
 
+        // HACK: os04a10 1080p60 mode switches to a different sensor type than
+        // the INI default (1440p30). mmf_init_v2(false) already created a VI
+        // channel and pre-queued VB blocks, leaving only 1 block free in the
+        // pool. mmf_vi_init_v2 re-enables VI with the new sensor type, which
+        // tries to queue 2 more blocks and fails with EN_ERR_NOBUF.
+        // Release the old channel first to return its blocks to the pool.
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
+            CVI_VI_DisableChn(0, 0);
+        }
+
         if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, priv->vi_pool_num, &stViConfig)) {
             mmf_deinit_v2(false);
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
