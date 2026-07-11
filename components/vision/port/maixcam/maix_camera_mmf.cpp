@@ -993,11 +993,16 @@ _retry:
         // wait camera is ready
         VIDEO_FRAME_INFO_S frame;
         CVI_U32 s32Ret;
-        if ((s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3))) != CVI_SUCCESS) {
-            SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
-            return err::ERR_RUNTIME;
+        // WDR mode: skip VPSS frame wait (FSWDR output may not route to VPSS here)
+        if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+            SAMPLE_PRT("wdr mode: skip first frame wait, using read path fallback\n");
+        } else {
+            if ((s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3))) != CVI_SUCCESS) {
+                SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
+                return err::ERR_RUNTIME;
+            }
+            CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
         }
-        CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
 
         _is_opened = true;
         return err::ERR_NONE;
