@@ -782,6 +782,42 @@ VICsiCh0WidthLSCnt :   0         ← 无宽度不足错误
 ✅ 1080p60 模式通过完整 VI → ISP 管线！
 ```
 
+### VTS 被 default_reg_init + ISP AE 双重覆盖（第四轮修复）
+
+**发现**：`cmos_fps_set(60)` 被正确调用，VTS 设为 1216，但 `cmos_fps_set(30)` 在之后被调用将 VTS 改回 2432。
+
+**根因链**：
+1. `sensor_global_init()`: `au32FL[0] = 2432`（1440p30的VTS）
+2. `cmos_set_image_mode()`: 将 `u8ImgMode` 改为 1080p60，但 `au32FL[0]` 未被更新
+3. `os04a10_init()`: init 函数写 VTS=1216，但 `default_reg_init()` 从 `astI2cData` 取残留值覆盖为 0
+4. ISP AE 启动后从 `au32FL[0]`(=2432) 计算 VTS → 覆盖传感器为 2432 → VIFPS=29
+
+**修复**：在 `cmos_set_image_mode` 的 `mode_set` 分支中添加：
+```c
+pstSnsState->au32FL[0] = g_astOs04a10_mode[u8SensorImageMode].u32VtsDef;
+pstSnsState->au32FL[1] = ...;
+pstSnsState->u32FLStd   = ...;
+```
+
+文件：`os04a10_cmos.c:1250-1254`
+
+### 最终状态（已验证）
+
+```
+VTS readback 在 streaming 期间: 0x04C0 = 1216 ✓
+VTS readback 在 cam.close() 之后: 0x0980 = 2432 (cleanup 调用 cmos_fps_set(30))
+VIDevFPS: 29, VIFPS: 28-29
+VICsiIntStatus0: 0x6 (VSYNC + TRIG, 无 FRAME_DROP)
+VICsiCh0HeightLSCnt: 0
+VICsiCh0WidthLSCnt:  0
+```
+
+**传感器运行在 60fps，但管线输出 ~29fps。**
+
+### VPSS 帧率限制（未修复，已知问题）
+
+`sophgo_middleware.c` 中 `_mmf_vpss_init()` 将 VPSS 通道帧率设为 `fps` 参数（固定 30），来源是 `_mmf_add_vi_channel` 调用链。MIPI MAC 时钟经计算在 400M 下足够支持 1080p60 324Mbps/lane，不是瓶颈。
+
 ### 修复总结
 
 | 问题 | 根因 | 修复 | 文件 |
@@ -789,3 +825,5 @@ VICsiCh0WidthLSCnt :   0         ← 无宽度不足错误
 | `decode: unknown` | `snsr_type_name[]` 数组断裂 | 添加缺失逗号+OV2685条目+NULL防护 | `sample_common_sensor.c` |
 | `No buffer space available` | VB Pool双重初始化耗尽 | 在`mmf_vi_init_v2`前`DisableChn` | `maix_camera_mmf.cpp:758` |
 | `HeightLSCnt`帧高度不足 | crop=output，传感器内部裁剪16行 | crop区域扩大16行 | `os04a10_sensor_ctl.c:1419-1422` |
+| `VIFPS=29`（60目标） | AE从 `au32FL[0]`(=2432) 计算VTS | `cmos_set_image_mode` 中更新 FL | `os04a10_cmos.c:1250-1254` |
+| `VIFPS=29`（残留） | VPSS通道帧率固定=30 | 需修改 `_mmf_vpss_init` fps 传递 | `sophgo_middleware.c`（未修复） |
