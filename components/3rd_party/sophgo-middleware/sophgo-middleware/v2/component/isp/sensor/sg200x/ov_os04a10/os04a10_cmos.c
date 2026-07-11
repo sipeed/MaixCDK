@@ -230,13 +230,13 @@ static CVI_S32 cmos_fps_set(VI_PIPE ViPipe, CVI_FLOAT f32Fps, AE_SENSOR_DEFAULT_
 	printf("OS04A10_DBG: cmos_fps_set mode=%d f32Fps=%.0f maxFps=%.0f u32Vts=%d\n",
 		pstSnsState->u8ImgMode, f32Fps, f32MaxFps, u32Vts);
 
-	/* HACK: AE may reduce fps for exposure, but 1080p60 sensor driver
-	 * must stay at max fps to maintain VTS=1216. Clamp f32Fps to f32MaxFps
-	 * so AE cannot silently drop frame rate via VTS increase. */
+	/* AE may reduce fps for longer exposure in low light (e.g. 60->30).
+	 * This is legitimate — do NOT clamp f32Fps here or exposure breaks. */
 	if (f32Fps < f32MaxFps) {
-		printf("OS04A10_DBG: AE dropping fps %.0f->%.0f, overriding back to %.0f\n",
-			f32Fps, f32MaxFps, f32MaxFps);
-		f32Fps = f32MaxFps;
+		printf("OS04A10_DBG: AE reduces fps %.0f -> %.0f (Vts=%d*%.0f/%.0f=%d)\n",
+			f32MaxFps, f32Fps,
+			u32Vts, f32MaxFps, f32Fps,
+			(u32Vts * (CVI_U32)f32MaxFps) / (CVI_U32)(f32Fps > 0 ? f32Fps : 1));
 	}
 
 	if (pstSnsState->enWDRMode == WDR_MODE_NONE) {
