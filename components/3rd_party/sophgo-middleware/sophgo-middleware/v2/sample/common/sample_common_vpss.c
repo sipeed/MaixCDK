@@ -15,6 +15,8 @@
 
 /*****************************************************************************
  * function : Create Vpss group & enable channel.
+ * note     : If env VPSS_FPS is set (>0), force all VPSS channels to that fps,
+ *            overriding whatever the caller (including libmaixcam_lib.so) set.
  *****************************************************************************/
 CVI_S32 SAMPLE_COMM_VPSS_Init(VPSS_GRP VpssGrp, CVI_BOOL *pabChnEnable, VPSS_GRP_ATTR_S *pstVpssGrpAttr,
 			      VPSS_CHN_ATTR_S *pastVpssChnAttr)
@@ -22,6 +24,19 @@ CVI_S32 SAMPLE_COMM_VPSS_Init(VPSS_GRP VpssGrp, CVI_BOOL *pabChnEnable, VPSS_GRP
 	VPSS_CHN VpssChn;
 	CVI_S32 s32Ret;
 	CVI_S32 j;
+	const char *env_fps = getenv("VPSS_FPS");
+	if (env_fps) {
+		int force_fps = atoi(env_fps);
+		if (force_fps > 0) {
+			for (j = 0; j < VPSS_MAX_PHY_CHN_NUM; j++) {
+				if (pabChnEnable[j]) {
+					pastVpssChnAttr[j].stFrameRate.s32SrcFrameRate = force_fps;
+					pastVpssChnAttr[j].stFrameRate.s32DstFrameRate = force_fps;
+				}
+			}
+			SAMPLE_PRT("SAMPLE_COMM_VPSS_Init: env VPSS_FPS=%d overrides chn fps\n", force_fps);
+		}
+	}
 
 	s32Ret = CVI_VPSS_CreateGrp(VpssGrp, pstVpssGrpAttr);
 	if (s32Ret != CVI_SUCCESS) {

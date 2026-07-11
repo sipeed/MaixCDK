@@ -4083,7 +4083,7 @@ CVI_S32 SAMPLE_VIO_TWO_DEV_VO(void)
 	int img_w = 256, img_h = 256, img_fmt = PIXEL_FORMAT_RGB_888;	//PIXEL_FORMAT_NV21 or PIXEL_FORMAT_RGB_888
 
 	int vi_ch = mmf_get_vi_unused_channel();
-	mmf_add_vi_channel(vi_ch, img_w, img_h, img_fmt);
+	mmf_add_vi_channel(vi_ch, img_w, img_h, img_fmt, 30);
 
 	int layer = 0;
 	int vo_ch = mmf_get_vo_unused_channel(layer);

@@ -8,7 +8,7 @@ bool mmf_is_init(void);
 
 // manage vi channels(vi->vpssgroup->vpss->frame)
 int mmf_get_vi_unused_channel(void);
-int mmf_add_vi_channel(int ch, int width, int height, int format);
+int mmf_add_vi_channel(int ch, int width, int height, int format, int fps);
 int mmf_del_vi_channel(int ch);
 int mmf_del_vi_channel_all(void);
 bool mmf_vi_chn_is_open(int ch);

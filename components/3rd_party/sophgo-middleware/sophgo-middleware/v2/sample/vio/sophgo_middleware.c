@@ -454,7 +454,7 @@ int mmf_get_vi_unused_channel(void) {
 	return _vi_get_unused_ch();
 }
 
-int mmf_add_vi_channel(int ch, int width, int height, int format) {
+int mmf_add_vi_channel(int ch, int width, int height, int format, int fps) {
 	if (!priv.mmf_used_cnt) {
 		printf("%s: mmf not inited\n", __func__);
 		return -1;
@@ -479,7 +479,6 @@ int mmf_add_vi_channel(int ch, int width, int height, int format) {
 
 	CVI_S32 s32Ret = CVI_SUCCESS;
 	SIZE_S stSizeIn, stSizeOut;
-	int fps = 30;
 	PIXEL_FORMAT_E formatOut = (PIXEL_FORMAT_E)format;
 	stSizeIn.u32Width   = priv.vi_size.u32Width;
 	stSizeIn.u32Height  = priv.vi_size.u32Height;

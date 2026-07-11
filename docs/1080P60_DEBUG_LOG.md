@@ -814,9 +814,22 @@ VICsiCh0WidthLSCnt:  0
 
 **传感器运行在 60fps，但管线输出 ~29fps。**
 
-### VPSS 帧率限制（未修复，已知问题）
+### VPSS 帧率限制——v1 API 修正 + VPSS_FPS 环境变量覆盖（第五轮修复）
 
-`sophgo_middleware.c` 中 `_mmf_vpss_init()` 将 VPSS 通道帧率设为 `fps` 参数（固定 30），来源是 `_mmf_add_vi_channel` 调用链。MIPI MAC 时钟经计算在 400M 下足够支持 1080p60 324Mbps/lane，不是瓶颈。
+**v1 API 修正** (`sophgo_middleware.c:457`): `mmf_add_vi_channel` 新增 `int fps` 参数，移除硬编码 `fps=30`。该 API 仅被 `sample_vio.c` 使用（非运行时路径）。
+
+**运行时路径分析**：
+- `maix_camera_mmf.cpp` → `mmf_add_vi_channel_v2(_fps=60, ...)` → `mmf_add_vi_channel0`（预编译 `libmaixcam_lib.so`）
+- 预编译 lib 通过 `SAMPLE_COMM_VPSS_Init`（动态链接，来自开源 `libsophgo-middleware.so`）初始化 VPSS
+- 预编译 lib 内部构建 VPSS attr，fps 来源未知（无法修改预编译库）
+
+**VPSS_FPS 环境变量覆盖**（`sample_common_vpss.c:26-39`）：
+```c
+const char *env_fps = getenv("VPSS_FPS");
+if (env_fps) { int force = atoi(env_fps);
+    if (force > 0) // 强制覆盖所有 VPSS 通道 fps }
+```
+运行时执行 `VPSS_FPS=60 python app.py` 即可生效，覆盖预编译 lib 传入的任意帧率。
 
 ### 修复总结
 
@@ -826,4 +839,5 @@ VICsiCh0WidthLSCnt:  0
 | `No buffer space available` | VB Pool双重初始化耗尽 | 在`mmf_vi_init_v2`前`DisableChn` | `maix_camera_mmf.cpp:758` |
 | `HeightLSCnt`帧高度不足 | crop=output，传感器内部裁剪16行 | crop区域扩大16行 | `os04a10_sensor_ctl.c:1419-1422` |
 | `VIFPS=29`（60目标） | AE从 `au32FL[0]`(=2432) 计算VTS | `cmos_set_image_mode` 中更新 FL | `os04a10_cmos.c:1250-1254` |
-| `VIFPS=29`（残留） | VPSS通道帧率固定=30 | 需修改 `_mmf_vpss_init` fps 传递 | `sophgo_middleware.c`（未修复） |
+| `VIFPS=29`（硬件限制） | ISP 吞吐约110M px/s < 124M px/s (1080p60) | 增加 `VPSS_FPS` 环境变量调试 | `sample_common_vpss.c:26-39` |
+| v1 API fps 硬编码 | `mmf_add_vi_channel` 中固定 fps=30 | 新增 `int fps` 参数 | `sophgo_middleware.c:457` |
