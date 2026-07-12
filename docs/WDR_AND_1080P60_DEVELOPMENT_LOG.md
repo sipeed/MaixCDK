@@ -435,3 +435,452 @@ cat /proc/cvitek/vb
 sh /tmp/clean_capture.sh linear
 sh /tmp/clean_capture.sh wdr
 ```
+
+---
+
+## 五、1080p WDR 模式实现尝试（2026-07-12）
+
+### 目标
+
+将 WDR 模式从 1440p（2560×1440）降到 1080p（1920×1080），减少 ISP FSWDR 处理负载约 43%，预期帧率从 7-8fps 提升到 15-20fps。
+
+### 已完成的工作
+
+#### 5.1 传感器驱动层（已实现并验证通过）
+
+| 文件 | 修改 |
+|------|------|
+| `os04a10_cmos_ex.h` | 添加 `OS04A10_MODE_1080P60_WDR` 枚举（值=4），更新 `OS04A10_MODE_NUM` |
+| `os04a10_cmos_param.h` | 添加 1080p60 WDR 参数表：HTS=2972, VTS=1216, stSnsSize={1920,1080} |
+| `os04a10_sensor_ctl.c` | 新建 `os04a10_wdr_1080p60_2to1_init()`（合并 1080p 裁剪 + WDR 模拟/VC 配置）；更新 `os04a10_init()` 分发 |
+| `os04a10_cmos.c` | `cmos_set_image_mode()` 添加 WDR_MODE_2To1_LINE + 1080P 分支；`cmos_set_wdr_mode()` 添加 1080p 线性/WDR 切换；`cmos_set_image_mode()` 的 WDR_MODE_NONE 路径添加 1080p 回落选择（解决 cmos_set_image_mode 在 cmos_set_wdr_mode 之前调用的问题） |
+
+**传感器寄存器验证结果（通过 I2C 读回）：**
+```
+OUT_W: 0x0780 = 1920
+OUT_H: 0x0438 = 1080
+HTS:   0x0B9C = 2972
+VTS:   0x04C0 = 1216
+CROP:  (384,220) → (2319,1315)
+VC:    0x84（双 VC: DCG=VC0, VS=VC2）
+STRM:  0x01（streaming）
+```
+✅ 传感器 1080p WDR 初始化完全正确。
+
+#### 5.2 应用层管道（已实现）
+
+| 文件 | 修改 |
+|------|------|
+| `sample_comm.h` | 添加 `OV_OS04A10_MIPI_4M_1080P60_10BIT_WDR2TO1` 枚举 |
+| `sample_common_sensor.c` | 枚举→`PIC_1080P` 映射、sensor obj 注册、字符串名称表 |
+| `maix_camera_mmf.cpp` | `_mmf_vi_init` 中根据分辨率选择 WDR 传感器类型（1080p→新类型，1440p→旧类型）；更新所有 WDR 管道检查（`priv->sns_type` 比较）包含两种类型；`WDR_MODE_2To1_LINE` bin 路径根据需要选择 `cvi_wdr_bin_1080p.os04a10` 或 `cvi_wdr_bin.os04a10` |
+
+#### 5.3 ISP bin 修补（已完成）
+
+`cvi_wdr_bin.os04a10` 的 ISP0 段中 `ISP_PUB_ATTR_S` 包含硬编码分辨率：
+
+```c
+stSnsSize = {2688, 1520}   → 修补为 {1920, 1080}
+stWndRect = {0, 0, 2688, 1520} → 修补为 {0, 0, 1920, 1080}
+```
+
+修补后的 bin 保存在 `cvi_wdr_bin_1080p.os04a10`，MD5 不匹配但加载器将该错误视为非致命（`check_bin_file_validity` 返回 `CVI_BIN_DATA_ERR` 但主加载器只对 `CVI_BIN_FILE_ERROR` 跳转错误处理），数据仍被加载到 ISP。
+
+#### 5.4 MIPI RX 重配置（已实现）
+
+在 `_mmf_vi_init` 的 WDR 初始化完成后（`CVI_VI_EnableChn` 之后），添加：
+
+```cpp
+const ISP_SNS_OBJ_S *pstSnsObj = (ISP_SNS_OBJ_S *)SAMPLE_COMM_ISP_GetSnsObj(0);
+if (pstSnsObj) {
+    SNS_COMBO_DEV_ATTR_S stRxAttr;
+    pstSnsObj->pfnGetRxAttr(0, &stRxAttr);
+    CVI_MIPI_SetMipiAttr(0, (CVI_VOID *)&stRxAttr);
+}
+```
+
+这使用当前传感器模式（u8ImgMode=4=1080P60_WDR）下的 `sensor_rx_attr` 返回值（img_size={1920,1080}）重新配置 CSI 寄存器。日志确认 `MIPI RX attr refreshed` 被打印。
+
+#### 5.5 `pool_num` 修复（已实现）
+
+`mmf_add_vi_channel_v2` 末尾的 `pool_num` 参数从局部变量（在 `_mmf_vi_init` 设置 `priv->sns_type` 之前初始化为 3）改为 `priv->vi_pool_num`（在 `_mmf_vi_init` 内部设置为 WDR 模式的 6）。
+
+### 当前状态
+
+```
+open() 成功 → ✅
+VI 接收帧 (VIDevFPS=10) → ✅
+ISP 处理帧 (VIPostCnt increment) → ✅
+VI DMA 活跃 (VIWdma0 非全 idle) → ✅
+MIPI RX 已刷新 → ✅
+VPSS GetChnFrame → ❌ 始终超时
+cam.read() → ❌ "camera read timeout"
+```
+
+### 逆向分析：`libmaixcam_lib.so`（闭源库）
+
+#### 5.6.1 二进制概要
+
+| 属性 | 值 |
+|------|-----|
+| 路径 | `components/maixcam_lib/lib_maixcam/libmaixcam_lib.so` |
+| 架构 | RISC-V 64-bit, LP64, double-float ABI, stripped |
+| 大小 | 905 KB |
+| 573 个 .dynsym 导出符号 |
+
+#### 5.6.2 `mmf_add_vi_channel_v2` 的调用链
+
+`sophgo_middleware.hpp:264` 中的内联包装器：
+```cpp
+static inline int mmf_add_vi_channel_v2(int ch, int width, int height, int format,
+    int fps, int depth, int mirror, int vflip, int fit, int pool_num) {
+    return mmf_add_vi_channel0(MMF_FUNC_SET_PARAM(0, 10),
+        ch, width, height, format, fps, depth, mirror, vflip, fit, pool_num);
+}
+```
+
+`mmf_add_vi_channel0` (0x21A94) → 提取可变参数 → 调用 `mmf_add_vi_channel` (0x1EE00) → 调用 `mmf_set_vi_vflip` (0x1EBCC，实际核心实现)。
+
+#### 5.6.3 `mmf_set_vi_vflip` 的反汇编伪代码
+
+```
+mmf_set_vi_vflip(vi_pipe, width, height, chn, framerate, encode, hmirror, vflip, extra):
+    if (!init_done) return -1
+    if (width <= 0 || height <= 0) return -1
+    if (mmf_vi_chn_is_open(vi_pipe)) return -1
+
+    CVI_VPSS_DisableChn(0, vi_pipe)          // 关闭旧 VPSS 通道
+    
+    internal_vpss_setup(vi_pipe, width, height, ...):
+        CVI_VPSS_GetGrpAttr(0, &grp_attr)    // 获取组属性
+        grp_attr.MaxWidth = width             // ← 设置为调用者传入的宽度
+        grp_attr.MaxHeight = height           // ← 设置为调用者传入的高度
+        CVI_VPSS_SetChnCrop(0, vi_pipe, &crop)
+        CVI_VPSS_SetChnAttr(0, vi_pipe, &chn_attr)
+        CVI_VPSS_EnableChn(0, vi_pipe)
+
+    SAMPLE_COMM_VI_Bind_VPSS(vi_pipe, chn, 0)  // 绑定 VI→VPSS
+    
+    create_vpss_pool("VPSS_Group_%d", width, chn, pool_num)
+    CVI_VPSS_AttachVbPool(0, vi_pipe, pool_id)  // 附加 VB 池
+```
+
+**关键发现**：VPSS 组的 `MaxWidth/MaxHeight` 被设置为**调用者传入的 `width/height`**（即 Camera 构造函数的 `_width/_height`），而非传感器原生分辨率。这与 v1 开源实现（`sophgo_middleware.c`）不同——v1 使用传感器原生大小作为 VPSS 组输入，使用用户请求大小作为 VPSS 通道输出。
+
+#### 5.6.4 池绑定分析
+
+`mmf_vi_init_v2` 创建 VI 的 VB 池（`priv->vi_pool_num` 个缓冲区），而 `mmf_add_vi_channel_v2` 创建**独立的** VPSS VB 池并通过 `CVI_VPSS_AttachVbPool` 附加。`SAMPLE_COMM_VI_Bind_VPSS` 需要在系统层面绑定两个池。
+
+对于 WDR 模式，如果池大小不匹配（VI 池用 6 个缓冲区，VPSS 池用 3 个），绑定可能会静默失败。`pool_num` 修复解决了这个问题，但 VPSS 仍然超时。
+
+### 注意事项
+
+1. **CSI/MIPI RX 在 VC 模式下不验证帧大小**。`cif_hdr_csi_enable` 仅设置 `HDR_EN=1`、`HDR_MODE=0`，不设置预期宽度/高度。CSI 使用 MIPI 数据包头部字计数确定每行长度——传感器输出 1920x1080 时，CSI 接收 1920x1080 帧的正确数据。
+
+2. **SENSOR_MAC 寄存器（0x0A0C2040-0x0A0C2044）在 VC 模式下保持为 0**。`cif_hdr_manual_config` 仅在 `CVI_MIPI_WDR_MODE_MANUAL` 模式下调用，`CVI_MIPI_WDR_MODE_VC` 模式会跳过它。`MAC_040=0` 是预期行为。
+
+3. **VPSS 组 0 硬编码**：逆向确认所有 VPSS 操作（创建、设置、绑定）都使用组 0。这是闭源库内部的硬编码限制。
+
+4. **`mmf_add_vi_channel_v2` 与 `mmf_add_vi_channel` 的行为不同**：v2 将 VPSS 组的 `MaxWidth/MaxHeight` 设置为用户请求的分辨率，而 v1 使用传感器原生分辨率。这意味着在 v2 API 中，VPSS 组输入大小直接匹配 VPSS 通道输出大小（无缩放）。在 WDR 模式下，VI 输出的分辨率需要与 VPSS 组输入分辨率匹配。
+
+5. **`pool_num` 始终为 6 对 WDR 模式至关重要**。闭源库的 `create_vpss_pool` 使用 `pool_num` 参数分配缓冲区数量。WDR 模式需要更多缓冲区来处理双帧数据。`pool_num` 未正确设置（由于 `priv->sns_type` 在 `Camera::open()` 的池大小检查点尚未设置）导致 VPSS 池只有 3 个缓冲区。
+
+6. **ISP bin 包含硬编码分辨率**。`cvi_wdr_bin.os04a10` 的 ISP0 段中的 `ISP_PUB_ATTR_S` 包含 `stSnsSize={2688,1520}` 和 `stWndRect={0,0,2688,1520}`。当 ISP 加载修补后的 bin 时，`isp_set_paramstruct` 调用 `CVI_ISP_SetPubAttr`，该调用将 ISP 内部处理分辨率覆盖为 bin 中的值。如果 bin 中的分辨率（1920x1080）与 VI 管道分辨率（1920x1080）匹配，则 ISP 应正确工作。
+
+### 关于 `libmaixcam_lib.so` 闭源库的发现
+
+- `mmf_add_vi_channel_v2`、`mmf_vi_init_v2`、`mmf_init_v2` 都是通过 `MMF_FUNC_SET_PARAM` 分派号的包装器
+- 所有 VPSS 操作使用组 0（硬编码）
+- 库中没有 WDR/HDR 特定代码——WDR 模式完全由传感器驱动和 ISP bin 处理
+- 库依赖 `libsophgo-middleware.so`、`libsys.so`、`libisp.so` 等外部 SDK 库
+- 库导入的 SDK API：`CVI_VPSS_CreateGrp/DestroyGrp/SetChnAttr/GetChnAttr/EnableChn/DisableChn/StartGrp/StopGrp`、`CVI_VI_SetDevNum/AttachVbPool/DetachVbPool`、`SAMPLE_COMM_VI_Bind_VPSS`
+- 开源 v1 API（`sophgo_middleware.c`）显示 `SAMPLE_COMM_VI_Bind_VPSS(Dev, Chn, VPSSGrp)` 是绑定调用的核心
+- v1 与 v2 的关键区别：v1 的 `_mmf_vpss_init` 将传感器原生尺寸设置为 VPSS 组输入大小，用户尺寸设置为通道输出大小；v2 将用户尺寸同时用于组和通道（通过 `mmf_add_vi_channel_v2` 参数）
+
+### 关于 `pool_num` 时序问题的补充分析
+
+在 `Camera::open()` 中：
+
+```
+#990: int pool_num = 3;                           // 初始值为 3
+#996: if (priv->sns_type == WDR) pool_num = 6;    // priv->sns_type 未设置！→ 跳过
+#999: priv->vi_pool_num = pool_num;                // = 3
+...
+#1033:  _mmf_vi_init(...);
+        // 内部设置 priv->vi_pool_num = 6
+        // 使用 priv->vi_pool_num = 6 调用 mmf_vi_init_v2
+...
+#1045:  mmf_add_vi_channel_v2(..., pool_num)       // pool_num 仍为 3！
+```
+
+修复：将 `pool_num` 替换为 `priv->vi_pool_num`。
+
+---
+
+## 六、1440p WDR 回归与 VTS 初始化修复（2026-07-12）
+
+### 问题描述
+
+`3d8ea0b9` 提交（完整 VPSS 修复）后 1440p WDR 工作正常。后续提交 `ab985c41`（VTS 初始化修复）导致 1440p WDR 无法工作：VI DMA 停滞，VPSS 收不到帧，`cam.read()` 超时。
+
+### 精确根因定位
+
+通过受控对比实验（相同构建系统、相同摄像头库、仅传感器库不同）确认：
+
+| 构建来源 | VTS 初始化 | WDR 结果 |
+|---------|-----------|---------|
+| `3d8ea0b9`（无 VTS 修复） | `u32Data` 未设置（memset 为 0） | ✅ 工作 |
+| `ab985c41`（有 VTS 修复） | `u32Data` = 1624 | ❌ 失败 |
+
+**差异代码（`os04a10_cmos.c` 第 1096-1101 行）：**
+
+```c
+// 3d8ea0b9（工作）—— u32Data 未初始化，保持为 0
+pstI2c_data[WDR2_VTS_0].u32RegAddr = OS04A10_VTS_ADDR;
+pstI2c_data[WDR2_VTS_1].u32RegAddr = OS04A10_VTS_ADDR + 1;
+
+// ab985c41（失效）—— u32Data 显式设置为 1624
+pstI2c_data[WDR2_VTS_0].u32RegAddr = OS04A10_VTS_ADDR;
+pstI2c_data[WDR2_VTS_0].u32Data = (1624 >> 8) & 0xFF;  // = 0x06
+pstI2c_data[WDR2_VTS_1].u32RegAddr = OS04A10_VTS_ADDR + 1;
+pstI2c_data[WDR2_VTS_1].u32Data = 1624 & 0xFF;           // = 0x58
+```
+
+### 执行路径分析
+
+VTS 寄存器（0x380E/0x380F）在传感器初始化期间被写入两次：
+
+1. **`os04a10_default_reg_init()`**（`os04a10_sensor_ctl.c:160-174`）—— 在 `os04a10_wdr_1520p30_2to1_init()` 函数末尾、`0x0100=0x01`（开启流）之前调用。遍历 I2C 寄存器表（索引 1 到 `u32RegNum-3`），将每个条目的 `u32RegAddr` 和 `u32Data` 直接写入传感器。对于 VTS 条目：
+   - 修复前：写入 VTS=0（`u32Data` 来自 memset，默认为 0）
+   - 修复后：写入 VTS=1624（`u32Data` 被显式设置）
+
+2. **`cmos_fps_set()`**（`os04a10_cmos.c:277-278`）—— 在 AE 启动后由 ISP 线程调用，通过 `bvblankUpdate` 机制在帧消隐期更新 VTS。无论第 1 步写入的值如何，此步骤都会将 VTS 更新为根据 FPS 计算的 `u32VMAX`。
+
+### 关键时序
+
+```
+os04a10_wdr_1520p30_2to1_init():
+  行 943:  0x0103 = 0x01      ← 软复位（传感器停止输出，所有寄存器复位）
+  行 944-1245: 配置 WDR 模式所需的数百个寄存器
+  行 1246: os04a10_default_reg_init()  ← 直接写入寄存器表（含 VTS）
+  行 1247: 0x0100 = 0x01      ← 开启流输出
+
+cmos_fps_set()（AE 线程，稍后调用）:
+  行 277-278: 更新 VTS 为 u32VMAX  ← 通过 blanking 更新写入传感器
+```
+
+### 疑点
+
+VTS=1624 是合法值，VTS=0 是非法值（数据手册：`l_exp_max = VTS - 8`，VTS=0 时为负值）。两者都在开启流之前写入，传感器应处于静默状态，值本身不应影响后续行为。但实证表明 VTS=1624 导致 WDR 失败。
+
+**可能的解释**：
+1. `os04a10_default_reg_init` 直接写入寄存器（不通过 group hold），而数据手册明确指出直接 SCCB 写入"不保证在帧边界生效"。对于 WDR 模式，VTS 时序寄存器可能需要通过 group hold 机制写入才能正确配置传感器的双曝光交错时序。
+2. WDR 初始化序列的具体寄存器写入顺序属于 OmniVision NDA 内容，公开数据手册中不包含。`default_reg_init` 的通用写入可能与 WDR 专用初始化序列存在隐式依赖冲突。
+3. VTS=0 被传感器内部忽略（使用默认时序），而 VTS=1624 被接受并立即生效，但此时 WDR 时序尚未完全锁定，导致内部状态机错位。
+
+### 修复
+
+从 `cmos_get_sns_regs_info()` 中移除 WDR2_VTS_0/1 的 `u32Data` 显式赋值，恢复旧行为：
+
+```c
+// 修复后（恢复旧行为）
+pstI2c_data[WDR2_VTS_0].u32RegAddr = OS04A10_VTS_ADDR;
+pstI2c_data[WDR2_VTS_1].u32RegAddr = OS04A10_VTS_ADDR + 1;
+```
+
+`os04a10_default_reg_init` 写入 VTS=0（传感器忽略），VTS 最终由 `cmos_fps_set` 通过 blanking 更新路径正确设置。
+
+### 教训
+
+1. **传感器寄存器初始化不能假设"值正确就一定没问题"**。寄存器写入的时序、路径（直接 SCCB vs group hold）、以及与其他寄存器的相对顺序都可能影响传感器行为。即使在"开启流之前"的静默状态下，某些寄存器的写入也可能触发内部状态机的变化。
+
+2. **VTS 等关键时序寄存器应通过 blanking 更新路径（`bvblankUpdate`/`cmos_fps_set`）设置**，而非在 `default_reg_init` 中直接写入。`default_reg_init` 是通用寄存器初始化函数，不适合处理 WDR 模式下有特殊时序要求的寄存器。
+
+3. **闭源传感器的 WDR 初始化序列可能有未文档化的依赖关系**。公开数据手册不包含 WDR 模式的详细初始化时序要求，修改初始化代码时需要格外谨慎。
+
+4. **`cmos_fps_set()` 中已有独立的 VTS 更新逻辑**（`os04a10_cmos.c:277-278`），它在 AE 启动后通过 blanking 路径正确设置 VTS。`cmos_get_sns_regs_info` 中的 VTS 初始化是冗余的。
+
+5. **回归测试必须使用相同的构建环境**。本次分析中，旧构建系统（373KB 库）和新构建系统（528KB 库）产生了不同大小的二进制文件，可能导致不同的编译器优化行为。精确对比必须控制构建环境变量。
+
+---
+
+## 七、MaixCDK 构建系统恢复记录（2026-07-12）
+
+### 背景
+
+构建目录 `/home/wlkeo/sg2002/MaixPy/build` 被删除后，MaixCDK 构建系统无法直接通过 `cmake` 重建，因为：
+1. `global_config.cmake` / `global_config.h` / `global_config_platform.h` 由 `menuconfig` 生成
+2. `toolchain_config.cmake` 由平台配置生成
+3. 组件验证需要正确的 `PLATFORM` 变量
+4. 交互式 `menuconfig` 需要终端（无法在非交互式 shell 中运行）
+
+### 恢复步骤
+
+#### 1. 非交互式生成 config 文件
+
+```bash
+PLATFORM=maixcam BUILD_TYPE=Release python3 \
+  /home/wlkeo/sg2002/MaixCDK/tools/kconfig/genconfig.py \
+  --kconfig /home/wlkeo/sg2002/MaixCDK/Kconfig \
+  --defaults /tmp/config_maixcam_defaults.mk \
+  --menuconfig False \
+  --env "PLATFORM=maixcam" \
+  --env "SDK_PATH=/home/wlkeo/sg2002/MaixCDK" \
+  --env "PROJECT_PATH=/home/wlkeo/sg2002/MaixPy" \
+  --env "BUILD_TYPE=Release" \
+  --output cmake /home/wlkeo/sg2002/MaixPy/build/config/global_config.cmake \
+  --output header /home/wlkeo/sg2002/MaixPy/build/config/global_config.h \
+  --output makefile /home/wlkeo/sg2002/MaixPy/build/config/global_config.mk
+```
+
+#### 2. 手动创建缺失文件
+
+```bash
+# global_config_platform.h
+cat > /home/wlkeo/sg2002/MaixPy/build/config/global_config_platform.h << 'EOF'
+#ifndef __GLOBAL_CONFIG_PLATFORM_H__
+#define __GLOBAL_CONFIG_PLATFORM_H__
+#define PLATFORM_MAIXCAM 1
+#define PLATFORM "maixcam"
+#endif
+EOF
+
+# toolchain_config.cmake（toolchain 路径来自 platforms/maixcam.yaml）
+cat > /home/wlkeo/sg2002/MaixPy/build/config/toolchain_config.cmake << 'EOF'
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR riscv64)
+set(CONFIG_TOOLCHAIN_PATH "/home/wlkeo/sg2002/host-tools/gcc/riscv64-linux-musl-x86_64/bin")
+set(CONFIG_TOOLCHAIN_PREFIX "riscv64-unknown-linux-musl-")
+set(CMAKE_C_COMPILER "${CONFIG_TOOLCHAIN_PATH}/${CONFIG_TOOLCHAIN_PREFIX}gcc")
+set(CMAKE_CXX_COMPILER "${CONFIG_TOOLCHAIN_PATH}/${CONFIG_TOOLCHAIN_PREFIX}g++")
+set(CMAKE_C_FLAGS "-mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d")
+set(CMAKE_CXX_FLAGS "-mcpu=c906fdv -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d")
+EOF
+```
+
+#### 3. 修复 cvi_tpu 组件
+
+cvi_tpu 需要下载的预编译库（在 `dl/pkgs/cvi_tpu` 目录下），如果缺失则 cmake 报错。临时修复：注释掉 `FATAL_ERROR`，改为 `WARNING`。
+
+#### 4. 运行 cmake
+
+```bash
+cd /home/wlkeo/sg2002/MaixPy/build && rm -f CMakeCache.txt CMakeFiles -rf
+PLATFORM=maixcam cmake .. \
+  -DSDK_PATH=/home/wlkeo/sg2002/MaixCDK \
+  -DPROJECT_ID=maixpy \
+  -DPLATFORM=maixcam \
+  -DCONFIG_MAIXCAM_PRO=ON \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+```
+
+#### 5. 添加 PROJECT_ID 编译定义
+
+`basic` 组件的 `maix_app.cpp` 使用 `PROJECT_ID` 宏，需要在 `compile/compile_flags.cmake` 中添加：
+
+```cmake
+add_definitions(-DPROJECT_ID="maixpy")
+```
+
+#### 6. 编译
+
+```bash
+make sophgo-middleware -j$(nproc)   # 传感器驱动库
+make maix -j$(nproc)               # 摄像头库（需解决 freetype 等依赖）
+```
+
+### 已知限制
+
+- `maix` 库编译依赖 freetype 等预编译库，如果这些库的 cmake 版本要求与当前 cmake 不兼容，编译会失败。
+- 仅 `sophgo-middleware`（传感器驱动）可以独立编译，`maix`（摄像头管线）需要完整的 MaixCDK 构建环境。
+- 测试 1080p/1440p WDR 时，可以只部署 `libsophgo-middleware.so`，保留 `libmaix.so` 不变。
+
+---
+
+## 八、关于闭源 `libmaixcam_lib.so` 的逆向分析
+
+### 二进制概要
+
+| 属性 | 值 |
+|------|-----|
+| 路径 | `components/maixcam_lib/lib_maixcam/libmaixcam_lib.so` |
+| 架构 | RISC-V 64-bit, LP64, double-float ABI, stripped |
+| 大小 | 905 KB |
+| 导出符号 | 573 个 .dynsym |
+
+### 关键函数
+
+| 函数 | 地址 | 作用 |
+|------|------|------|
+| `mmf_add_vi_channel_v2` 包装器 | 内联（`sophgo_middleware.hpp:264`） | 通过 `MMF_FUNC_SET_PARAM(0,10)` 分派 |
+| `mmf_add_vi_channel0` | 0x21A94 | 提取可变参数，调用 `mmf_add_vi_channel` |
+| `mmf_add_vi_channel` | 0x1EE00 | 调用 `mmf_set_vi_vflip` |
+| `mmf_set_vi_vflip` | 0x1EBCC | 创建 VPSS 组/通道、绑定 VI→VPSS、创建 VPSS 池 |
+| `mmf_vi_init_v2` 包装器 | 内联 | 通过 `MMF_FUNC_SET_PARAM(0,3)` 分派 |
+| `mmf_init_v2` 包装器 | 内联 | 通过 `MMF_FUNC_SET_PARAM(0,2)` 分派 |
+
+### VPSS 组/通道行为
+
+- VPSS 组 0 硬编码（所有操作使用组 0）
+- `MaxWidth/MaxHeight` 设置为用户请求的分辨率（非传感器原生分辨率）
+- 与 v1 开源实现不同：v1 将传感器原生尺寸设为组输入，用户尺寸设为通道输出
+- VPSS 池独立于 VI 池，通过 `CVI_VPSS_AttachVbPool` 附加
+
+### WDR 模式相关发现
+
+- 库中没有 WDR/HDR 特定代码
+- WDR 模式完全由传感器驱动和 ISP bin 处理
+- `mmf_vi_init_v2` 内部使能 VI 通道（`CVI_VI_EnableChn` 返回 0xC00E8041 表示已使能）
+- `mmf_vi_init_v2` 不重新配置 MIPI RX（需要外部调用 `CVI_MIPI_SetMipiAttr`）
+
+### 导入的 SDK API
+
+```
+CVI_VPSS_CreateGrp / DestroyGrp / SetChnAttr / GetChnAttr
+CVI_VPSS_EnableChn / DisableChn / StartGrp / StopGrp
+CVI_VI_SetDevNum / AttachVbPool / DetachVbPool
+SAMPLE_COMM_VI_Bind_VPSS
+```
+
+---
+
+## 九、OS04A10 VTS 寄存器（0x380E/0x380F）技术参考
+
+### 寄存器定义
+
+| 寄存器 | 名称 | 位定义 |
+|--------|------|--------|
+| 0x380E | TIMING_CTRL_14 | `{Frame_Length[15:8]}` — 帧总行数高字节 |
+| 0x380F | TIMING_CTRL_15 | `{Frame_Length[7:0]}` — 帧总行数低字节 |
+
+### 帧率公式
+
+```
+帧率 = SCLK / (HTS × VTS)
+```
+
+其中 SCLK 最大 108 MHz，PCLK 最大 138 MHz。
+
+### 双曝光模式下的曝光约束
+
+```
+l_exp_max = VTS - 8                    // 长帧最大曝光行数
+m_exp_max = VTS - l_exp_max - 2        // 短帧最大曝光行数
+Max_exposure_VS + Max_exposure_HCG/LCG < VTS - 10
+```
+
+### Group Hold 机制（0x3208）
+
+0x3208 是 Group Access Control 寄存器：
+- `Bits[7:4]`: 操作类型
+  - `0x0` = hold start（开始记录组寄存器写入）
+  - `0x1` = hold end（结束记录）
+  - `0xA` = delay manual launch（延迟手动启动）
+  - `0xE` = quick manual launch（立即手动启动）
+- `Bits[3:0]`: 组号（0-5）
+
+数据手册明确指出：group hold 功能"allows configuring of many of the sensor's parameters in a single instance, something that **cannot be applied or guaranteed when using direct SCCB register writes**"。
+
+### WDR 初始化序列
+
+WDR 模式的详细寄存器写入序列属于 OmniVision NDA 内容，不在公开数据手册中。当前使用的 `os04a10_wdr_1520p30_2to1_init()` 函数基于供应商参考代码。
