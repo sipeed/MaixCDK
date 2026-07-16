@@ -1,0 +1,8 @@
+id: os04d10_120_test
+name: OS04D10 120 FPS Test
+name[zh]: OS04D10 120帧测试
+version: 1.0.0
+author: chaoxiaohan
+desc: Verify OS04D10 640x360 at 120 FPS, automatic exposure and optional display throughput
+desc[zh]: 验证 OS04D10 的 640x360 120帧模式、自动曝光和可选显示吞吐量
+files: {}

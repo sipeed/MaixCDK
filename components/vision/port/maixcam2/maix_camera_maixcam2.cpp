@@ -26,6 +26,58 @@ namespace maix::camera
     static bool __invert_flip = false;
     static bool __invert_mirror = false;
 
+    static AX_S32 __config_os04d10_360p120_ae(AX_U8 pipe)
+    {
+        AX_ISP_IQ_AE_PARAM_T param = {};
+        AX_S32 ret = AX_ISP_IQ_GetAeParam(pipe, &param);
+        if (ret != AX_SUCCESS) {
+            return ret;
+        }
+
+        param.nEnable = false;
+        param.tExpManual.nShutter = 4000;
+        param.tExpManual.nShortShutter = 250;
+        param.tExpManual.nVsShutter = 4000;
+        ret = AX_ISP_IQ_SetAeParam(pipe, &param);
+        if (ret != AX_SUCCESS) {
+            return ret;
+        }
+
+        ret = AX_ISP_IQ_GetAeParam(pipe, &param);
+        if (ret != AX_SUCCESS) {
+            return ret;
+        }
+        param.nEnable = false;
+        param.tExpManual.nAGain = 1024;
+        ret = AX_ISP_IQ_SetAeParam(pipe, &param);
+        if (ret != AX_SUCCESS) {
+            return ret;
+        }
+
+        ret = AX_ISP_IQ_GetAeParam(pipe, &param);
+        if (ret != AX_SUCCESS) {
+            return ret;
+        }
+        AX_ISP_IQ_AE_ALG_CONFIG_T &config = param.tAeAlgAuto;
+        config.nCompensationMode = 0;
+        config.nMaxIspGain = 1024;
+        config.nMinIspGain = 1024;
+        config.nMaxUserDgain = 1024;
+        config.nMinUserDgain = 1024;
+        config.nMaxUserTotalAgain = 15872;
+        config.nMinUserTotalAgain = 1024;
+        config.nMaxUserSysGain = 16384;
+        config.nMinUserSysGain = 1024;
+        config.nMaxShutter = 8000;
+        config.nMinShutter = 361;
+        config.nStrategyMode = 0;
+        config.nAeRouteMode = 0;
+        config.tAntiFlickerParam.nAntiFlickerMode = 0;
+        config.tSlowShutterParam.nFrameRateMode = 0;
+        param.nEnable = true;
+        return AX_ISP_IQ_SetAeParam(pipe, &param);
+    }
+
     std::vector<std::string> list_devices()
     {
         log::warn("This device is not driven using device files!");
@@ -609,6 +661,12 @@ namespace maix::camera
 
         this->vflip(priv->chn.vflip);
         this->hmirror(priv->chn.mirror);
+        if (tVinParam.eSysCase == SAMPLE_VIN_SINGLE_OS04D10_360P120) {
+            AX_S32 ret = __config_os04d10_360p120_ae(0);
+            if (ret != AX_SUCCESS) {
+                log::error("Configure OS04D10 360p120 AE failed, ret=0x%x", ret);
+            }
+        }
         return err::ERR_NONE;
     }
 

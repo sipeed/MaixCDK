@@ -522,6 +522,7 @@ namespace maix::middleware::maixcam2 {
         SAMPLE_VIN_SINGLE_OS04D10 = 4,
         SAMPLE_VIN_SINGLE_SC850SL_1080P60 = 5,
         SAMPLE_VIN_SINGLE_OS04D10_720P60 = 6,
+        SAMPLE_VIN_SINGLE_OS04D10_360P120 = 7,
         SAMPLE_VIN_BUTT
     } SAMPLE_VIN_CASE_E;
 
@@ -652,6 +653,133 @@ namespace maix::middleware::maixcam2 {
         .tCompressInfo = {AX_COMPRESS_MODE_LOSSY, 4},
         .tFrameRateCtrl = {AX_INVALID_FRMRATE, AX_INVALID_FRMRATE},
     };
+
+    static AX_MIPI_RX_ATTR_T gOs04d10_360P120_MipiAttr = {
+        .ePhyMode = AX_MIPI_PHY_TYPE_DPHY,
+        .eLaneNum = AX_MIPI_DATA_LANE_2,
+        .nDataRate = 720,
+        .nDataLaneMap = {2, 1, -1, -1},
+        .nClkLane = {0, 5},
+    };
+
+    static AX_SNS_ATTR_T gOs04d10_360P120_SnsAttr = {
+        .nWidth = 640,
+        .nHeight = 360,
+        .fFrameRate = 120,
+        .eSnsMode = AX_SNS_LINEAR_MODE,
+        .eRawType = AX_RT_RAW10,
+        .eBayerPattern = AX_BP_BGGR,
+        .bTestPatternEnable = AX_FALSE,
+    };
+
+    static AX_VIN_DEV_ATTR_T gOs04d10_360P120_DevAttr = {
+        .eDevMode = AX_VIN_DEV_ONLINE,
+        .bImgDataEnable = AX_TRUE,
+        .bNonImgDataEnable = AX_FALSE,
+        .eSnsIntfType = AX_SNS_INTF_TYPE_MIPI_RAW,
+        .eSnsMode = AX_SNS_LINEAR_MODE,
+        .eBayerPattern = AX_BP_BGGR,
+        .ePixelFmt = AX_FORMAT_BAYER_RAW_10BPP_PACKED,
+        .tDevImgRgn = {{0, 0, 640, 360},
+                        {0, 0, 640, 360},
+                        {0, 0, 640, 360},
+                        {0, 0, 640, 360},},
+        .eSnsOutputMode = AX_SNS_NORMAL,
+        .tFrameRateCtrl = {AX_INVALID_FRMRATE, AX_INVALID_FRMRATE},
+        .tCompressInfo = {AX_COMPRESS_MODE_NONE, 0},
+    };
+
+    static AX_VIN_PIPE_ATTR_T gOs04d10_360P120_PipeAttr = {
+        .ePipeWorkMode = AX_VIN_PIPE_NORMAL_MODE1,
+        .tPipeImgRgn = {0, 0, 640, 360},
+        .nWidthStride = 640,
+        .eBayerPattern = AX_BP_BGGR,
+        .ePixelFmt = AX_FORMAT_BAYER_RAW_10BPP_PACKED,
+        .eSnsMode = AX_SNS_LINEAR_MODE,
+        .tCompressInfo = {AX_COMPRESS_MODE_LOSSY, 0},
+        .tNrAttr = {{AX_FALSE, {AX_COMPRESS_MODE_LOSSLESS, 0}}, {AX_FALSE, {AX_COMPRESS_MODE_NONE, 0}}},
+        .tFrameRateCtrl = {AX_INVALID_FRMRATE, AX_INVALID_FRMRATE},
+    };
+
+    static AX_VIN_CHN_ATTR_T gOs04d10_360P120_Chn0Attr = {
+        .nWidth = 640,
+        .nHeight = 360,
+        .nWidthStride = 640,
+        .eImgFormat = AX_FORMAT_YUV420_SEMIPLANAR,
+        .nDepth = 2,
+        .tCompressInfo = {AX_COMPRESS_MODE_LOSSY, 4},
+        .tFrameRateCtrl = {AX_INVALID_FRMRATE, AX_INVALID_FRMRATE},
+    };
+
+    static AX_SENSOR_REGISTER_FUNC_T gOs04d10_360P120_SnsObj = {};
+    static AX_VOID (*gOs04d10_360P120_OriginalInit)(ISP_PIPE_ID) = nullptr;
+    static AX_S32 (*gOs04d10_360P120_OriginalSetFps)(ISP_PIPE_ID, AX_F32) = nullptr;
+    static AX_S32 (*gOs04d10_360P120_OriginalWriteReg)(ISP_PIPE_ID, AX_U32, AX_U32) = nullptr;
+    static AX_S32 (*gOs04d10_360P120_OriginalGetHwExposure)(ISP_PIPE_ID, AX_SNS_EXP_CTRL_PARAM_T *) = nullptr;
+    static AX_S32 (*gOs04d10_360P120_OriginalGetIntegrationRange)(ISP_PIPE_ID, AX_F32, AX_SNS_AE_INT_TIME_RANGE_T *) = nullptr;
+
+    static AX_VOID __os04d10_360p120_init(ISP_PIPE_ID pipe)
+    {
+        if (!gOs04d10_360P120_OriginalInit) {
+            return;
+        }
+        gOs04d10_360P120_OriginalInit(pipe);
+        if (gOs04d10_360P120_OriginalWriteReg) {
+            // The vendor sensor object has no public 360p120 entry, so select the
+            // mode after its regular initialization without modifying the object.
+            AX_S32 ret = gOs04d10_360P120_OriginalWriteReg(pipe, 0xfd, 0x00);
+            if (ret != AX_SUCCESS) {
+                log::error("OS04D10 360p120 page select failed, ret=0x%x", ret);
+            }
+            ret = gOs04d10_360P120_OriginalWriteReg(pipe, 0x20, 0x03);
+            if (ret != AX_SUCCESS) {
+                log::error("OS04D10 360p120 mode select failed, ret=0x%x", ret);
+            }
+        }
+    }
+
+    static AX_S32 __os04d10_360p120_set_fps(ISP_PIPE_ID pipe, AX_F32 fps)
+    {
+        if (fps == 120.0f) {
+            return 0;
+        }
+        return gOs04d10_360P120_OriginalSetFps ? gOs04d10_360P120_OriginalSetFps(pipe, fps) : -1;
+    }
+
+    static AX_S32 __os04d10_360p120_get_hw_exposure(ISP_PIPE_ID pipe, AX_SNS_EXP_CTRL_PARAM_T *param)
+    {
+        int ret = gOs04d10_360P120_OriginalGetHwExposure ?
+                  gOs04d10_360P120_OriginalGetHwExposure(pipe, param) : -1;
+        if (ret == 0) {
+            // The vendor object reports the 30 FPS limit (1457 lines) for this hidden mode.
+            // At 120 FPS one frame is about 368 lines, so keep blanking margin and cap at 360.
+            param->sns_ae_limit.tIntTimeRange.fMaxIntegrationTime[0] = 360.0f;
+            if (param->fInitIntegrationTime < 1.0f) {
+                param->fInitIntegrationTime = 4.0f;
+            }
+            if (param->sns_ae_param.fCurIntegrationTime[0] < 1.0f) {
+                param->sns_ae_param.fCurIntegrationTime[0] = 4.0f;
+            }
+        }
+        return ret;
+    }
+
+    static AX_S32 __os04d10_360p120_get_integration_range(ISP_PIPE_ID pipe, AX_F32 ratio,
+                                                           AX_SNS_AE_INT_TIME_RANGE_T *range)
+    {
+        int ret = gOs04d10_360P120_OriginalGetIntegrationRange ?
+                  gOs04d10_360P120_OriginalGetIntegrationRange(pipe, ratio, range) : -1;
+        if (ret == 0 && range->fMaxIntegrationTime[0] > 360.0f) {
+            range->fMaxIntegrationTime[0] = 360.0f;
+        }
+        return ret;
+    }
+
+    static AX_S32 __os04d10_360p120_set_slow_fps(ISP_PIPE_ID, AX_F32)
+    {
+        // Slow shutter changes the sensor timing to 30 FPS, so it is not allowed in this mode.
+        return 0;
+    }
 
     // SC850SL
     static COMMON_SYS_POOL_CFG_T gtSysCommPoolSingleSc850slSdr[] = {
@@ -1021,6 +1149,61 @@ namespace maix::middleware::maixcam2 {
         return 0;
     }
 
+    static AX_U32 __sample_case_single_os04d10_360p120(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
+        SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
+    {
+        AX_CAMERA_T *pCam = NULL;
+        COMMON_VIN_MODE_E eSysMode = pVinParam->eSysMode;
+        AX_SNS_HDR_MODE_E eHdrMode = pVinParam->eHdrMode;
+        AX_S32 j = 0;
+        pCommonArgs->nCamCnt = 1;
+        pCam = &pCamList[0];
+        COMMON_VIN_GetSnsConfig(eSnsType, &pCam->tMipiAttr, &pCam->tSnsAttr,
+                                &pCam->tSnsClkAttr, &pCam->tDevAttr,
+                                &pCam->tPipeAttr[pCam->nPipeId], pCam->tChnAttr);
+        ::memcpy(&pCam->tMipiAttr, &gOs04d10_360P120_MipiAttr, sizeof(pCam->tMipiAttr));
+        ::memcpy(&pCam->tSnsAttr, &gOs04d10_360P120_SnsAttr, sizeof(pCam->tSnsAttr));
+        ::memcpy(&pCam->tDevAttr, &gOs04d10_360P120_DevAttr, sizeof(pCam->tDevAttr));
+        ::memcpy(&pCam->tPipeAttr[pCam->nPipeId], &gOs04d10_360P120_PipeAttr, sizeof(pCam->tPipeAttr[pCam->nPipeId]));
+        ::memcpy(&pCam->tChnAttr, &gOs04d10_360P120_Chn0Attr, sizeof(pCam->tChnAttr));
+        pCam->nDevId = 0;
+        pCam->nRxDev = 0;
+        pCam->nPipeId = 0;
+        pCam->nI2cAddr = 0x3c;
+        pCam->tSnsClkAttr.nSnsClkIdx = 0;
+        pCam->tDevBindPipe.nNum = 1;
+        pCam->eSnsType = eSnsType;
+        pCam->tDevBindPipe.nPipeId[0] = pCam->nPipeId;
+        AX_SENSOR_REGISTER_FUNC_T *sns_obj = COMMON_ISP_GetSnsObj(eSnsType);
+        if (!sns_obj) {
+            log::error("Get OS04D10 sensor object for 360p120 failed");
+            return -1;
+        }
+        ::memcpy(&gOs04d10_360P120_SnsObj, sns_obj, sizeof(gOs04d10_360P120_SnsObj));
+        gOs04d10_360P120_OriginalInit = gOs04d10_360P120_SnsObj.pfn_sensor_init;
+        gOs04d10_360P120_OriginalSetFps = gOs04d10_360P120_SnsObj.pfn_sensor_set_fps;
+        gOs04d10_360P120_OriginalWriteReg = gOs04d10_360P120_SnsObj.pfn_sensor_write_register;
+        gOs04d10_360P120_OriginalGetHwExposure = gOs04d10_360P120_SnsObj.pfn_sensor_get_hw_exposure_params;
+        gOs04d10_360P120_OriginalGetIntegrationRange = gOs04d10_360P120_SnsObj.pfn_sensor_get_integration_time_range;
+        gOs04d10_360P120_SnsObj.pfn_sensor_init = __os04d10_360p120_init;
+        gOs04d10_360P120_SnsObj.pfn_sensor_set_fps = __os04d10_360p120_set_fps;
+        gOs04d10_360P120_SnsObj.pfn_sensor_get_hw_exposure_params = __os04d10_360p120_get_hw_exposure;
+        gOs04d10_360P120_SnsObj.pfn_sensor_get_integration_time_range = __os04d10_360p120_get_integration_range;
+        gOs04d10_360P120_SnsObj.pfn_sensor_set_slow_fps = __os04d10_360p120_set_slow_fps;
+        pCam->ptSnsHdl[pCam->nPipeId] = &gOs04d10_360P120_SnsObj;
+        pCam->eBusType = COMMON_ISP_GetSnsBusType(eSnsType);
+        pCam->eLaneComboMode = AX_LANE_COMBO_MODE_1;
+        __set_pipe_hdr_mode(&pCam->tDevBindPipe.nHDRSel[0], eHdrMode);
+        __set_vin_attr(pCam, eSnsType, eHdrMode, eSysMode, AX_FALSE);
+        for (j = 0; j < (AX_S32)pCam->tDevBindPipe.nNum; j++) {
+            pCam->tPipeInfo[j].ePipeMode = SAMPLE_PIPE_MODE_VIDEO;
+            pCam->tPipeInfo[j].bAiispEnable = AX_FALSE;
+            strncpy(pCam->tPipeInfo[j].szBinPath, "/opt/etc/os04d10_sipeed_sdr_2lane_720p60.bin",
+                    sizeof(pCam->tPipeInfo[j].szBinPath));
+        }
+        return 0;
+    }
+
     static AX_U32 __sample_case_single_os04d10(AX_CAMERA_T *pCamList, SAMPLE_SNS_TYPE_E eSnsType,
         SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs)
     {
@@ -1223,6 +1406,21 @@ namespace maix::middleware::maixcam2 {
             /* cams config */
             __sample_case_single_os04d10_720p60(pCamList, eSnsType, pVinParam, pCommonArgs);
         break;
+        case SAMPLE_VIN_SINGLE_OS04D10_360P120:
+            eSnsType = OMNIVISION_OS04D10;
+            /* comm pool config */
+            __cal_dump_pool(gtSysCommPoolSingleOs04d10Sdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pCommonArgs->nPoolCfgCnt = sizeof(gtSysCommPoolSingleOs04d10Sdr) / sizeof(gtSysCommPoolSingleOs04d10Sdr[0]);
+            pCommonArgs->pPoolCfg = gtSysCommPoolSingleOs04d10Sdr;
+
+            /* private pool config */
+            __cal_dump_pool(gtPrivatePoolSingleOs04d10Sdr, pVinParam->eHdrMode, pVinParam->nDumpFrameNum);
+            pPrivArgs->nPoolCfgCnt = sizeof(gtPrivatePoolSingleOs04d10Sdr) / sizeof(gtPrivatePoolSingleOs04d10Sdr[0]);
+            pPrivArgs->pPoolCfg = gtPrivatePoolSingleOs04d10Sdr;
+
+            /* cams config */
+            __sample_case_single_os04d10_360p120(pCamList, eSnsType, pVinParam, pCommonArgs);
+        break;
         case SAMPLE_VIN_SINGLE_SC850SL:
             eSnsType = SMARTSENS_SC850SL;
             /* comm pool config */
@@ -1317,7 +1515,12 @@ namespace maix::middleware::maixcam2 {
             }
 
             if (fps > 30 || fps <= 0) {
-                if (w > 1280 || h > 720) {
+                if (fps == 120 && w == 640 && h == 360) {
+                    w = 640;
+                    h = 360;
+                    fps = 120;
+                    return SAMPLE_VIN_SINGLE_OS04D10_360P120;
+                } else if (w > 1280 || h > 720) {
                     w = 2560;
                     h = 1440;
                     fps = 30;
