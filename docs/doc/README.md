@@ -115,14 +115,14 @@ Use `scp` to copy files, for example:
 ```shell
 scp -r dist/ root@10.127.117.1:/root/
 ```
-The default password is `root`.
+The SSH username is `root` on these devices. The default password is `root` on MaixCAM/MaixCAM-Pro and `sipeed` on MaixCAM2.
 
 ### Running the Program
 
 Run the program via SSH. Ensure no other programs are running (including the startup application launcher).
 Steps:
 * Connect MaixVision to the device to close the Launcher, or use SSH to `kill` the `launcher_daemon`.
-* SSH into the device, e.g., `ssh root@192.168.0.123`, password `root`.
+* SSH into the device, e.g., `ssh root@192.168.0.123`. Use username `root`; the password is `root` for MaixCAM/MaixCAM-Pro or `sipeed` for MaixCAM2.
 * Navigate to the executable directory and run it, e.g., `cd /root/dist/camera_display_release && ./camera_display`.
 
 ### Packaging for Release
@@ -176,4 +176,3 @@ namespace maix::example
 Then compile the `MaixPy` project to get an installation package, which can be installed on the device to use the new API—simple, right?
 
 For more detailed documentation, refer to [Add API](./convention/add_api.md).
-

@@ -118,14 +118,14 @@ maixcdk build
 ```shell
 scp -r dist/ root@10.127.117.1:/root/
 ```
-默认密码是`root`
+设备的 SSH 用户名均为 `root`；MaixCAM/MaixCAM-Pro 默认密码为 `root`，MaixCAM2 默认密码为 `sipeed`。
 
 ### 运行
 
 通过 ssh 终端运行程序。注意要保证没有程序正在运行（包括开机的应用选择界面(Launcher)）。
 具体方法：
 * MaixVision 连接设备，这会让 Launcher 退出。也可以在 ssh 终端手动`kill` `launcher_daemon`程序。（**重要!!**）
-* ssh 连接设备，比如 `ssh root@192.168.0.123`， 密码是 `root`。
+* ssh 连接设备，比如 `ssh root@192.168.0.123`。用户名为 `root`；MaixCAM/MaixCAM-Pro 密码为 `root`，MaixCAM2 密码为 `sipeed`。
 * 然后到可知性文件目录下执行文件， 比如 `cd /root/dist/camera_display_release && ./camera_display`
 
 ### 打包发布
@@ -181,5 +181,4 @@ namespace maix::example
 ## 开发准则
 
 要开始使用 MaixCDK，请从阅读[MaixCDK 开发准则](./convention/README.md) 开始。
-
 
