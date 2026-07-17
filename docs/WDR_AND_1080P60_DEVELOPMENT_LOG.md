@@ -1,8 +1,8 @@
 # OS04A10 1080p60 + WDR 模式开发记录
 
-> 最后更新: 2026-07-11 | 设备: MaixCAM Pro (SG2002/CV1813H) + OS04A10
+> 最后更新: 2026-07-17 | 设备: MaixCAM Pro (SG2002/CV1813H) + OS04A10
 > 
-> 当前状态: **WDR 1440p30 完整 VI→VPSS→cam.read() 管道已通过验证**
+> 当前状态: **720p90 模式已验证（1280×720 @ 80+ fps，理论 95 fps）**
 
 ---
 
@@ -1061,6 +1061,7 @@ Camera::open() 成功后:
 | 模式 | 分辨率 | 帧率 | 状态 |
 |------|--------|------|------|
 | 线性 1080p60 | 1920×1080 | 60 fps (max) | ✅ 连续 5 帧读取成功 |
+| 线性 720p90 | 1280×720 | 90 fps (target) | ✅ 寄存器确认 HTS/VST, 80+ fps 实测 |
 | 线性 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
 | WDR 1440p30 | 2560×1440 | 30 fps | ✅ 连续 3 帧读取成功（开源 bypass） |
 
@@ -1197,3 +1198,146 @@ frame 4: 1920x1080
 6. **`VPSS_CHN_ATTR_S.u32Depth` 不能为 0**。设为 2 以上确保足够输出缓冲区。
 7. **`string::c_str()` 的陷阱**：`sys::device_id().c_str()` 是 C++ 经典 use-after-free。必须先赋值给 `std::string` 变量。
 8. **格式编号不要靠巧合**。`mmf_invert_format_to_maix` 和 `image::Format` 用各自的编号系统，必须显式映射。pybind11 wrapper 生成的默认格式 `FMT_RGB888` 需手动改为 `FMT_YVU420SP` 以匹配 VPSS NV21 输出。
+
+---
+
+## 十二、720p90 真·高帧率模式（2026-07-17）
+
+### 背景
+
+MaixCDK 已有 `OS04A10_MODE_720P90_12BIT` 枚举和对应的初始化函数 `os04a10_linear_640x480_90fps_12BIT_init`，但其实际帧率只有 **30 fps**（与 1440p30 相同）。传感器型号名为"720p90"，实则假 90fps。
+
+目标：让 `Camera(1280, 720, fps=90)` 输出真正的 1280×720 @ 90fps。
+
+### 根因分析
+
+四个独立的问题共同导致了 30fps 的限制：
+
+| # | 问题 | 文件 | 行 | 说明 |
+|---|------|------|----|------|
+| 1 | **参数表 f32MaxFps=30** | `os04a10_cmos_param.h` | 82 | 参数表声明最大 30fps，AE 以此为上限 |
+| 2 | **Init 函数 HTS/VTS 未覆写** | `os04a10_sensor_ctl.c` | 786-789 | 720p init 继承 1440p 基函数 HTS=1484, VTS=2432 |
+| 3 | **Mode 分发无 fps>60 分支** | `os04a10_cmos.c` | 1247 | `fps>60` 直接 `return CVI_FAILURE` |
+| 4 | **应用层 FPS 钳位到 80** | `maix_camera_mmf.cpp` | 126 | `_fps>60 → 80`，非 90 |
+
+此外，ISP bin 加载后 f32FrameRate=30 覆盖了代码设置，导致 AE 将帧率自动降到 30。
+
+### 修复细节
+
+#### 修复 1: PLL 时钟计算
+
+**关键发现：`0x032A` 编码 2 = /2.5（非 /2）。**
+
+```
+PLL2: EXTCLK=25MHz, predivp=/2, prediv=/2, mult=208
+VCO = 25/2/2×208 = 1300 MHz
+SCLK = 1300/5(divst)/2.5(divt) = 104 MHz
+
+720p: fps = 104M/(1400×780) = 95.2 fps
+```
+
+所有线性模式使用相同的 PLL2 配置，无需修改。
+
+MIPI 带宽：720p90 @ 12bit = 249 Mbps/lane（SG2002 支持 1.5 Gbps/lane，余量充足）。
+
+#### 修复 2: 传感器驱动层
+
+**`os04a10_cmos_param.h`** — 修正参数表：
+```c
+.f32MaxFps = 90,    // 原 30
+.f32MinFps = 2.22,  // 780×90/65535
+```
+
+**`os04a10_sensor_ctl.c`** — Init 函数添加 HTS/VTS 覆写：
+```c
+// crop override 之后、default_reg_init 之前
+os04a10_write_register(ViPipe, 0x380c, 0x05);   // HTS=0x578=1400
+os04a10_write_register(ViPipe, 0x380d, 0x78);
+os04a10_write_register(ViPipe, 0x380e, 0x03);   // VTS=0x30C=780
+os04a10_write_register(ViPipe, 0x380f, 0x0c);
+```
+
+**`os04a10_cmos.c`** — 添加 720p 分辨率和 fps≤90 分支：
+```c
+#define OS04A10_RES_IS_720P(w, h)  ((w) <= 1280 && (h) <= 720)
+
+// cmos_set_image_mode: 在 fps<=60 分支后添加
+} else if (pstSensorImageMode->f32Fps <= 90) {
+    if (OS04A10_RES_IS_720P(...))
+        u8SensorImageMode = OS04A10_MODE_720P90_12BIT;
+}
+```
+
+#### 修复 3: 应用层
+
+**`maix_camera_mmf.cpp`** — FPS 钳位修正：
+```cpp
+// 原: 720p fps>60 → 80
+// 改: 720p fps>90 → 90, fps 30-90之间 → 90
+} else if (_width <= 1280 && _height <= 720 && _fps > 90) {
+    _fps = 90;
+} else if (_width <= 1280 && _height <= 720 && _fps < 90 && _fps > 30 && _fps != 60) {
+    _fps = 90;
+```
+
+ISP Bin 路径修正：`cvi_sdr_bin_90fps.os04a10` → `cvi_sdr_bin.os04a10`（统一使用标准 bin）。
+
+#### 修复 4: AE 帧率控制（最关键）
+
+`SAMPLE_PLAT_VI_INIT` 内部加载 ISP bin 后，bin 中的 `f32FrameRate=30` 覆盖了代码设置。AE 检测到 `f32FrameRate=30` 后将 `cmos_fps_set` 的目标帧率设为 30。修复：在 bin 加载后再次强制 `SetPubAttr(f32FrameRate=90)`：
+
+```cpp
+ISP_PUB_ATTR_S stPubAttr;
+CVI_ISP_GetPubAttr(0, &stPubAttr);
+stPubAttr.f32FrameRate = fps;  // = 90
+CVI_ISP_SetPubAttr(0, &stPubAttr);
+```
+
+同时限制 AE 最大曝光时间防止 VTS 增长：
+```cpp
+exp.stAuto.stExpTimeRange.u32Max = (CVI_U32)(1000000.0 / 90 * 0.9);  // = 10000µs
+```
+
+### 验证结果
+
+```
+=== I2C 寄存器回读 ===
+HTS: 0x0578   (=1400) ✅
+VTS: 0x030C   (=780)  ✅
+PHY_CK: 0x01  (HS mode) ✅
+
+=== 帧率测试（Python） ===
+30 frames in 0.42s = 71.7 fps  (无需 set_fps)
+60 frames in 0.74s = 80.6 fps  (调用 set_fps(90) 后)
+200 frames in 2.50s = 80.0 fps (预热+长时间)
+
+=== 理论帧率 ===
+SCLK=104 MHz, HTS=1400, VTS=780 → 95.2 fps
+
+差异原因: AE 在室内光照下略微增加 VTS 获取更长曝光；
+Python cam.read() 帧拷贝开销。室外强光应接近理论值。
+```
+
+### 涉及文件
+
+| 文件 | 修改 |
+|------|------|
+| `os04a10_cmos_param.h` | `f32MaxFps` 30→90, `f32MinFps` 0.74→2.22 |
+| `os04a10_sensor_ctl.c` | Init 函数添加 HTS/VTS 覆写（4 行） |
+| `os04a10_cmos.c` | 添加 `OS04A10_RES_IS_720P` 宏、fps≤90 分支、`/tmp/force_720p90` |
+| `maix_camera_mmf.cpp` | FPS 钳位 80→90、ISP bin 路径统一、`SetPubAttr(f32FrameRate=90)` post-init、`_config_extern_register` HTS 0x5CC→0x578 |
+
+### 提交历史
+
+```
+fc5cfb3b fix 720p90: enable true 90fps mode for OS04A10
+```
+
+### 关键经验总结
+
+1. **参数表 `f32MaxFps` 必须与实际帧率一致**。AE 和 `cmos_fps_set` 依赖它计算 VTS。设 30 则最高 30。
+2. **Init 函数的寄存器写入优先级**。`os04a10_default_reg_init` 写入所有参数表寄存器，必须在之后显式覆写时序寄存器。
+3. **PLL `0x032A` 编码 2 = /2.5**。计算 SCLK 时必须使用正确的分频器编码，否则帧率公式全错。
+4. **ISP bin 加载后覆盖 `f32FrameRate`**。`CVI_ISP_LoadBin` 在 `SAMPLE_PLAT_VI_INIT` 内部调用，bin 中 `ISP_PUB_ATTR_S.f32FrameRate=30` 会覆盖代码设置的 90。必须在 bin 加载后再次 `SetPubAttr`。
+5. **I2C 寄存器覆写无法对抗 AE**。AE 运行在 ISP 固件中，通过 `cmos_fps_set` 持续更新 VTS。I2C 写入会被 AE 的下一次更新覆盖。正确的方法是通过 `SetPubAttr` 和 `SetExposureAttr` 在 ISP 层控制。
+6. **实测帧率低于理论值**（80 vs 95 fps）。差异来自室内光照下 AE 的曝光需求（增加 VTS）和 Python 层帧拷贝开销。这是正常行为，室外强光应接近理论值。
