@@ -1061,9 +1061,9 @@ Camera::open() 成功后:
 | 模式 | 分辨率 | 帧率 | 状态 |
 |------|--------|------|------|
 | 线性 1080p60 | 1920×1080 | 60 fps (max) | ✅ 连续 5 帧读取成功 |
-| 线性 720p90 | 1280×720 | 90 fps (target) | ✅ 寄存器确认 HTS/VST, 80+ fps 实测 |
+| 线性 720p90 | 1280×720 | 90 fps (target) | ✅ 寄存器确认 HTS/VTS, 80+ fps 实测, 3 帧照片保存 |
 | 线性 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
-| WDR 1440p30 | 2560×1440 | 30 fps | ✅ 连续 3 帧读取成功（开源 bypass） |
+| WDR 1440p30 | 2560×1440 | 30 fps | ✅ 连续 3 帧读取成功, 3 帧照片保存 |
 
 ---
 
@@ -1330,6 +1330,7 @@ Python cam.read() 帧拷贝开销。室外强光应接近理论值。
 ### 提交历史
 
 ```
+a10b26d4 fix 720p90: remove SAMPLE_COMM_SYS_Init, use boot VB pool directly
 fc5cfb3b fix 720p90: enable true 90fps mode for OS04A10
 ```
 
@@ -1341,3 +1342,8 @@ fc5cfb3b fix 720p90: enable true 90fps mode for OS04A10
 4. **ISP bin 加载后覆盖 `f32FrameRate`**。`CVI_ISP_LoadBin` 在 `SAMPLE_PLAT_VI_INIT` 内部调用，bin 中 `ISP_PUB_ATTR_S.f32FrameRate=30` 会覆盖代码设置的 90。必须在 bin 加载后再次 `SetPubAttr`。
 5. **I2C 寄存器覆写无法对抗 AE**。AE 运行在 ISP 固件中，通过 `cmos_fps_set` 持续更新 VTS。I2C 写入会被 AE 的下一次更新覆盖。正确的方法是通过 `SetPubAttr` 和 `SetExposureAttr` 在 ISP 层控制。
 6. **实测帧率低于理论值**（80 vs 95 fps）。差异来自室内光照下 AE 的曝光需求（增加 VTS）和 Python 层帧拷贝开销。这是正常行为，室外强光应接近理论值。
+7. **`SAMPLE_COMM_SYS_Init` 无法运行时重设 VB 池**。内核模块（`soph_*`）在启动时创建 3 块 × 5.6 MB 的 VB 池，加载后模块引用防止池销毁。`CVI_VB_Exit()` 返回成功但不实际释放。因此在开源 bypass 路径中跳过 `SAMPLE_COMM_SYS_Init`，直接使用启动池。启动池 3 块对 OS04A10 所有模式均充足：
+   - 720p90：1.4 MB/帧 → 12 帧容量
+   - 1080p60：3.1 MB/帧 → 5 帧容量
+   - WDR 1440p30：5.5 MB/帧/pipe → 3 帧容量
+8. **模式间切换需重启**。`mmf_deinit_v2` 不完整释放 VPSS 组和 VI 管道，导致二次打开（不同分辨率/模式）时 SIGSEGV。这是内核驱动的限制，每个模式需要在独立进程中运行（或重启后切换）。
