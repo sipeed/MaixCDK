@@ -123,12 +123,12 @@ namespace maix::camera
         } else if (_width > 1280 && _width <= 1920 && _fps > 60) {
             log::warn("Current fps is too high, will be updated to 60fps! Currently only 1080p supports up to 60fps.\r\n");
             _fps = 60;
-        } else if (_width <= 1280 && _height <= 720 && _fps > 60 && _fps != 80)  {
-            log::warn("Currently only supports fixed 30,60 and 80fps in 720p configuration, current configuration will be updated to 80fps.\r\n");
-            _fps = 80;
-        } else if (_width <= 1280 && _height <= 720 && _fps < 80 && _fps > 30 && _fps != 60) {
-            log::warn("Currently only supports fixed 30,60 and 80fps in 720p configuration, current configuration will be updated to 60fps.\r\n");
-            _fps = 60;
+        } else if (_width <= 1280 && _height <= 720 && _fps > 90)  {
+            log::warn("720p max 90fps, clamping to 90.\r\n");
+            _fps = 90;
+        } else if (_width <= 1280 && _height <= 720 && _fps < 90 && _fps > 30 && _fps != 60) {
+            log::warn("720p only supports 30, 60 and 90fps, setting to 90.\r\n");
+            _fps = 90;
         }
 
         // open camera
@@ -582,7 +582,7 @@ _retry:
                     err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_2To1_LINE, "/mnt/cfg/param/cvi_wdr_bin.os04a10"), "set config path failed!");
                 } else if (width <= 1280 && height <= 720 && fps >= 80) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_720P90_12BIT;
-                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin_90fps.os04a10"), "set config path failed!");
+                    err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
                 } else if (width <= 1920 && height <= 1080 && fps >= 55) {
                     sensor_cfg.sns_type = OV_OS04A10_MIPI_4M_1080P60_12BIT;
                     err::check_bool_raise(!CVI_BIN_SetBinName(WDR_MODE_NONE, "/mnt/cfg/param/cvi_sdr_bin.os04a10"), "set config path failed!");
@@ -823,8 +823,15 @@ _retry:
         CVI_VI_EnableChn(0, 0);
         if (wdr_mode) CVI_VI_EnableChn(1, 0);
 
-        // 1080p60 AE workaround (also applies to WDR)
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
+        // 1080p60 / 720p90: force ISP frame rate after bin load (AE + exposure range)
+        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT ||
+            sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_720P90_12BIT) {
+            ISP_PUB_ATTR_S stPubAttr;
+            memset(&stPubAttr, 0, sizeof(stPubAttr));
+            if (CVI_SUCCESS == CVI_ISP_GetPubAttr(0, &stPubAttr)) {
+                stPubAttr.f32FrameRate = fps;
+                CVI_ISP_SetPubAttr(0, &stPubAttr);
+            }
             ISP_EXPOSURE_ATTR_S exp;
             memset(&exp, 0, sizeof(exp));
             if (CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &exp)) {
@@ -1545,19 +1552,12 @@ _error:
 
     static void _config_extern_register_of_720p90_os04a10(double exptime_ms)
     {
+        (void)exptime_ms;
         char cmd[128];
-        double base_exptime_ms = 1000.0 / 90.0;
-        if (exptime_ms > base_exptime_ms) {
-            uint64_t base_value = 0x5cc;
-            double scale = 132.839999726;
-            uint64_t reg_val = base_value + (exptime_ms - base_exptime_ms) * scale;
-            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
-            system(cmd);
-        } else {
-            uint64_t reg_val = 0x05cc;
-            snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
-            system(cmd);
-        }
+        // Set HTS=0x578(1400) for 720p90; keep fixed regardless of exposure time
+        uint64_t reg_val = 0x0578;
+        snprintf(cmd, sizeof(cmd), "i2ctransfer -fy 4 w4@0x36 0x38 0x0c %#.2x %#.2x", (uint8_t)((reg_val >> 8) & 0xff), (uint8_t)(reg_val & 0xff));
+        system(cmd);
     }
 
     err::Err Camera::set_fps(double fps) {

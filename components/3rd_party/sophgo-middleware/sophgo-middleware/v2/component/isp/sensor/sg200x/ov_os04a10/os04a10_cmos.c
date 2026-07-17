@@ -94,6 +94,7 @@ static CVI_BOOL HCG_EN;
 #define OS04A10_RES_IS_1520P(w, h)      ((w) == 2688 && (h) == 1520)
 #define OS04A10_RES_IS_1440P(w, h)      ((w) == 2560 && (h) == 1440)
 #define OS04A10_RES_IS_1080P(w, h)      ((w) == 1920 && (h) == 1080)
+#define OS04A10_RES_IS_720P(w, h)       ((w) <= 1280 && (h) <= 720)
 
 static CVI_S32 cmos_get_ae_default(VI_PIPE ViPipe, AE_SENSOR_DEFAULT_S *pstAeSnsDft)
 {
@@ -1234,7 +1235,18 @@ static CVI_S32 cmos_set_image_mode(VI_PIPE ViPipe, ISP_CMOS_SENSOR_IMAGE_MODE_S 
 	} else if (pstSensorImageMode->f32Fps <= 60) {
 		if (OS04A10_RES_IS_1080P(pstSensorImageMode->u16Width, pstSensorImageMode->u16Height)) {
 			u8SensorImageMode = OS04A10_MODE_1080P60_12BIT;
-		} else if (pstSensorImageMode->u16Width <= 1280 && pstSensorImageMode->u16Height <= 720) {
+		} else if (OS04A10_RES_IS_720P(pstSensorImageMode->u16Width, pstSensorImageMode->u16Height)) {
+			u8SensorImageMode = OS04A10_MODE_720P90_12BIT;
+		} else {
+			CVI_TRACE_SNS(CVI_DBG_ERR, "Not support! Width:%d, Height:%d, Fps:%f, WDRMode:%d\n",
+			       pstSensorImageMode->u16Width,
+			       pstSensorImageMode->u16Height,
+			       pstSensorImageMode->f32Fps,
+			       pstSnsState->enWDRMode);
+			return CVI_FAILURE;
+		}
+	} else if (pstSensorImageMode->f32Fps <= 90) {
+		if (OS04A10_RES_IS_720P(pstSensorImageMode->u16Width, pstSensorImageMode->u16Height)) {
 			u8SensorImageMode = OS04A10_MODE_720P90_12BIT;
 		} else {
 			CVI_TRACE_SNS(CVI_DBG_ERR, "Not support! Width:%d, Height:%d, Fps:%f, WDRMode:%d\n",
@@ -1289,7 +1301,10 @@ static CVI_VOID sensor_global_init(VI_PIPE ViPipe)
 	pstSnsState->bSyncInit = CVI_FALSE;
 	/* Allow file-based override for testing new modes */
 	pstSnsState->u8ImgMode = OS04A10_MODE_1440P30_12BIT;
-	if (access("/tmp/force_1080p60", F_OK) == 0) {
+	if (access("/tmp/force_720p90", F_OK) == 0) {
+		pstSnsState->u8ImgMode = OS04A10_MODE_720P90_12BIT;
+		printf("OS04A10: FORCED 720p90 mode (from /tmp/force_720p90)\n");
+	} else if (access("/tmp/force_1080p60", F_OK) == 0) {
 		pstSnsState->u8ImgMode = OS04A10_MODE_1080P60_12BIT;
 		printf("OS04A10: FORCED 1080p60 mode (from /tmp/force_1080p60)\n");
 	}

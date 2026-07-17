@@ -79,8 +79,8 @@ static const OS04A10_MODE_S g_astOs04a10_mode[OS04A10_MODE_NUM] = {
 				.u32Height = 720,
 			},
 		},
-		.f32MaxFps = 30,
-		.f32MinFps = 0.74, /* 0x658 * 30 / 0xFFFF */
+		.f32MaxFps = 90,
+		.f32MinFps = 2.22, /* 780 * 90 / 0xFFFF */
 		.u32HtsDef = 1400,
 		.u32VtsDef = 780,
 		.stExp[0] = {

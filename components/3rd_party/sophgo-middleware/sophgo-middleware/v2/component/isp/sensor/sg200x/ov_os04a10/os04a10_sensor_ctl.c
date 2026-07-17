@@ -929,6 +929,12 @@ static void os04a10_linear_640x480_90fps_12BIT_init(VI_PIPE ViPipe)
 	os04a10_write_register(ViPipe, 0x380A, 0x02);		// output y size
 	os04a10_write_register(ViPipe, 0x380B, 0xd0);		// output y size
 
+	// override timing for 720p90: HTS=1400(0x578), VTS=780(0x30C)
+	os04a10_write_register(ViPipe, 0x380c, 0x05);		// HTS high byte
+	os04a10_write_register(ViPipe, 0x380d, 0x78);		// HTS low byte
+	os04a10_write_register(ViPipe, 0x380e, 0x03);		// VTS high byte
+	os04a10_write_register(ViPipe, 0x380f, 0x0c);		// VTS low byte
+
 	os04a10_default_reg_init(ViPipe);
 	os04a10_write_register(ViPipe, 0x0100, 0x01);
 
