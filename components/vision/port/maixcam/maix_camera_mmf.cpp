@@ -763,26 +763,18 @@ _retry:
         bool wdr_mode = (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1);
 
         // ---- Open-source bypass path for ALL modes ----
-        // Custom VB pool (6 blocks, sensor-native size) replaces closed-lib mmf_init_v2.
+        // Use the boot-time VB pool as-is (3 blocks × 5,652,480 bytes).
+        // The boot pool is sufficient for all OS04A10 modes:
+        //   720p:  3×5.6MB → plenty (1.4 MB/frame)
+        //   1080p: 3×5.6MB → sufficient (3.1 MB/frame)
+        //   WDR:   3×5.6MB + 4-block VPSS pool → sufficient
+        // Kernel module references prevent SAMPLE_COMM_SYS_Init from
+        // resizing the boot pool, so we keep the default.
         {
             PIC_SIZE_E sys_pic;
             SIZE_S sys_size;
             SAMPLE_COMM_VI_GetSizeBySensor(sensor_cfg.sns_type, &sys_pic);
             SAMPLE_COMM_SYS_GetPicSize(sys_pic, &sys_size);
-            CVI_U32 blk = COMMON_GetPicBufferSize(sys_size.u32Width, sys_size.u32Height,
-                SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
-            CVI_U32 rot = COMMON_GetPicBufferSize(sys_size.u32Height, sys_size.u32Width,
-                SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
-            blk = MAX(blk, rot);
-            VB_CONFIG_S vb;
-            memset(&vb, 0, sizeof(vb));
-            vb.u32MaxPoolCnt = 1;
-            vb.astCommPool[0].u32BlkSize = blk;
-            vb.astCommPool[0].u32BlkCnt = 6;
-            vb.astCommPool[0].enRemapMode = VB_REMAP_MODE_CACHED;
-            if (CVI_SUCCESS != SAMPLE_COMM_SYS_Init(&vb)) {
-                err::check_raise(err::ERR_RUNTIME, "VB init failed");
-            }
         }
 
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
