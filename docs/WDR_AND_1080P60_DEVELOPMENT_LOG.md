@@ -1062,19 +1062,138 @@ Camera::open() 成功后:
 |------|--------|------|------|
 | 线性 1080p60 | 1920×1080 | 60 fps (max) | ✅ 连续 5 帧读取成功 |
 | 线性 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
-| WDR 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
+| WDR 1440p30 | 2560×1440 | 30 fps | ✅ 连续 3 帧读取成功（开源 bypass） |
+
+---
+
+## 十一、WDR 双 Pipe 开源 Bypass 修复（2026-07-17）
+
+### 背景
+
+第十章实现了开源 bypass 路径替换闭库 `mmf_init_v2` + `mmf_vi_init_v2` + `mmf_add_vi_channel_v2`，但 WDR 模式仍使用闭库路径。闭库路径存在池耗尽挂起问题，且依赖无法修改的 `libmaixcam_lib.so`。
+
+目标：将 WDR 模式也移植到开源 bypass 路径，完全消除对闭库的依赖。
+
+### 根因分析
+
+WDR 模式下 VI 硬件使用 **2 个 pipe**（pipe 0 = DCG 长曝光，pipe 1 = VS 短曝光），ISP FSWDR 合并后输出单帧 HDR 数据。但 `SAMPLE_COMM_VI_IniToViCfg` **始终设置 `aPipe[1] = -1`**（第 1112 行），无论 `enWDRMode` 是否为 `WDR_MODE_2To1_LINE`：
+
+```c
+// sample_common_vi.c:1112-1116，无条件设置，不区分 WDR/线性
+pstViConfig->astViInfo[s32WorkSnsId].stPipeInfo.aPipe[1] = -1;
+pstViConfig->astViInfo[s32WorkSnsId].stPipeInfo.aPipe[2] = -1;
+// ...
+```
+
+`SAMPLE_PLAT_VI_INIT` 的 CreatePipe 循环只遍历 `aPipe[j] >= 0` 的条目，因此 **只创建了 1 个 pipe**。WDR 双 pipe 模式下第二个 pipe 缺失，ISP FSWDR 无法接收短曝光帧，合并输出从未到达 VPSS。
+
+闭库 `mmf_vi_init_v2` 内部有额外的逻辑创建第二个 pipe，但 `SAMPLE_PLAT_VI_INIT`（开源）没有。
+
+### 修复
+
+#### 修复 1: 启用双 Pipe
+
+在 `IniToViCfg` 之后、`SAMPLE_PLAT_VI_INIT` 之前，为 WDR 模式设置 `aPipe[1] = 1`：
+
+```cpp
+// 在 _mmf_vi_init() 中
+err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
+
+if (wdr_mode) {
+    // WDR 需要 2 个 pipe，但 IniToViCfg 只设了 aPipe[0]
+    stViConfig.astViInfo[0].stPipeInfo.aPipe[1] = 1;
+    // 更新设备属性为 WDR 模式
+    VI_DEV_ATTR_S stWdrDevAttr;
+    SAMPLE_COMM_VI_GetDevAttrBySns(sensor_cfg.sns_type, &stWdrDevAttr);
+    stWdrDevAttr.stWDRAttr.enWDRMode = WDR_MODE_2To1_LINE;
+    CVI_VI_SetDevAttr(0, &stWdrDevAttr);
+    priv->vi_pool_num = 6;
+}
+```
+
+#### 修复 2: 启用 Pipe 1 通道
+
+`SAMPLE_COMM_VI_StartViChn` 只启用 `aPipe[0]` 的通道，WDR 需要额外启用 pipe 1：
+
+```cpp
+// 在 SAMPLE_PLAT_VI_INIT 之后
+CVI_VI_EnableChn(0, 0);      // pipe 0 (所有模式)
+if (wdr_mode) CVI_VI_EnableChn(1, 0);  // pipe 1 (仅 WDR)
+```
+
+#### 修复 3: `SetDevAttr` 位置
+
+`CVI_VI_SetDevAttr(WDR_MODE_2To1_LINE)` 必须在 `IniToViCfg` **之后**、`SAMPLE_PLAT_VI_INIT` 之前调用。如果在 `IniToViCfg` 之前调用，`SAMPLE_PLAT_VI_INIT` → `SAMPLE_COMM_VI_StartDev` → `CVI_VI_SetDevAttr` 会覆盖 WDR 设置。
+
+#### 修复 4: pybind11 默认格式
+
+`maixpy_wrapper.cpp`（构建时生成）中 Camera 构造函数的 Python 默认格式硬编码为 `image::FMT_RGB888`，覆盖了 C++ 头文件改为 `FMT_YVU420SP` 的修改。每次 cmake 配置后需手动修复：
+
+```cpp
+// maixpy_wrapper.cpp:720 — 将 FMT_RGB888 改为 FMT_YVU420SP
+class_camera_Camera.def(py::init<...>(),
+    py::arg("format") = image::FMT_YVU420SP,  // ← 原来是 FMT_RGB888
+    ...);
+```
+
+### 最终代码架构
+
+```
+_mmf_vi_init()  (统一路径，所有模式)
+  ├─ SAMPLE_COMM_SYS_Init      ← 自定义 6 块 VB 池
+  ├─ IniToViCfg
+  ├─ [WDR] aPipe[1] = 1        ← 启用双 pipe
+  ├─ [WDR] CVI_VI_SetDevAttr   ← WDR 模式
+  ├─ CVI_SYS_SetVIVPSSMode     ← VI_OFFLINE_VPSS_OFFLINE
+  ├─ SAMPLE_PLAT_VI_INIT       ← 创建 pipe + ISP + 通道
+  ├─ CVI_VI_EnableChn(0,0)     ← 启用 pipe 0
+  └─ [WDR] CVI_VI_EnableChn(1,0) ← 启用 pipe 1
+
+Camera::open()
+  ├─ _mmf_vi_init()
+  ├─ CVI_SYS_SetVIVPSSMode     ← 再次设置（冗余但无害）
+  ├─ CVI_VPSS_CreateGrp        ← VPSS 组
+  ├─ CVI_VPSS_SetChnAttr       ← depth=2
+  ├─ CVI_VPSS_AttachVbPool     ← 4 块专用池
+  ├─ CVI_VPSS_StartGrp
+  ├─ SAMPLE_COMM_VI_Bind_VPSS  ← VI→VPSS 绑定
+  └─ CVI_VPSS_GetChnFrame      ← 首帧校验（WDR 容忍超时）
+```
+
+### 验证结果
+
+```
+=== 1080p60 (线性) ===                      === WDR 1440p30 ===
+frame 0: 1920x1080                          wdr frame 0: 2560x1440
+frame 1: 1920x1080                          wdr frame 1: 2560x1440
+frame 2: 1920x1080                          wdr frame 2: 2560x1440
+frame 3: 1920x1080
+frame 4: 1920x1080
+```
 
 ### 涉及文件
 
 | 文件 | 修改 |
 |------|------|
-| `maix_camera_mmf.cpp` | 新增 VPSS bypass 全部代码：自定义 VB 池、VI 直接初始化、VPSS 创建+池绑定+通道重启、use-after-free 修复、格式映射 |
-| `maix_camera.hpp` | 构造函数默认格式从 `FMT_RGB888` 改为 `FMT_YVU420SP` |
+| `maix_camera_mmf.cpp` | 统一 WDR/线性 bypass 路径：自定义 VB 池、`aPipe[1]=1`、`CVI_VI_EnableChn(1,0)`、`SetDevAttr` 位置调整、WDR 首帧超时容忍、VPSS 创建+池绑定 |
+| `maix_camera.hpp` | 构造函数默认格式从 `FMT_RGB888` 改为 `FMT_YVU420SP`（被 wrapper 覆盖，需手动修复） |
+| `maixpy_wrapper.cpp` (构建生成) | 手动修复默认格式 `FMT_RGB888` → `FMT_YVU420SP` |
+| `sophgo_middleware.c` | v1 API 池计数 3→8→3（最终回退，不影响 WDR 闭库路径） |
+
+### 提交历史
+
+```
+723b0576 WDR: enable dual-pipe in open-source bypass + fix pybind11 format default
+1d4066a5 1080p60 bypass: replace closed-lib mmf_init/vi_init/add_vi_channel
+```
 
 ### 关键经验总结
 
-1. **VPSS 必须有专用 VB 池**。`CVI_VPSS_AttachVbPool` 不是可选的——闭库 `mmf_add_vi_channel_v2` 内部强制调用。池块大小必须 ≥ VPSS 输入帧大小。
-2. **`CVI_VI_EnableChn` 要调两次**：第一次在 `SAMPLE_PLAT_VI_INIT` 内部（`SAMPLE_COMM_VI_StartViChn`），第二次在 init 后显式调用（确保状态）。
-3. **`VPSS_CHN_ATTR_S.u32Depth` 不能为 0**。设为 2 以上确保足够输出缓冲区。
-4. **`string::c_str()` 的陷阱**：`sys::device_id().c_str()` 是 C++ 经典 use-after-free。必须先赋值给 `std::string` 变量。
-5. **格式编号不要靠巧合**。`mmf_invert_format_to_maix` 和 `image::Format` 用各自的编号系统，必须显式映射。
+1. **`SAMPLE_COMM_VI_IniToViCfg` 不处理 WDR 双 pipe**。无论 WDR 还是线性模式，始终只设 `aPipe[0]`，`aPipe[1..5]` 硬编码为 -1。WDR 需要外部手动设置 `aPipe[1] = 1`。
+2. **`SAMPLE_COMM_VI_StartViChn` 只启用 `aPipe[0]` 的通道**。WDR 的 pipe 1 通道需要额外调用 `CVI_VI_EnableChn(1, 0)`。
+3. **`CVI_VI_SetDevAttr` 必须在 `IniToViCfg` 之后**，否则被 `SAMPLE_PLAT_VI_INIT` → `StartDev` → `SetDevAttr` 覆盖。
+4. **VPSS 必须有专用 VB 池**。`CVI_VPSS_AttachVbPool` 不是可选的——闭库 `mmf_add_vi_channel_v2` 内部强制调用。池块大小必须 ≥ VPSS 输入帧大小。
+5. **WDR 首帧需要更长时间**。首帧检查 3 秒超时后容忍继续，后续 `cam.read()` 正常工作。
+6. **`VPSS_CHN_ATTR_S.u32Depth` 不能为 0**。设为 2 以上确保足够输出缓冲区。
+7. **`string::c_str()` 的陷阱**：`sys::device_id().c_str()` 是 C++ 经典 use-after-free。必须先赋值给 `std::string` 变量。
+8. **格式编号不要靠巧合**。`mmf_invert_format_to_maix` 和 `image::Format` 用各自的编号系统，必须显式映射。pybind11 wrapper 生成的默认格式 `FMT_RGB888` 需手动改为 `FMT_YVU420SP` 以匹配 VPSS NV21 输出。
