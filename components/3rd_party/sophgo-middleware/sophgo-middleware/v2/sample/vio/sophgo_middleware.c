@@ -173,7 +173,7 @@ static CVI_S32 _mmf_sys_init(SIZE_S stSize)
 	u32BlkSize = MAX(u32BlkSize, u32BlkRotSize);
 
 	stVbConf.astCommPool[0].u32BlkSize	= u32BlkSize;
-	stVbConf.astCommPool[0].u32BlkCnt	= 3;
+	stVbConf.astCommPool[0].u32BlkCnt	= 8;
 	stVbConf.astCommPool[0].enRemapMode	= VB_REMAP_MODE_CACHED;
 	memcpy(&priv.vb_conf.astCommPool[0], &stVbConf.astCommPool[0], sizeof(VB_POOL_CONFIG_S));
 	SAMPLE_PRT("common pool[0] BlkSize %d cnt:%d\n", u32BlkSize, stVbConf.astCommPool[0].u32BlkCnt);

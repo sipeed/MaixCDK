@@ -884,3 +884,197 @@ Max_exposure_VS + Max_exposure_HCG/LCG < VTS - 10
 ### WDR 初始化序列
 
 WDR 模式的详细寄存器写入序列属于 OmniVision NDA 内容，不在公开数据手册中。当前使用的 `os04a10_wdr_1520p30_2to1_init()` 函数基于供应商参考代码。
+
+---
+
+## 十、开源 VPSS Bypass 实现（2026-07-17）
+
+### 背景
+
+闭源库 `libmaixcam_lib.so` 中的 `mmf_init_v2` + `mmf_vi_init_v2` + `mmf_add_vi_channel_v2` 存在多重问题：
+- `mmf_init_v2(false)` + `mmf_vi_init_v2()` 双初始化耗尽 3-block VB 池 → SIGSEGV
+- 闭源库无法修改，调试困难
+- 1080p60 + WDR 模式需要灵活控制 VI→VPSS 管线
+
+目标：用开源 `SAMPLE_PLAT_VI_INIT` + `SAMPLE_PLAT_VPSS_INIT` 完全替代闭库调用链。
+
+### 架构设计
+
+```
+Camera::open()
+  ├─ _mmf_vi_init()          ← 替代 mmf_init_v2 + mmf_vi_init_v2
+  │   ├─ 自定义 VB 池 (6块)
+  │   ├─ CVI_SYS_SetVIVPSSMode(VI_OFFLINE_VPSS_OFFLINE)
+  │   └─ SAMPLE_PLAT_VI_INIT + CVI_VI_EnableChn
+  │
+  ├─ SAMPLE_PLAT_VPSS_INIT   ← 替代 mmf_add_vi_channel_v2 的 VPSS 创建部分
+  ├─ VPSS 通道重启 + 池绑定  ← 替代 mmf_add_vi_channel_v2 的池绑定部分
+  ├─ SAMPLE_COMM_VI_Bind_VPSS
+  └─ CVI_VPSS_GetChnFrame(首帧验证)
+```
+
+### 遇到的问题及修复
+
+#### 问题 1: VB 池耗尽导致 SIGSEGV
+
+`mmf_init_v2(false)` 先创建一个 3-block 公共池，`mmf_vi_init_v2()` 再次初始化时会耗尽所有块。第二个 `CVI_VI_EnableChn` 返回 `CVI_ERR_VB_NOBUF`，触发 `_SAMPLE_PLAT_ERR_Exit` → 模块卸载 → 野指针 → SIGSEGV。
+
+**修复**: 用 `SAMPLE_COMM_SYS_Init` 创建自定义 VB 池，跳过 `mmf_init_v2`：
+
+```cpp
+// 自定义 VB 池 (6 块, 传感器原生大小)
+VB_CONFIG_S vb;
+memset(&vb, 0, sizeof(vb));
+vb.u32MaxPoolCnt = 1;
+vb.astCommPool[0].u32BlkSize = COMMON_GetPicBufferSize(
+    sys_size.u32Width, sys_size.u32Height,
+    SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8,
+    COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+vb.astCommPool[0].u32BlkCnt = 6;
+vb.astCommPool[0].enRemapMode = VB_REMAP_MODE_CACHED;
+SAMPLE_COMM_SYS_Init(&vb);
+```
+
+#### 问题 2: VPSS GetChnFrame 超时 — 缺少专用 VB 池
+
+这是**最关键的根因**。闭库 `mmf_add_vi_channel_v2` 内部调用链：
+
+```
+mmf_add_vi_channel_v2 → mmf_set_vi_vflip → ...
+  CVI_VPSS_GetGrpAttr(0, &grp_attr)
+  CVI_VPSS_SetChnAttr(0, vi_pipe, &chn_attr)
+  CVI_VPSS_EnableChn(0, vi_pipe)
+  SAMPLE_COMM_VI_Bind_VPSS(vi_pipe, chn, 0)
+  create_vpss_pool(...)                  ← 创建 VPSS 专用池
+  CVI_VPSS_AttachVbPool(0, vi_pipe, pool_id)  ← 附加池
+```
+
+开源 bypass 代码省略了 `create_vpss_pool` + `CVI_VPSS_AttachVbPool`。VPSS 在 `VPSS_INPUT_MEM` 模式下需要独立输出池；没有池时：
+- **缩放模式**（1920×1080→640×480）：VPSS 分配中间缩放缓冲区，间接获得输出空间 → 偶然工作
+- **直通模式**（1920×1080→1920×1080）：VPSS 尝试零拷贝直通，但无输出池可用 → `GetChnFrame` 永远超时
+
+**修复**: 创建并附加 VPSS 专用池：
+
+```cpp
+VPSS_CHN_ATTR_S chn_attr;
+if (CVI_SUCCESS == CVI_VPSS_GetChnAttr(0, 0, &chn_attr)) {
+    chn_attr.enPixelFormat = (PIXEL_FORMAT_E)_maix_to_mmf_format(_format);
+    chn_attr.u32Depth = 2;  // depth=0 默认缓冲区不足
+    CVI_VPSS_DisableChn(0, 0);
+    CVI_VPSS_SetChnAttr(0, 0, &chn_attr);
+    CVI_VPSS_EnableChn(0, 0);
+}
+// 创建 VPSS 专用池（大小 = 输入帧大小，3 块）
+VB_POOL_CONFIG_S vpss_pool_cfg;
+memset(&vpss_pool_cfg, 0, sizeof(vpss_pool_cfg));
+CVI_U32 vpss_blk = COMMON_GetPicBufferSize(
+    vpss_in.u32Width, vpss_in.u32Height,
+    SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8,
+    COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+vpss_pool_cfg.u32BlkSize = vpss_blk;
+vpss_pool_cfg.u32BlkCnt = 3;
+vpss_pool_cfg.enRemapMode = VB_REMAP_MODE_CACHED;
+VB_POOL vpss_pool = CVI_VB_CreatePool(&vpss_pool_cfg);
+if (VB_INVALID_POOLID != vpss_pool) {
+    CVI_VPSS_AttachVbPool(0, 0, vpss_pool);
+}
+```
+
+**关键经验**：VPSS 专用池的 `u32BlkSize` 必须用**输入帧大小**（`vpss_in`），而非输出帧大小（`vpss_out`）。如果按输出大小（如 640×480 = 460KB）创建，而 VPSS 内部需要 1920×1080 = 3.1MB 的处理缓冲区，会导致分配失败或死锁。
+
+#### 问题 3: `const char *board_id = sys::device_id().c_str()` use-after-free
+
+```cpp
+// 🚫 错误写法：临时 string 在分号后析构，board_id 变成野指针
+const char *board_id = sys::device_id().c_str();
+
+// ✅ 正确写法：先存储 string 对象
+std::string board_id_str = sys::device_id();
+const char *board_id = board_id_str.c_str();
+```
+
+`sys::device_id()` 返回 `std::string` 临时对象，`.c_str()` 返回其内部缓冲区的指针。分号后临时对象析构，`board_id` 指向已释放内存。这导致 `Camera(1920, 1080)` 在某些情况下随机"unknown board name!"错误，而 `Camera()` 默认参数可能恰好未覆盖该内存。
+
+此 bug 在原始代码中就已存在（第 918 行），只是闭库路径未触发（闭库不调用 `_mmf_vi_init`，不走 board_id 判断）。
+
+#### 问题 4: VPSS depth=0 导致缓冲不足
+
+`SAMPLE_PLAT_VPSS_INIT` 默认 `u32Depth = 0`，文档注释为"default depth"。实际测试表明 depth=0 时 VPSS 输出缓冲区数量不足以支持连续帧传递，需要通过 `DisableChn` + `SetChnAttr(u32Depth=2)` + `EnableChn` 重启通道。
+
+#### 问题 5: 像素格式编号不一致
+
+`image::Format` 枚举和 `mmf_invert_format_to_maix` 函数使用不同的编号系统：
+
+| 格式 | `image::Format` 值 | `mmf_invert_format_to_maix` 返回值 |
+|------|--------------------|-----------------------------------|
+| RGB888 | `FMT_RGB888 = 0` | `0`（巧合相同） |
+| BGR888 | `FMT_BGR888 = 1` | `1`（巧合相同） |
+| NV21/YVU420SP | `FMT_YVU420SP = 8` | `8` |
+
+格式检查代码：
+```cpp
+// 🚫 原代码：直接转换，可能不匹配
+pop_fmt = (image::Format)mmf_invert_format_to_maix(format);
+
+// ✅ 新代码：显式映射
+static int _maix_to_mmf_format(image::Format fmt) {
+    switch (fmt) {
+        case image::FMT_YVU420SP: return PIXEL_FORMAT_NV21;
+        case image::FMT_RGB888: return PIXEL_FORMAT_RGB_888;
+        case image::FMT_BGR888: return PIXEL_FORMAT_BGR_888;
+        default: return PIXEL_FORMAT_NV21;
+    }
+}
+static image::Format _mmf_to_maix_format(int mmf_fmt) {
+    switch (mmf_fmt) {
+        case PIXEL_FORMAT_NV21: return image::FMT_YVU420SP;
+        case PIXEL_FORMAT_RGB_888: return image::FMT_RGB888;
+        case PIXEL_FORMAT_BGR_888: return image::FMT_BGR888;
+        default: return image::FMT_YVU420SP;
+    }
+}
+```
+
+另外，pybind11 wrapper 生成代码中 Camera 构造函数的默认格式是 `image::FMT_RGB888`（`maixpy_wrapper.cpp:720`），覆盖了 C++ 头文件的默认值。
+
+### 最终管线状态
+
+```
+Camera::open() 成功后:
+
+  MIPI RX → ISP → VI PIPE → ISP POST → VI DMA → DDR
+                                                    │
+                                          (VI_OFFLINE_VPSS_OFFLINE)
+                                                    │
+                                                    ▼
+                                               VPSS (dedicated pool)
+                                                    │
+                                                    ▼
+                                              CVI_VPSS_GetChnFrame
+                                                    │
+                                                    ▼
+                                               cam.read()
+```
+
+所有路径验证结果：
+
+| 模式 | 分辨率 | 帧率 | 状态 |
+|------|--------|------|------|
+| 线性 1080p60 | 1920×1080 | 60 fps (max) | ✅ 连续 5 帧读取成功 |
+| 线性 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
+| WDR 1440p30 | 2560×1440 | 30 fps | ✅ 代码保留（未重新验证） |
+
+### 涉及文件
+
+| 文件 | 修改 |
+|------|------|
+| `maix_camera_mmf.cpp` | 新增 VPSS bypass 全部代码：自定义 VB 池、VI 直接初始化、VPSS 创建+池绑定+通道重启、use-after-free 修复、格式映射 |
+| `maix_camera.hpp` | 构造函数默认格式从 `FMT_RGB888` 改为 `FMT_YVU420SP` |
+
+### 关键经验总结
+
+1. **VPSS 必须有专用 VB 池**。`CVI_VPSS_AttachVbPool` 不是可选的——闭库 `mmf_add_vi_channel_v2` 内部强制调用。池块大小必须 ≥ VPSS 输入帧大小。
+2. **`CVI_VI_EnableChn` 要调两次**：第一次在 `SAMPLE_PLAT_VI_INIT` 内部（`SAMPLE_COMM_VI_StartViChn`），第二次在 init 后显式调用（确保状态）。
+3. **`VPSS_CHN_ATTR_S.u32Depth` 不能为 0**。设为 2 以上确保足够输出缓冲区。
+4. **`string::c_str()` 的陷阱**：`sys::device_id().c_str()` 是 C++ 经典 use-after-free。必须先赋值给 `std::string` 变量。
+5. **格式编号不要靠巧合**。`mmf_invert_format_to_maix` 和 `image::Format` 用各自的编号系统，必须显式映射。

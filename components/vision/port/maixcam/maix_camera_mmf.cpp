@@ -761,127 +761,101 @@ _retry:
         priv->exptime_min = sensor_cfg.exptime_min;
 
         bool wdr_mode = (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1);
-        err::check_bool_raise(!mmf_init_v2(false), "mmf init failed");
+
+        // Custom VB pool (8 blocks, sensor-native size) replaces closed-lib mmf_init_v2.
+        {
+            PIC_SIZE_E sys_pic;
+            SIZE_S sys_size;
+            SAMPLE_COMM_VI_GetSizeBySensor(sensor_cfg.sns_type, &sys_pic);
+            SAMPLE_COMM_SYS_GetPicSize(sys_pic, &sys_size);
+            CVI_U32 blk = COMMON_GetPicBufferSize(sys_size.u32Width, sys_size.u32Height,
+                SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+            CVI_U32 rot = COMMON_GetPicBufferSize(sys_size.u32Height, sys_size.u32Width,
+                SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+            blk = MAX(blk, rot);
+            VB_CONFIG_S vb;
+            memset(&vb, 0, sizeof(vb));
+            vb.u32MaxPoolCnt = 1;
+            vb.astCommPool[0].u32BlkSize = blk;
+            vb.astCommPool[0].u32BlkCnt = 6;
+            vb.astCommPool[0].enRemapMode = VB_REMAP_MODE_CACHED;
+            if (CVI_SUCCESS != SAMPLE_COMM_SYS_Init(&vb)) {
+                err::check_raise(err::ERR_RUNTIME, "VB init failed");
+            }
+        }
+
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
+        // Override channel pixel format to NV21 (IniToViCfg may set RAW for sensor)
+        stViConfig.astViInfo[0].stChnInfo.enPixFormat = vi_format;
         if (priv->raw) {
             stViConfig.astViInfo[0].stChnInfo.enCompressMode = COMPRESS_MODE_NONE;
         }
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
 
-        // HACK: os04a10 1080p60 mode switches to a different sensor type than
-        // the INI default (1440p30). mmf_init_v2(false) already created a VI
-        // channel and pre-queued VB blocks, leaving only 1 block free in the
-        // pool. mmf_vi_init_v2 re-enables VI with the new sensor type, which
-        // tries to queue 2 more blocks and fails with EN_ERR_NOBUF.
-        // Release the old channel first to return its blocks to the pool.
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
-            CVI_VI_DisableChn(0, 0);
-        }
-
-    // WDR mode: disable CHN, destroy old pipe (linear config from sensor_cfg.ini),
-        // reconfigure VI dev for WDR, recreate pipe + enable CHN.
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
+        // WDR mode: disable CHN, destroy old pipe, reconfigure for WDR
+        if (wdr_mode) {
             for (int c = 0; c < 4; c++) CVI_VI_DisableChn(0, c);
             CVI_VI_StopPipe(0);
             CVI_VI_DestroyPipe(0);
             usleep(20000);
-            priv->vi_pool_num = 6;
-
-            // Reconfigure VI device for WDR mode (first init used linear)
             VI_DEV_ATTR_S stWdrDevAttr;
             SAMPLE_COMM_VI_GetDevAttrBySns(sensor_cfg.sns_type, &stWdrDevAttr);
             stWdrDevAttr.stWDRAttr.enWDRMode = WDR_MODE_2To1_LINE;
-            CVI_S32 s32SetDevRet = CVI_VI_SetDevAttr(0, &stWdrDevAttr);
-            if (s32SetDevRet != CVI_SUCCESS) {
-                SAMPLE_PRT("wdr: CVI_VI_SetDevAttr=0x%x\n", s32SetDevRet);
-            }
+            CVI_VI_SetDevAttr(0, &stWdrDevAttr);
+            priv->vi_pool_num = 6;
         }
 
-        if (0 !=  mmf_vi_init_v2(stSize.u32Width, stSize.u32Height, vi_format, vi_vpss_format, fps, priv->vi_pool_num, &stViConfig)) {
-            mmf_deinit_v2(false);
+        // Set VI→VPSS mode before init (ensures frames flow to VPSS)
+        {
+            VI_VPSS_MODE_S vivpss_mode;
+            memset(&vivpss_mode, 0, sizeof(vivpss_mode));
+            vivpss_mode.aenMode[0] = VI_OFFLINE_VPSS_OFFLINE;
+            CVI_SYS_SetVIVPSSMode(&vivpss_mode);
+        }
+
+        // Direct SAMPLE_PLAT_VI_INIT (bypasses closed-lib mmf_vi_init_v2)
+        if (0 != SAMPLE_PLAT_VI_INIT(&stViConfig)) {
+            SAMPLE_COMM_SYS_Exit();
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
         }
 
-        // WDR: re-enable VI channel (teardown above disabled it, mmf_vi_init_v2
-        // does not re-enable).  Without this the ISP FSWDR output never reaches
-        // the VPSS-bound DMA channel.  The "already enabled" (0xc00e8041) retry
-        // is expected and harmless — skip the SetChnAttr retry since it can race.
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-            CVI_S32 vi_ret = CVI_VI_EnableChn(0, 0);
-            SAMPLE_PRT("wdr: CVI_VI_EnableChn=0x%x\n", vi_ret);
-        }
+        // Re-enable VI channel (required for frame delivery to VPSS, even if already enabled)
+        CVI_VI_EnableChn(0, 0);
 
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_720P90_12BIT) {
-            system("i2ctransfer -fy 4 w4@0x36 0x38 0x0c 0x06 0x90");    // config os04a10 720p90fps to 80fps
-        }
-
-        // Workaround: OS04A10 ISP bin was calibrated for 1440p30 and its AE
-        // parameters hardcode 30 fps.  Even in bright outdoor light with
-        // <16 ms exposure the AE silently changes VTS to 2432 (=30 fps).
-        // The image quality at 60 fps is identical (verified by capture).
-        // After init wait for AE to apply its stale 30 fps setting, then
-        // force VTS back to 1216 via direct I2C so the sensor runs at 60 fps.
+        // 1080p60 AE workaround
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
-            // 1) restrict exposure range so AE does not need >16 ms
             ISP_EXPOSURE_ATTR_S exp;
             memset(&exp, 0, sizeof(exp));
             if (CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &exp)) {
                 exp.stAuto.stExpTimeRange.u32Max = (CVI_U32)(1000000.0 / fps * 0.9);
                 CVI_ISP_SetExposureAttr(0, &exp);
             }
-            // 2) Wait for AE's first VTS write, then override
-            struct timespec ts = {1, 500 * 1000 * 1000};
-            nanosleep(&ts, NULL);
-            system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0e 0x04");
-            system("i2ctransfer -y -f 4 w3@0x36 0x38 0x0f 0xc0");
-        }
-
-        // WDR mode: dump live registers, then apply CSI & VPSS mode fixes,
-        // and lock VTS to 1624 (30 fps) after AE's first write.
-        if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-            FILE *fp;
-            char buf[128];
-            log::info("=== WDR REGS ===");
-            fp = popen("devmem 0x0A0C2404 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_004: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2440 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_040: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2460 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_060: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2470 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_070: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2418 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("CSI_018: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2040 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("MAC_040: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0C2044 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("MAC_044: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0D0390 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_CK: %s", buf); pclose(fp); }
-            fp = popen("devmem 0x0A0D0394 32", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("PHY_DT: %s", buf); pclose(fp); }
-            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x01 0x00 r1 2>/dev/null", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_STRM: %s", buf); pclose(fp); }
-            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x38 0x0c r2 2>/dev/null", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_HTS: %s", buf); pclose(fp); }
-            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x38 0x0e r2 2>/dev/null", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_VTS: %s", buf); pclose(fp); }
-            fp = popen("i2ctransfer -y -f 4 w2@0x36 0x48 0x13 r1 2>/dev/null", "r");
-            if (fp) { fgets(buf, sizeof(buf), fp); log::info("SNS_VC:  %s", buf); pclose(fp); }
-            fp = popen("cat /proc/cvitek/vi_dbg 2>/dev/null | head -30", "r");
-            if (fp) { while(fgets(buf, sizeof(buf), fp)) log::info("VI: %s", buf); pclose(fp); }
-
-            // Workaround: WDR ISP bin AE parameters may boost VTS on bright scenes.
-            // Force VTS back to default (1624=0x0658) for 30 fps.
-            ISP_EXPOSURE_ATTR_S exp;
-            memset(&exp, 0, sizeof(exp));
-            if (CVI_SUCCESS == CVI_ISP_GetExposureAttr(0, &exp)) {
-                exp.stAuto.stExpTimeRange.u32Max = (CVI_U32)(1000000.0 / 30.0 * 0.9);
-                CVI_ISP_SetExposureAttr(0, &exp);
-            }
         }
         return  0;
+    }
+
+    static int _maix_to_mmf_format(image::Format fmt)
+    {
+        switch (fmt) {
+            case image::FMT_YVU420SP: return PIXEL_FORMAT_NV21;
+            case image::FMT_RGB888: return PIXEL_FORMAT_RGB_888;
+            case image::FMT_BGR888: return PIXEL_FORMAT_BGR_888;
+            case image::FMT_GRAYSCALE: return PIXEL_FORMAT_NV21;
+            default: return PIXEL_FORMAT_NV21;
+        }
+    }
+
+    static image::Format _mmf_to_maix_format(int mmf_fmt)
+    {
+        switch (mmf_fmt) {
+            case PIXEL_FORMAT_NV21: return image::FMT_YVU420SP;
+            case PIXEL_FORMAT_RGB_888: return image::FMT_RGB888;
+            case PIXEL_FORMAT_BGR_888: return image::FMT_BGR888;
+            case PIXEL_FORMAT_RGB_BAYER_10BPP:
+            case PIXEL_FORMAT_RGB_BAYER_12BPP: return image::FMT_GRAYSCALE;
+            default: return image::FMT_YVU420SP;
+        }
     }
 
     err::Err Camera::open(int width, int height, image::Format format, double fps, int buff_num)
@@ -941,7 +915,8 @@ _retry:
         _invert_mirror = flip_and_mirror[1];
         _config_sensor_env(_fps);
 
-        const char *board_id = sys::device_id().c_str();
+        std::string board_id_str = sys::device_id();
+        const char *board_id = board_id_str.c_str();
         if (!strcmp(getenv(MMF_SENSOR_NAME), "sms_sc035gs")) {
             _fps = priv->fps;
             if (_fps == -1 && _width <= 640 && _height <= 480) {
@@ -1004,41 +979,64 @@ _retry:
         } else {
             // mmf init
             err::check_bool_raise(!_mmf_vi_init(board_id, _width, _height, _fps, priv), "mmf vi init failed");
-            err::check_bool_raise((_ch = mmf_get_vi_unused_channel()) >= 0, "mmf get vi channel failed");
-            mmf_set_vi_vflip(_ch, _invert_flip);
-            mmf_set_vi_hmirror(_ch, _invert_mirror);
+            _ch = 0;
 
-            // WDR mode: ensure VI→VPSS uses standard offline-bind path
-            if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-                VI_VPSS_MODE_S stVIVPSSMode;
-                memset(&stVIVPSSMode, 0, sizeof(stVIVPSSMode));
-                stVIVPSSMode.aenMode[0] = VI_OFFLINE_VPSS_OFFLINE;
-                CVI_SYS_SetVIVPSSMode(&stVIVPSSMode);
-                SAMPLE_PRT("wdr: VI_VPSS_MODE set to OFFLINE\n");
+            // Set VI-VPSS mode to offline (required for frame delivery)
+            {
+                VI_VPSS_MODE_S vivpss_mode;
+                memset(&vivpss_mode, 0, sizeof(vivpss_mode));
+                vivpss_mode.aenMode[0] = VI_OFFLINE_VPSS_OFFLINE;
+                CVI_SYS_SetVIVPSSMode(&vivpss_mode);
             }
 
-            if (0 != mmf_add_vi_channel_v2(_ch, _width, _height, mmf_invert_format_to_mmf(_format_impl), _fps, 2, -1, -1, 2, pool_num)) {
-                mmf_vi_deinit();
-                mmf_deinit_v2(false);
-                err::check_raise(err::ERR_RUNTIME, "mmf add vi channel failed");
+            // Create VPSS group + bind VI→VPSS (replaces closed-lib mmf_add_vi_channel_v2)
+            {
+                PIC_SIZE_E vpss_pic;
+                SIZE_S vpss_in, vpss_out;
+                SAMPLE_COMM_VI_GetSizeBySensor(priv->sns_type, &vpss_pic);
+                SAMPLE_COMM_SYS_GetPicSize(vpss_pic, &vpss_in);
+                vpss_out.u32Width = ALIGN(_width, 16);
+                vpss_out.u32Height = _height;
+                CVI_S32 vr = SAMPLE_PLAT_VPSS_INIT(0, vpss_in, vpss_out);
+                SAMPLE_PRT("vpss: init ret=0x%x\n", vr);
+                if (CVI_SUCCESS == vr) {
+                    // Reconfigure VPSS channel + attach dedicated pool (like closed lib does)
+                    VPSS_CHN_ATTR_S chn_attr;
+                    if (CVI_SUCCESS == CVI_VPSS_GetChnAttr(0, 0, &chn_attr)) {
+                        chn_attr.enPixelFormat = (PIXEL_FORMAT_E)_maix_to_mmf_format(_format);
+                        chn_attr.u32Depth = 2;
+                        CVI_VPSS_DisableChn(0, 0);
+                        CVI_VPSS_SetChnAttr(0, 0, &chn_attr);
+                        CVI_VPSS_EnableChn(0, 0);
+                    }
+                    // Attach a dedicated VB pool for VPSS (size = input frame, like closed lib)
+                    VB_POOL_CONFIG_S vpss_pool_cfg;
+                    memset(&vpss_pool_cfg, 0, sizeof(vpss_pool_cfg));
+                    CVI_U32 vpss_blk = COMMON_GetPicBufferSize(vpss_in.u32Width, vpss_in.u32Height,
+                        SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+                    vpss_pool_cfg.u32BlkSize = vpss_blk;
+                    vpss_pool_cfg.u32BlkCnt = 3;
+                    vpss_pool_cfg.enRemapMode = VB_REMAP_MODE_CACHED;
+                    VB_POOL vpss_pool = CVI_VB_CreatePool(&vpss_pool_cfg);
+                    if (VB_INVALID_POOLID != vpss_pool) {
+                        CVI_VPSS_AttachVbPool(0, 0, vpss_pool);
+                    }
+                    vr = SAMPLE_COMM_VI_Bind_VPSS(0, _ch, 0);
+                    SAMPLE_PRT("vpss: bind ret=0x%x\n", vr);
+                }
             }
         }
 
         // wait camera is ready
-        VIDEO_FRAME_INFO_S frame;
-        CVI_U32 s32Ret;
-        if (priv->sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1) {
-            s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 2000);
+        {
+            VIDEO_FRAME_INFO_S frame;
+            CVI_U32 s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3));
             if (s32Ret == CVI_SUCCESS) {
                 CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
-                SAMPLE_PRT("wdr: first frame OK\n");
-            }
-        } else {
-            if ((s32Ret = CVI_VPSS_GetChnFrame(0, _ch, &frame, 3000 + (CVI_S32)(1000.0 / _fps * 3))) != CVI_SUCCESS) {
+            } else {
                 SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
                 return err::ERR_RUNTIME;
             }
-            CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
         }
 
         _is_opened = true;
@@ -1050,24 +1048,8 @@ _retry:
         if (this->is_closed())
             return;
 
-        if (mmf_vi_chn_is_open(this->_ch) == true) {
-            if (0 != mmf_del_vi_channel(this->_ch)) {
-                log::error("mmf del vi channel failed");
-            }
-        }
-
-        // bool vi_need_deinit = true;
-        // for (int i = 0; i < this->get_ch_nums(); i ++) {
-        //     if (mmf_vi_chn_is_open(i)) {
-        //         vi_need_deinit = false;
-        //     }
-        // }
-
-        // if (vi_need_deinit) {
-        //     mmf_vi_deinit();
-        // }
-
         mmf_deinit_v2(false);
+        _is_opened = false;
     }
 
     camera::Camera *Camera::add_channel(int width, int height, image::Format format, double fps, int buff_num, bool open)
@@ -1181,7 +1163,7 @@ _retry:
                 goto _error;
             }
             image_data = (uint8_t *)img->data();
-            pop_fmt = (image::Format)mmf_invert_format_to_maix(format);
+            pop_fmt = _mmf_to_maix_format(format);
             switch (img->format()) {
                 case image::Format::FMT_GRAYSCALE:
                     if (pop_fmt != image::Format::FMT_YVU420SP) {

@@ -93,7 +93,7 @@ namespace maix::camera
          * @maixpy maix.camera.Camera.__init__
          * @maixcdk maix.camera.Camera.Camera
          */
-        Camera(int width = -1, int height = -1, image::Format format = image::FMT_RGB888, const char *device = nullptr, double fps = -1, int buff_num = 3, bool open = true, bool raw = false);
+        Camera(int width = -1, int height = -1, image::Format format = image::FMT_YVU420SP, const char *device = nullptr, double fps = -1, int buff_num = 3, bool open = true, bool raw = false);
         ~Camera();
 
         /**
