@@ -762,7 +762,8 @@ _retry:
 
         bool wdr_mode = (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1);
 
-        // Custom VB pool (8 blocks, sensor-native size) replaces closed-lib mmf_init_v2.
+        // ---- Open-source bypass path for ALL modes ----
+        // Custom VB pool (6 blocks, sensor-native size) replaces closed-lib mmf_init_v2.
         {
             PIC_SIZE_E sys_pic;
             SIZE_S sys_size;
@@ -785,6 +786,17 @@ _retry:
         }
 
         err::check_bool_raise(!SAMPLE_COMM_VI_IniToViCfg(&stIniCfg, &stViConfig), "IniToViCfg failed!");
+
+        // WDR: override device attr + enable dual pipes (IniToViCfg only sets aPipe[0])
+        if (wdr_mode) {
+            VI_DEV_ATTR_S stWdrDevAttr;
+            SAMPLE_COMM_VI_GetDevAttrBySns(sensor_cfg.sns_type, &stWdrDevAttr);
+            stWdrDevAttr.stWDRAttr.enWDRMode = WDR_MODE_2To1_LINE;
+            CVI_VI_SetDevAttr(0, &stWdrDevAttr);
+            stViConfig.astViInfo[0].stPipeInfo.aPipe[1] = 1;
+            priv->vi_pool_num = 6;
+        }
+
         // Override channel pixel format to NV21 (IniToViCfg may set RAW for sensor)
         stViConfig.astViInfo[0].stChnInfo.enPixFormat = vi_format;
         if (priv->raw) {
@@ -792,19 +804,6 @@ _retry:
         }
         err::check_bool_raise(!SAMPLE_COMM_VI_GetSizeBySensor(stIniCfg.enSnsType[0], &enPicSize), "GetSizeBySensor failed!");
         err::check_bool_raise(!SAMPLE_COMM_SYS_GetPicSize(enPicSize, &stSize), "GetPicSize failed!");
-
-        // WDR mode: disable CHN, destroy old pipe, reconfigure for WDR
-        if (wdr_mode) {
-            for (int c = 0; c < 4; c++) CVI_VI_DisableChn(0, c);
-            CVI_VI_StopPipe(0);
-            CVI_VI_DestroyPipe(0);
-            usleep(20000);
-            VI_DEV_ATTR_S stWdrDevAttr;
-            SAMPLE_COMM_VI_GetDevAttrBySns(sensor_cfg.sns_type, &stWdrDevAttr);
-            stWdrDevAttr.stWDRAttr.enWDRMode = WDR_MODE_2To1_LINE;
-            CVI_VI_SetDevAttr(0, &stWdrDevAttr);
-            priv->vi_pool_num = 6;
-        }
 
         // Set VI→VPSS mode before init (ensures frames flow to VPSS)
         {
@@ -820,10 +819,11 @@ _retry:
             err::check_raise(err::ERR_RUNTIME, "mmf vi init failed");
         }
 
-        // Re-enable VI channel (required for frame delivery to VPSS, even if already enabled)
+        // Re-enable VI channels (required for frame delivery to VPSS)
         CVI_VI_EnableChn(0, 0);
+        if (wdr_mode) CVI_VI_EnableChn(1, 0);
 
-        // 1080p60 AE workaround
+        // 1080p60 AE workaround (also applies to WDR)
         if (sensor_cfg.sns_type == OV_OS04A10_MIPI_4M_1080P60_12BIT) {
             ISP_EXPOSURE_ATTR_S exp;
             memset(&exp, 0, sizeof(exp));
@@ -980,7 +980,6 @@ _retry:
             // mmf init
             err::check_bool_raise(!_mmf_vi_init(board_id, _width, _height, _fps, priv), "mmf vi init failed");
             _ch = 0;
-
             // Set VI-VPSS mode to offline (required for frame delivery)
             {
                 VI_VPSS_MODE_S vivpss_mode;
@@ -988,42 +987,57 @@ _retry:
                 vivpss_mode.aenMode[0] = VI_OFFLINE_VPSS_OFFLINE;
                 CVI_SYS_SetVIVPSSMode(&vivpss_mode);
             }
-
-            // Create VPSS group + bind VI→VPSS (replaces closed-lib mmf_add_vi_channel_v2)
-            {
-                PIC_SIZE_E vpss_pic;
-                SIZE_S vpss_in, vpss_out;
-                SAMPLE_COMM_VI_GetSizeBySensor(priv->sns_type, &vpss_pic);
-                SAMPLE_COMM_SYS_GetPicSize(vpss_pic, &vpss_in);
-                vpss_out.u32Width = ALIGN(_width, 16);
-                vpss_out.u32Height = _height;
-                CVI_S32 vr = SAMPLE_PLAT_VPSS_INIT(0, vpss_in, vpss_out);
-                SAMPLE_PRT("vpss: init ret=0x%x\n", vr);
-                if (CVI_SUCCESS == vr) {
-                    // Reconfigure VPSS channel + attach dedicated pool (like closed lib does)
-                    VPSS_CHN_ATTR_S chn_attr;
-                    if (CVI_SUCCESS == CVI_VPSS_GetChnAttr(0, 0, &chn_attr)) {
-                        chn_attr.enPixelFormat = (PIXEL_FORMAT_E)_maix_to_mmf_format(_format);
-                        chn_attr.u32Depth = 2;
-                        CVI_VPSS_DisableChn(0, 0);
-                        CVI_VPSS_SetChnAttr(0, 0, &chn_attr);
-                        CVI_VPSS_EnableChn(0, 0);
-                    }
-                    // Attach a dedicated VB pool for VPSS (size = input frame, like closed lib)
-                    VB_POOL_CONFIG_S vpss_pool_cfg;
-                    memset(&vpss_pool_cfg, 0, sizeof(vpss_pool_cfg));
-                    CVI_U32 vpss_blk = COMMON_GetPicBufferSize(vpss_in.u32Width, vpss_in.u32Height,
-                        SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
-                    vpss_pool_cfg.u32BlkSize = vpss_blk;
-                    vpss_pool_cfg.u32BlkCnt = 3;
-                    vpss_pool_cfg.enRemapMode = VB_REMAP_MODE_CACHED;
-                    VB_POOL vpss_pool = CVI_VB_CreatePool(&vpss_pool_cfg);
-                    if (VB_INVALID_POOLID != vpss_pool) {
-                        CVI_VPSS_AttachVbPool(0, 0, vpss_pool);
-                    }
-                    vr = SAMPLE_COMM_VI_Bind_VPSS(0, _ch, 0);
-                    SAMPLE_PRT("vpss: bind ret=0x%x\n", vr);
+            // Open-source VPSS init + bind (unified for all modes)
+            PIC_SIZE_E vpss_pic;
+            SIZE_S vpss_in, vpss_out;
+            SAMPLE_COMM_VI_GetSizeBySensor(priv->sns_type, &vpss_pic);
+            SAMPLE_COMM_SYS_GetPicSize(vpss_pic, &vpss_in);
+            vpss_out.u32Width = ALIGN(_width, 16);
+            vpss_out.u32Height = _height;
+            VPSS_GRP_ATTR_S vpss_grp_attr;
+            memset(&vpss_grp_attr, 0, sizeof(vpss_grp_attr));
+            vpss_grp_attr.u32MaxW = vpss_in.u32Width;
+            vpss_grp_attr.u32MaxH = vpss_in.u32Height;
+            vpss_grp_attr.enPixelFormat = SAMPLE_PIXEL_FORMAT;
+            vpss_grp_attr.stFrameRate.s32SrcFrameRate = -1;
+            vpss_grp_attr.stFrameRate.s32DstFrameRate = -1;
+            vpss_grp_attr.u8VpssDev = 0;
+            CVI_S32 vr = CVI_VPSS_CreateGrp(0, &vpss_grp_attr);
+            if (CVI_SUCCESS == vr) {
+                CVI_VPSS_ResetGrp(0);
+                VPSS_CHN_ATTR_S chn_attr;
+                memset(&chn_attr, 0, sizeof(chn_attr));
+                chn_attr.u32Width = vpss_out.u32Width;
+                chn_attr.u32Height = vpss_out.u32Height;
+                chn_attr.enVideoFormat = VIDEO_FORMAT_LINEAR;
+                chn_attr.enPixelFormat = SAMPLE_PIXEL_FORMAT;
+                chn_attr.stFrameRate.s32SrcFrameRate = -1;
+                chn_attr.stFrameRate.s32DstFrameRate = -1;
+                chn_attr.u32Depth = 2;
+                chn_attr.bMirror = CVI_TRUE;
+                chn_attr.bFlip = CVI_TRUE;
+                chn_attr.stAspectRatio.enMode = ASPECT_RATIO_AUTO;
+                CVI_VPSS_SetChnAttr(0, VPSS_CHN0, &chn_attr);
+                CVI_VPSS_EnableChn(0, VPSS_CHN0);
+                VB_POOL_CONFIG_S vpss_pool_cfg;
+                memset(&vpss_pool_cfg, 0, sizeof(vpss_pool_cfg));
+                CVI_U32 vpss_blk = COMMON_GetPicBufferSize(vpss_in.u32Width, vpss_in.u32Height,
+                    SAMPLE_PIXEL_FORMAT, DATA_BITWIDTH_8, COMPRESS_MODE_NONE, DEFAULT_ALIGN);
+                vpss_pool_cfg.u32BlkSize = vpss_blk;
+                vpss_pool_cfg.u32BlkCnt = 4;
+                vpss_pool_cfg.enRemapMode = VB_REMAP_MODE_CACHED;
+                VB_POOL vpss_pool = CVI_VB_CreatePool(&vpss_pool_cfg);
+                if (VB_INVALID_POOLID != vpss_pool) {
+                    CVI_VPSS_AttachVbPool(0, 0, vpss_pool);
                 }
+                CVI_VPSS_StartGrp(0);
+            } else {
+                SAMPLE_PRT("vpss: CreateGrp failed 0x%x\n", vr);
+            }
+            SAMPLE_PRT("vpss: init ret=0x%x\n", vr);
+            if (CVI_SUCCESS == vr) {
+                vr = SAMPLE_COMM_VI_Bind_VPSS(0, _ch, 0);
+                SAMPLE_PRT("vpss: bind ret=0x%x\n", vr);
             }
         }
 
@@ -1035,7 +1049,9 @@ _retry:
                 CVI_VPSS_ReleaseChnFrame(0, _ch, &frame);
             } else {
                 SAMPLE_PRT("vi get frame timeout: 0x%x !\n", s32Ret);
-                return err::ERR_RUNTIME;
+                // WDR mode tolerates first frame timeout (pipeline needs warmup)
+                if (priv->sns_type != OV_OS04A10_MIPI_4M_1440P_30FPS_10BIT_WDR2TO1)
+                    return err::ERR_RUNTIME;
             }
         }
 
