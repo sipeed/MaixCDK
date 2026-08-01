@@ -5,10 +5,11 @@ MaixCDK
 
 ![](https://wiki.sipeed.com/maixcdk/static/image/maixcams.png)
 
-
 <h2>MaixCDK: 快速落地 AI 视觉、听觉应用</h2>
 
-**Let's Sipeed up, Maximize AI's power!**
+[![Back MaixCam 2 on Kickstarter](https://img.shields.io/badge/Kickstarter-Back%20MaixCam%202-05CE78?style=for-the-badge&logo=kickstarter&logoColor=white)](https://www.kickstarter.com/projects/zepan/maixcam2-build-your-next-gen-4k-ai-camera)
+
+**🚀 [MaixCam 2 is LIVE: Build Your Next-Gen 4K AI Camera!](https://www.kickstarter.com/projects/zepan/maixcam2-build-your-next-gen-4k-ai-camera) 🚀**
 
 <h3>
     <a href="https://wiki.sipeed.com/maixcdk/doc/index.html"> Quick Start </a> |

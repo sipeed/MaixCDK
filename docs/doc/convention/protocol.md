@@ -48,12 +48,12 @@ The master device can implement the protocol based on the chip and programming l
 | Hex Example     | 0xBBACCAAA     | 0x00000009                           | 0x00       | 0x01     | hello     | 0x442B                             |
 | Byte Stream (Hex) | AA CA AC BB   | 09 00 00 00                         | 00         | 01       | 68 65 6C 6C 6F | 2B 44                       |
 
-> **Note**: Multi-byte data uses little-endian (LE) encoding. For example, `data_len` is `0x00000006`, with `06` in the lowest byte, so it is sent first as `0x06`, followed by `0x00 0x00 0x00`.
+> **Note**: Multi-byte data uses little-endian (LE) encoding. For example, `data_len` is `0x00000009`, with `09` in the lowest byte, so it is sent first as `0x09`, followed by `0x00 0x00 0x00`.
 > Strings are sent in order, e.g., `hello` is sent as `h`, then `e`, `l`, `l`, `o`.
 > In this example, the final data sent is: `AA CA AC BB 09 00 00 00 00 01 68 65 6C 6C 6F 2B 44`.
 
 - `header`: 4-byte header marking the start of a frame, fixed as `0xAA 0xCA 0xAC 0xBB`, sent starting with `0xAA`.
-- `data len`: 4-byte data length, including the length of `flags`, `cmd`, `body`, and `CRC`.
+- `data len`: 4-byte data length, including the length of `flags`, `cmd`, `body`, and `CRC`, excluding `header` and `data len` itself.
 - `flags`: 1-byte flag where each bit indicates:
   - MSB `is_resp`: Indicates if it is a response. `0` for request, `1` for response or active report (requires the third highest bit set to `1`).
   - Second highest bit `resp_ok`:
@@ -89,7 +89,7 @@ Set the highest bit of `flags` (`is_resp`) to `1`.
 - For a successful response: Set `resp_ok` to `1`, and the `body` content is determined by `cmd`. An empty `body` is the simplest successful response.
 - For a failed response:
   - Set `resp_ok` to `0`.
-  - The first byte of `body` is the error code. Refer to [MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp) for error codes.
+  - The first byte of `body` is the error code. Refer to [MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp) for error codes. This error-code byte is included in both the `body` length and the frame `data_len`.
   - The following bytes in `body` contain the error message in `UTF-8` encoding, preferably in plain English for better compatibility.
 
 Each request must have a corresponding response, indicating either success or failure. Hereafter, `RESP_OK` and `RESP_ERR` are used to represent successful and failed responses, respectively.
@@ -120,7 +120,7 @@ The MCU requests the list of applications from the Maix device. The steps are as
    `AA CA AC BB 04 00 00 00 01 F9 C9 77`.
 
 2. The Maix device responds with `cmd` set to `0xF9` and `flags` set to `0xC1` (with `|0x80` for response and `|0x40` for success). The `body` contains the application list. If there are two applications, the actual byte stream is:
-   `AA CA AC BB 0A 00 00 00 C1 F9 02 66 61 63 65 00 66 61 63 65 00 F6 06`.
+   `AA CA AC BB 0F 00 00 00 C1 F9 02 66 61 63 65 00 66 61 63 65 00 E5 57`.
 
 ---
 

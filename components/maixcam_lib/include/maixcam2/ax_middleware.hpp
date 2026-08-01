@@ -561,7 +561,7 @@ namespace maix::middleware::maixcam2 {
     };
 
     static COMMON_SYS_POOL_CFG_T gtPrivatePoolSingleOs04a10Sdr[] = {
-        {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 12, AX_COMPRESS_MODE_LOSSY, 4},      /* vin raw16 use */
+        {2688, 1520, 2688, AX_FORMAT_BAYER_RAW_10BPP_PACKED, 12, AX_COMPRESS_MODE_NONE, 4},      /* vin raw16 use */
     };
 
     // SC450AI
