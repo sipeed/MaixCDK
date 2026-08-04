@@ -83,3 +83,9 @@ examples/*/dist/
 projects/*/dist/
 examples/*/data/
 projects/*/data/
+
+.agents
+.codex
+.trellis
+.gitattributes
+AGENTS.md

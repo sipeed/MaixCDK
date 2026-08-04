@@ -11,6 +11,8 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <memory>
 #include <vector>
 #include "maix_basic.hpp"
 #include "maix_nn.hpp"
@@ -25,35 +27,39 @@ namespace maix::nn
      * Monocular depth estimation model (yolo26n-depth etc.) inference wrapper.
      *
      * Usage:
-     *     nn::Yolo26Depth model("/tmp/yolo26n-depth.mud");
+     *     nn::YOLO26Depth model("/tmp/yolo26n-depth.mud");
      *     image::Image *img = cam.read();
-     *     image::Image *heatmap = model.get_depth_image(*img, image::FIT_CONTAIN, image::CMap::JET);
+     *     tensor::Tensor *depth = model.get_depth(*img, image::FIT_CONTAIN);
+     *     image::Image *heatmap = model.depth_to_image(*depth, img->width(), img->height());
+     *     float meters = model.get_distance(*depth, img->width() / 2, img->height() / 2,
+     *                                       img->width(), img->height());
      *     disp.show(*heatmap);
      *     delete heatmap;
+     *     delete depth;
+     *     delete img;
      *
      * Note: the model MUD file's [extra] section should have model_type=yolo26_depth, input_type=rgb.
-     * @maixpy maix.nn.Yolo26Depth
+     * @maixpy maix.nn.YOLO26Depth
      */
-    class Yolo26Depth
+    class YOLO26Depth
     {
     public:
         /**
-         * Construct a new Yolo26Depth object
+         * Construct a new YOLO26Depth object
          * @param model MUD model path, if empty, will not load model, you can call load() later.
          *                  if not empty, will load model and will raise err::Exception if load failed.
          * @param[in] dual_buff prepare dual input output buffer to accelarate forward, that is, when NPU is forwarding we not wait and prepare the next input buff.
          *                      If you want to ensure every time forward output the input's result, set this arg to false please.
          *                      Default true to ensure speed.
-         * @maixpy maix.nn.Yolo26Depth.__init__
+         * @maixpy maix.nn.YOLO26Depth.__init__
          */
-        Yolo26Depth(const string &model = "", bool dual_buff = true)
+        YOLO26Depth(const string &model = "", bool dual_buff = true)
         {
             _model = nullptr;
             _dual_buff = dual_buff;
             _input_img_fmt = image::Format::FMT_RGB888;
             _input_w = _input_h = 0;
             _output_w = _output_h = 0;
-            _cmap = image::CMap::JET;
             if (!model.empty())
             {
                 err::Err e = load(model);
@@ -64,7 +70,7 @@ namespace maix::nn
             }
         }
 
-        ~Yolo26Depth()
+        ~YOLO26Depth()
         {
             if (_model)
             {
@@ -80,7 +86,7 @@ namespace maix::nn
          * - input_type: rgb or bgr
          * @param model MUD model path
          * @return error code, if load failed, return error code
-         * @maixpy maix.nn.Yolo26Depth.load
+         * @maixpy maix.nn.YOLO26Depth.load
          */
         err::Err load(const string &model)
         {
@@ -128,7 +134,7 @@ namespace maix::nn
         /**
          * Get model input size, only for image input
          * @return model input size
-         * @maixpy maix.nn.Yolo26Depth.input_size
+         * @maixpy maix.nn.YOLO26Depth.input_size
          */
         image::Size input_size()
         {
@@ -138,7 +144,7 @@ namespace maix::nn
         /**
          * Get model input width, only for image input
          * @return model input size of width
-         * @maixpy maix.nn.Yolo26Depth.input_width
+         * @maixpy maix.nn.YOLO26Depth.input_width
          */
         int input_width()
         {
@@ -148,7 +154,7 @@ namespace maix::nn
         /**
          * Get model input height, only for image input
          * @return model input size of height
-         * @maixpy maix.nn.Yolo26Depth.input_height
+         * @maixpy maix.nn.YOLO26Depth.input_height
          */
         int input_height()
         {
@@ -158,7 +164,7 @@ namespace maix::nn
         /**
          * Get input image format, only for image input
          * @return input image format, image::Format type.
-         * @maixpy maix.nn.Yolo26Depth.input_format
+         * @maixpy maix.nn.YOLO26Depth.input_format
          */
         image::Format input_format()
         {
@@ -168,7 +174,7 @@ namespace maix::nn
         /**
          * Get model output size (depth map size), only for image input
          * @return model output size
-         * @maixpy maix.nn.Yolo26Depth.output_size
+         * @maixpy maix.nn.YOLO26Depth.output_size
          */
         image::Size output_size()
         {
@@ -183,23 +189,22 @@ namespace maix::nn
          *            Default Fit.FIT_CONTAIN, see image.Fit.
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
          * @return result, a tensor.Tensor object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
-         * @maixpy maix.nn.Yolo26Depth.get_depth
+         * @maixpy maix.nn.YOLO26Depth.get_depth
          */
         tensor::Tensor *get_depth(image::Image &img, image::Fit fit = image::FIT_CONTAIN)
         {
             if (_model == nullptr) return nullptr;
-            tensor::Tensors *outputs = _model->forward_image(img, {}, {}, fit, false, false);
+            std::unique_ptr<tensor::Tensors> outputs(_model->forward_image(img, {}, {}, fit, false, false));
             if (!outputs) return nullptr;
+            if (outputs->size() == 0)
+                throw err::Exception(err::ERR_RUNTIME, "depth model returned no output tensor");
             tensor::Tensor *t = outputs->begin()->second;
-            if (t->dtype() != tensor::DType::FLOAT32)
-            {
-                delete outputs;
-                return nullptr;
-            }
-            _output_h = t->shape()[2];
-            _output_w = t->shape()[3];
+            if (!t)
+                throw err::Exception(err::ERR_RUNTIME, "depth model returned a null output tensor");
+            DepthInfo info = _get_depth_info(*t);
+            _output_h = info.height;
+            _output_w = info.width;
             tensor::Tensor *result = new tensor::Tensor(t->shape(), t->dtype(), t->data(), true);
-            delete outputs;
             return result;
         }
 
@@ -214,86 +219,192 @@ namespace maix::nn
          *             Default image.CMap.JET (near red/yellow, far blue).
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
          * @return result, a image::Image object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
-         * @maixpy maix.nn.Yolo26Depth.get_depth_image
+         * @maixpy maix.nn.YOLO26Depth.get_depth_image
          */
         image::Image *get_depth_image(image::Image &img, image::Fit fit = image::FIT_CONTAIN,
                                       image::CMap cmap = image::CMap::JET)
         {
-            if (_model == nullptr) return nullptr;
-            _cmap = cmap;
+            std::unique_ptr<tensor::Tensor> depth(get_depth(img, fit));
+            if (!depth) return nullptr;
+            return depth_to_image(*depth, img.width(), img.height(), fit, cmap);
+        }
 
-            tensor::Tensors *outputs = _model->forward_image(img, {}, {}, fit, false, false);
-            if (!outputs) return nullptr;
-            tensor::Tensor *t = outputs->begin()->second;
-            if (t->dtype() != tensor::DType::FLOAT32)
+        /**
+         * Convert an existing raw depth tensor to an RGB heatmap without running inference.
+         * @param depth raw float32 depth tensor returned by get_depth().
+         * @param image_width width of the source image passed to get_depth().
+         * @param image_height height of the source image passed to get_depth().
+         * @param fit resize fit mode used by get_depth().
+         * @param cmap color map used to visualize the depth values.
+         * @return a newly allocated image.Image at source-image size. In C++, delete it after use.
+         * @throw If the tensor, image size, or fit mode is invalid, raises err.Exception.
+         * @maixpy maix.nn.YOLO26Depth.depth_to_image
+         * @maixcdk maix.nn.YOLO26Depth.depth_to_image
+         */
+        image::Image *depth_to_image(tensor::Tensor &depth, int image_width, int image_height,
+                                     image::Fit fit = image::FIT_CONTAIN,
+                                     image::CMap cmap = image::CMap::JET)
+        {
+            DepthInfo info = _get_depth_info(depth);
+            DepthTransform transform = _get_depth_transform(image_width, image_height,
+                                                            info.width, info.height, fit);
+
+            const float *color_data = info.data;
+            int color_width = info.width;
+            int color_height = info.height;
+            std::vector<float> content;
+
+            if (fit == image::FIT_CONTAIN &&
+                (transform.content_width != info.width || transform.content_height != info.height))
             {
-                delete outputs;
-                return nullptr;
+                color_width = transform.content_width;
+                color_height = transform.content_height;
+                content.resize(color_width * color_height);
+                for (int y = 0; y < color_height; ++y)
+                {
+                    const float *src = info.data + (y + transform.offset_y) * info.width + transform.offset_x;
+                    std::copy(src, src + color_width, content.begin() + y * color_width);
+                }
+                color_data = content.data();
             }
-            int out_w = t->shape()[3];
-            int out_h = t->shape()[2];
-            _output_w = out_w;
-            _output_h = out_h;
-            const float *depth = (const float *)t->data();
 
-            // compute letterbox content region (remove padding), keep depth pixel-aligned with image
-            int top = 0, bottom = 0, left = 0, right = 0;
-            if (fit == image::Fit::FIT_CONTAIN && (img.width() != out_w || img.height() != out_h))
-            {
-                float gain = std::min((float)out_h / img.height(), (float)out_w / img.width());
-                int rw = (int)std::round(img.width() * gain);
-                int rh = (int)std::round(img.height() * gain);
-                int pw = out_w - rw;
-                int ph = out_h - rh;
-                left = (int)std::round(pw / 2.0f - 0.1f);
-                right = (int)std::round(pw / 2.0f + 0.1f);
-                top = (int)std::round(ph / 2.0f - 0.1f);
-                bottom = (int)std::round(ph / 2.0f + 0.1f);
-            }
-            int crop_w = out_w - left - right;
-            int crop_h = out_h - top - bottom;
+            image::Image *heatmap = _colorize(color_data, color_width, color_height, cmap);
+            if (color_width == image_width && color_height == image_height)
+                return heatmap;
 
-            // extract content region depth (row-major)
-            std::vector<float> crop(crop_w * crop_h);
-            for (int y = 0; y < crop_h; y++)
-                for (int x = 0; x < crop_w; x++)
-                    crop[y * crop_w + x] = depth[(y + top) * out_w + (x + left)];
+            image::Fit restore_fit = (fit == image::FIT_COVER) ? image::FIT_CONTAIN : image::FIT_FILL;
+            image::Image *result = heatmap->resize(image_width, image_height, restore_fit);
+            delete heatmap;
+            return result;
+        }
 
-            // generate heatmap on crop size
-            image::Image *heatmap = _colorize(crop.data(), crop_w, crop_h);
+        /**
+         * Read the estimated distance at a source-image position from an existing depth tensor.
+         * This method only performs CPU-side coordinate mapping and does not run inference.
+         * @param depth raw float32 depth tensor returned by get_depth().
+         * @param x x coordinate in the source image.
+         * @param y y coordinate in the source image.
+         * @param image_width width of the source image passed to get_depth().
+         * @param image_height height of the source image passed to get_depth().
+         * @param fit resize fit mode used by get_depth().
+         * @return estimated distance in meters, or NaN if the coordinate is outside the
+         *         represented image region or the model value is invalid.
+         * @throw If the tensor, image size, or fit mode is invalid, raises err.Exception.
+         * @maixpy maix.nn.YOLO26Depth.get_distance
+         * @maixcdk maix.nn.YOLO26Depth.get_distance
+         */
+        float get_distance(tensor::Tensor &depth, int x, int y, int image_width, int image_height,
+                           image::Fit fit = image::FIT_CONTAIN)
+        {
+            DepthInfo info = _get_depth_info(depth);
+            DepthTransform transform = _get_depth_transform(image_width, image_height,
+                                                            info.width, info.height, fit);
+            if (x < 0 || y < 0 || x >= image_width || y >= image_height)
+                return std::numeric_limits<float>::quiet_NaN();
 
-            // resize back to input image size
-            if (crop_w != img.width() || crop_h != img.height())
-            {
-                image::Image *result = heatmap->resize(img.width(), img.height(), image::FIT_FILL);
-                delete heatmap;
-                delete outputs;
-                return result;
-            }
-            delete outputs;
-            return heatmap;
+            int depth_x = transform.offset_x + (int)(x * transform.scale_x);
+            int depth_y = transform.offset_y + (int)(y * transform.scale_y);
+            if (depth_x < 0 || depth_y < 0 || depth_x >= info.width || depth_y >= info.height)
+                return std::numeric_limits<float>::quiet_NaN();
+
+            float value = info.data[depth_y * info.width + depth_x];
+            if (!std::isfinite(value) || value <= 0)
+                return std::numeric_limits<float>::quiet_NaN();
+            return value;
         }
 
     private:
+        struct DepthInfo
+        {
+            const float *data;
+            int width;
+            int height;
+        };
+
+        struct DepthTransform
+        {
+            float scale_x;
+            float scale_y;
+            int offset_x;
+            int offset_y;
+            int content_width;
+            int content_height;
+        };
+
         nn::NN *_model;
         bool _dual_buff;
         image::Format _input_img_fmt;
         int _input_w, _input_h;
         int _output_w, _output_h;
-        image::CMap _cmap;
+
+        DepthInfo _get_depth_info(tensor::Tensor &depth)
+        {
+            if (depth.dtype() != tensor::DType::FLOAT32)
+                throw err::Exception(err::ERR_ARGS, "depth tensor dtype must be float32");
+            std::vector<int> shape = depth.shape();
+            if (shape.size() != 4 || shape[0] != 1 || shape[1] != 1 ||
+                shape[2] <= 0 || shape[3] <= 0 || depth.data() == nullptr)
+                throw err::Exception(err::ERR_ARGS, "depth tensor shape must be [1, 1, H, W]");
+            return {(const float *)depth.data(), shape[3], shape[2]};
+        }
+
+        DepthTransform _get_depth_transform(int image_width, int image_height,
+                                            int depth_width, int depth_height, image::Fit fit)
+        {
+            if (image_width <= 0 || image_height <= 0)
+                throw err::Exception(err::ERR_ARGS, "source image size must be positive");
+
+            DepthTransform transform = {};
+            if (fit == image::FIT_FILL)
+            {
+                transform.content_width = depth_width;
+                transform.content_height = depth_height;
+                transform.offset_x = 0;
+                transform.offset_y = 0;
+            }
+            else if (fit == image::FIT_CONTAIN)
+            {
+                float scale = std::min((float)depth_width / image_width,
+                                       (float)depth_height / image_height);
+                transform.content_width = (int)std::round(image_width * scale);
+                transform.content_height = (int)std::round(image_height * scale);
+                transform.offset_x = (depth_width - transform.content_width) / 2;
+                transform.offset_y = (depth_height - transform.content_height) / 2;
+            }
+            else if (fit == image::FIT_COVER)
+            {
+                float scale = std::max((float)depth_width / image_width,
+                                       (float)depth_height / image_height);
+                transform.content_width = (int)std::round(image_width * scale);
+                transform.content_height = (int)std::round(image_height * scale);
+                transform.offset_x = -(transform.content_width - depth_width) / 2;
+                transform.offset_y = -(transform.content_height - depth_height) / 2;
+            }
+            else
+            {
+                throw err::Exception(err::ERR_ARGS, "unsupported depth image fit mode");
+            }
+
+            if (transform.content_width <= 0 || transform.content_height <= 0)
+                throw err::Exception(err::ERR_ARGS, "invalid mapped depth content size");
+            transform.scale_x = (float)transform.content_width / image_width;
+            transform.scale_y = (float)transform.content_height / image_height;
+            return transform;
+        }
 
         /**
          * Convert depth map to RGB888 heatmap: disparity(1/depth) + min-max normalize + cmap lookup.
          * Return a new image::Image, caller should delete it.
          */
-        image::Image *_colorize(const float *depth, int w, int h)
+        image::Image *_colorize(const float *depth, int w, int h, image::CMap cmap)
         {
-            auto &colors = image::cmap_colors_rgb(_cmap);
+            auto &colors = image::cmap_colors_rgb(cmap);
             image::Image *result = new image::Image(w, h, image::Format::FMT_RGB888);
             uint8_t *img_data = (uint8_t *)result->data();
             int n = w * h;
 
             float min_v = FLT_MAX, max_v = -FLT_MAX;
+            int valid_count = 0;
             for (int i = 0; i < n; i++)
             {
                 float d = depth[i];
@@ -302,7 +413,13 @@ namespace maix::nn
                     float v = 1.0f / d;   // disparity
                     if (v < min_v) min_v = v;
                     if (v > max_v) max_v = v;
+                    ++valid_count;
                 }
+            }
+            if (valid_count == 0)
+            {
+                memset(img_data, 0, n * 3);
+                return result;
             }
             if (min_v == max_v)
             {
