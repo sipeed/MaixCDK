@@ -13,6 +13,27 @@
 namespace maix::protocol
 {
     uint32_t HEADER = 0xBBACCAAA;
+
+    namespace
+    {
+        // Frame layout:
+        // [header][data_len][flags][cmd][body][crc16]
+        // RESP_ERR stores the error code as the first byte of body.
+        constexpr int HEADER_LEN = sizeof(uint32_t);
+        constexpr int DATA_LEN_FIELD_LEN = sizeof(uint32_t);
+        constexpr int FLAGS_LEN = sizeof(uint8_t);
+        constexpr int CMD_LEN = sizeof(uint8_t);
+        constexpr int CRC_LEN = sizeof(uint16_t);
+        constexpr int ERROR_CODE_LEN = sizeof(uint8_t);
+        constexpr int DATA_LEN_OFFSET = HEADER_LEN;
+        constexpr int FLAGS_OFFSET = HEADER_LEN + DATA_LEN_FIELD_LEN;
+        constexpr int CMD_OFFSET = FLAGS_OFFSET + FLAGS_LEN;
+        constexpr int BODY_OFFSET = CMD_OFFSET + CMD_LEN;
+        constexpr int FRAME_DATA_OFFSET = HEADER_LEN + DATA_LEN_FIELD_LEN;
+        constexpr int FRAME_DATA_OVERHEAD_LEN = FLAGS_LEN + CMD_LEN + CRC_LEN;
+        constexpr int FRAME_OVERHEAD_LEN = HEADER_LEN + DATA_LEN_FIELD_LEN + FRAME_DATA_OVERHEAD_LEN;
+    }
+
     uint16_t crc16_IBM(uint8_t *ptr, size_t len)
     {
         unsigned int i;
@@ -47,32 +68,40 @@ namespace maix::protocol
 
         if (version != VERSION)
             return -err::ERR_ARGS;
-        if (out_buff_len < body_len + 12)
+        if (body_len < 0 || (body_len > 0 && !body))
+            return -err::ERR_ARGS;
+        const int code_len = code == 0xFF ? 0 : ERROR_CODE_LEN;
+        const int frame_len = body_len + FRAME_OVERHEAD_LEN + code_len;
+        const int data_len = body_len + FRAME_DATA_OVERHEAD_LEN + code_len;
+        if (out_buff_len < frame_len)
             return -err::ERR_ARGS;
         ((uint32_t *)out_buff)[0] = HEADER;
-        ((uint32_t *)out_buff)[1] = body_len + 4;
-        out_buff[8] = flags | version;
-        out_buff[9] = cmd;
+        ((uint32_t *)out_buff)[1] = data_len;
+        out_buff[FLAGS_OFFSET] = flags | version;
+        out_buff[CMD_OFFSET] = cmd;
+        const int crc_offset = BODY_OFFSET + code_len + body_len;
         if (code != 0xFF)
         {
-            out_buff[10] = code;
-            memcpy(out_buff + 11, body, body_len);
-            uint16_t crc16 = crc16_IBM(out_buff, body_len + 11);
-            out_buff[11 + body_len] = crc16 & 0xFF;
-            out_buff[12 + body_len] = crc16 >> 8 & 0xFF;
-            return body_len + 13;
+            out_buff[BODY_OFFSET] = code;
+            if (body_len > 0)
+                memcpy(out_buff + BODY_OFFSET + ERROR_CODE_LEN, body, body_len);
+            uint16_t crc16 = crc16_IBM(out_buff, crc_offset);
+            out_buff[crc_offset] = crc16 & 0xFF;
+            out_buff[crc_offset + 1] = crc16 >> 8 & 0xFF;
+            return frame_len;
         }
-        memcpy(out_buff + 10, body, body_len);
-        uint16_t crc16 = crc16_IBM(out_buff, body_len + 10);
-        out_buff[10 + body_len] = crc16 & 0xFF;
-        out_buff[11 + body_len] = crc16 >> 8 & 0xFF;
-        return body_len + 12;
+        if (body_len > 0)
+            memcpy(out_buff + BODY_OFFSET, body, body_len);
+        uint16_t crc16 = crc16_IBM(out_buff, crc_offset);
+        out_buff[crc_offset] = crc16 & 0xFF;
+        out_buff[crc_offset + 1] = crc16 >> 8 & 0xFF;
+        return frame_len;
     }
 
     Bytes *encode_resp_ok(uint8_t cmd, uint8_t *body, int body_len)
     {
-        uint8_t *buff = new uint8_t[12 + body_len];
-        int len = encode(buff, 12 + body_len, cmd, FLAG_RESP | FLAG_RESP_OK, body, body_len);
+        uint8_t *buff = new uint8_t[FRAME_OVERHEAD_LEN + body_len];
+        int len = encode(buff, FRAME_OVERHEAD_LEN + body_len, cmd, FLAG_RESP | FLAG_RESP_OK, body, body_len);
         if (len < 0)
         {
             delete[] buff;
@@ -84,14 +113,16 @@ namespace maix::protocol
 
     Bytes *encode_resp_ok(uint8_t cmd, Bytes *body)
     {
+        if (!body)
+            return protocol::encode_resp_ok(cmd, nullptr, 0);
         int body_len = body->size();
         return protocol::encode_resp_ok(cmd, body->data, body_len);
     }
 
     Bytes *encode_resp_err(uint8_t cmd, err::Err code, const std::string &msg)
     {
-        uint8_t *buff = new uint8_t[13 + msg.length()];
-        int len = encode(buff, 13 + msg.length(), cmd, FLAG_RESP | FLAG_RESP_ERR, (uint8_t *)msg.c_str(), msg.length(), code);
+        uint8_t *buff = new uint8_t[FRAME_OVERHEAD_LEN + ERROR_CODE_LEN + msg.length()];
+        int len = encode(buff, FRAME_OVERHEAD_LEN + ERROR_CODE_LEN + msg.length(), cmd, FLAG_RESP | FLAG_RESP_ERR, (uint8_t *)msg.c_str(), msg.length(), code);
         if (len < 0)
         {
             delete[] buff;
@@ -116,12 +147,12 @@ namespace maix::protocol
         size_t data_len = 0;
 
         *idx = 0;
-        if (len < 12)
+        if (len < FRAME_OVERHEAD_LEN)
             return false;
         // find header
         uint32_t i = 0;
         bool found = false;
-        for (; i < (uint32_t)len - 4; i++)
+        for (; i < (uint32_t)len - HEADER_LEN; i++)
         {
             if (data[i] == (header & 0xFF) &&
                 data[i + 1] == ((header >> 8) & 0xFF) &&
@@ -132,35 +163,39 @@ namespace maix::protocol
                 break;
             }
         }
-        // len >= 12
+        // Have at least one full minimal frame after the header position.
         if (!found)
         {
             *idx = i;
             return false;
         }
-        if (len - i < 12)
+        if (len - i < FRAME_OVERHEAD_LEN)
             return false;
 
         // get data_len, and check data length
-        data_len = data[i + 4] | (data[i + 5] << 8) | (data[i + 6] << 16) | (data[i + 7] << 24);
-        if (data_len > len - i - 8)
+        data_len = data[i + DATA_LEN_OFFSET] |
+                   (data[i + DATA_LEN_OFFSET + 1] << 8) |
+                   (data[i + DATA_LEN_OFFSET + 2] << 16) |
+                   (data[i + DATA_LEN_OFFSET + 3] << 24);
+        if (data_len < FRAME_DATA_OVERHEAD_LEN || data_len > len - i - FRAME_DATA_OFFSET)
             return false;
-        *idx = i + 8 + data_len;
+        *idx = i + FRAME_DATA_OFFSET + data_len;
         // check crc
-        uint16_t crc16 = crc16_IBM(data + i, data_len + 6);
-        if (data[i + 6 + data_len] != (crc16 & 0xFF) || data[i + 7 + data_len] != (crc16 >> 8 & 0xFF))
+        const int crc_offset = i + FRAME_DATA_OFFSET + data_len - CRC_LEN;
+        uint16_t crc16 = crc16_IBM(data + i, FRAME_DATA_OFFSET + data_len - CRC_LEN);
+        if (data[crc_offset] != (crc16 & 0xFF) || data[crc_offset + 1] != (crc16 >> 8 & 0xFF))
         {
             return false;
         }
         // parse data
-        frame->version = data[i + 8] & FLAG_VERSION_MASK;
-        frame->is_resp = data[i + 8] & FLAG_IS_RESP_MASK;
+        frame->version = data[i + FLAGS_OFFSET] & FLAG_VERSION_MASK;
+        frame->is_resp = data[i + FLAGS_OFFSET] & FLAG_IS_RESP_MASK;
         frame->is_req = !frame->is_resp;
-        frame->is_report = data[i + 8] & FLAG_REPORT_MASK;
-        frame->resp_ok = data[i + 8] & FLAG_RESP_OK_MASK;
-        frame->cmd = data[i + 9];
-        frame->set_body(data + i + 10, data_len - 4);
-        frame->body_len = data_len - 4;
+        frame->is_report = data[i + FLAGS_OFFSET] & FLAG_REPORT_MASK;
+        frame->resp_ok = data[i + FLAGS_OFFSET] & FLAG_RESP_OK_MASK;
+        frame->cmd = data[i + CMD_OFFSET];
+        frame->set_body(data + i + BODY_OFFSET, data_len - FRAME_DATA_OVERHEAD_LEN);
+        frame->body_len = data_len - FRAME_DATA_OVERHEAD_LEN;
         return true;
     }
 
@@ -210,6 +245,8 @@ namespace maix::protocol
 
     Bytes *MSG::encode_resp_ok(Bytes *body)
     {
+        if (!body)
+            return protocol::encode_resp_ok(this->cmd, nullptr, 0);
         return protocol::encode_resp_ok(this->cmd, body);
     }
 
@@ -220,8 +257,8 @@ namespace maix::protocol
 
     Bytes *MSG::encode_report(uint8_t *body, int body_len)
     {
-        uint8_t *buff = new uint8_t[12 + body_len];
-        int len = protocol::encode(buff, 12 + body_len, this->cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body, body_len);
+        uint8_t *buff = new uint8_t[FRAME_OVERHEAD_LEN + body_len];
+        int len = protocol::encode(buff, FRAME_OVERHEAD_LEN + body_len, this->cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body, body_len);
         if (len < 0)
         {
             delete[] buff;
@@ -233,8 +270,10 @@ namespace maix::protocol
 
     Bytes *MSG::encode_report(Bytes *body)
     {
-        uint8_t *buff = new uint8_t[12 + body_len];
-        int len = protocol::encode(buff, 12 + body_len, this->cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body->data, (int)body->size());
+        int body_len = body ? (int)body->size() : 0;
+        uint8_t *body_data = body ? body->data : nullptr;
+        uint8_t *buff = new uint8_t[FRAME_OVERHEAD_LEN + body_len];
+        int len = protocol::encode(buff, FRAME_OVERHEAD_LEN + body_len, this->cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body_data, body_len);
         if (len < 0)
         {
             delete[] buff;
@@ -283,6 +322,8 @@ namespace maix::protocol
 
     Bytes *Protocol::encode_resp_ok(uint8_t cmd, Bytes *body)
     {
+        if (!body)
+            return protocol::encode_resp_ok(cmd, nullptr, 0);
         return protocol::encode_resp_ok(cmd, body);
     }
 
@@ -293,8 +334,8 @@ namespace maix::protocol
 
     Bytes *Protocol::encode_report(uint8_t cmd, uint8_t *body, int body_len)
     {
-        uint8_t *buff = new uint8_t[12 + body_len];
-        int len = protocol::encode(buff, 12 + body_len, cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body, body_len);
+        uint8_t *buff = new uint8_t[FRAME_OVERHEAD_LEN + body_len];
+        int len = protocol::encode(buff, FRAME_OVERHEAD_LEN + body_len, cmd, FLAG_RESP | FLAG_RESP_OK | FLAG_REPORT, body, body_len);
         if (len < 0)
         {
             delete[] buff;
@@ -306,6 +347,8 @@ namespace maix::protocol
 
     Bytes *Protocol::encode_report(uint8_t cmd, Bytes *body)
     {
+        if (!body)
+            return Protocol::encode_report(cmd, nullptr, 0);
         return Protocol::encode_report(cmd, body->data, body->size());
     }
 
@@ -344,7 +387,7 @@ namespace maix::protocol
 
     err::Err Protocol::push_data(const Bytes *new_data)
     {
-        return push_data((uint8_t *)&new_data[0], new_data->size());
+        return push_data(new_data->data, new_data->size());
     }
 
     MSG *Protocol::decode(uint8_t *new_data, size_t len)
@@ -372,7 +415,9 @@ namespace maix::protocol
 
     MSG *Protocol::decode(const Bytes *new_data)
     {
-        return decode((uint8_t *)&new_data[0], new_data->size());
+        if (!new_data)
+            return decode(nullptr, 0);
+        return decode(new_data->data, new_data->size());
     }
 
 } // namespace maix::protocol

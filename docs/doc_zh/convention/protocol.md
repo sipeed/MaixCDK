@@ -43,12 +43,12 @@ update:
 | 十六进制示例    | 0xBBACCAAA | 0x00000009                   |  0x00              | 0x01    | hello             | 0x442B       |
 | 字节流(十六进制)| AA CA AC BB | 09 00 00 00                 | 00                 | 01      |  68 65 6c 6c 6F   | 2B 44 |
 
-> **注意**这里超过一个字节的数据均采用小端(LE)编码，比如这里 `data_len` 为 `0x00000006`，`06`在最低位，发送时需要先发送`0x06`再发送`0x00` `0x00` `0x00`。
+> **注意**这里超过一个字节的数据均采用小端(LE)编码，比如这里 `data_len` 为 `0x00000009`，`09`在最低位，发送时需要先发送`0x09`再发送`0x00` `0x00` `0x00`。
 > 字符串就按照顺序发即可，比如`hello`，先发`h`再发`e` `l` `l` `o`。
 > 这里的例子，最终发送数据： `AA CA AC BB 09 00 00 00 00 01 68 65 6c 6c 6F 2B 44`。
 
 * `header`: 头，4 字节，用来标识一帧的开始，固定为 4 字节 `0xAA 0xCA 0xAC 0xBB`, 先发`0xAA`
-* `data len`: 数据长度， 4 字节， 包含了 `flags` `cmd` + `body` + `CRC` 的长度。
+* `data len`: 数据长度， 4 字节， 包含了 `flags` + `cmd` + `body` + `CRC` 的长度，不包含 `header` 和 `data len` 自身。
 * `flags`: 一个字节，各个位分别表示：
   * 最高位 `is_resp`:  是否是响应，`0`代表发送请求，`1`代表 响应 或者 主动上报（第三高位需要置`1`）。
   * 第二高位 `resp_ok`:
@@ -82,7 +82,7 @@ update:
 * 对于成功响应：`resp_ok` 设置为 `1`, `body` 内容由`cmd`决定, 其中最简单的成功响应即 `body` 为空。
 * 对是失败响应：
   * `resp_ok`设置为 `0`。
-  * `body` 第一个字节为错误码, 具体的错误码见[MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp)。
+  * `body` 第一个字节为错误码, 具体的错误码见[MaixCDK maix.err.Err](../../../components/basic/include/maix_err.hpp)，这个错误码字节也计入 `body` 长度和帧头中的 `data_len`。
   * `body` 后面的字节为错误字符串信息，`UTF-8` 编码，一般情况下建议用纯英文，提高兼容性。
 
 每个请求均应有对应的响应，即执行成功或者失败，后文均用`RESP_OK`和`RESP_ERR`来代替执行成功和失败两种响应。
@@ -110,7 +110,7 @@ update:
 `AA CA AC BB  04 00 00 00  01 F9  C9 77`。
 
 2. Maix 设备收到请求后，返回`cmd`为`0xF9`, `flags`为`0x01 | 0x80 | 0x40 => 0xC1`的响应（响应`flags`最高为`1`所以有`|0x80`, 成功响应第二高位为`1`所以有`|0x40`），`body`内容为应用列表，具体内容见下方协议说明。假如有两个 APP,实际字节流：
-`AA CA AC BB  0A 00 00 00  C1 F9  02  66 61 63 65 00  66 61 63 65 00  F6 06`。
+`AA CA AC BB  0F 00 00 00  C1 F9  02  66 61 63 65 00  66 61 63 65 00  E5 57`。
 
 
 ## 命令定义和系统命令
@@ -548,5 +548,3 @@ unsigned short crc16_IBM(const unsigned char *ptr,int len)
 }
 
 ```
-
-
