@@ -1,0 +1,9 @@
+menu "Main Component Config"
+    config MAIN_COMPONENT_EACH_BUILD
+        bool "Each component build a separate shared library file"
+        default n
+
+    config MAIN_COMPONENT_BUILD_TYPE
+        string "Main component build type"
+        default "Release"
+endmenu
