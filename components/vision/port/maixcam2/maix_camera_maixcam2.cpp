@@ -752,15 +752,72 @@ namespace maix::camera
         if (!priv->raw) {
             err::check_raise(err::ERR_NOT_READY, "you need to enable the raw parameter when constructing the Camera object.");
         }
-        auto vi = priv->ax_vi;
 
-        auto frame = vi->pop_raw(priv->chn.id, 5000);
-        if (frame == nullptr) {
-            err::check_raise(err::ERR_BUFF_EMPTY, "read camera failed");
+        constexpr AX_U8 pipe_id = 0;
+        constexpr AX_VIN_PIPE_DUMP_NODE_E dump_node = AX_VIN_PIPE_DUMP_NODE_IFE;
+        constexpr AX_SNS_HDR_FRAME_E sns_frame = AX_SNS_HDR_FRAME_L;
+        AX_IMG_INFO_T img_info = {};
+        AX_S32 ax_ret = AX_VIN_GetRawFrame(pipe_id, dump_node, sns_frame, &img_info, 5000);
+        if (ax_ret != AX_SUCCESS) {
+            if (ax_ret == AX_ERR_VIN_RES_EMPTY) {
+                err::check_raise(err::ERR_BUFF_EMPTY, "Raw buffer empty");
+            }
+            log::error("AX_VIN_GetRawFrame failed, ret:0x%x", ax_ret);
+            err::check_raise(err::ERR_RUNTIME, "AX_VIN_GetRawFrame failed");
         }
 
-        auto img = new image::Image(frame->w, frame->h, image::FMT_RGGB10, (uint8_t *)frame->data, frame->len, true);
-        delete frame;
+        bool frame_acquired = true;
+        AX_VOID *mapped_addr = nullptr;
+        const AX_VIDEO_FRAME_T &raw_frame = img_info.tFrameInfo.stVFrame;
+
+        auto cleanup_raw_frame = [&]() {
+            if (mapped_addr) {
+                AX_S32 ret = AX_SYS_Munmap(mapped_addr, raw_frame.u32FrameSize);
+                if (ret != AX_SUCCESS) {
+                    log::error("AX_SYS_Munmap failed for RAW frame, ret:0x%x", ret);
+                }
+                mapped_addr = nullptr;
+            }
+            if (frame_acquired) {
+                AX_S32 ret = AX_VIN_ReleaseRawFrame(pipe_id, dump_node, sns_frame, &img_info);
+                if (ret != AX_SUCCESS) {
+                    log::error("AX_VIN_ReleaseRawFrame failed, ret:0x%x", ret);
+                }
+                frame_acquired = false;
+            }
+        };
+
+        if (raw_frame.u64PhyAddr[0] == 0 || raw_frame.u32FrameSize == 0 ||
+            raw_frame.u32Width == 0 || raw_frame.u32Height == 0) {
+            cleanup_raw_frame();
+            err::check_raise(err::ERR_RUNTIME, "RAW frame descriptor is invalid");
+        }
+
+        // Always create and own a separate CPU mapping. The virtual address in
+        // the VIN descriptor belongs to VIN and must remain untouched for release.
+        mapped_addr = AX_SYS_MmapCache(raw_frame.u64PhyAddr[0], raw_frame.u32FrameSize);
+        if (!mapped_addr) {
+            cleanup_raw_frame();
+            err::check_raise(err::ERR_RUNTIME, "AX_SYS_MmapCache failed for RAW frame");
+        }
+
+        ax_ret = AX_SYS_MinvalidateCache(raw_frame.u64PhyAddr[0], mapped_addr, raw_frame.u32FrameSize);
+        if (ax_ret != AX_SUCCESS) {
+            log::error("AX_SYS_MinvalidateCache failed for RAW frame, ret:0x%x", ax_ret);
+            cleanup_raw_frame();
+            err::check_raise(err::ERR_RUNTIME, "AX_SYS_MinvalidateCache failed for RAW frame");
+        }
+
+        image::Image *img = nullptr;
+        try {
+            img = new image::Image(raw_frame.u32Width, raw_frame.u32Height, image::FMT_RGGB10,
+                                   static_cast<uint8_t *>(mapped_addr), raw_frame.u32FrameSize, true);
+        } catch (...) {
+            cleanup_raw_frame();
+            throw;
+        }
+
+        cleanup_raw_frame();
         return img;
     }
 
