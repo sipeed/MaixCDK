@@ -1515,7 +1515,7 @@ namespace maix::middleware::maixcam2 {
             }
 
             if (fps > 30 || fps <= 0) {
-                if (fps == 120 && w == 640 && h == 360) {
+                if (fps == 120) {
                     w = 640;
                     h = 360;
                     fps = 120;

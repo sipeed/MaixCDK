@@ -143,10 +143,14 @@ static int run_test(int argc, char *argv[])
     bool use_display = argc > 3 && std::string(argv[3]) == "display";
     int manual_exposure_us = argc > 4 ? std::strtol(argv[4], nullptr, 10) : 0;
     int manual_again = argc > 5 ? std::strtol(argv[5], nullptr, 10) : 0;
+    int width = argc > 6 ? std::strtol(argv[6], nullptr, 10) : 640;
+    int height = argc > 7 ? std::strtol(argv[7], nullptr, 10) : 360;
+    int fps = argc > 8 ? std::strtol(argv[8], nullptr, 10) : 120;
     image::Format format = rgb888 ? image::Format::FMT_RGB888 : image::Format::FMT_YVU420SP;
-    log::info("Opening OS04D10 test mode: 640x360 %s @ 120 FPS, display=%s, AI-ISP disabled",
-              rgb888 ? "RGB888" : "NV21", use_display ? "on" : "off");
-    camera::Camera cam(640, 360, format, "", 120, 4, true, false);
+    log::info("Opening OS04D10 test: requested=%dx%d %s @ %d FPS, display=%s, AI-ISP disabled",
+              width, height, rgb888 ? "RGB888" : "NV21", fps,
+              use_display ? "on" : "off");
+    camera::Camera cam(width, height, format, "", fps, 4, true, false);
     display::Display *disp = use_display ? new display::Display() : nullptr;
     log::info("Camera accepted: %dx%d @ %.2f FPS, channel=%d, buffers=%d",
               cam.width(), cam.height(), cam.fps(), cam.get_channel(), cam.buff_num());
