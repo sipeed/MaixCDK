@@ -2,11 +2,11 @@
  * YOLO26-depth example
  *
  * Usage:
- *   - 单张图片推理并保存热力图:
- *       ./nn_yolo26_depth mud_model_path image_path [output_path]
- *       例: ./nn_yolo26_depth /tmp/yolo26n-depth.mud /tmp/bus.jpg /tmp/bus_heatmap.jpg
- *   - 实时摄像头推理并显示热力图:
- *       ./nn_yolo26_depth mud_model_path
+ *   - 单张图片推理并保存热力图(可选传 cal_a cal_b 校准):
+ *       ./nn_yolo26_depth mud_model_path image_path [output_path] [cal_a cal_b]
+ *       例: ./nn_yolo26_depth /tmp/yolo26n-depth.mud /tmp/bus.jpg /tmp/bus_heatmap.jpg 0.85 0.40
+ *   - 实时摄像头推理并显示热力图(可选传 cal_a cal_b):
+ *       ./nn_yolo26_depth mud_model_path [cal_a cal_b]
  *       点击画面可添加/取消距离探针，最多保留 5 个，距离随画面实时更新。
  *
  * 依赖(设备上需存在):
@@ -166,6 +166,15 @@ int _main(int argc, char *argv[])
     const char *model_path = argv[1];
     bool dual_buff = false;
     image::CMap cmap = image::CMap::JET;
+    // 可选深度校准参数(默认不校准): d_real = exp(cal_a * log(d_raw) + cal_b)
+    float cal_a = 1.0f;
+    float cal_b = 0.0f;
+    if (argc >= 6)
+    {
+        cal_a = std::stof(argv[4]);
+        cal_b = std::stof(argv[5]);
+        log::info("depth calibration enabled: cal_a=%f cal_b=%f", cal_a, cal_b);
+    }
 
     log::info("model path: %s", model_path);
     nn::YOLO26Depth model(model_path, dual_buff);
@@ -189,8 +198,8 @@ int _main(int argc, char *argv[])
                       img->width(), img->height(), model.input_width(), model.input_height());
         }
 
-        // 推理得到深度热力图(自动 resize 回原图尺寸)
-        maix::image::Image *heatmap = model.get_depth_image(*img, image::FIT_CONTAIN, cmap);
+        // 推理得到深度热力图(自动 resize 回原图尺寸; 可传 cal_a/cal_b 校准)
+        maix::image::Image *heatmap = model.get_depth_image(*img, image::FIT_CONTAIN, cmap, cal_a, cal_b);
         err::check_null_raise(heatmap, "get_depth_image failed");
 
         // 保存热力图
@@ -246,7 +255,7 @@ int _main(int argc, char *argv[])
                 was_pressed = pressed;
             }
 
-            std::unique_ptr<tensor::Tensor> depth(model.get_depth(*img, image::FIT_CONTAIN));
+            std::unique_ptr<tensor::Tensor> depth(model.get_depth(*img, image::FIT_CONTAIN, cal_a, cal_b));
             if (!depth)
                 continue;
 
