@@ -187,11 +187,16 @@ namespace maix::nn
          * @param fit image resize fit mode if input image not equal to model' input size,
          *            will auto resize to model's input size then detect, and recover to image input size.
          *            Default Fit.FIT_CONTAIN, see image.Fit.
+         * @param cal_a calibration scale factor a, the depth is converted by d_real = exp(a * log(d) + b).
+         *            Default 1.0 (no calibration). Set both cal_a/cal_b to fit your camera/scene.
+         * @param cal_b calibration offset b, see cal_a. Default 0.0 (no calibration).
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
-         * @return result, a tensor.Tensor object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
+         * @return result, a tensor.Tensor object with calibrated depth in meters. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
          * @maixpy maix.nn.YOLO26Depth.get_depth
+         * @maixcdk maix.nn.YOLO26Depth.get_depth
          */
-        tensor::Tensor *get_depth(image::Image &img, image::Fit fit = image::FIT_CONTAIN)
+        tensor::Tensor *get_depth(image::Image &img, image::Fit fit = image::FIT_CONTAIN,
+                                  float cal_a = 1.0f, float cal_b = 0.0f)
         {
             if (_model == nullptr) return nullptr;
             std::unique_ptr<tensor::Tensors> outputs(_model->forward_image(img, {}, {}, fit, false, false));
@@ -205,6 +210,7 @@ namespace maix::nn
             _output_h = info.height;
             _output_w = info.width;
             tensor::Tensor *result = new tensor::Tensor(t->shape(), t->dtype(), t->data(), true);
+            _apply_calibration((float *)result->data(), info.width * info.height, cal_a, cal_b);
             return result;
         }
 
@@ -217,14 +223,19 @@ namespace maix::nn
          * @param cmap Color map used convert grayscale distance estimation image to RGB image.
          *             Diiferent cmap will influence finally image.
          *             Default image.CMap.JET (near red/yellow, far blue).
+         * @param cal_a calibration scale factor a, the depth is converted by d_real = exp(a * log(d) + b).
+         *            Default 1.0 (no calibration). Set both cal_a/cal_b to fit your camera/scene.
+         * @param cal_b calibration offset b, see cal_a. Default 0.0 (no calibration).
          * @throw If error occurred, will raise err::Exception, you can find reason in log, mostly caused by args error or hardware error.
-         * @return result, a image::Image object. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
+         * @return result, a image::Image object with calibrated depth heatmap. If in dual_buff mode, value can be None(in Python) or nullptr(in C++) when not ready. In C++, you need to delete it after use.
          * @maixpy maix.nn.YOLO26Depth.get_depth_image
+         * @maixcdk maix.nn.YOLO26Depth.get_depth_image
          */
         image::Image *get_depth_image(image::Image &img, image::Fit fit = image::FIT_CONTAIN,
-                                      image::CMap cmap = image::CMap::JET)
+                                      image::CMap cmap = image::CMap::JET,
+                                      float cal_a = 1.0f, float cal_b = 0.0f)
         {
-            std::unique_ptr<tensor::Tensor> depth(get_depth(img, fit));
+            std::unique_ptr<tensor::Tensor> depth(get_depth(img, fit, cal_a, cal_b));
             if (!depth) return nullptr;
             return depth_to_image(*depth, img.width(), img.height(), fit, cmap);
         }
@@ -390,6 +401,22 @@ namespace maix::nn
             transform.scale_x = (float)transform.content_width / image_width;
             transform.scale_y = (float)transform.content_height / image_height;
             return transform;
+        }
+
+        /**
+         * Apply log-affine depth calibration in place: d_real = exp(a * log(d) + b).
+         * With default a=1, b=0 the data is unchanged.
+         */
+        void _apply_calibration(float *data, int count, float cal_a, float cal_b)
+        {
+            if (cal_a == 1.0f && cal_b == 0.0f)
+                return;
+            for (int i = 0; i < count; i++)
+            {
+                float d = data[i];
+                if (std::isfinite(d) && d > 0)
+                    data[i] = expf(cal_a * logf(d) + cal_b);
+            }
         }
 
         /**
