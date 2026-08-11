@@ -43,7 +43,7 @@ namespace maix::touchscreen
                 std::string str(buf);
                 str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
                 str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
-                if (strcmp(str.c_str(), "hyn_ts") == 0) {
+                if (strcmp(str.c_str(), "hyn_ts") == 0 || strcmp(str.c_str(), "goodix-ts") == 0) {
                     success = true;
                 }
             }
@@ -67,7 +67,7 @@ namespace maix::touchscreen
                     std::string str(buf);
                     str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
                     str.erase(std::remove(str.begin(), str.end(), '\r'), str.end());
-                    if (strcmp(str.c_str(), "hyn_ts") == 0) {
+                    if (strcmp(str.c_str(), "hyn_ts") == 0 || strcmp(str.c_str(), "goodix-ts") == 0) {
                         success = true;
                     }
                 }
