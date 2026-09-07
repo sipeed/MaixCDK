@@ -85,7 +85,8 @@ namespace maix::camera
          * @param height camera height, default is -1, means auto, mostly means max height of camera support
          * @param format camera output format, default is image.Format.FMT_RGB888
          * @param device camera device path, you can get devices by list_devices method, by default(value is NULL(None in MaixPy)) means the first device
-         * @param fps camera fps, default is -1, means auto, mostly means max fps of camera support
+         * @param fps camera fps, default is -1, means automatic supported timing.
+         *            On MaixCAM2 with OS04A10, automatic timing is 60 FPS.
          * @param buff_num camera buffer number, default is 3, means 3 buffer, one used by user, one used for cache the next frame,
          *                 more than one buffer will accelerate image read speed, but will cost more memory.
          * @param open If true, camera will automatically call open() after creation. default is true.
@@ -108,7 +109,8 @@ namespace maix::camera
          * @param width camera width, default is -1, means auto, mostly means max width of camera support
          * @param height camera height, default is -1, means auto, mostly means max height of camera support
          * @param format camera output format, default same as the constructor's format argument
-         * @param fps camera fps, default is -1, means auto, mostly means max fps of camera support
+         * @param fps camera fps, default is -1, means automatic supported timing.
+         *            On MaixCAM2 with OS04A10, automatic timing is 60 FPS.
          * @param buff_num camera buffer number, default is 3, means 3 buffer, one used by user, one used for cache the next frame,
          *                 more than one buffer will accelerate image read speed, but will cost more memory.
          * @return error code, err::ERR_NONE means success, others means failed
@@ -178,7 +180,8 @@ namespace maix::camera
          * @param width camera width, default is -1, means auto, mostly means max width of camera support
          * @param height camera height, default is -1, means auto, mostly means max height of camera support
          * @param format camera output format, default is RGB888
-         * @param fps camera fps, default is -1, means auto, mostly means max fps of camera support
+         * @param fps camera fps, default is -1, means automatic supported timing.
+         *            On MaixCAM2 with OS04A10, automatic timing is 60 FPS.
          * @param buff_num camera buffer number, default is 3, means 3 buffer, one used by user, one used for cache the next frame,
          *                 more than one buffer will accelerate image read speed, but will cost more memory.
          * @param open If true, camera will automatically call open() after creation. default is true.
@@ -320,7 +323,12 @@ namespace maix::camera
 
         /**
          * Set camera fps
-         * @param fps new fps
+         * @param fps new fps. On MaixCAM2 with OS04A10 this reconfigures the
+         *            sensor/VIN timing while preserving the current sensor
+         *            crop. Pass a non-positive value to select its automatic
+         *            60 FPS timing.
+         *            Requests above the current crop mode's supported limit
+         *            are rejected without stopping the current stream.
          * @return error code, err::ERR_NONE means success, others means failed
          * @maixpy maix.camera.Camera.set_fps
         */
@@ -437,6 +445,36 @@ namespace maix::camera
          * Set window size of camera
          * @param roi Support two input formats, [x,y,w,h] set the coordinates and size of the window;
          * [w,h] set the size of the window, when the window is centred.
+         * On OS04A10 this configures the sensor ROI registers and restarts an opened camera pipeline.
+         * For outputs up to 1344x760, x/y are native 2704x1536-array coordinates while w/h are
+         * post-2x2-binning output dimensions. The 1344x760 ROI at [0,4] is the full-FOV binned
+         * mode; smaller sizes are binned sensor crops. Geometry rules are x/y even, w in
+         * 256..2688 and a multiple of 16 pixels, and h in 20..1520 and even. The physical
+         * binned readout must fit within the native 2704x1536 array:
+         * x + 2 * (w + 8) <= 2704 and y + 2 * h + 8 <= 1536. For a native (non-binned)
+         * crop the corresponding bounds are x + w + 16 <= 2704 and y + h + 16 <= 1536.
+         * These are nominal geometry limits. The AX620E OS04A10 pipeline may still produce no
+         * frames for a sensor/ISP-specific offset and size combination; a dynamic restart then
+         * times out quickly, restores the previous stream, and returns an error. In particular,
+         * crop sizes below 1024 wide and above 464 high are rejected before restart; use height
+         * <= 464 or width >= 1024.
+         * For example, set_windowing({640,360}) selects a centered native-array ROI at
+         * [704,404,640,360]; set_windowing({704,404,640,360}) selects the same ROI explicitly.
+         * The call is synchronous: an opened camera is stopped, sensor registers are rewritten,
+         * the pipeline is restarted, and initial AE/AWB settling frames are discarded.
+         * Without set_windowing, an unspecified output size (the public default is 640x480) and
+         * every output other than an explicit 2688x1520 use the fixed 1344x760 full-FOV binned
+         * sensor input; VI scales it to the requested output. An explicit 2688x1520 output uses
+         * the native non-binned sensor image at 30/60fps. If that same output requests more than
+         * 60fps, the input is automatically downgraded to full-FOV 1344x760 binning. This
+         * preserves the binned field of view for all smaller outputs but cannot add sensor detail
+         * beyond 1344x760. A binned sensor ROI itself cannot exceed 1344x760; call set_windowing
+         * for a smaller crop. In particular, asking for a small Camera output does not crop the
+         * sensor automatically.
+         * A binned ROI with width 256..640 and height 20..360 supports up to 360fps. Every other
+         * binned ROI, i.e. width 256..1344 and height 20..760 but not both within 640x360,
+         * supports up to 180fps. A non-binned ROI is selected when width is 1360..2688 or height
+         * is 762..1520; it supports up to 60fps. Width remains a multiple of 16 and height even.
          * @return error code
          * @maixpy maix.camera.Camera.set_windowing
         */
@@ -493,5 +531,6 @@ namespace maix::camera
         bool _invert_mirror;
         bool _is_opened;
         void *_param;
+        std::vector<int> _windowing;
     };
 }

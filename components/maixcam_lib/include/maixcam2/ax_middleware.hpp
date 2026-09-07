@@ -475,9 +475,9 @@ namespace maix::middleware::maixcam2 {
             case AX_FORMAT_YUV400:
                 return image::FMT_GRAYSCALE;
             case AX_FORMAT_RGB888:
-                return image::FMT_BGR888;   // actualy is rgb888
+                return image::FMT_BGR888;   // AX RGB888 stores B at the lowest address
             case AX_FORMAT_BGR888:
-                return image::FMT_RGB888;   // actualy is bgr888
+                return image::FMT_RGB888;   // AX BGR888 stores R at the lowest address
             case AX_FORMAT_ARGB8888:
                 return image::FMT_BGRA8888;     // actualy is rgba8888
             case AX_FORMAT_ABGR8888:
@@ -497,9 +497,9 @@ namespace maix::middleware::maixcam2 {
         case image::FMT_GRAYSCALE:
             return AX_FORMAT_YUV400;
         case image::FMT_RGB888:
-            return AX_FORMAT_BGR888;       // actualy is rgb888
+            return AX_FORMAT_BGR888;
         case image::FMT_BGR888:
-            return AX_FORMAT_RGB888;       // actualy is bgr888
+            return AX_FORMAT_RGB888;
         case image::FMT_RGBA8888:
             return AX_FORMAT_ABGR8888;     // actualy is rgba8888
         case image::FMT_BGRA8888:
@@ -540,6 +540,14 @@ namespace maix::middleware::maixcam2 {
         AX_VIN_IVPS_MODE_E eMode;
         AX_IVPS_ROTATION_E eRotAngle;
         AX_U32 statDeltaPtsFrmNum;
+        AX_BOOL bSensorCrop;
+        AX_S32 nSensorCropX;
+        AX_S32 nSensorCropY;
+        AX_S32 nSensorCropW;
+        AX_S32 nSensorCropH;
+        AX_S32 nSensorWidth;
+        AX_S32 nSensorHeight;
+        AX_S32 nSensorFps;
     } SAMPLE_VIN_PARAM_T;
 
     /* comm pool */
@@ -961,6 +969,43 @@ namespace maix::middleware::maixcam2 {
         }
     }
 
+    static AX_VOID __apply_os04a10_crop_attrs(AX_CAMERA_T *pCam, const SAMPLE_VIN_PARAM_T *pVinParam)
+    {
+        if (pVinParam->nSensorWidth <= 0 || pVinParam->nSensorHeight <= 0) {
+            return;
+        }
+        const AX_U32 w = (AX_U32)pVinParam->nSensorWidth;
+        const AX_U32 h = (AX_U32)pVinParam->nSensorHeight;
+        const AX_BAYER_PATTERN_E bayer_pattern = AX_BP_RGGB;
+        pCam->tSnsAttr.nWidth = w;
+        pCam->tSnsAttr.nHeight = h;
+        pCam->tSnsAttr.fFrameRate = pVinParam->nSensorFps;
+        pCam->tSnsAttr.eBayerPattern = bayer_pattern;
+        pCam->tDevAttr.eBayerPattern = bayer_pattern;
+        pCam->tDevAttr.tDevImgRgn[0] = {0, 0, w, h};
+        pCam->tDevAttr.tDevImgRgn[1] = {0, 0, w, h};
+        pCam->tDevAttr.tDevImgRgn[2] = {0, 0, w, h};
+        pCam->tDevAttr.tDevImgRgn[3] = {0, 0, w, h};
+        pCam->tPipeAttr[pCam->nPipeId].tPipeImgRgn = {0, 0, w, h};
+        pCam->tPipeAttr[pCam->nPipeId].nWidthStride = w;
+        pCam->tPipeAttr[pCam->nPipeId].eBayerPattern = bayer_pattern;
+        for (AX_U32 chn = 0; chn < AX_VIN_CHN_ID_MAX; ++chn) {
+            if (pCam->tChnAttr[chn].nWidth > w) {
+                pCam->tChnAttr[chn].nWidth = w;
+                /* VIN FBC channels require a 128-pixel stride.  The native
+                 * 2688-wide mode happened to satisfy that constraint, while
+                 * the 1344-wide binned mode did not and produced corrupted
+                 * blocks in the YUV output despite a clean IFE RAW frame. */
+                const AX_U32 stride_align =
+                    pCam->tChnAttr[chn].tCompressInfo.enCompressMode == AX_COMPRESS_MODE_NONE ? 2U : 128U;
+                pCam->tChnAttr[chn].nWidthStride = (w + stride_align - 1U) & ~(stride_align - 1U);
+            }
+            if (pCam->tChnAttr[chn].nHeight > h) {
+                pCam->tChnAttr[chn].nHeight = h;
+            }
+        }
+    }
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -1041,9 +1086,11 @@ namespace maix::middleware::maixcam2 {
         AX_U32 j = 0;
         pCommonArgs->nCamCnt = 1;
         pCam = &pCamList[0];
+        pCam->nPipeId = 0;
         __vi_get_sns_config(eSnsType, &pCam->tMipiAttr, &pCam->tSnsAttr,
                                 &pCam->tSnsClkAttr, &pCam->tDevAttr,
                                 &pCam->tPipeAttr[pCam->nPipeId], pCam->tChnAttr);
+        __apply_os04a10_crop_attrs(pCam, pVinParam);
         pCam->nDevId = 0;
         pCam->nRxDev = 0;
         pCam->nPipeId = 0;
@@ -1469,11 +1516,39 @@ namespace maix::middleware::maixcam2 {
         return 0;
     }
 
-    static SAMPLE_VIN_CASE_E __get_vi_case(char *sensor_name, int &w, int &h, int &fps) {
+    static SAMPLE_VIN_CASE_E __get_vi_case(char *sensor_name, int &w, int &h, int &fps,
+                                           int crop_w = -1, int crop_h = -1) {
         if (strcmp(sensor_name, "os04a10") == 0) {
-            w = 2688;
-            h = 1520;
-            fps = 30;
+            const bool has_crop = crop_w > 0 && crop_h > 0;
+            if (has_crop) {
+                w = crop_w;
+                h = crop_h;
+                const int max_crop_fps = crop_w <= 640 && crop_h <= 360 ? 360 :
+                                         crop_w <= 1344 && crop_h <= 760 ? 180 : 60;
+                /* High-speed crop tiers use the sensor's 108 MHz PLL timing
+                 * (derived from the public Ambarella 90-fps register table).
+                 * The OS04A10 driver enables 2x2 binning first for these
+                 * tiers; the 640x360 tier then additionally crops the
+                 * binned readout window. */
+                /* A non-positive fps means "auto": use the conventional
+                 * 60 fps timing.  Preserve an explicit request such as
+                 * 30 fps instead of silently promoting it to the tier limit. */
+                if (fps <= 0) {
+                    fps = 60;
+                } else if (fps > max_crop_fps) {
+                    log::error("OS04A10 %dx%d sensor crop supports up to %d fps, requested %d",
+                               crop_w, crop_h, max_crop_fps, fps);
+                    return SAMPLE_VIN_NONE;
+                }
+            } else if (fps <= 0 || (fps > 30 && fps <= 60)) {
+                w = 2688;
+                h = 1520;
+                fps = 60;
+            } else {
+                w = 2688;
+                h = 1520;
+                fps = 30;
+            }
             return SAMPLE_VIN_SINGLE_OS04A10;
         } else if (strcmp(sensor_name, "sc450ai") == 0) {
             w = 2688;
@@ -1836,8 +1911,9 @@ namespace maix::middleware::maixcam2 {
             return __get_sensor_name();
         }
 
-        SAMPLE_VIN_CASE_E get_vi_case(char *sensor_name, int &w, int &h, int &fps) {
-            return __get_vi_case(sensor_name, w, h, fps);
+        SAMPLE_VIN_CASE_E get_vi_case(char *sensor_name, int &w, int &h, int &fps,
+                                      int crop_w = -1, int crop_h = -1) {
+            return __get_vi_case(sensor_name, w, h, fps, crop_w, crop_h);
         }
 
         AX_U32 config_sample_case(SAMPLE_VIN_PARAM_T *pVinParam, COMMON_SYS_ARGS_T *pCommonArgs,

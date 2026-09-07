@@ -1,0 +1,8 @@
+id: os04a10_sensor_crop_test
+name: OS04A10 Sensor Crop Test
+name[zh]: OS04A10 传感器裁剪测试
+version: 1.0.0
+author: Sipeed
+desc: Verify OS04A10 sensor-level crop and high-frame-rate mode selection
+desc[zh]: 验证 OS04A10 传感器级裁剪和高帧率模式选择
+files: {}

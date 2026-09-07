@@ -11,6 +11,8 @@
 #include "maix_basic.hpp"
 #include "maix_i2c.hpp"
 #include <dirent.h>
+#include <dlfcn.h>
+#include <chrono>
 #include "ax_middleware.hpp"
 
 using namespace maix;
@@ -25,6 +27,109 @@ namespace maix::camera
     static std::vector<int> __sensor_size;
     static bool __invert_flip = false;
     static bool __invert_mirror = false;
+    constexpr int kOs04a10BinnedMaxWidth = 1344;
+    constexpr int kOs04a10BinnedMaxHeight = 760;
+    constexpr int kOs04a10HighFpsCropMaxWidth = 640;
+    constexpr int kOs04a10HighFpsCropMaxHeight = 360;
+
+    static AX_S32 __set_os04a10_sensor_crop(ISP_PIPE_ID pipe, AX_S32 x, AX_S32 y,
+                                             AX_S32 width, AX_S32 height, AX_F32 fps,
+                                             bool require_api = true)
+    {
+        using set_crop_fn = AX_S32 (*)(ISP_PIPE_ID, AX_U32, AX_U32, AX_U32, AX_U32, AX_F32);
+        static void *sensor_handle = nullptr;
+        set_crop_fn set_crop = reinterpret_cast<set_crop_fn>(dlsym(RTLD_DEFAULT, "os04a10_set_crop"));
+        if (!set_crop) {
+            if (!sensor_handle) {
+                sensor_handle = dlopen("/opt/lib/libsns_os04a10.so", RTLD_LAZY | RTLD_GLOBAL);
+            }
+            if (sensor_handle) {
+                set_crop = reinterpret_cast<set_crop_fn>(dlsym(sensor_handle, "os04a10_set_crop"));
+            }
+        }
+        if (!set_crop) {
+            if (require_api) {
+                log::error("OS04A10 sensor crop API is unavailable: %s", dlerror());
+                return -1;
+            }
+            /* Old system sensor libraries do not implement the optional crop
+             * API. They have no process-global crop state to clear. */
+            return AX_SUCCESS;
+        }
+        return set_crop(pipe, (AX_U32)x, (AX_U32)y, (AX_U32)width, (AX_U32)height, fps);
+    }
+
+    static int __os04a10_max_fps_for_roi(int width, int height)
+    {
+        return width <= kOs04a10HighFpsCropMaxWidth && height <= kOs04a10HighFpsCropMaxHeight ? 360 :
+               width <= kOs04a10BinnedMaxWidth && height <= kOs04a10BinnedMaxHeight ? 180 : 60;
+    }
+
+    /* Check timing before tearing down an active OS04A10 pipeline.  The
+     * sensor mode is selected at stream-on, so changing FPS requires a
+     * close/open; rejecting an impossible request here keeps the old stream
+     * running. */
+    static err::Err __validate_os04a10_fps(const std::vector<int> &windowing, double fps)
+    {
+        if (fps <= 0) {
+            return err::ERR_NONE; // selector-auto is the documented 60 fps mode
+        }
+        const int requested_fps = static_cast<int>(fps);
+        if (requested_fps <= 0 || static_cast<double>(requested_fps) != fps) {
+            log::error("OS04A10 FPS must be a positive integer (or 0 for automatic 60 fps), requested %.3f", fps);
+            return err::ERR_ARGS;
+        }
+
+        const bool has_roi = windowing.size() == 4;
+        const int max_fps = has_roi ? __os04a10_max_fps_for_roi(windowing[2], windowing[3]) : 180;
+        if (requested_fps > max_fps) {
+            if (!has_roi) {
+                log::error("OS04A10 full-FOV 1344x760 binned mode supports up to 180 fps; "
+                           "set_windowing({x, y, 640, 360}) before requesting %d fps", requested_fps);
+            } else {
+                log::error("OS04A10 %dx%d sensor crop supports up to %d fps, requested %d",
+                           windowing[2], windowing[3], max_fps, requested_fps);
+            }
+            return err::ERR_NOT_IMPL;
+        }
+        return err::ERR_NONE;
+    }
+
+    /* A bad sensor timing/crop must not turn a command handler into an
+     * unbounded wait.  This helper is intentionally used only by dynamic
+     * OS04A10 restart paths; ordinary camera reads keep their existing
+     * blocking semantics. */
+    static bool __warmup_os04a10(Camera &camera, int frames)
+    {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+        for (int i = 0; i < frames; ++i) {
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline) {
+                log::error("OS04A10 warmup exceeded its 3 second deadline after %d/%d frames", i, frames);
+                return false;
+            }
+            const int remaining_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+            if (remaining_ms <= 0) {
+                log::error("OS04A10 warmup exceeded its 3 second deadline after %d/%d frames", i, frames);
+                return false;
+            }
+            const int timeout_ms = i == 0 ? (remaining_ms < 1000 ? remaining_ms : 1000) :
+                                            (remaining_ms < 100 ? remaining_ms : 100);
+            image::Image *img = nullptr;
+            try {
+                img = camera.read(true, timeout_ms);
+            } catch (const err::Exception &) {
+                log::error("OS04A10 did not produce warmup frame %d/%d", i + 1, frames);
+                return false;
+            }
+            if (!img) {
+                log::error("OS04A10 warmup frame %d/%d timed out", i + 1, frames);
+                return false;
+            }
+            delete img;
+        }
+        return true;
+    }
 
     static AX_S32 __config_os04d10_360p120_ae(AX_U8 pipe)
     {
@@ -110,7 +215,7 @@ namespace maix::camera
                     break;
                 case 0x36:  // ov_os04a10
                     __device_name = "ov_os04a10";
-                    __sensor_size = {2560, 1440};
+                    __sensor_size = {2688, 1520};
                     __invert_flip = true;
                     __invert_mirror = false;
                     break;
@@ -442,6 +547,13 @@ namespace maix::camera
         bool raw;
         bool flip;
         bool mirror;
+        /* Keep the constructor's "no output size supplied" state separate
+         * from its public 640x480 default.  OS04A10 mode selection must not
+         * infer a small sensor crop merely because its public output happens
+         * to be 640x480. */
+        bool output_size_auto;
+        bool fps_auto;
+        double requested_fps;
         int exptime_max;    // unit:us
         int exptime_min;
 
@@ -482,6 +594,9 @@ namespace maix::camera
         err::check_null_raise(priv, "camera_priv_t malloc error");
         memset(priv, 0, sizeof(camera_priv_t));
         priv->raw = raw;
+        priv->output_size_auto = width == -1 && height == -1;
+        priv->fps_auto = fps <= 0;
+        priv->requested_fps = fps;
         _param = priv;
 
         // open camera
@@ -529,10 +644,19 @@ namespace maix::camera
         int width_tmp = (width == -1) ? _width : width;
         int height_tmp = (height == -1) ? _height : height;
         image::Format format_tmp = (format == image::FMT_INVALID) ? _format : format;
-        double fps_tmp = (fps == -1) ? _fps : fps;
+        camera_priv_t *priv = (camera_priv_t *)_param;
+        if (fps != -1) {
+            /* Both 0 and negative constructor FPS values mean selector-auto
+             * (60 fps for OS04A10). Record an explicit open(…, 0) in the
+             * same way; otherwise a previous explicit FPS leaks through a
+             * later auto reopen. */
+            priv->fps_auto = fps <= 0;
+            priv->requested_fps = fps;
+        }
+        double fps_tmp = (fps == -1) ? (priv->fps_auto ? -1 : _fps) :
+                         (priv->fps_auto ? -1 : fps);
         _fps = fps_tmp;
         int buff_num_tmp =( buff_num == -1) ? _buff_num : buff_num;
-        camera_priv_t *priv = (camera_priv_t *)_param;
 
         // check resolution
         if (format == image::FMT_RGB888) {
@@ -571,6 +695,14 @@ namespace maix::camera
             .statDeltaPtsFrmNum = 0,
         };
 
+        if (_windowing.size() == 4) {
+            tVinParam.bSensorCrop = AX_TRUE;
+            tVinParam.nSensorCropX = _windowing[0];
+            tVinParam.nSensorCropY = _windowing[1];
+            tVinParam.nSensorCropW = _windowing[2];
+            tVinParam.nSensorCropH = _windowing[3];
+        }
+
 
         // init vi
         VI *ax_vi = new VI();
@@ -584,10 +716,72 @@ namespace maix::camera
             return err::ERR_RUNTIME;
         }
 
+        if (get_sensor_res.second == "os04a10" && !tVinParam.bSensorCrop) {
+            /* Application output and sensor input are intentionally separate.
+             * The only no-ROI request that selects native readout is an
+             * explicit 2688x1520 output.  The constructor's unspecified size
+             * (which publicly defaults to 640x480), every smaller explicit
+             * output, and larger scaled output all retain the full-FOV 2x2
+             * binned 1344x760 sensor image.  In particular, a small public
+             * output must never implicitly turn into a 640x360 sensor crop:
+             * only set_windowing() opts into a smaller sensor ROI. */
+            const bool explicit_native_output = !priv->output_size_auto &&
+                                                _width == 2688 && _height == 1520;
+            const bool require_binned_input = !explicit_native_output ||
+                                              (!priv->fps_auto && priv->requested_fps > 60);
+            if (require_binned_input) {
+                if (!priv->fps_auto && priv->requested_fps > 180) {
+                    log::error("OS04A10 full-FOV 1344x760 binned mode supports up to 180 fps; "
+                               "for 240 fps, call set_windowing() with a small ROI (recommended: 640x360) before open");
+                    delete ax_vi;
+                    delete ax_sys;
+                    return err::ERR_NOT_IMPL;
+                }
+                if (explicit_native_output) {
+                    log::info("OS04A10 2688x1520 at %.0f fps uses the full-FOV 1344x760 binned sensor input",
+                              priv->requested_fps);
+                }
+                tVinParam.bSensorCrop = AX_TRUE;
+                tVinParam.nSensorCropX = 0;
+                tVinParam.nSensorCropY = 4;
+                tVinParam.nSensorCropW = kOs04a10BinnedMaxWidth;
+                tVinParam.nSensorCropH = kOs04a10BinnedMaxHeight;
+            }
+        }
+
         int tmp_w = _width, tmp_h = _height, tmp_fps = _fps;
-        tVinParam.eSysCase = ax_vi->get_vi_case((char *)get_sensor_res.second.c_str(), tmp_w, tmp_h, tmp_fps);
+        const int crop_w = tVinParam.bSensorCrop ? tVinParam.nSensorCropW : -1;
+        const int crop_h = tVinParam.bSensorCrop ? tVinParam.nSensorCropH : -1;
+        tVinParam.eSysCase = ax_vi->get_vi_case((char *)get_sensor_res.second.c_str(), tmp_w, tmp_h, tmp_fps,
+                                                crop_w, crop_h);
+        if (tVinParam.eSysCase == SAMPLE_VIN_NONE) {
+            delete ax_vi;
+            delete ax_sys;
+            return err::ERR_NOT_IMPL;
+        }
+        tVinParam.nSensorWidth = tmp_w;
+        tVinParam.nSensorHeight = tmp_h;
+        tVinParam.nSensorFps = tmp_fps;
         _fps = tmp_fps;
+        if (get_sensor_res.second == "os04a10") {
+            const AX_S32 crop_x = tVinParam.bSensorCrop ? tVinParam.nSensorCropX : 0;
+            const AX_S32 crop_y = tVinParam.bSensorCrop ? tVinParam.nSensorCropY : 0;
+            const AX_S32 crop_width = tVinParam.bSensorCrop ? tVinParam.nSensorCropW : 0;
+            const AX_S32 crop_height = tVinParam.bSensorCrop ? tVinParam.nSensorCropH : 0;
+            if (__set_os04a10_sensor_crop(0, crop_x, crop_y, crop_width, crop_height,
+                                           (AX_F32)tVinParam.nSensorFps,
+                                           tVinParam.bSensorCrop == AX_TRUE) != AX_SUCCESS) {
+                delete ax_vi;
+                delete ax_sys;
+                return err::ERR_NOT_IMPL;
+            }
+        }
         tVinParam.bAiispEnable = app::get_sys_config_kv("npu", "ai_isp", "1") == "1" ? AX_TRUE : AX_FALSE;
+        if (tVinParam.bSensorCrop) {
+            /* The shipped AI-ISP model is calibrated for the native OS04A10
+             * frame geometry and cannot safely process arbitrary sensor ROIs. */
+            tVinParam.bAiispEnable = AX_FALSE;
+        }
         ax_vi->config_sample_case(&tVinParam, &tCommonArgs, &tPrivArgs);
         err = ax_vi->init();
         if (err != err::ERR_NONE) {
@@ -873,11 +1067,68 @@ namespace maix::camera
     }
 
     err::Err Camera::set_fps(double fps) {
-        err::Err ret = err::ERR_NONE;
-        if (fps > 0) {
-            this->exposure(1000 / fps * 1000);
+        camera_priv_t *priv = (camera_priv_t *)_param;
+
+        /* Do not change the established behaviour of other MaixCAM2
+         * sensors: their set_fps implementation historically only adjusted
+         * the exposure limit.  OS04A10 timing, however, is programmed during
+         * VIN/sensor stream-on and must be reopened. */
+        if (get_device_name() != "ov_os04a10") {
+            if (fps > 0) {
+                this->exposure(1000 / fps * 1000);
+            }
+            return err::ERR_NONE;
         }
-        return ret;
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        const err::Err validation = __validate_os04a10_fps(_windowing, fps);
+        if (validation != err::ERR_NONE) {
+            return validation;
+        }
+
+        const bool old_fps_auto = priv->fps_auto;
+        const double old_requested_fps = priv->requested_fps;
+        const image::Format old_format = _format;
+        const int old_buff_num = _buff_num;
+        const bool target_fps_auto = fps <= 0;
+        /* open(..., -1) means "use the already recorded state", whereas 0
+         * explicitly records selector-auto.  Use 0 for a public auto FPS
+         * request so a previous explicit value cannot leak into this reopen. */
+        const double target_open_fps = target_fps_auto ? 0 : fps;
+
+        this->close();
+        err::Err ret = this->open(_width, _height, old_format, target_open_fps, old_buff_num);
+        if (ret != err::ERR_NONE) {
+            log::error("OS04A10 failed to apply %.0f fps; restoring the previous stream", fps);
+            const double restore_fps = old_fps_auto ? 0 : old_requested_fps;
+            const err::Err restore_ret = this->open(_width, _height, old_format, restore_fps, old_buff_num);
+            if (restore_ret != err::ERR_NONE) {
+                log::error("OS04A10 failed to restore the previous stream after FPS reconfiguration");
+            }
+            return ret;
+        }
+
+        /* A fresh ISP instance needs a short AWB/AE settling window. */
+        int warmup_frames = 30;
+        if (_fps >= 360) {
+            warmup_frames = 180;
+        } else if (_fps >= 180) {
+            warmup_frames = 90;
+        }
+        if (!__warmup_os04a10(*this, warmup_frames)) {
+            log::error("OS04A10 %.0f fps restart produced no usable frames; restoring the previous stream", fps);
+            this->close();
+            const double restore_fps = old_fps_auto ? 0 : old_requested_fps;
+            const err::Err restore_ret = this->open(_width, _height, old_format, restore_fps, old_buff_num);
+            if (restore_ret != err::ERR_NONE) {
+                log::error("OS04A10 failed to restore the previous stream after warmup timeout");
+            }
+            return err::ERR_RUNTIME;
+        }
+        return err::ERR_NONE;
     }
 
     int Camera::exposure(int value) {
@@ -1350,25 +1601,26 @@ namespace maix::camera
     }
 
     err::Err Camera::set_windowing(std::vector<int> roi) {
+        camera_priv_t *priv = (camera_priv_t *)_param;
         auto &mod_param = AxModuleParam::getInstance();
-        mod_param.lock(AX_MOD_VI);
-        auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
-        auto ax_cam = vi_param->cams[0];
-        mod_param.unlock(AX_MOD_VI);
+        int max_width = 2688;
+        int max_height = 1520;
+        bool os04a10 = false;
+        if (this->is_opened()) {
+            mod_param.lock(AX_MOD_VI);
+            auto vi_param = (ax_vi_mod_t *)mod_param.get_param(AX_MOD_VI);
+            auto ax_cam = vi_param->cams[0];
+            mod_param.unlock(AX_MOD_VI);
+            os04a10 = ax_cam.eSnsType == OMNIVISION_OS04A10;
+            if (!os04a10) {
+                max_width = ax_cam.tSnsAttr.nWidth;
+                max_height = ax_cam.tSnsAttr.nHeight;
+            }
+        } else {
+            os04a10 = get_device_name() == "ov_os04a10";
+        }
 
         err::Err ret = err::ERR_NONE;
-        auto *priv = (camera_priv_t *)_param;
-        auto ax_vi = priv->ax_vi;
-
-        if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
-        }
-        if (!this->is_opened()) {
-            return err::ERR_NOT_OPEN;
-        }
-
-        int max_width = ax_cam.tSnsAttr.nWidth;
-        int max_height = ax_cam.tSnsAttr.nHeight;
         char log_msg[100];
         int x = 0, y = 0, w = 0, h = 0;
 
@@ -1376,23 +1628,118 @@ namespace maix::camera
             x = roi[0], y = roi[1], w = roi[2], h = roi[3];
         } else if (roi.size() == 2) {
             w = roi[0], h = roi[1];
-            x = (max_width - w) / 2;
-            y = (max_height - h) / 2;
+            const bool binning = os04a10 && w <= kOs04a10BinnedMaxWidth && h <= kOs04a10BinnedMaxHeight;
+            if (binning) {
+                /* x/y are native-array coordinates; width/height are the
+                 * post-binning output. Center the corresponding 2x2
+                 * physical readout, including the 8-pixel output guard. */
+                x = (2704 - 2 * (w + 8)) / 2;
+                y = (1536 - (2 * h + 8)) / 2;
+                x &= ~1;
+                y &= ~1;
+            } else {
+                x = (max_width - w) / 2;
+                y = (max_height - h) / 2;
+            }
         } else {
             err::check_raise(err::ERR_RUNTIME, "roi size must be 4 or 2");
         }
 
         snprintf(log_msg, sizeof(log_msg), "Width must be a multiple of 2.");
         err::check_bool_raise(w % 2 == 0, std::string(log_msg));
+        if (os04a10) {
+            const bool binning = w <= kOs04a10BinnedMaxWidth && h <= kOs04a10BinnedMaxHeight;
+            err::check_bool_raise(x % 2 == 0 && y % 2 == 0,
+                                  "sensor crop x and y must be even");
+            err::check_bool_raise(w >= 256 && w <= max_width && w % 16 == 0,
+                                  "sensor crop width must be 256..2688 and a multiple of 16");
+            err::check_bool_raise(h >= 20 && h <= max_height && h % 2 == 0,
+                                  "sensor crop height must be 20..1520 and even");
+            /* Reject this verified AX ISP failure class before stopping an
+             * active stream. It is not an alignment requirement. */
+            if (w < 1024 && h > 464) {
+                throw err::Exception(err::ERR_ARGS,
+                    "This OS04A10 crop does not work. Some offset, width, and height combinations are not supported. "
+                    "For this size, use height <= 464 or width >= 1024.");
+            }
+            const int physical_w = binning ? 2 * (w + 8) : w + 16;
+            const int physical_h = binning ? 2 * h + 8 : h + 16;
+            err::check_bool_raise(x + physical_w <= 2704,
+                                  "sensor crop physical readout exceeds 2704 pixels");
+            err::check_bool_raise(y + physical_h <= 1536,
+                                  "sensor crop physical readout exceeds 1536 lines");
+        }
         snprintf(log_msg, sizeof(log_msg), "the coordinate x range needs to be [0,%d].", max_width - 1);
-        err::check_bool_raise(x >= 0 || x < max_width, std::string(log_msg));
+        err::check_bool_raise(x >= 0 && x < max_width, std::string(log_msg));
         snprintf(log_msg, sizeof(log_msg), "the coordinate y range needs to be [0,%d].", max_height - 1);
-        err::check_bool_raise(y >= 0 || y < max_height, std::string(log_msg));
+        err::check_bool_raise(y >= 0 && y < max_height, std::string(log_msg));
         snprintf(log_msg, sizeof(log_msg), "the row of the window is larger than the maximum, try x=%d, w=%d.", x, max_width - x);
         err::check_bool_raise(x + w <= max_width, std::string(log_msg));
         snprintf(log_msg, sizeof(log_msg), "the column of the window is larger than the maximum, try y=%d, h=%d.", y, max_height - y);
         err::check_bool_raise(y + h <= max_height, std::string(log_msg));
 
+        if (os04a10) {
+            const std::vector<int> old_windowing = _windowing;
+            const double old_fps = priv->fps_auto ? -1 : priv->requested_fps;
+            const err::Err validation = __validate_os04a10_fps({x, y, w, h}, old_fps);
+            if (validation != err::ERR_NONE) {
+                return validation;
+            }
+            _windowing = {x, y, w, h};
+            if (!this->is_opened()) {
+                return ret;
+            }
+            /* Sensor timing and VIN dimensions are established during open;
+             * restart the pipeline so the new ROI is applied before stream-on. */
+            auto old_format = _format;
+            auto old_buff_num = _buff_num;
+            this->close();
+            /* Preserve an explicit caller FPS across the restart. Passing
+             * -1 re-enters the documented automatic 60 fps mode, so only do
+             * that for an originally automatic request. */
+            ret = this->open(_width, _height, old_format, old_fps, old_buff_num);
+            if (ret != err::ERR_NONE) {
+                log::error("OS04A10 failed to apply the new crop; restoring the previous stream");
+                _windowing = old_windowing;
+                const err::Err restore_ret = this->open(_width, _height, old_format, old_fps, old_buff_num);
+                if (restore_ret != err::ERR_NONE) {
+                    log::error("OS04A10 failed to restore the previous stream after crop reconfiguration");
+                }
+                return ret;
+            }
+            {
+                /* A fresh ISP instance needs a short AWB/AE settling window.
+                 * Without discarding these first frames, a dynamic crop can
+                 * briefly show magenta/green output while the statistics
+                 * block converges. Keep the restart synchronous so the first
+                 * frame returned to the caller is already usable. */
+                int warmup_frames = 30;
+                if (_fps >= 360) {
+                    warmup_frames = 180;
+                } else if (_fps >= 180) {
+                    warmup_frames = 90;
+                }
+                if (!__warmup_os04a10(*this, warmup_frames)) {
+                    log::error("This OS04A10 crop does not work. Some offset, width, and height combinations are not supported. "
+                               "Try another crop area. Restoring the previous stream.");
+                    this->close();
+                    _windowing = old_windowing;
+                    const err::Err restore_ret = this->open(_width, _height, old_format, old_fps, old_buff_num);
+                    if (restore_ret != err::ERR_NONE) {
+                        log::error("OS04A10 failed to restore the previous stream after crop warmup timeout");
+                    }
+                    throw err::Exception("This OS04A10 crop does not work. Some offset, width, and height combinations are not supported. "
+                                         "Try another crop area.");
+                }
+            }
+            return ret;
+        }
+
+        if (!this->is_opened()) {
+            return err::ERR_NOT_OPEN;
+        }
+
+        auto ax_vi = priv->ax_vi;
         bool is_vflip = priv->chn.vflip, is_hmirror = priv->chn.mirror;
         if (!is_vflip) {
             y = max_height - y - h;
@@ -1420,6 +1767,13 @@ namespace maix::camera
         } else if (ax_cam.eSnsType == OMNIVISION_OS04D10) {
             max_width = 2560;
             max_height = 1440;
+        } else if (ax_cam.eSnsType == OMNIVISION_OS04A10) {
+            max_width = 2688;
+            max_height = 1520;
+            if (_is_opened && ax_cam.tSnsAttr.nWidth > 0 && ax_cam.tSnsAttr.nHeight > 0) {
+                max_width = ax_cam.tSnsAttr.nWidth;
+                max_height = ax_cam.tSnsAttr.nHeight;
+            }
         }
         return {max_width, max_height};
     }
@@ -1471,4 +1825,3 @@ namespace maix::camera
         return IspSceneParam.tManualParam.nAiWorkMode ? true : false;
     }
 }
-

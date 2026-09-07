@@ -366,7 +366,22 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
         case 11:
         {
             std::vector<int> roi = {(int)value, (int)value2, (int)value3, (int)value4};
-            err::check_raise(cam->set_windowing(roi), "set error");
+            try {
+                err::check_raise(cam->set_windowing(roi), "set error");
+            } catch (const err::Exception &e) {
+                std::string message = e.what();
+                if (message.compare(0, 2, ": ") == 0) {
+                    message.erase(0, 2);
+                }
+                const std::string unknown_prefix = "Unknown error: ";
+                if (message.compare(0, unknown_prefix.size(), unknown_prefix) == 0) {
+                    message.erase(0, unknown_prefix.size());
+                }
+                while (!message.empty() && (message.back() == '\n' || message.back() == '\r')) {
+                    message.pop_back();
+                }
+                log::error("set windowing rejected: %s", message.c_str());
+            }
             break;
         }
         case 12:
@@ -420,7 +435,12 @@ static int cmd_loop(camera::Camera *cam, display::Display *disp)
                 auto curr_fps =  cam->fps();
                 log::info("curr fps %f", curr_fps);
             } else {
-                err::check_raise(cam->set_fps(fps), "set fps error");
+                const err::Err ret = cam->set_fps(fps);
+                if (ret != err::ERR_NONE) {
+                    log::error("set fps rejected (%s); current stream was kept", err::to_str(ret).c_str());
+                } else {
+                    log::info("set fps applied: %f", cam->fps());
+                }
             }
             break;
         }
@@ -510,4 +530,3 @@ int main(int argc, char* argv[])
     // So we catch exception here to let resources be released(call objects' destructor) before exit.
     CATCH_EXCEPTION_RUN_RETURN(_main, -1, argc, argv);
 }
-

@@ -7,6 +7,13 @@
 #include "maix_video.hpp"
 #include "maix_camera.hpp"
 #include "list"
+#include <algorithm>
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <thread>
 using namespace maix;
 
 #if defined(PLATFORM_MAIXCAM) || defined(PLATFORM_MAIXCAM2)
@@ -33,6 +40,86 @@ extern "C" {
 
 static double timebase_to_ms(std::vector<int> timebase, uint64_t value) {
     return value * 1000 / ((double)timebase[1] / timebase[0]);
+}
+
+static int remux_high_fps_stream(const std::string &input_path,
+                                 const std::string &output_path, int framerate) {
+    AVFormatContext *input = nullptr;
+    AVFormatContext *output = nullptr;
+    AVStream *input_stream = nullptr;
+    AVStream *output_stream = nullptr;
+    AVPacket *packet = nullptr;
+    int ret = avformat_open_input(&input, input_path.c_str(), nullptr, nullptr);
+    if (ret < 0) goto cleanup;
+    ret = avformat_find_stream_info(input, nullptr);
+    if (ret < 0) goto cleanup;
+    ret = avformat_alloc_output_context2(&output, nullptr, "mp4", output_path.c_str());
+    if (ret < 0 || !output) goto cleanup;
+
+    {
+        for (unsigned int i = 0; i < input->nb_streams; ++i) {
+            if (input->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                input_stream = input->streams[i];
+                break;
+            }
+        }
+        if (!input_stream) {
+            ret = AVERROR_STREAM_NOT_FOUND;
+            goto cleanup;
+        }
+        output_stream = avformat_new_stream(output, nullptr);
+        if (!output_stream) {
+            ret = AVERROR(ENOMEM);
+            goto cleanup;
+        }
+        ret = avcodec_parameters_copy(output_stream->codecpar, input_stream->codecpar);
+        if (ret < 0) goto cleanup;
+        output_stream->codecpar->codec_tag = 0;
+        output_stream->time_base = AVRational{1, framerate};
+    }
+
+    if (!(output->oformat->flags & AVFMT_NOFILE)) {
+        ret = avio_open(&output->pb, output_path.c_str(), AVIO_FLAG_WRITE);
+        if (ret < 0) goto cleanup;
+    }
+    ret = avformat_write_header(output, nullptr);
+    if (ret < 0) goto cleanup;
+
+    packet = av_packet_alloc();
+    if (!packet) {
+        ret = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+    {
+        int64_t frame_index = 0;
+        const AVRational frame_time_base = AVRational{1, framerate};
+        while ((ret = av_read_frame(input, packet)) >= 0) {
+            if (packet->stream_index != input_stream->index) {
+                av_packet_unref(packet);
+                continue;
+            }
+            packet->stream_index = 0;
+            packet->pts = av_rescale_q(frame_index, frame_time_base, output_stream->time_base);
+            packet->dts = packet->pts;
+            packet->duration = av_rescale_q(1, frame_time_base, output_stream->time_base);
+            packet->pos = -1;
+            ret = av_interleaved_write_frame(output, packet);
+            av_packet_unref(packet);
+            if (ret < 0) goto cleanup;
+            ++frame_index;
+        }
+        if (ret == AVERROR_EOF) ret = 0;
+    }
+    if (ret >= 0) ret = av_write_trailer(output);
+
+cleanup:
+    av_packet_free(&packet);
+    if (output) {
+        if (!(output->oformat->flags & AVFMT_NOFILE) && output->pb) avio_closep(&output->pb);
+        avformat_free_context(output);
+    }
+    if (input) avformat_close_input(&input);
+    return ret;
 }
 
 static int h264_to_mp4(int argc, char *argv[]) {
@@ -305,7 +392,7 @@ static int h264_to_mp4(int argc, char *argv[]) {
     return 0;
 }
 
-static void *_imu_thread_process(void *arg) {
+[[maybe_unused]] static void *_imu_thread_process(void *arg) {
     #define _M_PI     (3.14159265358979323846f)
     int *imu_is_ready = (int *)arg;
     // gcsv init
@@ -410,6 +497,7 @@ static void helper(void)
     "0 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode without bind\r\n"
     "1 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode with bind\r\n"
     "2 <path> <delay_s> <width> <height> <fps>: time-lapse record\r\n"
+    "4 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture> <block> <queue_depth>: high-fps encode with an in-memory queue\r\n"
     "5 <input_path> <width> <height> <format> <quality>: encode image to jpeg\r\n"
     "note:\r\n"
     "format=%d, NV21\r\n"
@@ -417,6 +505,7 @@ static void helper(void)
     "\r\n"
     "Example: ./encode_demo 0 output.mp4\r\n"
     "Example: ./encode_demo 0 output.mp4 640 480 8 30 50 3000000 1000 1\r\n"
+    "Example: ./video_encode_demo 4 output.mp4 640 360 8 7 360 360 8000000 1000 0 1 360\r\n"
     "==================================\r\n", image::FMT_YVU420SP, video::VIDEO_H264, video::VIDEO_H265);
 }
 
@@ -569,13 +658,13 @@ int _main(int argc, char* argv[])
         int height = 480;
         image::Format format = image::Format::FMT_YVU420SP;
         video::VideoType type = video::VIDEO_H264;
-        audio::Recorder r = audio::Recorder();
         int framerate = 60;
         int gop = 50;
         int bitrate = 3000 * 1000;
         int time_base = 1000;
-        bool capture = true;
+        bool capture = false;
         bool block = true;
+        int queue_depth = -1;
         if (argc > 2) path = argv[2];
         if (argc > 3) width = atoi(argv[3]);
         if (argc > 4) height = atoi(argv[4]);
@@ -587,47 +676,132 @@ int _main(int argc, char* argv[])
         if (argc > 10) time_base = atoi(argv[10]);
         if (argc > 11) capture = atoi(argv[11]) == 0 ? false : true;
         if (argc > 12) block = atoi(argv[12]) == 0 ? false : true;
-        log::info("path:%s width:%d height:%d format:%d type:%d fps:%d gop:%d bitrate:%d time_base:%d capture:%d\r\n",
-            path.c_str(), width, height, format, type, framerate, gop, bitrate, time_base, capture);
-        video::Encoder e = video::Encoder(path, width, height, format, type, framerate, gop, bitrate, time_base, capture, block);
-        camera::Camera cam = camera::Camera(width, height, format, NULL, framerate);
-        display::Display disp = display::Display();
-
-        pthread_t imu_thread;
-        int imu_is_ready = false;
-        err::check_bool_raise(pthread_create(&imu_thread, NULL, _imu_thread_process, &imu_is_ready) == 0, "create thread failed!");
-        while (!imu_is_ready) {time::sleep_ms(10);}
-
-        uint64_t start_time = time::ticks_ms();
-        uint64_t last_loop_time = 0;
-        log::info("camera first read ms:%d", start_time);
-        while(!app::need_exit()) {
-            // uint64_t t = time::ticks_ms();
-            image::Image *img = cam.read();
-            // log::info("camera read use %lld ms", time::ticks_ms() - t);
-
-            // t = time::ticks_ms();
-            video::Frame *frame = e.encode(img);
-            // log::info("encode use %lld ms", time::ticks_ms() - t);
-
-            // t = time::ticks_ms();
-            disp.show(*img);
-            // log::info("show use %lld ms", time::ticks_ms() - t);
-
-            // t = time::ticks_ms();
-            // delete pcm;
-            delete frame;
-            delete img;
-            // log::info("free use %lld ms", time::ticks_ms() - t);
-
-            while ((time::ticks_ms() - last_loop_time) * framerate < 1000) {
-                time::sleep_us(500);
-            }
-            last_loop_time = time::ticks_ms();
-
-            log::info("loop use %lld ms", time::ticks_ms() - start_time, time::ticks_ms());
-            start_time = time::ticks_ms();
+        if (argc > 13) queue_depth = atoi(argv[13]);
+        if (queue_depth < 0) queue_depth = framerate;
+        err::check_bool_raise(queue_depth > 0, "queue_depth must be greater than zero");
+        const double queue_mib = static_cast<double>(width) * height * 3 / 2 * queue_depth /
+                                 (1024.0 * 1024.0);
+        log::info("path:%s width:%d height:%d format:%d type:%d fps:%d gop:%d bitrate:%d time_base:%d capture:%d queue_depth:%d\r\n",
+            path.c_str(), width, height, format, type, framerate, gop, bitrate, time_base, capture, queue_depth);
+        log::info("high-fps queue capacity: %.1f MiB; oldest frames are dropped if it becomes full", queue_mib);
+        constexpr int venc_max_fps = 180;
+        const int venc_fps = std::min(framerate, venc_max_fps);
+        const bool needs_remux = framerate > venc_max_fps;
+        const bool is_h265 = type == video::VIDEO_H265 || type == video::VIDEO_H265_CBR || type == video::VIDEO_H265_VBR;
+        const std::string encoder_path = needs_remux ? path + (is_h265 ? ".cache.h265" : ".cache.h264") : path;
+        std::unique_ptr<video::Encoder> encoder(new video::Encoder(
+            encoder_path, width, height, format, type, venc_fps, gop, bitrate,
+            time_base, capture, block));
+        camera::Camera cam = camera::Camera(width, height, format, NULL, framerate, 3, false);
+        if (framerate > 180) {
+            err::check_bool_raise(width <= 640 && height <= 360,
+                "OS04A10 recording above 180 fps requires a window no larger than 640x360");
+            err::check_raise(cam.set_windowing({0, 0, width, height}),
+                "enable OS04A10 high-speed sensor window failed");
         }
+        err::check_raise(cam.open(), "camera open failed");
+        if (needs_remux) {
+            log::info("sensor fps:%d, VENC RC fps:%d; recording elementary stream for %d-fps remux",
+                framerate, venc_fps, framerate);
+        }
+
+        // Keep camera acquisition independent from VENC/file I/O. The image returned
+        // by Camera::read() retains a scarce VIN pool buffer, so copy its pixels into
+        // normal heap memory before enqueueing and release the VIN frame immediately.
+        std::mutex queue_mutex;
+        std::condition_variable queue_not_empty;
+        std::deque<std::unique_ptr<image::Image>> image_queue;
+        std::atomic<bool> capture_done(false);
+        std::atomic<bool> stop_requested(false);
+        std::atomic<bool> worker_failed(false);
+        std::atomic<uint64_t> captured_count(0);
+        std::atomic<uint64_t> encoded_count(0);
+        std::atomic<uint64_t> dropped_count(0);
+
+        std::thread capture_thread([&]() {
+            try {
+                while (!app::need_exit() && !stop_requested.load()) {
+                    std::unique_ptr<image::Image> camera_img(cam.read());
+                    if (!camera_img) {
+                        continue;
+                    }
+                    std::unique_ptr<image::Image> img(new image::Image(
+                        camera_img->width(), camera_img->height(), camera_img->format(),
+                        static_cast<uint8_t *>(camera_img->data()), camera_img->data_size(), true));
+                    camera_img.reset();
+                    ++captured_count;
+
+                    {
+                        std::lock_guard<std::mutex> lock(queue_mutex);
+                        // Do not let a slow encoder throttle sensor acquisition. Retain
+                        // the newest frames, and release a discarded frame immediately.
+                        if (image_queue.size() >= static_cast<size_t>(queue_depth)) {
+                            image_queue.pop_front();
+                            ++dropped_count;
+                        }
+                        image_queue.emplace_back(std::move(img));
+                    }
+                    queue_not_empty.notify_one();
+                }
+            } catch (const std::exception &e) {
+                log::error("camera capture thread stopped: %s", e.what());
+                worker_failed.store(true);
+                stop_requested.store(true);
+            } catch (...) {
+                log::error("camera capture thread stopped by an unknown exception");
+                worker_failed.store(true);
+                stop_requested.store(true);
+            }
+            capture_done.store(true);
+            queue_not_empty.notify_all();
+        });
+
+        std::thread encode_thread([&]() {
+            try {
+                while (true) {
+                    std::unique_ptr<image::Image> img;
+                    {
+                        std::unique_lock<std::mutex> lock(queue_mutex);
+                        queue_not_empty.wait(lock, [&]() {
+                            return capture_done.load() || !image_queue.empty();
+                        });
+                        if (image_queue.empty()) {
+                            if (capture_done.load()) {
+                                break;
+                            }
+                            continue;
+                        }
+                        img = std::move(image_queue.front());
+                        image_queue.pop_front();
+                    }
+
+                    std::unique_ptr<video::Frame> frame(encoder->encode(img.get()));
+                    ++encoded_count;
+                }
+            } catch (const std::exception &e) {
+                log::error("video encode thread stopped: %s", e.what());
+                worker_failed.store(true);
+                stop_requested.store(true);
+            } catch (...) {
+                log::error("video encode thread stopped by an unknown exception");
+                worker_failed.store(true);
+                stop_requested.store(true);
+            }
+        });
+
+        capture_thread.join();
+        encode_thread.join();
+        encoder.reset();
+        err::check_bool_raise(!worker_failed.load(), "high-fps recording worker failed");
+        if (needs_remux) {
+            const int remux_ret = remux_high_fps_stream(encoder_path, path, framerate);
+            err::check_bool_raise(remux_ret >= 0, "high-fps stream remux failed");
+            std::remove(encoder_path.c_str());
+        }
+        log::info("high-fps record stopped: captured:%llu encoded:%llu dropped:%llu queue_depth:%d",
+            static_cast<unsigned long long>(captured_count.load()),
+            static_cast<unsigned long long>(encoded_count.load()),
+            static_cast<unsigned long long>(dropped_count.load()), queue_depth);
         break;
     }
     case 5:
