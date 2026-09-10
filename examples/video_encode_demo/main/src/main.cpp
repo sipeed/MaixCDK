@@ -42,6 +42,18 @@ static double timebase_to_ms(std::vector<int> timebase, uint64_t value) {
     return value * 1000 / ((double)timebase[1] / timebase[0]);
 }
 
+static int64_t high_fps_available_memory() {
+    // memory_info's total - used is Linux MemAvailable, not hardware/CMM RAM.
+    const auto info = sys::memory_info();
+    const auto total = info.find("total");
+    const auto used = info.find("used");
+    if (total == info.end() || used == info.end() || total->second <= 0 ||
+        used->second < 0 || used->second > total->second) {
+        return -1;
+    }
+    return total->second - used->second;
+}
+
 static int remux_high_fps_stream(const std::string &input_path,
                                  const std::string &output_path, int framerate) {
     AVFormatContext *input = nullptr;
@@ -497,7 +509,7 @@ static void helper(void)
     "0 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode without bind\r\n"
     "1 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture>: encode with bind\r\n"
     "2 <path> <delay_s> <width> <height> <fps>: time-lapse record\r\n"
-    "4 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture> <block> <queue_depth>: high-fps encode with an in-memory queue\r\n"
+    "4 <path> <width> <height> <format> <video_type> <fps> <gop> <bitrate> <time_base> <capture> <block> <queue_depth>: high-fps encode with 15-fps preview; stop and drain when queue is full\r\n"
     "5 <input_path> <width> <height> <format> <quality>: encode image to jpeg\r\n"
     "note:\r\n"
     "format=%d, NV21\r\n"
@@ -677,13 +689,11 @@ int _main(int argc, char* argv[])
         if (argc > 11) capture = atoi(argv[11]) == 0 ? false : true;
         if (argc > 12) block = atoi(argv[12]) == 0 ? false : true;
         if (argc > 13) queue_depth = atoi(argv[13]);
+        err::check_bool_raise(framerate > 0, "fps must be greater than zero");
         if (queue_depth < 0) queue_depth = framerate;
         err::check_bool_raise(queue_depth > 0, "queue_depth must be greater than zero");
-        const double queue_mib = static_cast<double>(width) * height * 3 / 2 * queue_depth /
-                                 (1024.0 * 1024.0);
         log::info("path:%s width:%d height:%d format:%d type:%d fps:%d gop:%d bitrate:%d time_base:%d capture:%d queue_depth:%d\r\n",
             path.c_str(), width, height, format, type, framerate, gop, bitrate, time_base, capture, queue_depth);
-        log::info("high-fps queue capacity: %.1f MiB; oldest frames are dropped if it becomes full", queue_mib);
         constexpr int venc_max_fps = 180;
         const int venc_fps = std::min(framerate, venc_max_fps);
         const bool needs_remux = framerate > venc_max_fps;
@@ -704,7 +714,30 @@ int _main(int argc, char* argv[])
             log::info("sensor fps:%d, VENC RC fps:%d; recording elementary stream for %d-fps remux",
                 framerate, venc_fps, framerate);
         }
-
+        display::Display disp = display::Display();
+        const int preview_fps = std::min(framerate, 15);
+        // Budget after camera, display and VENC initialization. Image copies also
+        // allocate alignment padding; leave room for allocator/page overhead.
+        constexpr int64_t mib = 1024 * 1024;
+        const int64_t frame_memory = static_cast<int64_t>(width) * height * 3 / 2 +
+                                     8192 + sizeof(image::Image);
+        const int64_t available_memory = high_fps_available_memory();
+        err::check_bool_raise(available_memory >= 0, "cannot read available memory for recording");
+        const int64_t memory_reserve = std::max<int64_t>(64 * mib, available_memory / 4);
+        // Include the capture and encode frames outside the queue in the budget.
+        const int64_t memory_queue_depth = (available_memory - memory_reserve) / frame_memory - 2;
+        err::check_bool_raise(memory_queue_depth > 0, "not enough available memory for recording");
+        if (memory_queue_depth < queue_depth) {
+            log::warn("reducing queue_depth from %d to %lld to preserve recording memory",
+                queue_depth, static_cast<long long>(memory_queue_depth));
+            queue_depth = static_cast<int>(memory_queue_depth);
+        }
+        const int64_t memory_check_frames = std::min<int64_t>(16, memory_queue_depth);
+        const int64_t memory_stop_threshold = memory_reserve + frame_memory * memory_check_frames;
+        log::info("high-fps queue capacity: %d frames, approximately %.1f MiB; available: %.1f MiB, reserve: %.1f MiB",
+            queue_depth, static_cast<double>(frame_memory * queue_depth) / mib,
+            static_cast<double>(available_memory) / mib, static_cast<double>(memory_reserve) / mib);
+        log::info("capture stops and queued frames are saved when the queue is full or memory is low");
         // Keep camera acquisition independent from VENC/file I/O. The image returned
         // by Camera::read() retains a scarce VIN pool buffer, so copy its pixels into
         // normal heap memory before enqueueing and release the VIN frame immediately.
@@ -716,11 +749,23 @@ int _main(int argc, char* argv[])
         std::atomic<bool> worker_failed(false);
         std::atomic<uint64_t> captured_count(0);
         std::atomic<uint64_t> encoded_count(0);
-        std::atomic<uint64_t> dropped_count(0);
 
         std::thread capture_thread([&]() {
             try {
+                uint64_t preview_accumulator = 0;
                 while (!app::need_exit() && !stop_requested.load()) {
+                    // Check before allocating another batch, with enough headroom
+                    // for the frames captured until the next memory check.
+                    if (captured_count.load() % memory_check_frames == 0) {
+                        const int64_t available = high_fps_available_memory();
+                        if (available < memory_stop_threshold) {
+                            log::warn("stopping capture and saving queued frames: available memory %.1f MiB, threshold %.1f MiB",
+                                available < 0 ? -1.0 : static_cast<double>(available) / mib,
+                                static_cast<double>(memory_stop_threshold) / mib);
+                            stop_requested.store(true);
+                            break;
+                        }
+                    }
                     std::unique_ptr<image::Image> camera_img(cam.read());
                     if (!camera_img) {
                         continue;
@@ -731,18 +776,36 @@ int _main(int argc, char* argv[])
                     camera_img.reset();
                     ++captured_count;
 
+                    // // Sample at 15 fps relative to the configured capture rate,
+                    // // releasing the VIN buffer before potentially blocking display I/O.
+                    // preview_accumulator += preview_fps;
+                    // if (preview_accumulator >= static_cast<uint64_t>(framerate)) {
+                    //     preview_accumulator -= framerate;
+                    //     disp.show(*img);
+                    // }
+
+                    bool queue_full = false;
                     {
                         std::lock_guard<std::mutex> lock(queue_mutex);
-                        // Do not let a slow encoder throttle sensor acquisition. Retain
-                        // the newest frames, and release a discarded frame immediately.
-                        if (image_queue.size() >= static_cast<size_t>(queue_depth)) {
-                            image_queue.pop_front();
-                            ++dropped_count;
-                        }
                         image_queue.emplace_back(std::move(img));
+                        // Retain the frame that fills the queue, then stop acquisition.
+                        // The encoder exits only after capture_done and an empty queue.
+                        queue_full = image_queue.size() >= static_cast<size_t>(queue_depth);
+                        if (queue_full) {
+                            stop_requested.store(true);
+                        }
                     }
                     queue_not_empty.notify_one();
+                    if (queue_full) {
+                        log::info("high-fps queue full: stopping capture and saving queued frames");
+                        break;
+                    }
                 }
+            } catch (const std::bad_alloc &) {
+                // Allocation can still fail between memory checks. Preserve the
+                // queued frames and allow normal encoder/remux finalization.
+                log::warn("capture allocation failed: stopping capture and saving queued frames");
+                stop_requested.store(true);
             } catch (const std::exception &e) {
                 log::error("camera capture thread stopped: %s", e.what());
                 worker_failed.store(true);
@@ -774,8 +837,9 @@ int _main(int argc, char* argv[])
                         img = std::move(image_queue.front());
                         image_queue.pop_front();
                     }
-
+                    uint64_t t = time::ticks_us();
                     std::unique_ptr<video::Frame> frame(encoder->encode(img.get()));
+                    log::info("video encode use %lld us", time::ticks_us() - t);
                     ++encoded_count;
                 }
             } catch (const std::exception &e) {
@@ -798,10 +862,10 @@ int _main(int argc, char* argv[])
             err::check_bool_raise(remux_ret >= 0, "high-fps stream remux failed");
             std::remove(encoder_path.c_str());
         }
-        log::info("high-fps record stopped: captured:%llu encoded:%llu dropped:%llu queue_depth:%d",
+        log::info("high-fps record stopped: captured:%llu encoded:%llu queue_depth:%d",
             static_cast<unsigned long long>(captured_count.load()),
             static_cast<unsigned long long>(encoded_count.load()),
-            static_cast<unsigned long long>(dropped_count.load()), queue_depth);
+            queue_depth);
         break;
     }
     case 5:
