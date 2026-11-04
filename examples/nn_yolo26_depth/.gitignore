@@ -1,0 +1,5 @@
+build
+dist
+.config.mk
+.flash.conf.json
+data

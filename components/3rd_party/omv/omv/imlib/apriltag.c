@@ -11979,7 +11979,12 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
                         det->p[i][1] = p[1];
                     }
 
-                    zarray_add(detections, &det);
+                    // Detections from different quads are decoded in
+                    // parallel, but zarray_add() mutates shared storage.
+                    #pragma omp critical(apriltag_detections_append)
+                    {
+                        zarray_add(detections, &det);
+                    }
                 }
 
                 quad_destroy(quad);
@@ -11993,7 +11998,9 @@ zarray_t *apriltag_detector_detect(apriltag_detector_t *td, image_u8_t *im_orig)
     if (1) {
         zarray_t *poly0 = g2d_polygon_create_zeros(4);
         zarray_t *poly1 = g2d_polygon_create_zeros(4);
-        #pragma omp parallel for
+        // Reconciliation mutates `detections` (including removing entries)
+        // and reuses the polygon scratch arrays, so it is intentionally
+        // serial as well.
         for (int i0 = 0; i0 < zarray_size(detections); i0++) {
 
             apriltag_detection_t *det0;
