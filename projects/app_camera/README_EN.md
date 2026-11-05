@@ -52,7 +52,7 @@ This application is a camera control program developed based on Maix series hard
 2.  **Bitrate Modification:** Bitrate can only be modified when not recording. Attempting to change it during recording will show a "Video Busy" warning and will not take effect.
 3.  **Time-lapse Photography:** Audio is automatically disabled in time-lapse mode. You need to manually re-enable it if you switch back to normal recording.
 4.  **RAW Format:** Enabling RAW format increases file size significantly, and dedicated software is required for viewing/processing.
-5.  **Fill Light:** The default hardware pin for the light is GPIOB3. This can be modified via the device configuration file (`cam_light_io`).
+5.  **Fill Light:** The fill light is controlled by `maix::peripheral::light::Light`. The pin can be changed via `cam_light_io` in the device config file (default: B3 on MaixCam, B25 on MaixCam2). On MaixCam2 the light is driven by PWM, the frequency and duty are read from `/boot/configs` (`maix_light_freq`, default 10000; `maix_light_duty`, default 50). On MaixCam it is driven by GPIO and only on/off is supported.
 6.  **Storage Path:** Files are stored in date-based directories by default. Ensure sufficient storage space is available to prevent save failures.
 7.  **AV Sync:** If audio stutters during recording, check the audio sample rate configuration (default is 48000Hz).
 
@@ -61,7 +61,7 @@ This application is a camera control program developed based on Maix series hard
 ### 5.1 Hardware Compatibility
 *   Supports **MaixCam** and **MaixCam2** platforms.
 *   **MaixCam2** supports higher bitrates (up to 100Mbps) and features AI-ISP.
-*   The fill light pin is configurable via the `cam_light_io` parameter in the device config file (default: B3).
+*   The fill light is controlled by `maix::peripheral::light::Light`. Its pin is configurable via `cam_light_io` (default: B3 on MaixCam, B25 on MaixCam2). On MaixCam2 it is driven by PWM with `maix_light_freq`/`maix_light_duty` from `/boot/configs`; on MaixCam it is driven by GPIO.
 *   The available resolution options are determined by the camera sensor's maximum resolution.
 
 ### 5.2 Storage Details

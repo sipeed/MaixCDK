@@ -46,14 +46,14 @@
 2. 码率修改：仅在非录制状态下可修改码率，录制过程中修改码率会提示「视频忙」且不生效；
 3. 延时摄影：开启延时摄影后，音频会自动关闭，关闭延时摄影后需手动重新开启音频；
 4. RAW格式：开启RAW格式后，照片保存体积会增大，且需要专用软件解析；
-5. 补光灯：补光灯的硬件引脚默认配置为GPIOB3，可通过设备配置文件修改引脚映射；
+5. 补光灯：补光灯由 `maix::peripheral::light::Light` 控制，引脚可通过设备配置文件中的「cam_light_io」修改（MaixCam 默认 B3，MaixCam2 默认 B25）；MaixCam2 使用 PWM 调光，频率和占空比由 `/boot/configs` 中的 `maix_light_freq`（默认 10000）和 `maix_light_duty`（默认 50）决定，MaixCam 使用 GPIO 仅支持开关；
 6. 存储路径：照片/视频默认按日期分目录存储，需确保存储设备有足够空间，否则会保存失败；
 7. 音视频同步：录制视频时，若出现音频卡顿，可检查音频采样率配置（默认48000Hz）。
 
 ## 5. 更多介绍
 ### 5.1 硬件适配
 - 支持MaixCam、MaixCam2两款硬件平台，MaixCam2支持更高码率（最高100Mbps）和AI-ISP功能；
-- 补光灯引脚可通过设备配置文件中的「cam_light_io」参数自定义，默认B3引脚；
+- 补光灯由 `maix::peripheral::light::Light` 控制，引脚可通过设备配置文件中的「cam_light_io」参数自定义（MaixCam 默认 B3，MaixCam2 默认 B25）；MaixCam2 通过 PWM 调光，频率/占空比由 `/boot/configs` 的 `maix_light_freq`/`maix_light_duty` 配置，MaixCam 通过 GPIO 控制；
 - 摄像头传感器最大分辨率决定可选分辨率档位，适配前需确认硬件传感器规格。
 
 ### 5.2 存储说明

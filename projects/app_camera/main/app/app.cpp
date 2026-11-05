@@ -6,8 +6,7 @@
 #include "maix_util.hpp"
 #include "maix_image.hpp"
 #include "maix_app.hpp"
-#include "maix_pinmap.hpp"
-#include "maix_gpio.hpp"
+#include "maix_light.hpp"
 #include "maix_fs.hpp"
 #include "maix_vision.hpp"
 #include "maix_ffmpeg.hpp"
@@ -67,7 +66,7 @@ static struct {
     display::Display *other_disp;
     touchscreen::TouchScreen *touchscreen;
     video::Encoder *encoder;
-    gpio::GPIO *light;
+    maix::peripheral::light::Light *light;
     ffmpeg::FFmpegPacker *ffmpeg_packer;
     audio::Recorder *audio_recorder;
     Region *region;
@@ -347,22 +346,11 @@ int app_base_init(void)
     priv.touchscreen = new touchscreen::TouchScreen();
     err::check_bool_raise(priv.touchscreen->is_opened(), "touchscreen open failed");
 
-    // init light
-    auto device_configs = sys::device_configs();
-    auto light_io = std::string("B3");          // default use GPIOB3
-    auto it = device_configs.find("cam_light_io");
-    if (it != device_configs.end()) {
-        auto new_io = it->second;
-        trim(new_io);
-        if (new_io.size() > 0) {
-            light_io = new_io;
-        }
-    }
-    log::info("light_io: %s", light_io.c_str());
-    pinmap::set_pin_function(light_io, "GPIO" + light_io);
-    priv.light = new gpio::GPIO(light_io, gpio::Mode::OUT);
-    err::check_null_raise(priv.light, "light gpio open failed");
-    priv.light->low();
+    // init fill light
+    // MaixCAM2: PWM dimming, read frequency and duty from /boot/configs(maix_light_freq, maix_light_duty)
+    // MaixCAM : GPIO on/off
+    priv.light = new light::Light();
+    priv.light->off();
 
     // init audio
     priv.audio_recorder = new audio::Recorder();
@@ -410,7 +398,7 @@ int app_base_deinit(void)
     }
 
     if (priv.light) {
-        priv.light->low();
+        priv.light->off();
         delete priv.light;
         priv.light = NULL;
     }
@@ -884,12 +872,12 @@ static int app_config_param(void)
         if (ui_get_light_btn_touched()) {
             log::info("light on");
             if (priv.light) {
-                priv.light->high();
+                priv.light->on();
             }
         } else {
             log::info("light off");
             if (priv.light) {
-                priv.light->low();
+                priv.light->off();
             }
         }
     }

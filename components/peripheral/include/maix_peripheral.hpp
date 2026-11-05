@@ -1,5 +1,6 @@
 #include "maix_adc.hpp"
 #include "maix_gpio.hpp"
+#include "maix_light.hpp"
 #include "maix_i2c.hpp"
 #include "maix_pwm.hpp"
 #include "maix_spi.hpp"
