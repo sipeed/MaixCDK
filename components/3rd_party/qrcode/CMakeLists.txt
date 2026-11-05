@@ -1,4 +1,5 @@
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "CMake policy version for ZXing compatibility")
 set(version_str "2.3.0")
 set(unzip_path "${DL_EXTRACTED_PATH}/zxing-cpp")
 set(src_path "${unzip_path}/zxing-cpp-${version_str}")
