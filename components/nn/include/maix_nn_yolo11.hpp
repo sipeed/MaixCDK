@@ -400,6 +400,7 @@ namespace maix::nn
                         continue;
                     if(_type == YOLO11_Type::DETECT)
                     {
+                        if(item.name.find("dfl") != std::string::npos) { _out_idxes.dfl = i; continue; }
                         if(item.shape[_out_chw ? 1 : 2] == (int)labels.size() && item.shape[_out_chw ? 2 : 1] == _anchor_num)
                             _out_idxes.sigmoid = i;
                         else
