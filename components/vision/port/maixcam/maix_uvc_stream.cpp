@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <glob.h>
 
 #include "maix_uvc_stream.hpp"
 
@@ -54,7 +55,19 @@ void UvcServer::run() {
         maix::log::info("server stopping\r\n");
         system("/etc/init.d/uvc_tool.sh stop_server");
         // std::this_thread::sleep_for(std::chrono::seconds(3));
-        const char* uvc_main_args[] = {"self", "-u", "/dev/video0", "-d", "-i", "/bin/cat_224.jpg"};
+        std::string uvc_dev = "/dev/video0";
+        {
+            glob_t g;
+            if (glob("/sys/class/udc/*/device/gadget/video4linux/video*", 0, nullptr, &g) == 0 && g.gl_pathc > 0) {
+                std::string p(g.gl_pathv[0]);
+                size_t pos = p.rfind("video");
+                if (pos != std::string::npos)
+                    uvc_dev = "/dev/" + p.substr(pos);
+            }
+            globfree(&g);
+        }
+        maix::log::info("uvc video node: %s\r\n", uvc_dev.c_str());
+        const char* uvc_main_args[] = {"self", "-u", uvc_dev.c_str(), "-d", "-i", "/bin/cat_224.jpg"};
         uvc_main(sizeof(uvc_main_args)/sizeof(uvc_main_args[0]), (char**)uvc_main_args);
     }));
 }
