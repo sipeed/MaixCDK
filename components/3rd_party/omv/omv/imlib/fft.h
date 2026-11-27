@@ -17,7 +17,7 @@ typedef struct fft1d_controller {
     float *data;
 } fft1d_controller_t;
 void fft1d_alloc(fft1d_controller_t *controller, uint8_t *buf, int len);
-void fft1d_dealloc();
+void fft1d_dealloc(fft1d_controller_t *controller);
 void fft1d_run(fft1d_controller_t *controller);
 void ifft1d_run(fft1d_controller_t *controller);
 void fft1d_mag(fft1d_controller_t *controller);

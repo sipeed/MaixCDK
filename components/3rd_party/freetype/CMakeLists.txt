@@ -98,7 +98,7 @@ elseif(PLATFORM_LINUX)
 else()
     message(FATAL_ERROR "No freetype toolchain config for this board, please edit to add freetype support for this board")
 endif()
-set(freetype_compile_cmd COMMAND mkdir -p ${freetype_build_dir} && cd ${freetype_build_dir} && SDK_PATH=${SDK_PATH} TOOLCHAIN_PATH=${CONFIG_TOOLCHAIN_PATH} TOOLCHAIN_PREFIX=${CONFIG_TOOLCHAIN_PREFIX} cmake -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_PREFIX_PATH="${CMAKE_BINARY_DIR}/brotli_install/lib/pkgconfig" -DCMAKE_TOOLCHAIN_FILE=${freetype_toolchain_file} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${freetype_install_dir} -DFT_DISABLE_ZLIB=ON -DFT_DISABLE_PNG=ON -DFT_DISABLE_HARFBUZZ=ON -DFT_DISABLE_BZIP2=ON -DFT_DISABLE_BROTLI=ON ${freetype_src_path} && make -j`nproc` install)
+set(freetype_compile_cmd COMMAND mkdir -p ${freetype_build_dir} && cd ${freetype_build_dir} && SDK_PATH=${SDK_PATH} TOOLCHAIN_PATH=${CONFIG_TOOLCHAIN_PATH} TOOLCHAIN_PREFIX=${CONFIG_TOOLCHAIN_PREFIX} cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_PREFIX_PATH="${CMAKE_BINARY_DIR}/brotli_install/lib/pkgconfig" -DCMAKE_TOOLCHAIN_FILE=${freetype_toolchain_file} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${freetype_install_dir} -DFT_DISABLE_ZLIB=ON -DFT_DISABLE_PNG=ON -DFT_DISABLE_HARFBUZZ=ON -DFT_DISABLE_BZIP2=ON -DFT_DISABLE_BROTLI=ON ${freetype_src_path} && make -j`nproc` install)
 
 
 add_custom_command(OUTPUT ${freetype_h_path}
